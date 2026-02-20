@@ -24,18 +24,12 @@ VALUES
   ('sample-set-1', 'CHOICE', '한국의 수도는?', '["서울", "부산", "대구", "인천"]'::jsonb, '서울'),
   ('sample-set-1', 'CHOICE', '태양계에서 가장 큰 행성은?', '["지구", "목성", "토성", "화성"]'::jsonb, '목성'),
   ('sample-set-1', 'CHOICE', '2 + 2는?', '["3", "4", "5", "6"]'::jsonb, '4'),
+  ('sample-set-1', 'CHOICE', '한국의 대통령은?', '["윤석열", "문재인", "박근혜", "이명박"]'::jsonb, '윤석열'),
+  ('sample-set-1', 'CHOICE', '지구의 위성은?', '["화성", "금성", "달", "태양"]'::jsonb, '달'),
   
-  -- OX 문제
+  -- OX 문제 (선택형)
   ('sample-set-1', 'OX', '지구는 둥글다.', '["O", "X"]'::jsonb, 'O'),
-  ('sample-set-1', 'OX', '물은 100도에서 끓는다.', '["O", "X"]'::jsonb, 'O'),
-  
-  -- 주관식 문제
-  ('sample-set-1', 'SHORT', '태양계의 행성 중 가장 큰 행성은?', '[]'::jsonb, '목성'),
-  ('sample-set-1', 'SHORT', '한국의 대통령은?', '[]'::jsonb, '윤석열'),
-  
-  -- 빈칸 문제
-  ('sample-set-1', 'BLANK', '{{blank}}은/는 한국의 수도이다.', '[]'::jsonb, '서울'),
-  ('sample-set-1', 'BLANK', '2 + 2 = {{blank}}', '[]'::jsonb, '4')
+  ('sample-set-1', 'OX', '물은 100도에서 끓는다.', '["O", "X"]'::jsonb, 'O')
 ON CONFLICT DO NOTHING;
 
 -- ============================================

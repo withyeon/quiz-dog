@@ -22,6 +22,10 @@ function GameModeButton({ roomCode, playerId }: { roomCode: string; playerId: st
     ? `/fishing?room=${roomCode}&playerId=${playerId}`
     : gameMode === 'factory'
     ? `/factory?room=${roomCode}&playerId=${playerId}`
+    : gameMode === 'dontlookdown'
+    ? `/dontlookdown?room=${roomCode}&playerId=${playerId}`
+    : gameMode === 'tower'
+    ? `/tower?room=${roomCode}&playerId=${playerId}`
     : `/game?room=${roomCode}&playerId=${playerId}`
   
   return (
@@ -75,6 +79,10 @@ export default function PlayPage() {
         ? `/mafia?room=${roomCode}&playerId=${playerId}`
         : gameMode === 'pool'
         ? `/pool?room=${roomCode}&playerId=${playerId}`
+        : gameMode === 'dontlookdown'
+        ? `/dontlookdown?room=${roomCode}&playerId=${playerId}`
+        : gameMode === 'tower'
+        ? `/tower?room=${roomCode}&playerId=${playerId}`
         : `/game?room=${roomCode}&playerId=${playerId}`
       
       window.location.href = gameUrl

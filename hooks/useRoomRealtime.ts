@@ -38,6 +38,8 @@ export function useRoomRealtime({ roomCode, onRoomUpdate }: UseRoomRealtimeOptio
 
     if (roomCode) {
       loadInitialRoom()
+    } else {
+      setLoading(false)
     }
 
     // Realtime 구독 설정

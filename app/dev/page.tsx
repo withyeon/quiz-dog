@@ -9,7 +9,7 @@ import { CHARACTERS } from '@/lib/utils/characters'
 import type { Database } from '@/types/database.types'
 import Image from 'next/image'
 
-type GameMode = 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower'
+type GameMode = 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown'
 
 const GAME_MODES: { mode: GameMode; name: string; description: string; image: string; emoji: string }[] = [
   {
@@ -67,6 +67,13 @@ const GAME_MODES: { mode: GameMode; name: string; description: string; image: st
     description: '퀴즈를 풀어 타워를 설치하고, 밀려오는 적들을 막아내는 전략 게임!',
     image: '/tower-defense.svg',
     emoji: '🏰',
+  },
+  {
+    mode: 'dontlookdown',
+    name: '⛰️ Don\'t Look Down',
+    description: '파워업을 모으고 장애물을 피하며 6개 Summit을 넘어 정상을 정복하라!',
+    image: '/tower-defense.svg',
+    emoji: '⛰️',
   },
 ]
 
@@ -155,7 +162,9 @@ export default function DevPage() {
                   ? `/mafia?room=${roomCode}&playerId=${playerData.id}`
                   : selectedMode === 'tower'
                     ? `/tower?room=${roomCode}&playerId=${playerData.id}`
-                    : `/game?room=${roomCode}&playerId=${playerData.id}`
+                    : selectedMode === 'dontlookdown'
+                      ? `/dontlookdown?room=${roomCode}&playerId=${playerData.id}`
+                      : `/game?room=${roomCode}&playerId=${playerData.id}`
 
       router.push(gameUrl)
     } catch (error) {

@@ -25,10 +25,20 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
   const [gameOver, setGameOver] = useState(false)
   const [isMovingLeft, setIsMovingLeft] = useState(false)
   const [isMovingRight, setIsMovingRight] = useState(false)
+  const [backgroundStars, setBackgroundStars] = useState<Array<{ left: string; top: string }>>([])
 
   const objectIdRef = useRef(0)
   const gameLoopRef = useRef<NodeJS.Timeout>()
   const spawnTimerRef = useRef<NodeJS.Timeout>()
+
+  // Initialize background stars only on client-side to prevent hydration mismatch
+  useEffect(() => {
+    const stars = Array.from({ length: 20 }, () => ({
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+    }))
+    setBackgroundStars(stars)
+  }, [])
 
   // 플레이어 이동
   useEffect(() => {
@@ -174,13 +184,13 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
     >
       {/* 배경 별 */}
       <div className="absolute inset-0">
-        {[...Array(20)].map((_, i) => (
+        {backgroundStars.map((star, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 bg-white rounded-full"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: star.left,
+              top: star.top,
             }}
             animate={{
               opacity: [0.3, 1, 0.3],
@@ -189,7 +199,7 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
             transition={{
               duration: 2,
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: (i % 10) * 0.2,
             }}
           />
         ))}

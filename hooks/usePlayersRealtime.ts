@@ -30,6 +30,12 @@ export function usePlayersRealtime({
       return
     }
 
+    // roomCode가 없으면 로드하지 않음
+    if (!roomCode) {
+      setLoading(false)
+      return
+    }
+
     // 초기 데이터 로드
     const loadInitialPlayers = async () => {
       try {

@@ -27,6 +27,10 @@ export default function ItemEffectOverlay({
     MINIFY: { icon: '🔍', message: '화면이 축소되었다!', color: 'from-purple-400 to-pink-500' },
     MIGHTY_SHIELD: { icon: '🛡️', message: '강력한 방패! 다음 공격을 막았다!', color: 'from-yellow-400 to-orange-500' },
     BLOOK_FIESTA: { icon: '🎉', message: '블록 피에스타! 화면에 블록이 나타났다!', color: 'from-pink-400 to-purple-500' },
+    INVINCIBLE: { icon: '🌟', message: '무적! 5초간 장애물을 무시한다!', color: 'from-yellow-300 to-yellow-500' },
+    OBSTACLE_SHIELD: { icon: '🛡️', message: '장애물 방패! 다음 장애물을 막았다!', color: 'from-blue-400 to-indigo-500' },
+    LASER_BLAST: { icon: '💥', message: '파괴광선! 앞의 장애물 3개 파괴!', color: 'from-red-500 to-orange-600' },
+    JUMP: { icon: '🦘', message: '점프! 장애물을 뛰어넘었다!', color: 'from-green-400 to-emerald-500' },
   }
 
   const effect = effectMessages[effectType]

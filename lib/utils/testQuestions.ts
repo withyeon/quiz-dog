@@ -22,16 +22,16 @@ export async function createTestQuestions() {
     },
     {
       set_id: 'test-set-1',
-      type: 'SHORT' as const,
+      type: 'CHOICE' as const,
       question_text: '태양계의 행성 중 가장 큰 행성은?',
-      options: [],
+      options: ['지구', '목성', '토성', '화성'],
       answer: '목성',
     },
     {
       set_id: 'test-set-1',
-      type: 'BLANK' as const,
-      question_text: '{{blank}}은/는 한국의 대통령이다.',
-      options: [],
+      type: 'CHOICE' as const,
+      question_text: '한국의 대통령은?',
+      options: ['윤석열', '문재인', '박근혜', '이명박'],
       answer: '윤석열',
     },
   ]
