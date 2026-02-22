@@ -85,10 +85,10 @@ export default function FishingMachine({
 
         {/* --- 바닥에 쌓인 인형들 (장식용) --- */}
         <div className="absolute bottom-0 w-full h-32 flex items-end justify-center gap-2 px-4 flex-wrap opacity-70">
-          {['/fishing/1.svg', '/fishing/4.svg', '/fishing/5.svg', '/fishing/2.svg', '/fishing/8.svg', '/fishing/3.svg', '/fishing/9.svg', '/fishing/6.svg', '/fishing/10.svg', '/fishing/11.svg'].map((src, i) => (
+          {Array(12).fill(0).map((_, i) => (
             <img
               key={i}
-              src={src}
+              src={`/fishing/${(i % 16) + 1}.svg`}
               alt="doll"
               className="w-10 h-10 object-contain animate-bounce"
               style={{ animationDuration: `${(i % 3) + 1}s` }}
