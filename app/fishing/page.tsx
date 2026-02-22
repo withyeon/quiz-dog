@@ -409,13 +409,9 @@ export default function FishingPage() {
             }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <motion.div
-                  animate={{ rotate: [0, 360] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                  className="text-4xl"
-                >
+                <div className="text-4xl">
                   🕹️
-                </motion.div>
+                </div>
                 <div>
                   <h1 className="text-2xl font-bold text-white">두근두근 인형뽑기</h1>
                   <p className="text-xs text-blue-100">방 코드: {roomCode}</p>
