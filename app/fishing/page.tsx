@@ -510,7 +510,11 @@ export default function FishingPage() {
                     ) : (
                       caughtDolls.map((item, idx) => (
                         <div key={idx} className={`aspect-square ${getTierColor(item.tier)} rounded-lg flex flex-col items-center justify-center border-2 border-white/20 relative group`}>
-                          <span className={`text-2xl ${item.color}`}>{item.emoji}</span>
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
+                          ) : (
+                            <span className={`text-2xl ${item.color}`}>{item.emoji}</span>
+                          )}
                           <div className="absolute bottom-full mb-2 hidden group-hover:block bg-black text-xs px-2 py-1 rounded whitespace-nowrap z-50">
                             {item.name} (+{item.score})
                           </div>
@@ -591,8 +595,12 @@ export default function FishingPage() {
 
                     {/* 인형 이미지 */}
                     <div className="flex justify-center mb-6">
-                      <div className="text-8xl bg-white/20 rounded-2xl p-6">
-                        {fishingResult.doll.emoji}
+                      <div className="bg-white/20 rounded-2xl p-6 flex items-center justify-center">
+                        {fishingResult.doll.image ? (
+                          <img src={fishingResult.doll.image} alt={fishingResult.doll.name} className="w-24 h-24 object-contain" />
+                        ) : (
+                          <span className="text-8xl">{fishingResult.doll.emoji}</span>
+                        )}
                       </div>
                     </div>
 
@@ -653,7 +661,11 @@ export default function FishingPage() {
                         ) : (
                           caughtDolls.map((item, idx) => (
                             <div key={idx} className={`aspect-square ${getTierColor(item.tier)} rounded-lg flex flex-col items-center justify-center border-2 border-white/20 relative group`}>
-                              <span className={`text-2xl ${item.color}`}>{item.emoji}</span>
+                              {item.image ? (
+                                <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
+                              ) : (
+                                <span className={`text-2xl ${item.color}`}>{item.emoji}</span>
+                              )}
                               <div className="absolute bottom-full mb-2 hidden group-hover:block bg-black text-xs px-2 py-1 rounded whitespace-nowrap z-50">
                                 {item.name} (+{item.score})
                               </div>

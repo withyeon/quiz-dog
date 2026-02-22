@@ -20,6 +20,7 @@ export interface Doll {
   id: string
   name: string
   emoji: string
+  image?: string // 커스텀 이미지 경로 (없으면 emoji 사용)
   tier: DollTier
   score: number // 실제 획득 점수 (범위 내에서 계산됨)
   minScore: number // 최소 점수
@@ -30,35 +31,35 @@ export interface Doll {
 
 // 인형 데이터 (Fishing Frenzy 방식: 점수 범위와 확률 포함)
 export const DOLL_TYPES: Omit<Doll, 'id' | 'score'>[] = [
-  
+
   // 일반 (Easy One)
-  { name: '하찮은 곰', emoji: '🧸', tier: '일반', minScore: 10, maxScore: 25, color: 'text-amber-600', catchChance: 15 },
-  { name: '오리 인형', emoji: '🦆', tier: '일반', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 15 },
-  { name: '골드 곰', emoji: '🧸', tier: '일반', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 10 },
-  { name: '개구리 인형', emoji: '🐸', tier: '일반', minScore: 50, maxScore: 100, color: 'text-amber-600', catchChance: 15 },
-  
+  { name: '하찮은 곰', emoji: '🧸', image: '/fishing/1.svg', tier: '일반', minScore: 10, maxScore: 25, color: 'text-amber-600', catchChance: 15 },
+  { name: '오리 인형', emoji: '🦆', image: '/fishing/4.svg', tier: '일반', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 15 },
+  { name: '골드 곰', emoji: '🧸', image: '/fishing/2.svg', tier: '일반', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 10 },
+  { name: '개구리 인형', emoji: '🐸', image: '/fishing/5.svg', tier: '일반', minScore: 50, maxScore: 100, color: 'text-amber-600', catchChance: 15 },
+
   // 희귀 (Great Catch)
-  { name: '눈사람 곰', emoji: '🧸', tier: '희귀', minScore: 75, maxScore: 125, color: 'text-blue-500', catchChance: 5 },
-  { name: '거북이 인형', emoji: '🐢', tier: '희귀', minScore: 100, maxScore: 150, color: 'text-blue-500', catchChance: 5 },
-  { name: '고양이 인형', emoji: '🐱', tier: '희귀', minScore: 100, maxScore: 200, color: 'text-blue-500', catchChance: 5 },
-  { name: '로맨틱 개구리', emoji: '🐸', tier: '희귀', minScore: 150, maxScore: 350, color: 'text-blue-500', catchChance: 2 },
-  
+  { name: '눈사람 곰', emoji: '🧸', image: '/fishing/3.svg', tier: '희귀', minScore: 75, maxScore: 125, color: 'text-blue-500', catchChance: 5 },
+  { name: '거북이 인형', emoji: '🐢', image: '/fishing/8.svg', tier: '희귀', minScore: 100, maxScore: 150, color: 'text-blue-500', catchChance: 5 },
+  { name: '고양이 인형', emoji: '🐱', image: '/fishing/9.svg', tier: '희귀', minScore: 100, maxScore: 200, color: 'text-blue-500', catchChance: 5 },
+  { name: '로맨틱 개구리', emoji: '🐸', image: '/fishing/6.svg', tier: '희귀', minScore: 150, maxScore: 350, color: 'text-blue-500', catchChance: 2 },
+
   // 영웅 (Rare Find)
-  { name: '레몬 게', emoji: '🦀', tier: '영웅', minScore: 200, maxScore: 400, color: 'text-purple-600', catchChance: 3 },
-  { name: '도넛 블롭', emoji: '🍩', tier: '영웅', minScore: 250, maxScore: 500, color: 'text-purple-600', catchChance: 2 },
-  { name: '독 개구리', emoji: '🐸', tier: '영웅', minScore: 300, maxScore: 600, color: 'text-purple-600', catchChance: 2 },
-  
+  { name: '레몬 게', emoji: '🦀', image: '/fishing/10.svg', tier: '영웅', minScore: 200, maxScore: 400, color: 'text-purple-600', catchChance: 3 },
+  { name: '도넛 블롭', emoji: '🍩', image: '/fishing/11.svg', tier: '영웅', minScore: 250, maxScore: 500, color: 'text-purple-600', catchChance: 2 },
+  { name: '독 개구리', emoji: '🐸', image: '/fishing/7.svg', tier: '영웅', minScore: 300, maxScore: 600, color: 'text-purple-600', catchChance: 2 },
+
   // 전설 (Epic Grab)
-  { name: '문어 인형', emoji: '🐙', tier: '전설', minScore: 400, maxScore: 800, color: 'text-purple-600', catchChance: 1.5 },
-  { name: '해적 복어', emoji: '🐡', tier: '전설', minScore: 500, maxScore: 1000, color: 'text-purple-600', catchChance: 1 },
-  { name: '진홍 문어', emoji: '🐙', tier: '전설', minScore: 600, maxScore: 1200, color: 'text-purple-600', catchChance: 0.8 },
-  
+  { name: '문어 인형', emoji: '🐙', image: '/fishing/12.svg', tier: '전설', minScore: 400, maxScore: 800, color: 'text-purple-600', catchChance: 1.5 },
+  { name: '해적 복어', emoji: '🐡', image: '/fishing/14.svg', tier: '전설', minScore: 500, maxScore: 1000, color: 'text-purple-600', catchChance: 1 },
+  { name: '진홍 문어', emoji: '🐙', image: '/fishing/13.svg', tier: '전설', minScore: 600, maxScore: 1200, color: 'text-purple-600', catchChance: 0.8 },
+
   // 신화 (Catch of the Day)
-  { name: '메갈로돈', emoji: '🦈', tier: '전설', minScore: 800, maxScore: 1500, color: 'text-yellow-500', catchChance: 0.5 },
-  { name: '일각고래', emoji: '🦄', tier: '전설', minScore: 1000, maxScore: 2000, color: 'text-yellow-500', catchChance: 0.3 },
+  { name: '메갈로돈', emoji: '🦈', image: '/fishing/15.svg', tier: '전설', minScore: 800, maxScore: 1500, color: 'text-yellow-500', catchChance: 0.5 },
+  { name: '일각고래', emoji: '🦄', image: '/fishing/16.svg', tier: '전설', minScore: 1000, maxScore: 2000, color: 'text-yellow-500', catchChance: 0.3 },
   { name: 'UFO 인형', emoji: '🛸', tier: '전설', minScore: 1200, maxScore: 2500, color: 'text-yellow-500', catchChance: 0.2 },
   { name: '무지개 일각고래', emoji: '🦄', tier: '전설', minScore: 1500, maxScore: 3000, color: 'text-yellow-500', catchChance: 0.1 },
-  
+
   // 신비 (Angler's Legend)
   { name: '신비의 외계인', emoji: '👽', tier: '전설', minScore: 2000, maxScore: 5000, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]', catchChance: 0.05 },
 ]
@@ -115,21 +116,21 @@ export function tryFishing(
   // 30초 기준, 빠를수록 1.0에 가까워짐
   const timeBonus = Math.max(0, 30 - answerTime) / 30 // 0 ~ 1
   const speedMultiplier = 0.5 + (timeBonus * 0.5) // 0.5 ~ 1.0 (빠를수록 높음)
-  
+
   // 2. 대성공 이벤트 보정
   const frenzyMultiplier = isFrenzyEvent ? 2.0 : 1.0
-  
+
   // 3. 확률 계산 (기계 업그레이드 레벨 반영)
   const adjustedDolls = DOLL_TYPES.map(doll => ({
     ...doll,
     adjustedChance: doll.catchChance * getRarityMultiplier(machineRank, doll.tier) * frenzyMultiplier,
   }))
-  
+
   // 4. 누적 확률로 인형 선택
   const totalChance = adjustedDolls.reduce((sum, doll) => sum + doll.adjustedChance, 0)
   const random = Math.random() * totalChance
   let cumulativeChance = 0
-  
+
   let selected: typeof DOLL_TYPES[0] | null = null
   for (const doll of adjustedDolls) {
     cumulativeChance += doll.adjustedChance
@@ -138,24 +139,24 @@ export function tryFishing(
       break
     }
   }
-  
+
   // 안전장치: 선택되지 않았으면 가장 흔한 것 선택
   if (!selected) {
     selected = DOLL_TYPES[0]
   }
-  
+
   // 5. 점수 범위 내에서 실제 점수 계산 (속도 보너스 적용)
   const scoreRange = selected.maxScore - selected.minScore
   const baseScore = selected.minScore + (scoreRange * speedMultiplier)
   const finalScore = Math.round(baseScore)
-  
+
   // 6. 무조건 성공 (꽝 제거, 떨어뜨리기 제거)
   const newDoll: Doll = {
     ...selected,
     id: Math.random().toString(),
     score: finalScore,
   }
-  
+
   return {
     success: true,
     doll: newDoll,
