@@ -267,7 +267,9 @@ export default function DontLookDownPage() {
         if (!playerId || !questions[currentQuestionIndex]) return
 
         const currentQuestion = questions[currentQuestionIndex]
-        const isCorrect = answer === currentQuestion.answer
+        const normalizedAnswer = String(answer).trim()
+        const normalizedCorrect = String(currentQuestion.answer).trim()
+        const isCorrect = normalizedAnswer === normalizedCorrect
 
         if (isCorrect) {
             playSFX('correct')

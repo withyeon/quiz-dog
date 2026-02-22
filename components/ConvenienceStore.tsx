@@ -28,6 +28,7 @@ interface ConvenienceStoreProps {
   canInteract: boolean
   quizCorrect?: boolean // 퀴즈 정답 여부
   onProductSelected?: () => void // 상품 선택 완료 콜백
+  showOrderModal?: boolean // 정답 3개마다 부모에서 열어주는 발주 모달
 }
 
 export default function ConvenienceStore({
@@ -39,6 +40,7 @@ export default function ConvenienceStore({
   canInteract,
   quizCorrect = false,
   onProductSelected,
+  showOrderModal = false,
 }: ConvenienceStoreProps) {
   const [cps, setCps] = useState(0)
   const [gameState, setGameState] = useState<'idle' | 'quiz' | 'selection'>('idle')
@@ -121,7 +123,7 @@ export default function ConvenienceStore({
     onQuizStart()
   }
 
-  // 퀴즈 정답 시 상품 선택 모달 표시
+  // 퀴즈 정답 시 상품 선택 모달 표시 (기존: 발주 버튼 → 퀴즈 → 정답 시)
   useEffect(() => {
     if (quizCorrect && gameState === 'quiz') {
       const options = generateProductOptions()
@@ -129,6 +131,20 @@ export default function ConvenienceStore({
       setGameState('selection')
     }
   }, [quizCorrect, gameState])
+
+  // 부모에서 정답 3개마다 열어주는 발주 모달
+  useEffect(() => {
+    if (showOrderModal) {
+      setSelectionOptions(generateProductOptions())
+      setGameState('selection')
+    }
+  }, [showOrderModal])
+
+  useEffect(() => {
+    if (!showOrderModal && gameState === 'selection') {
+      setGameState('idle')
+    }
+  }, [showOrderModal, gameState])
 
   // 상품 배치
   const handlePlaceProduct = (product: Product) => {

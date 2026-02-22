@@ -1,3 +1,5 @@
+// ⚠️ 이 컴포넌트는 선생님 대시보드(teacher/dashboard)의 공장 게임 뷰 전용입니다.
+// 실제 플레이어용 공장/편의점 화면은 ConvenienceStore.tsx를 사용하세요.
 'use client'
 
 import { motion } from 'framer-motion'
@@ -188,9 +190,8 @@ export default function FactoryView({
                   whileHover={{ scale: 1.05, y: -5 }}
                   className={`${getFactoryColor(
                     factory.type
-                  )} rounded-xl p-4 text-white shadow-lg ${
-                    !canBuy ? 'opacity-50' : 'cursor-pointer'
-                  }`}
+                  )} rounded-xl p-4 text-white shadow-lg ${!canBuy ? 'opacity-50' : 'cursor-pointer'
+                    }`}
                   onClick={() => canBuy && handleBuyFactory(factory.type)}
                 >
                   <div className="text-4xl mb-2">{factory.emoji}</div>
@@ -250,11 +251,10 @@ export default function FactoryView({
                     whileTap={canUpgrade ? { scale: 0.95 } : {}}
                     onClick={() => handleUpgradeFactory(factory.id)}
                     disabled={!canUpgrade}
-                    className={`w-full py-2 rounded-lg font-bold text-sm ${
-                      canUpgrade
+                    className={`w-full py-2 rounded-lg font-bold text-sm ${canUpgrade
                         ? 'bg-white text-gray-900 hover:bg-gray-100'
                         : 'bg-white/20 text-white/50 cursor-not-allowed'
-                    }`}
+                      }`}
                   >
                     업그레이드 ({upgradeCost.toLocaleString()}원)
                   </motion.button>
@@ -279,23 +279,21 @@ export default function FactoryView({
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className={`flex items-center justify-between p-4 rounded-lg border-2 ${
-                  player.id === currentPlayerId
+                className={`flex items-center justify-between p-4 rounded-lg border-2 ${player.id === currentPlayerId
                     ? 'border-yellow-500 bg-yellow-50'
                     : 'border-gray-200 bg-gray-50'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                      index === 0
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${index === 0
                         ? 'bg-yellow-500 text-yellow-900'
                         : index === 1
-                        ? 'bg-gray-400 text-white'
-                        : index === 2
-                        ? 'bg-orange-600 text-white'
-                        : 'bg-gray-500 text-white'
-                    }`}
+                          ? 'bg-gray-400 text-white'
+                          : index === 2
+                            ? 'bg-orange-600 text-white'
+                            : 'bg-gray-500 text-white'
+                      }`}
                   >
                     {index + 1}
                   </div>

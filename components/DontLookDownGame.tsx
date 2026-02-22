@@ -440,9 +440,13 @@ export default function DontLookDownGame({
     const handleAnswer = (answer: string) => {
         onAnswerQuestion(answer)
 
-        if (localPlayer && currentQuestion && answer === currentQuestion.answer) {
-            const updatedPlayer = giveEnergy(localPlayer, settings.energyPerQuestion)
-            setLocalPlayer(updatedPlayer)
+        if (localPlayer && currentQuestion) {
+            const normalizedAnswer = String(answer).trim()
+            const normalizedCorrect = String(currentQuestion.answer).trim()
+            if (normalizedAnswer === normalizedCorrect) {
+                const updatedPlayer = giveEnergy(localPlayer, settings.energyPerQuestion)
+                setLocalPlayer(updatedPlayer)
+            }
         }
 
         setShowQuiz(false)

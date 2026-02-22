@@ -90,7 +90,7 @@ export default function ClassSelector({
                     <div className="bg-blue-50 rounded p-2">
                       <div className="text-gray-600">방어력</div>
                       <div className="font-bold text-blue-700">
-                        {(1 - classInfo.defense) * 100}% 감소
+                        {Math.round((1 - classInfo.defense) * 100)}% 감소
                       </div>
                     </div>
                   </div>

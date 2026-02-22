@@ -74,10 +74,91 @@ export type MachineRank = 1 | 2 | 3 | 4 | 5
 export interface FishingResult {
   success: boolean
   doll: Doll | null
+  item: SpecialItem | null  // 아이템 뽑기 시 설정
   points: number
   message: string
   willFail: boolean // 떨어뜨릴지 여부
 }
+
+// ─── 특별 아이템 ───────────────────────────────────────────────
+export type SpecialItemType =
+  | 'DOUBLE_SCORE'    // 다음 인형 점수 2배
+  | 'LUCKY_BOOST'     // 다음 뽑기 희귀도 상승
+  | 'COIN_RAIN'       // 즉시 보너스 점수 지급
+  | 'EXTRA_PULL'      // 즉시 한 번 더 뽑기
+  | 'SHIELD'          // 다음 뽑기 실패 방지 (꽝 방지)
+
+export interface SpecialItem {
+  type: SpecialItemType
+  name: string
+  description: string
+  emoji: string
+  rarity: '일반' | '희귀' | '전설'
+  bonusPoints?: number  // COIN_RAIN 전용
+  catchChance: number   // 발동 확률 (0~100 중 가중치)
+}
+
+export const SPECIAL_ITEMS: SpecialItem[] = [
+  {
+    type: 'COIN_RAIN',
+    name: '동전 소나기',
+    description: '즉시 +150점!',
+    emoji: '🪙',
+    rarity: '일반',
+    bonusPoints: 150,
+    catchChance: 3.5,
+  },
+  {
+    type: 'DOUBLE_SCORE',
+    name: '2배 부스터',
+    description: '다음 인형 점수가 2배!',
+    emoji: '⚡',
+    rarity: '희귀',
+    catchChance: 2.5,
+  },
+  {
+    type: 'LUCKY_BOOST',
+    name: '행운의 별',
+    description: '다음 뽑기에서 희귀 인형 확률 대폭 상승!',
+    emoji: '⭐',
+    rarity: '희귀',
+    catchChance: 1.5,
+  },
+  {
+    type: 'EXTRA_PULL',
+    name: '한 번 더!',
+    description: '즉시 한 번 더 뽑을 수 있어요!',
+    emoji: '🎰',
+    rarity: '전설',
+    catchChance: 0.4,
+  },
+  {
+    type: 'SHIELD',
+    name: '행운의 부적',
+    description: '다음 뽑기에서 절대 꽝이 없어요!',
+    emoji: '🍀',
+    rarity: '전설',
+    catchChance: 0.3,
+  },
+]
+
+/**
+ * 특별 아이템 뽑기 시도 (전체 뽑기의 약 8% 발동)
+ */
+export function trySpecialItem(): SpecialItem | null {
+  // 전체 아이템 발동 확률 약 8.2%
+  const ITEM_TRIGGER_CHANCE = 0.082
+  if (Math.random() > ITEM_TRIGGER_CHANCE) return null
+
+  const total = SPECIAL_ITEMS.reduce((s, i) => s + i.catchChance, 0)
+  let rand = Math.random() * total
+  for (const item of SPECIAL_ITEMS) {
+    rand -= item.catchChance
+    if (rand <= 0) return item
+  }
+  return SPECIAL_ITEMS[0]
+}
+
 
 /**
  * 기계 업그레이드 레벨에 따른 희귀도 확률 보정
@@ -160,6 +241,7 @@ export function tryFishing(
   return {
     success: true,
     doll: newDoll,
+    item: null,
     points: finalScore,
     message: `${newDoll.name} 획득! (+${finalScore}점)`,
     willFail: false,

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import type { BoxEvent } from '@/lib/game/goldQuest'
+import { BOX_EVENT_IMAGE } from '@/lib/game/goldQuest'
 
 interface BoxSelectionProps {
   onBoxSelect: (boxIndex: number) => void
@@ -30,13 +31,11 @@ export default function BoxSelection({
     }
   }, [selectedBox, boxEvent])
 
-  const getBoxIcon = (index: number) => {
+  const getBoxIconSrc = (index: number) => {
     if (!revealedBoxes[index]) return null
     if (selectedBox !== index) return null
-
-    // 선택된 상자의 이벤트에 따른 아이콘
     if (!boxEvent) return null
-    return boxEvent.icon // BoxEvent에 이미 올바른 아이콘이 포함되어 있음
+    return BOX_EVENT_IMAGE[boxEvent.type]
   }
 
   const getBoxColor = (index: number) => {
@@ -81,11 +80,17 @@ export default function BoxSelection({
               } ${getBoxColor(index)}`}
           >
             <div className="text-6xl mb-2 flex items-center justify-center">
-              {getBoxIcon(index) ? (
-                <span>{getBoxIcon(index)}</span>
+              {getBoxIconSrc(index) ? (
+                <Image
+                  src={getBoxIconSrc(index)!}
+                  alt={boxEvent?.itemName ?? '아이템'}
+                  width={64}
+                  height={64}
+                  className="w-16 h-16"
+                />
               ) : (
                 <Image
-                  src="/images/gold-quest/treasure-box.svg"
+                  src="/gold-quest/quest.svg"
                   alt="보물상자"
                   width={64}
                   height={64}

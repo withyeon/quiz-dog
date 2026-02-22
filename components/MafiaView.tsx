@@ -143,6 +143,13 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
     }
   }, [gameLog])
 
+  // 정답 후 액션 선택 화면으로 (클릭 시 즉시 이동)
+  const goToActionSelect = () => {
+    setCurrentView('actionSelect')
+    setSelectedAnswer('')
+    setIsCorrect(false)
+  }
+
   // 정답 제출 처리
   const handleAnswerSubmit = (answer: string) => {
     if (!answer) {
@@ -160,18 +167,16 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
     }
 
     setSelectedAnswer(answer)
-    const correct = answer === currentQuestion.answer
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     if (correct) {
       playSFX('correct')
 
-      // 정답 시 액션 선택 화면으로
-      setTimeout(() => {
-        setCurrentView('actionSelect')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-      }, 1500)
+      // 정답 시 1.5초 후 자동 또는 정답 클릭 시 즉시 액션 선택으로
+      setTimeout(goToActionSelect, 1500)
     } else {
       playSFX('incorrect')
       setCurrentView('wrong')
@@ -322,6 +327,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
               <QuizView
                 question={currentQuestion}
                 onAnswer={handleAnswerSubmit}
+                onCorrectClick={goToActionSelect}
                 timeLimit={30}
               />
             </motion.div>

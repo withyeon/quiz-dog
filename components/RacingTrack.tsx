@@ -1,3 +1,5 @@
+// ⚠️ 이 컴포넌트는 선생님 대시보드(teacher/dashboard)의 레이싱 게임 미리보기 전용입니다.
+// 실제 플레이어용 레이싱 트랙은 SchoolRacingTrack.tsx를 사용하세요.
 'use client'
 
 import { motion } from 'framer-motion'
@@ -98,21 +100,19 @@ export default function RacingTrack({
                 initial={{ x: 0 }}
                 animate={{ x: `${percentage}%` }}
                 transition={{ duration: 0.5, ease: 'easeOut' }}
-                className={`absolute left-0 transform -translate-x-1/2 ${
-                  isCurrentPlayer ? 'z-20' : 'z-10'
-                }`}
+                className={`absolute left-0 transform -translate-x-1/2 ${isCurrentPlayer ? 'z-20' : 'z-10'
+                  }`}
                 style={{
                   top: `${20 + index * 35}px`,
                 }}
               >
-                <div className={`relative ${
-                  isCurrentPlayer ? 'scale-125' : 'scale-100'
-                }`}>
+                <div className={`relative ${isCurrentPlayer ? 'scale-125' : 'scale-100'
+                  }`}>
                   {/* 속도 효과 (뒤쪽 먼지) - 더 역동적으로 */}
                   {percentage > 10 && (
                     <>
                       <motion.div
-                        animate={{ 
+                        animate={{
                           opacity: [0.3, 0.8, 0.3],
                           x: [-10, -20, -10]
                         }}
@@ -122,7 +122,7 @@ export default function RacingTrack({
                         💨
                       </motion.div>
                       <motion.div
-                        animate={{ 
+                        animate={{
                           opacity: [0.2, 0.5, 0.2],
                           x: [-15, -25, -15]
                         }}
@@ -146,62 +146,58 @@ export default function RacingTrack({
                       duration: isFinished ? 0.5 : 1,
                       repeat: isFinished ? 0 : Infinity,
                     }}
-                    className={`relative ${
-                      isCurrentPlayer ? 'drop-shadow-2xl' : 'drop-shadow-lg'
-                    }`}
+                    className={`relative ${isCurrentPlayer ? 'drop-shadow-2xl' : 'drop-shadow-lg'
+                      }`}
                   >
                     {/* 차량 스타일 배경 */}
-                    <div className={`absolute inset-0 rounded-lg ${
-                      isCurrentPlayer 
-                        ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-xl' 
+                    <div className={`absolute inset-0 rounded-lg ${isCurrentPlayer
+                        ? 'bg-gradient-to-br from-yellow-400 to-orange-500 shadow-xl'
                         : 'bg-gradient-to-br from-gray-400 to-gray-600'
-                    } transform -skew-x-12 -translate-x-2 -translate-y-1 opacity-80`} 
-                    style={{ width: '60px', height: '40px' }}
+                      } transform -skew-x-12 -translate-x-2 -translate-y-1 opacity-80`}
+                      style={{ width: '60px', height: '40px' }}
                     />
-                    
+
                     {/* 아바타 */}
-                    <div className={`relative text-4xl ${
-                      isCurrentPlayer ? 'filter brightness-110' : ''
-                    }`}>
+                    <div className={`relative text-4xl ${isCurrentPlayer ? 'filter brightness-110' : ''
+                      }`}>
                       {player.avatar || '🐕'}
                     </div>
 
-                  {/* 번개 효과 (속도 부스트 시) - 더 화려하게 */}
-                  {isCurrentPlayer && percentage > 20 && (
-                    <>
-                      <motion.div
-                        animate={{ 
-                          rotate: [0, 360],
-                          scale: [1, 1.3, 1]
-                        }}
-                        transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
-                        className="absolute -top-2 -right-2 text-xl z-10"
-                      >
-                        ⚡
-                      </motion.div>
-                      <motion.div
-                        animate={{ 
-                          opacity: [0.5, 1, 0.5],
-                          scale: [1, 1.5, 1]
-                        }}
-                        transition={{ duration: 0.6, repeat: Infinity }}
-                        className="absolute -top-4 -right-4 text-2xl z-0"
-                      >
-                        ✨
-                      </motion.div>
-                    </>
-                  )}
+                    {/* 번개 효과 (속도 부스트 시) - 더 화려하게 */}
+                    {isCurrentPlayer && percentage > 20 && (
+                      <>
+                        <motion.div
+                          animate={{
+                            rotate: [0, 360],
+                            scale: [1, 1.3, 1]
+                          }}
+                          transition={{ duration: 0.8, repeat: Infinity, ease: 'linear' }}
+                          className="absolute -top-2 -right-2 text-xl z-10"
+                        >
+                          ⚡
+                        </motion.div>
+                        <motion.div
+                          animate={{
+                            opacity: [0.5, 1, 0.5],
+                            scale: [1, 1.5, 1]
+                          }}
+                          transition={{ duration: 0.6, repeat: Infinity }}
+                          className="absolute -top-4 -right-4 text-2xl z-0"
+                        >
+                          ✨
+                        </motion.div>
+                      </>
+                    )}
                   </motion.div>
 
                   {/* 닉네임 플래그 */}
                   <motion.div
                     animate={{ y: [0, -2, 0] }}
                     transition={{ duration: 1.5, repeat: Infinity }}
-                    className={`absolute -top-10 left-1/2 transform -translate-x-1/2 whitespace-nowrap ${
-                      isCurrentPlayer 
-                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xl border-2 border-white' 
+                    className={`absolute -top-10 left-1/2 transform -translate-x-1/2 whitespace-nowrap ${isCurrentPlayer
+                        ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xl border-2 border-white'
                         : 'bg-white/95 text-gray-800 px-2 py-1 rounded-md text-xs font-semibold shadow-md border border-gray-300'
-                    }`}
+                      }`}
                   >
                     {player.nickname}
                     {isCurrentPlayer && (

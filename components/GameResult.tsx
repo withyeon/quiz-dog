@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import { Trophy, Medal, Award, BarChart3, Target, Clock } from 'lucide-react'
 import AnimatedBackground from './AnimatedBackground'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -154,7 +155,14 @@ export default function GameResult({
                           <div className="text-4xl font-bold text-gray-900">
                             {player.score}점
                           </div>
-                          <div className="text-xl text-yellow-600 font-bold">💰 {player.gold} Gold</div>
+                          <div className="text-xl text-yellow-600 font-bold flex items-center gap-1.5">
+                            {gameMode === 'gold_quest' ? (
+                              <Image src="/gold-quest/gold-stack.svg" alt="골드" width={24} height={24} className="w-6 h-6" />
+                            ) : (
+                              <span>💰</span>
+                            )}
+                            {player.gold} Gold
+                          </div>
                         </>
                       )}
                     </motion.div>
@@ -208,7 +216,14 @@ export default function GameResult({
                         ) : (
                           <>
                             <div className="font-bold text-gray-800">{player.score}점</div>
-                            <div className="text-sm text-yellow-600">💰 {player.gold}</div>
+                            <div className="text-sm text-yellow-600 flex items-center gap-1">
+                              {gameMode === 'gold_quest' ? (
+                                <Image src="/gold-quest/gold-stack.svg" alt="골드" width={16} height={16} className="w-4 h-4" />
+                              ) : (
+                                <span>💰</span>
+                              )}
+                              {player.gold}
+                            </div>
                           </>
                         )}
                       </div>
@@ -248,8 +263,13 @@ export default function GameResult({
                   </div>
                   <div className="p-4 bg-yellow-50 rounded-lg">
                     <div className="text-sm text-gray-600 mb-1">내 Gold</div>
-                    <div className="text-3xl font-bold text-yellow-600">
-                      💰 {currentPlayer?.gold || 0}
+                    <div className="text-3xl font-bold text-yellow-600 flex items-center gap-2">
+                      {gameMode === 'gold_quest' ? (
+                        <Image src="/gold-quest/gold-stack.svg" alt="골드" width={28} height={28} className="w-7 h-7" />
+                      ) : (
+                        <span>💰</span>
+                      )}
+                      {currentPlayer?.gold || 0}
                     </div>
                   </div>
                 </div>

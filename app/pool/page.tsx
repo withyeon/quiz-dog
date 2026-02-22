@@ -256,6 +256,13 @@ export default function PoolPage() {
     }
   }
 
+  // 정답 후 포켓볼 화면으로 (클릭 시 즉시 이동)
+  const goToPoolView = () => {
+    setCurrentView('pool')
+    setCanShoot(true)
+    setBallPosition({ x: 0.5, y: 0.5, vx: 0, vy: 0 })
+  }
+
   // 답안 제출 처리
   const handleAnswerSubmit = (answer: string) => {
     if (!currentQuestion) return
@@ -274,7 +281,9 @@ export default function PoolPage() {
     }
 
     setSelectedAnswer(answer)
-    const correct = answer === currentQuestion.answer
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     const timeSpent = Date.now() - questionStartTime.current
@@ -283,13 +292,8 @@ export default function PoolPage() {
     if (correct) {
       playSFX('correct')
 
-      // 정답: 포켓볼 화면으로
-      setTimeout(() => {
-        setCurrentView('pool')
-        setCanShoot(true)
-        // 공을 중앙으로 초기화
-        setBallPosition({ x: 0.5, y: 0.5, vx: 0, vy: 0 })
-      }, 1500)
+      // 정답: 1.5초 후 자동 또는 정답 클릭 시 즉시 포켓볼 화면으로
+      setTimeout(goToPoolView, 1500)
     } else {
       setConsecutiveStreak(0)
       playSFX('incorrect')
@@ -426,13 +430,9 @@ export default function PoolPage() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <motion.div
-                animate={{ rotate: [0, 360] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                className="text-4xl"
-              >
+              <div className="text-4xl">
                 🎱
-              </motion.div>
+              </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">포켓볼 게임</h1>
                 <p className="text-sm text-green-200">방 코드: {roomCode}</p>
@@ -467,7 +467,12 @@ export default function PoolPage() {
           )}
 
           {currentView === 'quiz' && currentQuestion && (
-            <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} timeLimit={30} />
+            <QuizView
+              question={currentQuestion}
+              onAnswer={handleAnswerSubmit}
+              onCorrectClick={goToPoolView}
+              timeLimit={30}
+            />
           )}
 
           {currentView === 'pool' && (

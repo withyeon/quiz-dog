@@ -22,6 +22,7 @@ export default function TeacherDashboard() {
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
   const [gameMode, setGameMode] = useState<'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'dontlookdown'>('gold_quest')
+  const [factoryDurationMinutes, setFactoryDurationMinutes] = useState(5) // 편의점 게임 제한 시간(분)
 
   const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
   const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
@@ -135,10 +136,17 @@ export default function TeacherDashboard() {
         }
       }
 
-      // 방 상태를 playing으로 변경
+      // 방 상태를 playing으로 변경 (편의점일 때 제한 시간·시작 시각 저장)
+      const updatePayload: Record<string, unknown> = {
+        status: 'playing',
+      }
+      if (gameMode === 'factory') {
+        updatePayload.duration_seconds = factoryDurationMinutes * 60
+        updatePayload.started_at = new Date().toISOString()
+      }
       const { error: updateError } = await ((supabase
         .from('rooms') as any)
-        .update({ status: 'playing' })
+        .update(updatePayload)
         .eq('room_code', roomCode))
 
       if (updateError) throw updateError
@@ -361,6 +369,29 @@ export default function TeacherDashboard() {
 
         {roomCode ? (
           <div className="space-y-4">
+            {/* 편의점: 게임 시간 설정 */}
+            {gameMode === 'factory' && (
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                <label className="block text-lg font-semibold text-amber-800 mb-2">⏱️ 게임 시간 (몇 분 후 자동 종료)</label>
+                <div className="flex flex-wrap gap-3">
+                  {[3, 5, 7, 10].map((minutes) => (
+                    <button
+                      key={minutes}
+                      onClick={() => setFactoryDurationMinutes(minutes)}
+                      className={`px-4 py-2 rounded-lg font-bold border-2 transition-all ${
+                        factoryDurationMinutes === minutes
+                          ? 'border-amber-500 bg-amber-200 text-amber-900'
+                          : 'border-amber-200 bg-white text-amber-800 hover:border-amber-400'
+                      }`}
+                    >
+                      {minutes}분
+                    </button>
+                  ))}
+                </div>
+                <p className="text-sm text-amber-700 mt-2">시간이 되면 자동 종료되고, 돈 많은 순으로 순위가 정해져요.</p>
+              </div>
+            )}
+
             {/* 현재 방 코드 표시 - 깔끔한 디자인 */}
             <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-8 text-center shadow-md">
               <p className="text-blue-100 text-sm mb-3 font-medium">게임 참가 코드</p>

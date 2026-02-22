@@ -12,6 +12,8 @@ interface PlayerSelectorProps {
   title: string
   description: string
   icon: string
+  /** 뺏기/훔치기일 때 선택 가능한 상대가 없을 때 안내 문구 */
+  emptyMessage?: string
 }
 
 export default function PlayerSelector({
@@ -21,16 +23,18 @@ export default function PlayerSelector({
   title,
   description,
   icon,
+  emptyMessage = '선택할 수 있는 플레이어가 없습니다.',
 }: PlayerSelectorProps) {
-  // 현재 플레이어 제외하고 정렬 (점수 높은 순)
+  // 전달된 players는 이미 자기 제외·조건 필터된 목록
   const otherPlayers = players
     .filter((p) => p.id !== currentPlayerId)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
 
   if (otherPlayers.length === 0) {
     return (
       <div className="bg-yellow-50 rounded-xl p-8 text-center border-2 border-yellow-300">
-        <p className="text-gray-700">선택할 수 있는 플레이어가 없습니다.</p>
+        <p className="text-gray-700">{emptyMessage}</p>
+        <p className="text-sm text-gray-500 mt-2">잠시 후 다음 문제로 넘어갑니다.</p>
       </div>
     )
   }

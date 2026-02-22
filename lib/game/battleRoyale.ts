@@ -285,12 +285,13 @@ export function getSurvivors(
 
 /**
  * 승자 확인 (1명만 남았는지)
+ * 참가자가 2명 이상일 때만 승자 인정 (혼자 dev 테스트 시 바로 결과 화면 뜨는 것 방지)
  */
 export function checkWinner(
   players: Array<{ id: string; health?: number }>
 ): string | null {
   const survivors = getSurvivors(players)
-  if (survivors.length === 1) {
+  if (survivors.length === 1 && players.length >= 2) {
     return survivors[0].id
   }
   return null
@@ -298,9 +299,13 @@ export function checkWinner(
 
 /**
  * 게임 종료 조건 확인
+ * 전원 탈락이거나, 참가자 2명 이상 중 1명만 남았을 때만 종료
  */
 export function isGameOver(
   players: Array<{ id: string; health?: number }>
 ): boolean {
-  return getSurvivors(players).length <= 1
+  const survivors = getSurvivors(players)
+  if (survivors.length === 0) return true
+  if (survivors.length === 1 && players.length >= 2) return true
+  return false
 }

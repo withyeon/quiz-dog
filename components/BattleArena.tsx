@@ -95,13 +95,7 @@ export default function BattleArena({
       {/* 제목 */}
       <div className="relative z-10 text-center mb-4">
         <h2 className="text-2xl font-bold text-white mb-1 flex items-center justify-center gap-2">
-          <motion.span
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-            className="text-3xl"
-          >
-            ❄️
-          </motion.span>
+          <span className="text-3xl">❄️</span>
           배틀 아레나
         </h2>
         <p className="text-blue-200 text-xs">
@@ -139,25 +133,25 @@ export default function BattleArena({
                 transition={{ delay: index * 0.05 }}
                 whileHover={canAttack && isAlive && !isCurrentPlayer ? { scale: 1.02, x: 4 } : {}}
                 className={`bg-white/10 backdrop-blur-sm rounded-lg p-3 border-2 transition-all ${isCurrentPlayer
-                    ? 'border-yellow-400 shadow-lg shadow-yellow-400/30'
-                    : isAlive
-                      ? canAttack
-                        ? 'border-blue-300 hover:border-green-400 cursor-pointer hover:bg-white/20'
-                        : 'border-white/30'
-                      : 'border-gray-500 opacity-40'
+                  ? 'border-yellow-400 shadow-lg shadow-yellow-400/30'
+                  : isAlive
+                    ? canAttack
+                      ? 'border-blue-300 hover:border-green-400 cursor-pointer hover:bg-white/20'
+                      : 'border-white/30'
+                    : 'border-gray-500 opacity-40'
                   } ${isAttacked ? 'ring-2 ring-red-400 animate-pulse' : ''} ${!isAlive ? 'grayscale' : ''}`}
               >
                 <div className="flex items-center gap-3">
                   {/* 순위 배지 */}
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${index === 0 && isAlive
-                      ? 'bg-yellow-400 text-yellow-900'
-                      : index === 1 && isAlive
-                        ? 'bg-gray-300 text-gray-800'
-                        : index === 2 && isAlive
-                          ? 'bg-amber-700 text-amber-100'
-                          : isAlive
-                            ? 'bg-white/20 text-white'
-                            : 'bg-gray-600 text-gray-300'
+                    ? 'bg-yellow-400 text-yellow-900'
+                    : index === 1 && isAlive
+                      ? 'bg-gray-300 text-gray-800'
+                      : index === 2 && isAlive
+                        ? 'bg-amber-700 text-amber-100'
+                        : isAlive
+                          ? 'bg-white/20 text-white'
+                          : 'bg-gray-600 text-gray-300'
                     }`}>
                     {!isAlive ? '⛄' : index + 1}
                   </div>
@@ -226,8 +220,8 @@ export default function BattleArena({
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10 }}
                         className={`mt-1 text-center font-bold text-xs ${attackResult.isCritical
-                            ? 'text-yellow-300'
-                            : 'text-red-300'
+                          ? 'text-yellow-300'
+                          : 'text-red-300'
                           }`}
                       >
                         {attackResult.isCritical ? '💥 크리티컬! ' : '❄️ '} -{attackResult.damage}°C

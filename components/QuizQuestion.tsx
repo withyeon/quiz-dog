@@ -104,6 +104,7 @@ export default function QuizQuestion({
               className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <button
+              type="button"
               onClick={() => handleAnswerSelect(selectedAnswer.trim())}
               disabled={isAnswered || !selectedAnswer.trim()}
               className="mt-3 w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
@@ -134,6 +135,7 @@ export default function QuizQuestion({
               </p>
             </div>
             <button
+              type="button"
               onClick={() => handleAnswerSelect(selectedAnswer.trim())}
               disabled={isAnswered || !selectedAnswer.trim()}
               className="w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"

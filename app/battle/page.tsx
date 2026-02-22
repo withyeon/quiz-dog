@@ -268,6 +268,13 @@ export default function BattlePage() {
     }
   }, [players, room?.status, playSFX])
 
+  // 정답 후 다음 문제로 (클릭 시 즉시 이동)
+  const goToNextQuiz = () => {
+    setCurrentView('quiz')
+    setSelectedAnswer('')
+    setIsCorrect(false)
+  }
+
   // 답안 제출
   const handleAnswerSubmit = async (answer: string) => {
     if (!currentPlayer || !roomCode || !playerId || !currentQuestion) return
@@ -276,7 +283,9 @@ export default function BattlePage() {
     const time = Date.now() - questionStartTime.current
     setAnswerTime(time)
 
-    const correct = answer === currentQuestion.answer
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     if (correct) {
@@ -308,12 +317,8 @@ export default function BattlePage() {
         }
       }
 
-      // 다음 문제로 (플레이어 선택 대기)
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-      }, 1500)
+      // 다음 문제로 (1.5초 후 자동 또는 정답 클릭 시 즉시)
+      setTimeout(goToNextQuiz, 1500)
     } else {
       playSFX('incorrect')
       setCurrentView('wrong')
@@ -471,13 +476,9 @@ export default function BattlePage() {
 
               <div className="relative flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <motion.div
-                    animate={{ rotate: [0, 360] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                    className="text-4xl"
-                  >
+                  <div className="text-4xl">
                     ❄️
-                  </motion.div>
+                  </div>
                   <div>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                       눈싸움 대작전
@@ -634,6 +635,7 @@ export default function BattlePage() {
                   <QuizView
                     question={currentQuestion}
                     onAnswer={handleAnswerSubmit}
+                    onCorrectClick={goToNextQuiz}
                     timeLimit={30}
                   />
                 ) : (

@@ -163,6 +163,29 @@ export default function GamePage() {
     }
   }, [room?.status, currentView, showCountdown, playBGM])
 
+  // 뺏기(엘프/마법사)인데 뺏을 상대가 없으면 2초 후 다음 문제로
+  const selectableForSteal = pendingEvent && (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD')
+    ? players.filter((p) => p.id !== playerId && (p.gold ?? 0) > 0)
+    : []
+  useEffect(() => {
+    if (currentView !== 'playerSelect' || !pendingEvent || pendingEvent.type === 'KING') return
+    if (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD') {
+      if (selectableForSteal.length === 0) {
+        const t = setTimeout(() => {
+          setCurrentView('quiz')
+          setSelectedChest(null)
+          setBoxEvent(null)
+          setPendingEvent(null)
+          setSelectedAnswer('')
+          setIsCorrect(false)
+          setCurrentQuestionIndex((prev) => prev + 1)
+          setIsProcessingReward(false)
+        }, 2000)
+        return () => clearTimeout(t)
+      }
+    }
+  }, [currentView, pendingEvent, selectableForSteal.length])
+
   // 카운트다운 완료 후 게임 시작
   const handleCountdownComplete = () => {
     setShowCountdown(false)
@@ -171,6 +194,14 @@ export default function GamePage() {
     setSelectedAnswer('')
     setIsCorrect(false)
     playBGM('game')
+  }
+
+  // 정답 후 상자 선택 화면으로 이동 (제출 후 자동/클릭 공용)
+  const goToChestView = () => {
+    setCurrentView('chest')
+    setSelectedChest(null)
+    setBoxEvent(null)
+    setIsProcessingReward(false)
   }
 
   // 답안 제출 처리
@@ -190,14 +221,15 @@ export default function GamePage() {
 
     setSelectedAnswer(answer)
     if (!currentQuestion) return
-    const correct = answer === currentQuestion.answer
+    // DB가 숫자로 올 수 있으므로 문자열로 통일 후 비교
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     // 사운드 효과
     if (correct) {
       playSFX('correct')
-      // 정답 파티클 효과 제거
-
       // 연속 정답 카운트 증가
       const newConsecutive = consecutiveCorrect + 1
       setConsecutiveCorrect(newConsecutive)
@@ -208,13 +240,8 @@ export default function GamePage() {
         playSFX('item')
       }
 
-      // 정답: 상자 선택 화면으로
-      setTimeout(() => {
-        setCurrentView('chest')
-        setSelectedChest(null)
-        setBoxEvent(null)
-        setIsProcessingReward(false) // 상자 선택 화면으로 갈 때 초기화
-      }, 1500)
+      // 정답: 상자 선택 화면으로 (1.5초 후 자동 이동)
+      setTimeout(goToChestView, 1500)
     } else {
       // 오답 시 연속 정답 카운트 리셋
       setConsecutiveCorrect(0)
@@ -438,9 +465,9 @@ export default function GamePage() {
               <motion.div
                 animate={{ rotate: [0, 10, -10, 0] }}
                 transition={{ duration: 2, repeat: Infinity }}
-                className="text-4xl"
+                className="flex items-center justify-center"
               >
-                💰
+                <Image src="/gold-quest/gold-stack.svg" alt="골드" width={36} height={36} className="w-9 h-9" />
               </motion.div>
               <div>
                 <Image
@@ -472,8 +499,9 @@ export default function GamePage() {
                     </motion.span>
                   )}
                 </div>
-                <div className="text-sm text-yellow-300 font-semibold">
-                  💰 {currentPlayer.gold} Gold | {currentPlayer.score}점
+                <div className="text-sm text-yellow-300 font-semibold flex items-center gap-1.5">
+                  <Image src="/gold-quest/gold-stack.svg" alt="골드" width={18} height={18} className="w-[18px] h-[18px]" />
+                  {currentPlayer.gold} Gold | {currentPlayer.score}점
                 </div>
               </motion.div>
             )}
@@ -523,7 +551,12 @@ export default function GamePage() {
           )}
 
           {currentView === 'quiz' && currentQuestion && (
-            <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} timeLimit={30} />
+            <QuizView
+              question={currentQuestion}
+              onAnswer={handleAnswerSubmit}
+              onCorrectClick={goToChestView}
+              timeLimit={30}
+            />
           )}
 
           {currentView === 'chest' && (
@@ -537,30 +570,45 @@ export default function GamePage() {
           )}
 
           {currentView === 'playerSelect' && pendingEvent && (
-            <PlayerSelector
-              players={players.filter((p) => {
-                // King은 모든 플레이어, Elf/Wizard는 골드가 있는 플레이어만
-                if (pendingEvent.type === 'KING') return true
-                return p.gold > 0
-              })}
-              currentPlayerId={playerId || ''}
-              onSelect={handlePlayerSelect}
-              title={
-                pendingEvent.type === 'KING'
-                  ? '골드 교환'
-                  : pendingEvent.type === 'ELF'
-                    ? '골드 훔치기 (10%)'
-                    : '골드 훔치기 (25%)'
-              }
-              description={
-                pendingEvent.type === 'KING'
-                  ? '누구와 골드를 교환할까요?'
-                  : pendingEvent.type === 'ELF'
-                    ? '누구에게서 골드 10%를 훔칠까요?'
-                    : '누구에게서 골드 25%를 훔칠까요?'
-              }
-              icon={pendingEvent.icon || '⚔️'}
-            />
+            <>
+              {/* 선택 완료 후 결과 메시지 (뺏기/교환 적용됨) */}
+              {boxEvent?.targetPlayerId ? (
+                <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-xl shadow-2xl p-8 max-w-3xl mx-auto border-4 border-amber-400 text-center">
+                  <p className="text-xl font-bold text-gray-900 mb-2">{boxEvent.message}</p>
+                  <p className="text-sm text-gray-600">잠시 후 다음 문제로 넘어갑니다.</p>
+                </div>
+              ) : (
+                <PlayerSelector
+                  players={players.filter((p) => {
+                    if (p.id === playerId) return false // 자기 자신 제외
+                    if (pendingEvent.type === 'KING') return true
+                    return (p.gold ?? 0) > 0 // Elf/Wizard: 골드 있는 상대만
+                  })}
+                  currentPlayerId={playerId || ''}
+                  onSelect={handlePlayerSelect}
+                  title={
+                    pendingEvent.type === 'KING'
+                      ? '골드 교환'
+                      : pendingEvent.type === 'ELF'
+                        ? '엘프: 골드 10% 뺏기'
+                        : '마법사: 골드 25% 뺏기'
+                  }
+                  description={
+                    pendingEvent.type === 'KING'
+                      ? '누구와 골드를 교환할까요?'
+                      : pendingEvent.type === 'ELF'
+                        ? '뺏을 상대를 골라주세요!'
+                        : '뺏을 상대를 골라주세요!'
+                  }
+                  icon={pendingEvent.icon || '⚔️'}
+                  emptyMessage={
+                    pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD'
+                      ? '골드가 있는 상대가 없어요.'
+                      : undefined
+                  }
+                />
+              )}
+            </>
           )}
 
           {currentView === 'wrong' && (
@@ -608,7 +656,10 @@ export default function GamePage() {
         {/* 플레이어 순위 (결과 화면이 아닐 때만 표시) */}
         {currentView !== 'result' && (
           <div className="bg-gradient-to-br from-yellow-50 to-amber-100 rounded-lg shadow-lg p-6 border-2 border-yellow-300">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900">💰 골드 순위</h2>
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 flex items-center gap-2">
+              <Image src="/gold-quest/gold-stack.svg" alt="골드" width={28} height={28} className="w-7 h-7" />
+              골드 순위
+            </h2>
             <div className="space-y-2">
               {players
                 .sort((a, b) => b.score - a.score)
@@ -648,7 +699,10 @@ export default function GamePage() {
                       </div>
                       <div className="text-right">
                         <div className="font-bold text-gray-800">{player.score}점</div>
-                        <div className="text-sm text-yellow-600">💰 {player.gold} Gold</div>
+                        <div className="text-sm text-yellow-600 flex items-center gap-1.5">
+                          <Image src="/gold-quest/gold-stack.svg" alt="골드" width={16} height={16} className="w-4 h-4" />
+                          {player.gold} Gold
+                        </div>
                       </div>
                     </div>
                   )

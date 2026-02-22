@@ -22,6 +22,19 @@ export interface BoxEvent {
   icon: string // 이모지 아이콘
 }
 
+/** public/gold-quest 이미지 파일명 (이벤트 타입별) */
+export const BOX_EVENT_IMAGE: Record<BoxEventType, string> = {
+  GOLD_STACK: '/gold-quest/gold-stack.svg',
+  JESTER: '/gold-quest/jester.svg',
+  UNICORN: '/gold-quest/unicorn.svg',
+  SLIME_MONSTER: '/gold-quest/slime.svg',
+  DRAGON: '/gold-quest/dragon.svg',
+  KING: '/gold-quest/king.svg',
+  ELF: '/gold-quest/elf.svg',
+  WIZARD: '/gold-quest/wizard.svg',
+  FAIRY: '/gold-quest/fairy.svg',
+}
+
 /**
  * Blooket Gold Quest 스타일 상자 이벤트 생성
  * @param currentGold 현재 플레이어의 Gold
@@ -60,7 +73,7 @@ export function generateBoxEvent(
     return {
       type: 'GOLD_STACK',
       value: 10,
-      message: `골드 스택 발견! +10 골드 💰`,
+      message: '골드 스택 발견! +10 골드',
       itemName: '골드 스택',
       icon: '💰',
     }
@@ -71,7 +84,7 @@ export function generateBoxEvent(
     return {
       type: 'GOLD_STACK',
       value: 20,
-      message: `골드 스택 발견! +20 골드 💰`,
+      message: '골드 스택 발견! +20 골드',
       itemName: '골드 스택',
       icon: '💰',
     }
@@ -82,7 +95,7 @@ export function generateBoxEvent(
     return {
       type: 'GOLD_STACK',
       value: 30,
-      message: `골드 스택 발견! +30 골드 💰`,
+      message: '골드 스택 발견! +30 골드',
       itemName: '골드 스택',
       icon: '💰',
     }
@@ -93,7 +106,7 @@ export function generateBoxEvent(
     return {
       type: 'GOLD_STACK',
       value: 40,
-      message: `골드 스택 발견! +40 골드 💰`,
+      message: '골드 스택 발견! +40 골드',
       itemName: '골드 스택',
       icon: '💰',
     }
@@ -104,7 +117,7 @@ export function generateBoxEvent(
     return {
       type: 'GOLD_STACK',
       value: 50,
-      message: `골드 스택 발견! +50 골드 💰`,
+      message: '골드 스택 발견! +50 골드',
       itemName: '골드 스택',
       icon: '💰',
     }
@@ -115,7 +128,7 @@ export function generateBoxEvent(
     return {
       type: 'GOLD_STACK',
       value: 100,
-      message: `골드 스택 발견! +100 골드 💰`,
+      message: '골드 스택 발견! +100 골드',
       itemName: '골드 스택',
       icon: '💰',
     }

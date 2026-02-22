@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
@@ -44,6 +45,8 @@ export default function FactoryPage() {
   const [isQuizMode, setIsQuizMode] = useState(false)
   const [questions, setQuestions] = useState<Question[]>([])
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0) // Blooket: 3문제마다 유닛 획득
+  const [showOrderModal, setShowOrderModal] = useState(false) // 정답 3개마다 발주 모달
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null) // 제한 시간 남은 초
 
   const questionStartTime = useRef<number>(0)
 
@@ -95,9 +98,18 @@ export default function FactoryPage() {
   // 현재 플레이어 정보
   const currentPlayer = players.find((p) => p.id === playerId) as Player | undefined
 
-  // 문제 데이터 가져오기
+  // 문제 데이터 가져오기 (로드 후 한 번 셔플하여 랜덤 순서)
   useEffect(() => {
     if (!room?.set_id) return
+
+    const shuffle = <T,>(arr: T[]): T[] => {
+      const a = [...arr]
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]]
+      }
+      return a
+    }
 
     const fetchQuestions = async () => {
       try {
@@ -108,7 +120,7 @@ export default function FactoryPage() {
 
         if (error) throw error
 
-        setQuestions(data as Question[])
+        setQuestions(shuffle((data ?? []) as Question[]))
       } catch (error) {
         console.error('Error fetching questions:', error)
       }
@@ -117,6 +129,7 @@ export default function FactoryPage() {
     fetchQuestions()
   }, [room?.set_id])
 
+  // 무한 반복: 인덱스는 나머지로 사용, 다음 문제는 랜덤 선택
   const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
 
   // 저장된 데이터 불러오기
@@ -200,12 +213,27 @@ export default function FactoryPage() {
     questionStartTime.current = Date.now()
   }
 
+  // 다음 문제: 랜덤 인덱스로 무한 반복
+  const pickRandomQuestionIndex = () => Math.floor(Math.random() * Math.max(1, questions.length))
+
+  // 정답 후 다음 문제로 (3의 배수 아닐 때 클릭 시 즉시 이동)
+  const goToNextQuiz = () => {
+    setIsQuizMode(true)
+    setCurrentView('quiz')
+    setCurrentQuestionIndex(() => pickRandomQuestionIndex())
+    setSelectedAnswer('')
+    setIsCorrect(false)
+    questionStartTime.current = Date.now()
+  }
+
   // 정답 제출
   const handleAnswerSubmit = async (answer: string) => {
     if (!currentPlayer || !roomCode || !playerId || !currentQuestion) return
 
     setSelectedAnswer(answer)
-    const correct = answer === currentQuestion.answer
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     if (correct) {
@@ -215,25 +243,15 @@ export default function FactoryPage() {
       const newCorrectCount = correctAnswersCount + 1
       setCorrectAnswersCount(newCorrectCount)
 
-      // 3문제마다 상품 선택 
+      // 3문제마다 발주(상품 선택) 모달 표시
       if (newCorrectCount % 3 === 0) {
-        // 화면 효과
         setShowFlash(true)
         setTimeout(() => setShowFlash(false), 300)
         playSFX('item')
-
-        // 상품 선택은 ConvenienceStore 컴포넌트에서 처리
-        // setIsCorrect가 true가 되면 자동으로 상품 선택 모달이 뜸
+        setShowOrderModal(true) // 발주 모달 열기
       } else {
-        // 3의 배수가 아니면 다음 문제로
-        setTimeout(() => {
-          setIsQuizMode(true)
-          setCurrentView('quiz')
-          setCurrentQuestionIndex((prev) => prev + 1)
-          setSelectedAnswer('')
-          setIsCorrect(false)
-          questionStartTime.current = Date.now()
-        }, 1000)
+        // 3의 배수가 아니면 1초 후 자동 또는 정답 클릭 시 즉시
+        setTimeout(goToNextQuiz, 1000)
       }
     } else {
       playSFX('incorrect')
@@ -242,7 +260,7 @@ export default function FactoryPage() {
       setTimeout(() => {
         setCurrentView('quiz')
         setIsQuizMode(true)
-        setCurrentQuestionIndex((prev) => prev + 1)
+        setCurrentQuestionIndex(() => pickRandomQuestionIndex())
         setSelectedAnswer('')
         setIsCorrect(false)
         questionStartTime.current = Date.now()
@@ -250,33 +268,48 @@ export default function FactoryPage() {
     }
   }
 
-  // 상품 선택 완료 후 다음 문제로
+  // 상품 선택(발주) 완료 후 모달 닫고 다음 문제로 (랜덤)
   const handleProductSelected = () => {
+    setShowOrderModal(false)
     setIsQuizMode(true)
     setCurrentView('quiz')
-    setCurrentQuestionIndex((prev) => prev + 1)
+    setCurrentQuestionIndex(() => pickRandomQuestionIndex())
     setSelectedAnswer('')
     setIsCorrect(false)
     questionStartTime.current = Date.now()
   }
 
-  // 게임 종료 확인
+  // 편의점: 선생님이 설정한 제한 시간이 되면 자동 종료 (돈 많은 순 순위)
+  const durationSeconds = (room as { duration_seconds?: number } | null)?.duration_seconds ?? null
+  const startedAt = (room as { started_at?: string | null } | null)?.started_at ?? null
+
   useEffect(() => {
-    if (currentQuestionIndex >= questions.length && questions.length > 0 && currentView === 'quiz') {
-      if (room && room.status !== 'finished') {
+    if (room?.status !== 'playing' || durationSeconds == null || !startedAt) {
+      setRemainingSeconds(null)
+      return
+    }
+    const started = new Date(startedAt).getTime()
+    const tick = () => {
+      const elapsed = (Date.now() - started) / 1000
+      const remaining = Math.max(0, Math.ceil(durationSeconds - elapsed))
+      setRemainingSeconds(remaining)
+      if (remaining <= 0) {
         ; (async () => {
           try {
             await ((supabase
               .from('rooms') as any)
               .update({ status: 'finished' })
-              .eq('room_code', roomCode) as any)
-          } catch (error) {
-            console.error('Error finishing game:', error)
+              .eq('room_code', roomCode))
+          } catch (e) {
+            console.error('편의점 시간 종료 업데이트 실패:', e)
           }
         })()
       }
     }
-  }, [currentQuestionIndex, currentView, room, roomCode, questions.length])
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [room?.status, roomCode, durationSeconds, startedAt])
 
   // 게임 종료 감지
   useEffect(() => {
@@ -314,13 +347,9 @@ export default function FactoryPage() {
           <div className="bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-xl p-4 shadow-2xl border-4 border-yellow-500">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <motion.div
-                  animate={{ rotate: [0, 360] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                  className="text-4xl"
-                >
-                  🏭
-                </motion.div>
+                <div className="relative w-16 h-16 flex-shrink-0">
+                  <Image src="/store/store.svg" alt="편의점" fill className="object-contain" />
+                </div>
                 <div>
                   <h1 className="text-2xl font-bold text-white">전설의 편의점</h1>
                   <p className="text-xs text-yellow-300">방 코드: {roomCode}</p>
@@ -328,6 +357,15 @@ export default function FactoryPage() {
               </div>
 
               <div className="flex items-center gap-3">
+                {/* 남은 시간 (선생님이 설정한 제한 시간) */}
+                {remainingSeconds != null && (
+                  <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-amber-500">
+                    <div className="text-xs text-amber-300 font-semibold mb-1">남은 시간</div>
+                    <div className="text-2xl font-bold text-white text-center tabular-nums">
+                      {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
+                    </div>
+                  </div>
+                )}
                 {/* 정답 카운터 */}
                 <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-blue-500">
                   <div className="text-xs text-blue-300 font-semibold mb-1">
@@ -387,6 +425,7 @@ export default function FactoryPage() {
               <QuizView
                 question={currentQuestion}
                 onAnswer={handleAnswerSubmit}
+                onCorrectClick={goToNextQuiz}
                 timeLimit={30}
               />
 
@@ -400,6 +439,7 @@ export default function FactoryPage() {
                 canInteract={!isQuizMode}
                 quizCorrect={isCorrect && currentView === 'quiz'}
                 onProductSelected={handleProductSelected}
+                showOrderModal={showOrderModal}
               />
             </div>
           )}

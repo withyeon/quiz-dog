@@ -170,6 +170,14 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
     }
   }, [status, currentView, customers.length, addCustomer])
 
+  // 정답 후 카페 화면으로 (클릭 시 즉시 이동)
+  const goToCafeView = () => {
+    setCurrentView('cafe')
+    setSelectedAnswer('')
+    setIsCorrect(false)
+    questionStartTime.current = Date.now()
+  }
+
   // 퀴즈 정답 제출
   const handleAnswerSubmit = (answer: string) => {
     if (!answer) {
@@ -187,7 +195,9 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
     }
 
     setSelectedAnswer(answer)
-    const correct = answer === currentQuestion.answer
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     if (correct) {
@@ -202,13 +212,8 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
         restockMenu(randomMenu)
       }
 
-      // 카페 화면으로 이동
-      setTimeout(() => {
-        setCurrentView('cafe')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        questionStartTime.current = Date.now()
-      }, 1500)
+      // 카페 화면으로 1.5초 후 자동 또는 정답 클릭 시 즉시
+      setTimeout(goToCafeView, 1500)
     } else {
       playSFX('incorrect')
       setCurrentView('wrong')
@@ -326,6 +331,7 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
             <QuizView
               question={currentQuestion}
               onAnswer={handleAnswerSubmit}
+              onCorrectClick={goToCafeView}
               timeLimit={30}
             />
           </div>

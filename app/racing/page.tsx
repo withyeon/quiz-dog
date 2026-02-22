@@ -196,6 +196,15 @@ export default function RacingPage() {
     }
   }, [showCountdown])
 
+  // 정답 후 다음 퀴즈로 (아이템 없을 때 클릭 시 즉시 이동)
+  const goToNextQuiz = () => {
+    setCurrentView('quiz')
+    setCurrentQuestionIndex((prev) => prev + 1)
+    setSelectedAnswer('')
+    setIsCorrect(false)
+    questionStartTime.current = Date.now()
+  }
+
   // 정답 제출
   const handleAnswerSubmit = async (answer: string) => {
     if (!currentPlayer || !roomCode || !currentQuestion) return
@@ -204,7 +213,9 @@ export default function RacingPage() {
     setAnswerTime(timeElapsed)
     setSelectedAnswer(answer)
 
-    const correct = answer === currentQuestion.answer
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     if (correct) {
@@ -259,15 +270,8 @@ export default function RacingPage() {
           setCurrentView('item')
           // 아이템 화면은 useEffect에서 5초 후 자동으로 다음 문제로 넘어감
         } else {
-          // 아이템 없으면 바로 다음 문제로
-
-          setTimeout(() => {
-            setCurrentView('quiz')
-            setCurrentQuestionIndex((prev) => prev + 1)
-            setSelectedAnswer('')
-            setIsCorrect(false)
-            questionStartTime.current = Date.now()
-          }, 1000)
+          // 아이템 없으면 1초 후 자동 또는 정답 클릭 시 즉시
+          setTimeout(goToNextQuiz, 1000)
         }
       } catch (error) {
         console.error('Error updating position:', error)
@@ -564,13 +568,9 @@ export default function RacingPage() {
 
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <motion.div
-                  animate={{ rotate: [0, 360] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                  className="text-4xl"
-                >
+                <div className="text-4xl">
                   🏃
-                </motion.div>
+                </div>
                 <div>
                   <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                     미션: 등교 임파서블
@@ -772,6 +772,7 @@ export default function RacingPage() {
                 <QuizView
                   question={currentQuestion}
                   onAnswer={handleAnswerSubmit}
+                  onCorrectClick={goToNextQuiz}
                   timeLimit={30}
                 />
               ) : (

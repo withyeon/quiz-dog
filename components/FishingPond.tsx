@@ -1,3 +1,5 @@
+// ⚠️ 이 컴포넌트는 선생님 대시보드(teacher/dashboard)의 인형뽑기 게임 현황 표시 전용입니다.
+// 실제 플레이어용 인형뽑기 기계는 FishingMachine.tsx를 사용하세요.
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
@@ -75,25 +77,23 @@ export default function FishingPond({
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
-              className={`bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border-2 ${
-                isCurrentPlayer
+              className={`bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border-2 ${isCurrentPlayer
                   ? 'border-yellow-500 shadow-yellow-500/50 scale-105'
                   : 'border-gray-300'
-              }`}
+                }`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {/* 순위 */}
                   <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${
-                      index === 0
+                    className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${index === 0
                         ? 'bg-yellow-500'
                         : index === 1
-                        ? 'bg-gray-400'
-                        : index === 2
-                        ? 'bg-orange-600'
-                        : 'bg-gray-500'
-                    }`}
+                          ? 'bg-gray-400'
+                          : index === 2
+                            ? 'bg-orange-600'
+                            : 'bg-gray-500'
+                      }`}
                   >
                     {index + 1}
                   </div>

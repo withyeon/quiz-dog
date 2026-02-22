@@ -109,6 +109,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               autoFocus
             />
             <MotionButton
+              type="button"
               onClick={() => handleAnswerSelect(selectedAnswer.trim())}
               disabled={!selectedAnswer.trim()}
               whileHover={selectedAnswer.trim() ? { scale: 1.02 } : {}}
@@ -150,6 +151,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               </p>
             </div>
             <MotionButton
+              type="button"
               onClick={() => handleAnswerSelect(selectedAnswer.trim())}
               disabled={!selectedAnswer.trim()}
               whileHover={selectedAnswer.trim() ? { scale: 1.02 } : {}}

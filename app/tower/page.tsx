@@ -177,12 +177,20 @@ export default function TowerPage() {
         playSFX('click')
     }, [selectedTowerType, gold, towers, playSFX])
 
+    // 정답 후 플레이 화면으로 (클릭 시 즉시 이동)
+    const goToPlaying = () => {
+        setCurrentView('playing')
+        setCurrentQuestionIndex(prev => prev + 1)
+    }
+
     // 퀴즈 답변 제출
     const handleAnswerSubmit = async (answer: string) => {
         if (!currentQuestion) return
 
         const timeElapsed = (Date.now() - questionStartTime.current) / 1000
-        const correct = answer === currentQuestion.answer
+        const normalizedAnswer = String(answer).trim()
+        const normalizedCorrect = String(currentQuestion.answer).trim()
+        const correct = normalizedAnswer === normalizedCorrect
 
         if (correct) {
             playSFX('correct')
@@ -193,11 +201,8 @@ export default function TowerPage() {
             setGold(prev => prev + goldReward)
             setTotalGoldEarned(prev => prev + goldReward)
 
-            // 골드 획득 애니메이션 후 게임으로 돌아가기
-            setTimeout(() => {
-                setCurrentView('playing')
-                setCurrentQuestionIndex(prev => prev + 1)
-            }, 1500)
+            // 골드 획득 애니메이션 후 1.5초 자동 또는 정답 클릭 시 즉시
+            setTimeout(goToPlaying, 1500)
         } else {
             playSFX('incorrect')
             setConsecutiveCorrect(0)
@@ -205,10 +210,7 @@ export default function TowerPage() {
             // 오답 패널티: HP 감소
             setHp(prev => Math.max(0, prev - 5))
 
-            setTimeout(() => {
-                setCurrentView('playing')
-                setCurrentQuestionIndex(prev => prev + 1)
-            }, 2000)
+            setTimeout(goToPlaying, 2000)
         }
     }
 
@@ -650,6 +652,7 @@ export default function TowerPage() {
                         <QuizView
                             question={currentQuestion}
                             onAnswer={handleAnswerSubmit}
+                            onCorrectClick={goToPlaying}
                             timeLimit={30}
                         />
                     </div>

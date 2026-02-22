@@ -13,10 +13,13 @@ import Countdown from '@/components/Countdown'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import {
   tryFishing,
+  trySpecialItem,
   checkFrenzyEvent,
   type Doll,
   type FishingState,
   type MachineRank,
+  type SpecialItem,
+  type SpecialItemType,
   getTierColor,
   getTierName,
   calculateTotalPoints,
@@ -65,6 +68,10 @@ export default function FishingPage() {
   const [savedAnswerTime, setSavedAnswerTime] = useState<number>(30) // 저장된 정답 시간
   const [isClawReady, setIsClawReady] = useState(false) // 인형뽑기 준비 상태
   const [questions, setQuestions] = useState<Question[]>([])
+  // 아이템 관련 state
+  const [activeItems, setActiveItems] = useState<SpecialItemType[]>([])  // 현재 적용중인 아이템 효과
+  const [pendingItem, setPendingItem] = useState<SpecialItem | null>(null) // 방금 뽑은 아이템 (모달용)
+  const [showItemModal, setShowItemModal] = useState(false)
 
   const questionStartTime = useRef<number>(0)
 
@@ -202,7 +209,9 @@ export default function FishingPage() {
     if (!currentPlayer || !roomCode || !playerId || !currentQuestion) return
 
     setSelectedAnswer(answer)
-    const correct = answer === currentQuestion.answer
+    const normalizedAnswer = String(answer).trim()
+    const normalizedCorrect = String(currentQuestion.answer).trim()
+    const correct = normalizedAnswer === normalizedCorrect
     setIsCorrect(correct)
 
     if (correct) {
@@ -227,9 +236,44 @@ export default function FishingPage() {
       const newCorrectAnswers = correctAnswers + 1
       setCorrectAnswers(newCorrectAnswers)
 
-      // 바로 인형뽑기 실행
+      // 바로 인형뽑기 실행 - 아이템 먼저 체크
       const newMachineRank = getMachineRank(newCorrectAnswers)
-      const result = tryFishing(answerTime, newMachineRank, frenzyActive)
+
+      // 아이템 뽑기 시도 (약 8% 확률)
+      const specialItem = trySpecialItem()
+      if (specialItem) {
+        // 즉시 효과 아이템 처리
+        if (specialItem.type === 'COIN_RAIN') {
+          // 즉시 점수 지급
+          const bonus = specialItem.bonusPoints ?? 150
+          try {
+            const { data: pd } = await (supabase.from('players') as any).select('score').eq('id', playerId).single()
+            await (supabase.from('players') as any).update({ score: (pd?.score || 0) + bonus }).eq('id', playerId)
+          } catch (e) { console.error(e) }
+        } else if (specialItem.type === 'EXTRA_PULL') {
+          // 한 번 더는 나중에 처리 (아이템 모달 닫은 후)
+        } else {
+          // 버프 아이템: activeItems에 추가
+          setActiveItems(prev => [...prev, specialItem.type])
+        }
+        setPendingItem(specialItem)
+        setShowItemModal(true)
+        playSFX('item')
+        // 아이템 모달이 닫히면 인형뽑기 진행 (handleItemModalClose에서)
+        return
+      }
+
+      // 아이템 없으면 바로 인형뽑기
+      const isLuckyBoosted = activeItems.includes('LUCKY_BOOST')
+      const result = tryFishing(answerTime, isLuckyBoosted ? Math.min(5, newMachineRank + 2) as MachineRank : newMachineRank, frenzyActive)
+      const isDoubled = activeItems.includes('DOUBLE_SCORE')
+      if (isDoubled && result.doll) {
+        result.doll.score = result.doll.score * 2
+        result.points = result.doll.score
+        result.message = `${result.doll.name} 획득! 2배! (+${result.doll.score}점)`
+        setActiveItems(prev => prev.filter(t => t !== 'DOUBLE_SCORE'))
+      }
+      if (isLuckyBoosted) setActiveItems(prev => prev.filter(t => t !== 'LUCKY_BOOST'))
       setFishingResult(result)
       setCaughtItem(result.doll)
 
@@ -328,6 +372,35 @@ export default function FishingPage() {
         }, 1500)
       }, 500)
     }, 1500)
+  }
+
+  // 아이템 모달 닫기 → 인형뽑기 진행
+  const handleItemModalClose = () => {
+    setShowItemModal(false)
+    const item = pendingItem
+    setPendingItem(null)
+
+    if (!item) return
+
+    if (item.type === 'EXTRA_PULL') {
+      // 한 번 더: 바로 인형뽑기 추가 실행
+      const isLucky = activeItems.includes('LUCKY_BOOST')
+      const result = tryFishing(savedAnswerTime, isLucky ? Math.min(5, machineRank + 2) as MachineRank : machineRank, isFrenzyEvent)
+      if (isLucky) setActiveItems(prev => prev.filter(t => t !== 'LUCKY_BOOST'))
+      setFishingResult(result)
+      setCaughtItem(result.doll)
+      setCurrentView('claw')
+      setFishingState('down')
+      setIsClawReady(false)
+      runFishingSequence(result, correctAnswers)
+    } else {
+      // 버프 아이템: 다음 문제로 (인형 뽑기는 다음 정답 시)
+      setCurrentView('quiz')
+      setCurrentQuestionIndex(prev => prev + 1)
+      setSelectedAnswer('')
+      setIsCorrect(false)
+      questionStartTime.current = Date.now()
+    }
   }
 
   // 결과 카드 클릭 시 다음 문제로
@@ -443,6 +516,31 @@ export default function FishingPage() {
                       </div>
                     </div>
                   </motion.div>
+                )}
+
+                {/* 활성 아이템 버프 표시 */}
+                {activeItems.length > 0 && (
+                  <div className="flex gap-1">
+                    {activeItems.map((type, i) => {
+                      const icons: Record<string, string> = {
+                        DOUBLE_SCORE: '⚡',
+                        LUCKY_BOOST: '⭐',
+                        SHIELD: '🍀',
+                      }
+                      return (
+                        <motion.div
+                          key={i}
+                          initial={{ scale: 0 }}
+                          animate={{ scale: [1, 1.15, 1] }}
+                          transition={{ duration: 1, repeat: Infinity }}
+                          className="bg-indigo-600 border-2 border-indigo-300 rounded-lg px-2 py-1 text-lg"
+                          title={type}
+                        >
+                          {icons[type] ?? '🎁'}
+                        </motion.div>
+                      )
+                    })}
+                  </div>
                 )}
 
                 <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-pink-500">
@@ -729,6 +827,67 @@ export default function FishingPage() {
               <p className="text-gray-300">다음 문제로 넘어갑니다...</p>
             </motion.div>
           )}
+
+          {/* 🎁 특별 아이템 획득 모달 */}
+          <AnimatePresence>
+            {showItemModal && pendingItem && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                onClick={handleItemModalClose}
+              >
+                <motion.div
+                  initial={{ scale: 0.5, rotate: -10 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                  className="bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 rounded-3xl p-8 max-w-sm w-full text-center border-4 border-purple-400 shadow-2xl shadow-purple-500/50"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {/* 배경 파티클 효과 */}
+                  <motion.div
+                    animate={{ opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="absolute inset-0 rounded-3xl bg-gradient-to-r from-yellow-500/20 via-pink-500/20 to-purple-500/20"
+                  />
+
+                  <div className="relative z-10">
+                    {/* 희귀도 배지 */}
+                    <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-4 ${pendingItem.rarity === '전설' ? 'bg-yellow-500 text-yellow-900' :
+                        pendingItem.rarity === '희귀' ? 'bg-blue-500 text-white' :
+                          'bg-gray-500 text-white'
+                      }`}>
+                      {pendingItem.rarity} 아이템
+                    </div>
+
+                    {/* 아이템 이모지 */}
+                    <motion.div
+                      animate={{ y: [0, -12, 0], scale: [1, 1.1, 1] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="text-8xl mb-4"
+                    >
+                      {pendingItem.emoji}
+                    </motion.div>
+
+                    <h2 className="text-2xl font-black text-white mb-2">{pendingItem.name}</h2>
+                    <p className="text-purple-200 text-sm mb-6">{pendingItem.description}</p>
+
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={handleItemModalClose}
+                      className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl font-black text-white text-lg shadow-xl border-2 border-white/30"
+                    >
+                      {pendingItem.type === 'EXTRA_PULL' ? '🎰 바로 뽑기!' :
+                        pendingItem.type === 'COIN_RAIN' ? '🪙 받았어요!' : '✅ 확인!'}
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* 결과 */}
           {currentView === 'result' && (

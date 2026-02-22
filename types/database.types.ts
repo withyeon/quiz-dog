@@ -116,6 +116,8 @@ export interface Database {
           current_q_index: number
           game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown'
           set_id?: string | null
+          duration_seconds?: number | null
+          started_at?: string | null
           created_at: string
           updated_at: string
         }
@@ -125,6 +127,8 @@ export interface Database {
           current_q_index?: number
           game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown'
           set_id?: string | null
+          duration_seconds?: number | null
+          started_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -134,6 +138,8 @@ export interface Database {
           current_q_index?: number
           game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown'
           set_id?: string | null
+          duration_seconds?: number | null
+          started_at?: string | null
           created_at?: string
           updated_at?: string
         }
