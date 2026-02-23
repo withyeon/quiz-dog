@@ -18,6 +18,16 @@ interface GameData {
 
 const games: GameData[] = [
     {
+        name: '타워 디펜스',
+        emoji: '🏰',
+        videoSrc: '/main/mp4/tower-defense.mov',
+        imageSrc: '/tower-defense.svg',
+        keywords: ['🏰 타워 설치', '⚔️ 적 격파', '🧠 전략 배치', '🛡️ 라운드 방어'],
+        description: '퀴즈를 맞추고 타워를 세워 적을 막아내세요! 전략적으로 배치해 최후까지 버티세요.',
+        accentColor: '#6366f1',
+        tagColor: 'rgba(99,102,241,0.15)',
+    },
+    {
         name: '해적왕의 보물찾기',
         emoji: '🏴‍☠️',
         videoSrc: '/videos/gold-quest.mp4',
@@ -164,7 +174,7 @@ export default function GameShowcase() {
                             animate="center"
                             exit="exit"
                             transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
-                            className="grid md:grid-cols-2 gap-6 items-center"
+                            className="grid md:grid-cols-[1.35fr_1fr] gap-6 items-center"
                             drag="x"
                             dragConstraints={{ left: 0, right: 0 }}
                             dragElastic={0.1}
@@ -176,13 +186,12 @@ export default function GameShowcase() {
                         >
                             {/* LEFT: Video / Image */}
                             <div
-                                className="relative rounded-3xl overflow-hidden aspect-video select-none"
+                                className="toss-card texture-grain relative rounded-3xl overflow-hidden aspect-video min-h-[220px] md:min-h-[280px] select-none transition-shadow duration-300"
                                 style={{
-                                    background: 'rgba(255,255,255,0.4)',
+                                    background: 'rgba(255,255,255,0.55)',
                                     backdropFilter: 'blur(20px)',
                                     WebkitBackdropFilter: 'blur(20px)',
-                                    border: '1px solid rgba(255,255,255,0.85)',
-                                    boxShadow: '0 12px 48px rgba(14,165,233,0.15), inset 0 1px 0 rgba(255,255,255,1)',
+                                    border: '1px solid rgba(255,255,255,0.9)',
                                 }}
                             >
                                 <VideoOrImage game={game} />
@@ -193,12 +202,12 @@ export default function GameShowcase() {
                                 />
                                 {/* Game name badge */}
                                 <div
-                                    className="absolute bottom-4 left-4 flex items-center gap-2 px-4 py-2 rounded-full"
+                                    className="toss-depth-plastic absolute bottom-4 left-4 flex items-center gap-2 px-4 py-2 rounded-full"
                                     style={{
-                                        background: 'rgba(255,255,255,0.65)',
+                                        background: 'rgba(255,255,255,0.75)',
                                         backdropFilter: 'blur(12px)',
                                         WebkitBackdropFilter: 'blur(12px)',
-                                        border: '1px solid rgba(255,255,255,0.9)',
+                                        border: '1px solid rgba(255,255,255,0.95)',
                                     }}
                                 >
                                     <span className="text-xl">{game.emoji}</span>
@@ -229,14 +238,13 @@ export default function GameShowcase() {
                                             initial={{ opacity: 0, scale: 0.85 }}
                                             animate={{ opacity: 1, scale: 1 }}
                                             transition={{ duration: 0.3 }}
-                                            className="px-4 py-2 rounded-2xl text-sm font-bold"
+                                            className="toss-depth-plastic texture-grain relative px-4 py-2 rounded-2xl text-sm font-bold"
                                             style={{
                                                 background: game.tagColor,
-                                                border: `1px solid ${game.accentColor}35`,
+                                                border: `1px solid ${game.accentColor}30`,
                                                 color: game.accentColor,
                                                 backdropFilter: 'blur(8px)',
                                                 WebkitBackdropFilter: 'blur(8px)',
-                                                boxShadow: `0 2px 12px ${game.accentColor}20`,
                                             }}
                                         >
                                             {kw}
@@ -266,26 +274,24 @@ export default function GameShowcase() {
                     {/* Arrow buttons */}
                     <button
                         onClick={() => go(-1)}
-                        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 md:-translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+                        className="toss-depth-plastic absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 md:-translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
                         style={{
-                            background: 'rgba(255,255,255,0.7)',
+                            background: 'rgba(255,255,255,0.8)',
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255,255,255,0.9)',
-                            boxShadow: '0 4px 20px rgba(14,165,233,0.15)',
+                            border: '1px solid rgba(255,255,255,0.95)',
                         }}
                     >
                         <ChevronLeft className="w-5 h-5 text-sky-600" />
                     </button>
                     <button
                         onClick={() => go(1)}
-                        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 md:translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
+                        className="toss-depth-plastic absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 md:translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
                         style={{
-                            background: 'rgba(255,255,255,0.7)',
+                            background: 'rgba(255,255,255,0.8)',
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
-                            border: '1px solid rgba(255,255,255,0.9)',
-                            boxShadow: '0 4px 20px rgba(14,165,233,0.15)',
+                            border: '1px solid rgba(255,255,255,0.95)',
                         }}
                     >
                         <ChevronRight className="w-5 h-5 text-sky-600" />

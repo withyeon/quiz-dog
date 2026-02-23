@@ -53,61 +53,47 @@ export default function LandingPage() {
 
   return (
     <div
-      className="min-h-screen relative overflow-hidden"
+      className="min-h-screen relative overflow-hidden font-[var(--font-noto-sans-kr)]"
       style={{
-        background: 'linear-gradient(160deg, #dbeafe 0%, #bae6fd 25%, #e0f2fe 50%, #cffafe 75%, #eff6ff 100%)',
+        background: 'linear-gradient(165deg, #f0f9ff 0%, #e0f2fe 30%, #f0f9ff 60%, #e0f2fe 100%)',
       }}
     >
       {/* Background ambient orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Top-left big orb */}
+        {/* 토스 스타일: 부드러운 앰비언트 오브 */}
         <motion.div
           className="absolute rounded-full"
           style={{
-            width: 600, height: 600,
-            top: -180, left: -180,
-            background: 'radial-gradient(circle, rgba(125,211,252,0.55) 0%, rgba(56,189,248,0.2) 50%, transparent 70%)',
+            width: 500, height: 500,
+            top: -120, left: -120,
+            background: 'radial-gradient(circle, rgba(186,230,253,0.35) 0%, rgba(56,189,248,0.08) 50%, transparent 70%)',
             filter: 'blur(60px)',
           }}
-          animate={{ x: [0, 70, 0], y: [0, 40, 0] }}
-          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ x: [0, 40, 0], y: [0, 30, 0] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {/* Bottom-right orb */}
         <motion.div
           className="absolute rounded-full"
           style={{
-            width: 700, height: 700,
-            bottom: -220, right: -220,
-            background: 'radial-gradient(circle, rgba(147,197,253,0.5) 0%, rgba(186,230,253,0.2) 50%, transparent 70%)',
-            filter: 'blur(80px)',
+            width: 550, height: 550,
+            bottom: -160, right: -160,
+            background: 'radial-gradient(circle, rgba(147,197,253,0.3) 0%, rgba(186,230,253,0.06) 50%, transparent 70%)',
+            filter: 'blur(70px)',
           }}
-          animate={{ x: [0, -60, 0], y: [0, -50, 0] }}
-          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ x: [0, -40, 0], y: [0, -30, 0] }}
+          transition={{ duration: 24, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {/* Center mid orb */}
         <motion.div
           className="absolute rounded-full"
           style={{
-            width: 450, height: 450,
-            top: '38%', left: '50%',
+            width: 380, height: 380,
+            top: '40%', left: '50%',
             transform: 'translate(-50%, -50%)',
-            background: 'radial-gradient(circle, rgba(186,230,253,0.6) 0%, transparent 70%)',
+            background: 'radial-gradient(circle, rgba(186,230,253,0.25) 0%, transparent 70%)',
             filter: 'blur(50px)',
           }}
-          animate={{ scale: [1, 1.25, 1] }}
-          transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        {/* Top-right small accent */}
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            width: 280, height: 280,
-            top: '15%', right: '10%',
-            background: 'radial-gradient(circle, rgba(103,232,249,0.4) 0%, transparent 70%)',
-            filter: 'blur(35px)',
-          }}
-          animate={{ y: [0, -30, 0], opacity: [0.6, 1, 0.6] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ scale: [1, 1.15, 1] }}
+          transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
         />
       </div>
 
@@ -139,6 +125,9 @@ export default function LandingPage() {
         ))}
       </div>
 
+      {/* 전역 질감 오버레이 (고수들은 UI에 살짝 질감을 넣는다) */}
+      <div className="page-texture-overlay" aria-hidden />
+
       <Navbar />
 
       {/* AI 기반 게이미피케이션 학습 플랫폼 배지 - 맨 위 (Navbar h-24 아래로 여백) */}
@@ -147,13 +136,12 @@ export default function LandingPage() {
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full"
+          className="toss-depth-plastic texture-grain relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full"
           style={{
-            background: 'rgba(255,255,255,0.55)',
+            background: 'rgba(255,255,255,0.7)',
             backdropFilter: 'blur(20px)',
             WebkitBackdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.8)',
-            boxShadow: '0 4px 24px rgba(56,189,248,0.2), inset 0 1px 0 rgba(255,255,255,0.9)',
+            border: '1px solid rgba(255,255,255,0.85)',
           }}
         >
           <Sparkles className="w-4 h-4 text-sky-500" />
@@ -165,6 +153,45 @@ export default function LandingPage() {
 
       {/* ─── Hero Section ─── */}
       <section className="relative pt-36 pb-24 px-4 sm:px-6 lg:px-8">
+        {/* 귀여운 강아지 GIF 장식 */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden max-w-7xl mx-auto left-1/2 -translate-x-1/2">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1, y: [0, -8, 0] }}
+            transition={{
+              opacity: { duration: 0.6, delay: 0.5 },
+              scale: { duration: 0.6, delay: 0.5 },
+              y: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
+            }}
+            className="absolute left-0 top-1/2 -translate-y-1/2 lg:block"
+            style={{ left: 'min(2vw, 24px)' }}
+          >
+            <img
+              src="/main/1.gif"
+              alt=""
+              className="w-16 sm:w-20 lg:w-24 xl:w-32 h-auto rounded-2xl toss-depth-plastic"
+              style={{ boxShadow: '0 4px 20px rgba(14,165,233,0.15)' }}
+            />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1, y: [0, 6, 0] }}
+            transition={{
+              opacity: { duration: 0.6, delay: 0.6 },
+              scale: { duration: 0.6, delay: 0.6 },
+              y: { duration: 2.8, repeat: Infinity, ease: 'easeInOut' },
+            }}
+            className="absolute right-0 top-1/2 -translate-y-1/2 lg:block"
+            style={{ right: 'min(2vw, 24px)' }}
+          >
+            <img
+              src="/main/2.gif"
+              alt=""
+              className="w-16 sm:w-20 lg:w-24 xl:w-32 h-auto rounded-2xl toss-depth-plastic"
+              style={{ boxShadow: '0 4px 20px rgba(14,165,233,0.15)' }}
+            />
+          </motion.div>
+        </div>
         <div className="relative max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -210,10 +237,9 @@ export default function LandingPage() {
               <Link href="/teacher">
                 <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
                   <button
-                    className="inline-flex items-center gap-2 text-lg px-10 py-4 font-bold rounded-2xl text-white transition-all duration-300"
+                    className="toss-btn-primary inline-flex items-center gap-2 text-lg px-10 py-4 font-bold rounded-2xl text-white transition-all duration-300"
                     style={{
                       background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 60%, #38bdf8 100%)',
-                      boxShadow: '0 8px 32px rgba(14,165,233,0.45), 0 2px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.35)',
                     }}
                   >
                     <Zap className="h-5 w-5" />
@@ -225,13 +251,12 @@ export default function LandingPage() {
               <Link href="/pricing">
                 <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
                   <button
-                    className="inline-flex items-center gap-2 text-lg px-10 py-4 font-semibold rounded-2xl text-sky-700 transition-all duration-300"
+                    className="toss-depth-plastic inline-flex items-center gap-2 text-lg px-10 py-4 font-semibold rounded-2xl text-sky-700 transition-all duration-300"
                     style={{
-                      background: 'rgba(255,255,255,0.5)',
+                      background: 'rgba(255,255,255,0.65)',
                       backdropFilter: 'blur(20px)',
                       WebkitBackdropFilter: 'blur(20px)',
-                      border: '1px solid rgba(255,255,255,0.85)',
-                      boxShadow: '0 4px 24px rgba(56,189,248,0.15), inset 0 1px 0 rgba(255,255,255,0.9)',
+                      border: '1px solid rgba(255,255,255,0.9)',
                     }}
                   >
                     <Trophy className="h-5 w-5 text-amber-400" />
@@ -288,13 +313,12 @@ export default function LandingPage() {
                 className="relative"
               >
                 <div
-                  className="relative rounded-3xl p-8 text-center overflow-hidden"
+                  className="toss-card texture-grain relative rounded-3xl p-8 text-center overflow-hidden transition-shadow duration-300"
                   style={{
-                    background: 'rgba(255,255,255,0.5)',
+                    background: 'rgba(255,255,255,0.6)',
                     backdropFilter: 'blur(24px)',
                     WebkitBackdropFilter: 'blur(24px)',
-                    border: '1px solid rgba(255,255,255,0.85)',
-                    boxShadow: '0 8px 32px rgba(14,165,233,0.12), inset 0 1px 0 rgba(255,255,255,1)',
+                    border: '1px solid rgba(255,255,255,0.9)',
                   }}
                 >
                   <div className="absolute inset-x-4 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent)' }} />
@@ -366,13 +390,12 @@ export default function LandingPage() {
                 className="group"
               >
                 <div
-                  className="h-full rounded-3xl p-8 relative overflow-hidden transition-all duration-300"
+                  className="toss-card texture-grain h-full rounded-3xl p-8 relative overflow-hidden transition-all duration-300"
                   style={{
-                    background: 'rgba(255,255,255,0.45)',
+                    background: 'rgba(255,255,255,0.55)',
                     backdropFilter: 'blur(24px)',
                     WebkitBackdropFilter: 'blur(24px)',
-                    border: '1px solid rgba(255,255,255,0.85)',
-                    boxShadow: '0 8px 32px rgba(14,165,233,0.10), inset 0 1px 0 rgba(255,255,255,1)',
+                    border: '1px solid rgba(255,255,255,0.9)',
                   }}
                 >
                   <div className="absolute inset-x-4 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,1), transparent)' }} />
@@ -432,13 +455,12 @@ export default function LandingPage() {
                 className="group cursor-pointer"
               >
                 <div
-                  className="relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
+                  className="toss-card texture-grain relative overflow-hidden rounded-2xl p-6 transition-all duration-300"
                   style={{
-                    background: 'rgba(255,255,255,0.45)',
+                    background: 'rgba(255,255,255,0.55)',
                     backdropFilter: 'blur(20px)',
                     WebkitBackdropFilter: 'blur(20px)',
-                    border: '1px solid rgba(255,255,255,0.85)',
-                    boxShadow: '0 4px 20px rgba(14,165,233,0.08), inset 0 1px 0 rgba(255,255,255,1)',
+                    border: '1px solid rgba(255,255,255,0.9)',
                   }}
                 >
                   <div className="absolute inset-x-3 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent)' }} />
@@ -479,13 +501,12 @@ export default function LandingPage() {
                 whileHover={{ y: -6 }}
               >
                 <div
-                  className="h-full rounded-3xl p-7 relative overflow-hidden transition-all duration-300"
+                  className="toss-card texture-grain h-full rounded-3xl p-7 relative overflow-hidden transition-all duration-300"
                   style={{
-                    background: 'rgba(255,255,255,0.5)',
+                    background: 'rgba(255,255,255,0.55)',
                     backdropFilter: 'blur(24px)',
                     WebkitBackdropFilter: 'blur(24px)',
-                    border: '1px solid rgba(255,255,255,0.85)',
-                    boxShadow: '0 8px 32px rgba(14,165,233,0.10), inset 0 1px 0 rgba(255,255,255,1)',
+                    border: '1px solid rgba(255,255,255,0.9)',
                   }}
                 >
                   <div className="absolute inset-x-4 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,1), transparent)' }} />
@@ -526,13 +547,12 @@ export default function LandingPage() {
             viewport={{ once: true }}
           >
             <div
-              className="rounded-3xl p-14 relative overflow-hidden"
+              className="toss-card texture-grain rounded-3xl p-14 relative overflow-hidden"
               style={{
-                background: 'rgba(255,255,255,0.5)',
+                background: 'rgba(255,255,255,0.6)',
                 backdropFilter: 'blur(30px)',
                 WebkitBackdropFilter: 'blur(30px)',
-                border: '1px solid rgba(255,255,255,0.9)',
-                boxShadow: '0 20px 60px rgba(14,165,233,0.2), inset 0 1px 0 rgba(255,255,255,1)',
+                border: '1px solid rgba(255,255,255,0.95)',
               }}
             >
               <div className="absolute inset-x-8 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,1), transparent)' }} />
@@ -546,10 +566,9 @@ export default function LandingPage() {
                 <Link href="/teacher">
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.97 }} className="inline-block">
                     <button
-                      className="inline-flex items-center gap-2 text-lg px-12 py-4 font-bold rounded-2xl text-white transition-all duration-300"
+                      className="toss-btn-primary inline-flex items-center gap-2 text-lg px-12 py-4 font-bold rounded-2xl text-white transition-all duration-300"
                       style={{
                         background: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 60%, #38bdf8 100%)',
-                        boxShadow: '0 8px 32px rgba(14,165,233,0.5), 0 2px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.35)',
                       }}
                     >
                       <Sparkles className="h-5 w-5" />

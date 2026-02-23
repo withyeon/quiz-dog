@@ -287,8 +287,8 @@ export default function TeacherDashboard() {
                   height={500}
                   className="w-96 h-96 object-contain mb-4"
                 />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>🕹️ 두근두근 인형뽑기</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>손끝에 집중하라! 집게가 움직일 때마다 심장이 쫄깃해지는 행운의 뽑기 한판.</div>
+                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'OkDanDan, sans-serif' }}>🕹️ 두근두근 인형뽑기</div>
+                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'OkDanDan, sans-serif' }}>손끝에 집중하라! 집게가 움직일 때마다 심장이 쫄깃해지는 행운의 뽑기 한판.</div>
               </button>
               <button
                 onClick={() => handleGameModeChange('factory')}
@@ -304,8 +304,8 @@ export default function TeacherDashboard() {
                   height={500}
                   className="w-96 h-96 object-contain mb-4"
                 />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>🏪 전설의 편의점</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>진열부터 계산까지 내 손으로! 동네 최고의 핫플레이스를 만드는 경영 시뮬레이션.</div>
+                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'BMJUA, sans-serif' }}>🏪 전설의 편의점</div>
+                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'BMJUA, sans-serif' }}>진열부터 계산까지 내 손으로! 동네 최고의 핫플레이스를 만드는 경영 시뮬레이션.</div>
               </button>
               <button
                 onClick={() => handleGameModeChange('cafe')}
@@ -338,8 +338,8 @@ export default function TeacherDashboard() {
                   height={500}
                   className="w-96 h-96 object-contain mb-4"
                 />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>🕴️ 쉿! 마피아</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>금고를 털고, 배신하고, 색출하라! 느와르 스타일의 심리전 게임!</div>
+                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>🕴️ 쉿! 마피아</div>
+                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>금고를 털고, 배신하고, 색출하라! 느와르 스타일의 심리전 게임!</div>
               </button>
               <button
                 onClick={() => handleGameModeChange('pool')}
@@ -531,7 +531,7 @@ export default function TeacherDashboard() {
             </div>
           ) : (room.game_mode as string) === 'fishing' ? (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-900">🕹️ 인형뽑기 현황</h2>
+              <h2 className="text-2xl font-semibold mb-4 text-gray-900" style={{ fontFamily: 'OkDanDan, sans-serif' }}>🕹️ 인형뽑기 현황</h2>
               <FishingPond
                 players={players as any}
                 currentPlayerId={null}

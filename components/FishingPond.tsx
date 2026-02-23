@@ -54,7 +54,7 @@ export default function FishingPond({
 
       {/* 연못 제목 */}
       <div className="relative z-10 mb-6">
-        <h3 className="text-2xl font-bold text-white text-center mb-2 flex items-center justify-center gap-2">
+        <h3 className="text-2xl font-bold text-white text-center mb-2 flex items-center justify-center gap-2" style={{ fontFamily: 'OkDanDan, sans-serif' }}>
           <span className="text-3xl">🕹️</span>
           <span>인형뽑기 현황</span>
         </h3>

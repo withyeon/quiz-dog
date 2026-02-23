@@ -475,7 +475,7 @@ export default function FishingPage() {
         />
       )}
 
-      <div className="relative z-10 p-4">
+      <div className="relative z-10 p-4" style={{ fontFamily: 'OkDanDan, sans-serif' }}>
         {/* 헤더 */}
         <div className="max-w-6xl mx-auto mb-4">
           <div className={`bg-slate-800 rounded-xl p-4 shadow-2xl border-b-4 transition-all duration-500 ${isFrenzyEvent ? 'border-yellow-500 shadow-yellow-500/50' : 'border-pink-500'
@@ -486,19 +486,19 @@ export default function FishingPage() {
                   🕹️
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">두근두근 인형뽑기</h1>
-                  <p className="text-xs text-blue-100">방 코드: {roomCode}</p>
+                  <h1 className="text-3xl font-bold text-white" style={{ fontFamily: 'OkDanDan, sans-serif' }}>두근두근 인형뽑기</h1>
+                  <p className="text-sm text-blue-100">방 코드: {roomCode}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 {/* 기계 업그레이드 표시 */}
                 <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-blue-500">
-                  <div className="text-xs text-blue-300 font-semibold mb-1">기계 등급</div>
-                  <div className="text-lg font-bold text-white">
+                  <div className="text-sm text-blue-300 font-semibold mb-1">기계 등급</div>
+                  <div className="text-xl font-bold text-white">
                     {getMachineRankName(machineRank)}
                   </div>
-                  <div className="text-xs text-gray-400">Rank {machineRank}</div>
+                  <div className="text-sm text-gray-400">Rank {machineRank}</div>
                 </div>
 
                 {/* 대성공 이벤트 표시 */}
@@ -511,8 +511,8 @@ export default function FishingPage() {
                     <div className="flex items-center gap-2">
                       <Zap className="text-white" size={20} />
                       <div>
-                        <div className="text-xs font-semibold text-white">대성공!</div>
-                        <div className="text-xs text-white">{frenzyTimeLeft}초</div>
+                        <div className="text-sm font-semibold text-white">대성공!</div>
+                        <div className="text-sm text-white">{frenzyTimeLeft}초</div>
                       </div>
                     </div>
                   </motion.div>
@@ -533,7 +533,7 @@ export default function FishingPage() {
                           initial={{ scale: 0 }}
                           animate={{ scale: [1, 1.15, 1] }}
                           transition={{ duration: 1, repeat: Infinity }}
-                          className="bg-indigo-600 border-2 border-indigo-300 rounded-lg px-2 py-1 text-lg"
+                          className="bg-indigo-600 border-2 border-indigo-300 rounded-lg px-2 py-1 text-xl"
                           title={type}
                         >
                           {icons[type] ?? '🎁'}
@@ -544,16 +544,16 @@ export default function FishingPage() {
                 )}
 
                 <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-pink-500">
-                  <div className="text-sm text-pink-300 font-semibold mb-1">
+                  <div className="text-base text-pink-300 font-semibold mb-1">
                     {currentPlayer?.nickname || '플레이어'}
                   </div>
-                  <div className="text-lg font-bold text-white">
+                  <div className="text-xl font-bold text-white">
                     {calculateTotalPoints(caughtDolls).toLocaleString()} 점
                   </div>
                 </div>
                 <div className="bg-black/50 rounded-lg px-3 py-2 border-2 border-green-500">
-                  <div className="text-xs text-green-300 font-semibold mb-1">인형</div>
-                  <div className="text-lg font-bold text-white">
+                  <div className="text-sm text-green-300 font-semibold mb-1">인형</div>
+                  <div className="text-xl font-bold text-white">
                     {caughtDolls.length}
                   </div>
                 </div>
@@ -574,8 +574,8 @@ export default function FishingPage() {
               animate={{ opacity: 1 }}
               className="bg-slate-800 rounded-xl p-8 shadow-lg text-center border-4 border-pink-500"
             >
-              <h2 className="text-3xl font-bold mb-4 text-white">🕹️ 인형뽑기 준비 중...</h2>
-              <p className="text-gray-300">선생님이 게임을 시작할 때까지 기다려주세요.</p>
+              <h2 className="text-4xl font-bold mb-4 text-white" style={{ fontFamily: 'OkDanDan, sans-serif' }}>🕹️ 인형뽑기 준비 중...</h2>
+              <p className="text-lg text-gray-300">선생님이 게임을 시작할 때까지 기다려주세요.</p>
             </motion.div>
           )}
 
@@ -593,12 +593,12 @@ export default function FishingPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* 인벤토리 */}
                 <div className="bg-slate-800 p-4 rounded-2xl border-4 border-slate-700">
-                  <h3 className="flex items-center gap-2 font-bold text-slate-300 mb-4">
+                  <h3 className="flex items-center gap-2 font-bold text-slate-300 mb-4 text-lg">
                     <History size={18} /> 획득한 인형들
                   </h3>
                   <div className="grid grid-cols-4 gap-2 max-h-[300px] overflow-y-auto">
                     {caughtDolls.length === 0 ? (
-                      <div className="col-span-4 text-center text-gray-500 py-10 text-sm">
+                      <div className="col-span-4 text-center text-gray-500 py-10 text-base">
                         아직 뽑은 인형이 없어요.<br />정답을 맞춰보세요!
                       </div>
                     ) : (
@@ -620,7 +620,7 @@ export default function FishingPage() {
 
                 {/* 플레이어 순위 */}
                 <div className="bg-slate-800 p-4 rounded-2xl border-4 border-slate-700">
-                  <h3 className="font-bold text-slate-300 mb-4 text-center">순위</h3>
+                  <h3 className="font-bold text-slate-300 mb-4 text-center text-lg">순위</h3>
                   <div className="space-y-2">
                     {players
                       .sort((a, b) => {
@@ -644,13 +644,13 @@ export default function FishingPage() {
                           >
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="font-bold text-white">#{index + 1}</span>
-                                <span className="text-xl">{player.avatar || '🎮'}</span>
-                                <span className="text-sm text-white">{player.nickname}</span>
+                                <span className="font-bold text-white text-base">#{index + 1}</span>
+                                <span className="text-2xl">{player.avatar || '🎮'}</span>
+                                <span className="text-base text-white">{player.nickname}</span>
                               </div>
                               <div className="text-right">
-                                <div className="text-sm font-bold text-white">{points}점</div>
-                                <div className="text-xs text-gray-400">{dolls.length}개</div>
+                                <div className="text-base font-bold text-white">{points}점</div>
+                                <div className="text-sm text-gray-400">{dolls.length}개</div>
                               </div>
                             </div>
                           </div>
@@ -676,13 +676,13 @@ export default function FishingPage() {
                   >
                     {/* 티어 이름 */}
                     <div className="text-center mb-4">
-                      <div className="text-green-500 font-bold text-xl mb-2">
+                      <div className="text-green-500 font-bold text-2xl mb-2">
                         {fishingResult.doll.tier === '일반' ? 'Easy One' :
                           fishingResult.doll.tier === '희귀' ? 'Great Catch' :
                             fishingResult.doll.tier === '영웅' ? 'Rare Find' :
                               fishingResult.doll.tier === '전설' ? 'Epic Grab' : 'Catch of the Day'}
                       </div>
-                      <div className="text-white font-black text-4xl mb-6">
+                      <div className="text-white font-black text-5xl mb-6">
                         {fishingResult.doll.name}
                       </div>
                     </div>
@@ -700,7 +700,7 @@ export default function FishingPage() {
 
                     {/* 티어 표시 */}
                     <div className="text-center mb-4">
-                      <div className="text-white font-bold text-2xl">
+                      <div className="text-white font-bold text-3xl">
                         {fishingResult.doll.tier === '일반' ? 'F' :
                           fishingResult.doll.tier === '희귀' ? 'D' :
                             fishingResult.doll.tier === '영웅' ? 'B' :
@@ -710,13 +710,13 @@ export default function FishingPage() {
 
                     {/* 포인트 */}
                     <div className="text-center">
-                      <div className="text-white font-bold text-3xl">
+                      <div className="text-white font-bold text-4xl">
                         {fishingResult.doll.score} 점
                       </div>
                     </div>
 
                     {/* 클릭 안내 */}
-                    <div className="text-center mt-6 text-white/80 text-sm">
+                    <div className="text-center mt-6 text-white/80 text-base">
                       클릭하여 계속
                     </div>
                   </motion.div>
@@ -744,12 +744,12 @@ export default function FishingPage() {
                   <div className="space-y-4">
                     {/* 인벤토리 */}
                     <div className="bg-slate-800 p-4 rounded-2xl border-4 border-slate-700">
-                      <h3 className="flex items-center gap-2 font-bold text-slate-300 mb-4">
+                      <h3 className="flex items-center gap-2 font-bold text-slate-300 mb-4 text-lg">
                         <History size={18} /> 획득한 인형들
                       </h3>
                       <div className="grid grid-cols-3 gap-2 max-h-[300px] overflow-y-auto">
                         {caughtDolls.length === 0 ? (
-                          <div className="col-span-3 text-center text-gray-500 py-10 text-sm">
+                          <div className="col-span-3 text-center text-gray-500 py-10 text-base">
                             아직 뽑은 인형이 없어요.
                           </div>
                         ) : (
@@ -771,7 +771,7 @@ export default function FishingPage() {
 
                     {/* 플레이어 순위 */}
                     <div className="bg-slate-800 p-4 rounded-2xl border-4 border-slate-700">
-                      <h3 className="font-bold text-slate-300 mb-4 text-center">순위</h3>
+                      <h3 className="font-bold text-slate-300 mb-4 text-center text-lg">순위</h3>
                       <div className="space-y-2">
                         {players
                           .sort((a, b) => {
@@ -795,13 +795,13 @@ export default function FishingPage() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <span className="font-bold text-white">#{index + 1}</span>
-                                    <span className="text-xl">{player.avatar || '🎮'}</span>
-                                    <span className="text-sm text-white">{player.nickname}</span>
+                                    <span className="font-bold text-white text-base">#{index + 1}</span>
+                                    <span className="text-2xl">{player.avatar || '🎮'}</span>
+                                    <span className="text-base text-white">{player.nickname}</span>
                                   </div>
                                   <div className="text-right">
-                                    <div className="text-sm font-bold text-white">{points}점</div>
-                                    <div className="text-xs text-gray-400">{dolls.length}개</div>
+                                    <div className="text-base font-bold text-white">{points}점</div>
+                                    <div className="text-sm text-gray-400">{dolls.length}개</div>
                                   </div>
                                 </div>
                               </div>
@@ -823,8 +823,8 @@ export default function FishingPage() {
               className="bg-slate-800 border-4 border-red-500 rounded-xl p-8 shadow-lg text-center"
             >
               <div className="text-6xl mb-4">❌</div>
-              <h2 className="text-4xl font-bold text-red-400 mb-2">틀렸습니다!</h2>
-              <p className="text-gray-300">다음 문제로 넘어갑니다...</p>
+              <h2 className="text-5xl font-bold text-red-400 mb-2">틀렸습니다!</h2>
+              <p className="text-lg text-gray-300">다음 문제로 넘어갑니다...</p>
             </motion.div>
           )}
 
@@ -855,7 +855,7 @@ export default function FishingPage() {
 
                   <div className="relative z-10">
                     {/* 희귀도 배지 */}
-                    <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold mb-4 ${pendingItem.rarity === '전설' ? 'bg-yellow-500 text-yellow-900' :
+                    <div className={`inline-block px-3 py-1 rounded-full text-sm font-bold mb-4 ${pendingItem.rarity === '전설' ? 'bg-yellow-500 text-yellow-900' :
                         pendingItem.rarity === '희귀' ? 'bg-blue-500 text-white' :
                           'bg-gray-500 text-white'
                       }`}>
@@ -871,14 +871,14 @@ export default function FishingPage() {
                       {pendingItem.emoji}
                     </motion.div>
 
-                    <h2 className="text-2xl font-black text-white mb-2">{pendingItem.name}</h2>
-                    <p className="text-purple-200 text-sm mb-6">{pendingItem.description}</p>
+                    <h2 className="text-3xl font-black text-white mb-2">{pendingItem.name}</h2>
+                    <p className="text-purple-200 text-base mb-6">{pendingItem.description}</p>
 
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleItemModalClose}
-                      className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl font-black text-white text-lg shadow-xl border-2 border-white/30"
+                      className="w-full py-4 bg-gradient-to-r from-pink-500 to-purple-600 rounded-2xl font-black text-white text-xl shadow-xl border-2 border-white/30"
                     >
                       {pendingItem.type === 'EXTRA_PULL' ? '🎰 바로 뽑기!' :
                         pendingItem.type === 'COIN_RAIN' ? '🪙 받았어요!' : '✅ 확인!'}

@@ -172,7 +172,7 @@ export default function ConvenienceStore({
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 min-h-screen bg-slate-100 font-sans text-slate-800">
+    <div className="w-full max-w-5xl mx-auto p-4 min-h-screen bg-slate-100 font-sans text-slate-800" style={{ fontFamily: 'BMJUA, sans-serif' }}>
       {/* HUD (정보창) */}
       <header className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-md border-b-4 border-slate-200 mb-6 sticky top-4 z-10">
         <div className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export default function ConvenienceStore({
               animate={{ scale: 1, color: '#1e293b' }}
               className="text-2xl font-black"
             >
-              ₩ {money.toLocaleString()}
+              {money.toLocaleString()}원
             </motion.p>
           </div>
         </div>
@@ -381,7 +381,7 @@ export default function ConvenienceStore({
                           transition={{ duration: 0.8 }}
                           className="absolute top-0 right-0 text-green-600 font-bold text-xs pointer-events-none"
                         >
-                          +₩{Math.floor(slot.income * (slot.level || 1) * getCategorySynergy(slot.category, products))}
+                          +{Math.floor(slot.income * (slot.level || 1) * getCategorySynergy(slot.category, products))}원
                         </motion.div>
 
                         {/* 업그레이드/판매 버튼 (호버 시) */}
@@ -404,7 +404,7 @@ export default function ConvenienceStore({
                                 : 'bg-gray-500 cursor-not-allowed'
                                 }`}
                             >
-                              ⬆ ₩{getUpgradeCost(slot).toLocaleString()}
+                              ⬆ {getUpgradeCost(slot).toLocaleString()}원
                             </button>
                           )}
                           <button
@@ -414,7 +414,7 @@ export default function ConvenienceStore({
                             }}
                             className="text-white text-[10px] font-bold bg-red-500 hover:bg-red-600 px-2 py-1 rounded w-full"
                           >
-                            판매: ₩{(slot.sellPrice || slot.income * 10).toLocaleString()}
+                            판매: {(slot.sellPrice || slot.income * 10).toLocaleString()}원
                           </button>
                         </div>
                       </motion.div>
@@ -502,7 +502,7 @@ export default function ConvenienceStore({
                     </div>
                     <div className="text-xl font-bold text-slate-800">{item.name}</div>
                     <div className="font-mono text-lg font-bold text-slate-600 bg-white/60 px-4 py-1 rounded-lg">
-                      +₩{item.income}/초
+                      +{item.income}원/초
                     </div>
                   </motion.button>
                 ))}
@@ -547,7 +547,7 @@ export default function ConvenienceStore({
                 </div>
                 <h3 className="text-2xl font-bold mb-2">{selectedProductToSell.name}</h3>
                 <p className="text-gray-600">
-                  판매 가격: ₩{selectedProductToSell.sellPrice?.toLocaleString()}
+                  판매 가격: {selectedProductToSell.sellPrice?.toLocaleString()}원
                 </p>
               </div>
               <div className="flex gap-2">

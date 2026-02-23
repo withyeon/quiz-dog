@@ -108,7 +108,7 @@ export default function MafiaPage() {
   const playerRank = sortedPlayers.findIndex((p) => p.id === player?.id) + 1
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900">
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>
       <AnimatedBackground />
       
       <AnimatePresence mode="wait">
@@ -122,18 +122,18 @@ export default function MafiaPage() {
           >
             <Card className="w-full max-w-2xl border-4 border-yellow-600 shadow-2xl bg-black/90 backdrop-blur-sm">
               <CardHeader className="text-center pb-4">
-                <div className="text-6xl mb-4">🕴️</div>
-                <CardTitle className="text-4xl font-bold text-yellow-400 mb-2">
+                <div className="text-7xl mb-4">🕴️</div>
+                <CardTitle className="text-5xl font-bold text-yellow-400 mb-2">
                   쉿! 마피아
                 </CardTitle>
-                <p className="text-lg text-gray-300">
+                <p className="text-xl text-gray-300">
                   금고를 털고, 배신하고, 색출하라!
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* 게임 시간 선택 */}
                 <div>
-                  <label className="block text-lg font-semibold text-yellow-400 mb-3">
+                  <label className="block text-xl font-semibold text-yellow-400 mb-3">
                     <Clock className="inline mr-2 h-5 w-5" />
                     게임 시간 선택
                   </label>
@@ -152,8 +152,8 @@ export default function MafiaPage() {
                             : 'border-gray-600 bg-gray-800/50 hover:border-yellow-600'
                         }`}
                       >
-                        <div className="text-2xl font-bold text-yellow-400">{option.label}</div>
-                        <div className="text-sm text-gray-400 mt-1">
+                        <div className="text-3xl font-bold text-yellow-400">{option.label}</div>
+                        <div className="text-base text-gray-400 mt-1">
                           {formatTime(option.seconds)}
                         </div>
                       </button>
@@ -163,8 +163,8 @@ export default function MafiaPage() {
 
                 {/* 게임 설명 */}
                 <div className="bg-gray-800/50 rounded-xl p-4 border-2 border-yellow-600">
-                  <h3 className="font-bold text-lg mb-2 text-yellow-400">게임 방법</h3>
-                  <ul className="space-y-2 text-sm text-gray-300">
+                  <h3 className="font-bold text-xl mb-2 text-yellow-400">게임 방법</h3>
+                  <ul className="space-y-2 text-base text-gray-300">
                     <li className="flex items-start gap-2">
                       <span>📝</span>
                       <span>퀴즈를 풀고 정답을 맞추세요</span>
@@ -196,7 +196,7 @@ export default function MafiaPage() {
                 <Button
                   onClick={handleStartGame}
                   size="lg"
-                  className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-black font-bold text-xl py-6 shadow-xl border-4 border-yellow-400"
+                  className="w-full bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-black font-bold text-2xl py-6 shadow-xl border-4 border-yellow-400"
                 >
                   🎮 게임 시작하기
                 </Button>
@@ -235,21 +235,21 @@ export default function MafiaPage() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 200 }}
-                  className="text-6xl mb-4"
+                  className="text-7xl mb-4"
                 >
                   {playerRank === 1 ? '🏆' : '🎯'}
                 </motion.div>
-                <CardTitle className="text-4xl font-bold text-yellow-400 mb-2">
+                <CardTitle className="text-5xl font-bold text-yellow-400 mb-2">
                   게임 종료!
                 </CardTitle>
-                <p className="text-lg text-gray-300">
+                <p className="text-xl text-gray-300">
                   승자: {winner.name} (${calculateLaunderedCash(winner).toLocaleString()})
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* 순위표 */}
                 <div className="space-y-3">
-                  <h3 className="text-2xl font-bold text-yellow-400 mb-4">최종 순위</h3>
+                  <h3 className="text-3xl font-bold text-yellow-400 mb-4">최종 순위</h3>
                   {sortedPlayers.map((p, index) => (
                     <div
                       key={p.id}
@@ -262,15 +262,15 @@ export default function MafiaPage() {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="text-2xl font-bold text-yellow-400 w-8">
+                        <div className="text-3xl font-bold text-yellow-400 w-8">
                           {index + 1}
                         </div>
                         <div>
-                          <div className="font-bold text-white">{p.name}</div>
-                          {p.isAi && <div className="text-xs text-gray-400">AI</div>}
+                          <div className="font-bold text-white text-lg">{p.name}</div>
+                          {p.isAi && <div className="text-sm text-gray-400">AI</div>}
                         </div>
                       </div>
-                      <div className="text-xl font-bold text-yellow-400">
+                      <div className="text-2xl font-bold text-yellow-400">
                         ${calculateLaunderedCash(p).toLocaleString()}
                       </div>
                     </div>
@@ -282,15 +282,15 @@ export default function MafiaPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-800/50 rounded-xl p-4 border-2 border-gray-600 text-center">
                       <DollarSign className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
-                      <div className="text-2xl font-bold text-yellow-400">
+                      <div className="text-3xl font-bold text-yellow-400">
                         ${calculateLaunderedCash(player).toLocaleString()}
                       </div>
-                      <div className="text-sm text-gray-400 mt-1">세탁된 자금</div>
+                      <div className="text-base text-gray-400 mt-1">세탁된 자금</div>
                     </div>
                     <div className="bg-gray-800/50 rounded-xl p-4 border-2 border-gray-600 text-center">
                       <Trophy className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
-                      <div className="text-2xl font-bold text-yellow-400">{playerRank}위</div>
-                      <div className="text-sm text-gray-400 mt-1">최종 순위</div>
+                      <div className="text-3xl font-bold text-yellow-400">{playerRank}위</div>
+                      <div className="text-base text-gray-400 mt-1">최종 순위</div>
                     </div>
                   </div>
                 )}
@@ -300,7 +300,7 @@ export default function MafiaPage() {
                   <Button
                     onClick={handleRestart}
                     size="lg"
-                    className="flex-1 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-black font-bold text-lg py-6 shadow-xl"
+                    className="flex-1 bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-black font-bold text-xl py-6 shadow-xl"
                   >
                     🔄 다시 하기
                   </Button>
@@ -308,7 +308,7 @@ export default function MafiaPage() {
                     onClick={() => (window.location.href = '/teacher/dashboard')}
                     size="lg"
                     variant="outline"
-                    className="flex-1 border-4 border-gray-600 text-gray-300 font-bold text-lg py-6"
+                    className="flex-1 border-4 border-gray-600 text-gray-300 font-bold text-xl py-6"
                   >
                     🏠 대시보드로
                   </Button>

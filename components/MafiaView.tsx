@@ -277,15 +277,15 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
   }
 
   return (
-    <div className="relative w-full h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden">
+    <div className="relative w-full h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>
       {/* 상단 정보 바 */}
       <div className="absolute top-0 left-0 right-0 z-20 bg-black/80 backdrop-blur-sm border-b-2 border-yellow-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-2">
-              <span className="text-2xl">⏰</span>
+              <span className="text-3xl">⏰</span>
               <span
-                className={`text-3xl font-bold font-mono ${isUrgent ? 'text-red-500 animate-pulse' : 'text-yellow-400'
+                className={`text-4xl font-bold ${isUrgent ? 'text-red-500 animate-pulse' : 'text-yellow-400'
                   }`}
               >
                 {formatTime(timeRemaining)}
@@ -294,15 +294,15 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
             {player && (
               <>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">💰</span>
-                  <span className="text-3xl font-bold text-yellow-400">
+                  <span className="text-3xl">💰</span>
+                  <span className="text-4xl font-bold text-yellow-400">
                     ${calculateLaunderedCash(player).toLocaleString()}
                   </span>
                 </div>
                 {player.multipliers.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl">⚡</span>
-                    <span className="text-xl font-bold text-yellow-400">
+                    <span className="text-3xl">⚡</span>
+                    <span className="text-2xl font-bold text-yellow-400">
                       x{calculateTotalMultiplier(player.multipliers).toFixed(1)}
                     </span>
                   </div>
@@ -343,24 +343,24 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
             >
               <Card className="border-4 border-yellow-600 bg-black/90 backdrop-blur-sm">
                 <CardContent className="p-8 text-center">
-                  <h2 className="text-3xl font-bold text-yellow-400 mb-6">
+                  <h2 className="text-4xl font-bold text-yellow-400 mb-6">
                     정답입니다! 무엇을 하시겠습니까?
                   </h2>
                   <div className="grid grid-cols-2 gap-6">
                     <Button
                       onClick={handleExcavate}
                       size="lg"
-                      className="h-32 bg-gradient-to-br from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-black font-bold text-xl"
+                      className="h-32 bg-gradient-to-br from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-black font-bold text-2xl"
                     >
                       <div className="flex flex-col items-center gap-2">
-                        <span className="text-4xl">🔐</span>
+                        <span className="text-5xl">🔐</span>
                         <span>금고 열기</span>
                       </div>
                     </Button>
                     <Button
                       onClick={handleInvestigate}
                       size="lg"
-                      className="h-32 bg-gradient-to-br from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-bold text-xl"
+                      className="h-32 bg-gradient-to-br from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-bold text-2xl"
                     >
                       <div className="flex flex-col items-center gap-2">
                         <Eye className="h-8 w-8" />
@@ -383,7 +383,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
             >
               <Card className="border-4 border-yellow-600 bg-black/90 backdrop-blur-sm shadow-2xl">
                 <CardContent className="p-8">
-                  <h2 className="text-3xl font-bold text-yellow-400 mb-6 text-center">
+                  <h2 className="text-4xl font-bold text-yellow-400 mb-6 text-center">
                     금고를 선택하세요
                   </h2>
                   <div className="grid grid-cols-3 gap-6 mb-6">
@@ -407,10 +407,10 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
                               : 'border-yellow-600 bg-gradient-to-br from-yellow-900 to-yellow-700'
                           } hover:border-yellow-400 p-6 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all`}
                         >
-                          <div className="text-6xl">{display.icon}</div>
-                          <div className="text-xl font-bold text-white">{display.text}</div>
+                          <div className="text-7xl">{display.icon}</div>
+                          <div className="text-2xl font-bold text-white">{display.text}</div>
                           {isRevealed && (
-                            <div className="text-xs text-blue-300 mt-1">X-Ray</div>
+                            <div className="text-sm text-blue-300 mt-1">X-Ray</div>
                           )}
                         </motion.button>
                       )
@@ -420,7 +420,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
                     onClick={handleCheat}
                     size="lg"
                     disabled={false}
-                    className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold text-xl py-6 shadow-lg border-2 border-red-400"
+                    className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold text-2xl py-6 shadow-lg border-2 border-red-400"
                   >
                     <div className="flex items-center justify-center gap-2">
                       <Eye className="h-6 w-6" />
@@ -442,29 +442,29 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
             >
               <Card className="border-4 border-blue-600 bg-black/90 backdrop-blur-sm">
                 <CardContent className="p-8">
-                  <h2 className="text-3xl font-bold text-blue-400 mb-6 text-center">
+                  <h2 className="text-4xl font-bold text-blue-400 mb-6 text-center">
                     누구를 조사하시겠습니까?
                   </h2>
                   {investigatingPlayer ? (
                     <div className="text-center py-12">
                       {investigationResult === null ? (
                         <>
-                          <div className="text-6xl mb-4 animate-spin">🔍</div>
-                          <p className="text-2xl text-gray-300">조사 중...</p>
+                          <div className="text-7xl mb-4 animate-spin">🔍</div>
+                          <p className="text-3xl text-gray-300">조사 중...</p>
                         </>
                       ) : investigationResult === 'CHEATER' ? (
                         <>
-                          <div className="text-6xl mb-4">🚨</div>
-                          <p className="text-3xl font-bold text-red-400 mb-2">CHEATER!</p>
-                          <p className="text-xl text-gray-300">
+                          <div className="text-7xl mb-4">🚨</div>
+                          <p className="text-4xl font-bold text-red-400 mb-2">CHEATER!</p>
+                          <p className="text-2xl text-gray-300">
                             {aiPlayers.find((p) => p.id === investigatingPlayer)?.name}가 치팅 중이었습니다!
                           </p>
                         </>
                       ) : (
                         <>
-                          <div className="text-6xl mb-4">✅</div>
-                          <p className="text-3xl font-bold text-green-400 mb-2">CLEAR</p>
-                          <p className="text-xl text-gray-300">
+                          <div className="text-7xl mb-4">✅</div>
+                          <p className="text-4xl font-bold text-green-400 mb-2">CLEAR</p>
+                          <p className="text-2xl text-gray-300">
                             {aiPlayers.find((p) => p.id === investigatingPlayer)?.name}는 결백했습니다.
                           </p>
                         </>
@@ -477,13 +477,13 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
                           key={ai.id}
                           onClick={() => handleStartInvestigation(ai.id)}
                           size="lg"
-                          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold text-lg py-6 justify-between"
+                          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold text-xl py-6 justify-between"
                         >
                           <div className="flex items-center gap-3">
-                            <span className="text-2xl">🕴️</span>
+                            <span className="text-3xl">🕴️</span>
                             <span>{ai.name}</span>
                             {ai.isCheating && (
-                              <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">
+                              <span className="text-sm bg-red-600 text-white px-2 py-1 rounded">
                                 치팅 중
                               </span>
                             )}
@@ -516,10 +516,10 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
                     transition={{ type: 'spring', stiffness: 200 }}
                     className="mb-6"
                   >
-                    <div className="text-8xl mb-4">
+                    <div className="text-9xl mb-4">
                       {getVaultDisplay(selectedVaultResult.vault, true).icon}
                     </div>
-                    <h2 className="text-4xl font-bold text-yellow-400 mb-4">
+                    <h2 className="text-5xl font-bold text-yellow-400 mb-4">
                       {selectedVaultResult.vault.reward === 'empty'
                         ? '빈 금고'
                         : selectedVaultResult.vault.reward === 'cash'
@@ -530,7 +530,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
                               ? '배수 x1.5 획득!'
                               : '배수 x2 획득!'}
                     </h2>
-                    <p className="text-xl text-gray-300">{selectedVaultResult.log}</p>
+                    <p className="text-2xl text-gray-300">{selectedVaultResult.log}</p>
                   </motion.div>
                 </CardContent>
               </Card>
@@ -545,8 +545,8 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
               exit={{ opacity: 0 }}
               className="text-center"
             >
-              <div className="text-6xl mb-4">❌</div>
-              <p className="text-3xl font-bold text-red-400">틀렸습니다!</p>
+              <div className="text-7xl mb-4">❌</div>
+              <p className="text-4xl font-bold text-red-400">틀렸습니다!</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -554,7 +554,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
 
       {/* 우측: 조직원 리스트 */}
       <div className="absolute top-16 right-0 w-80 bottom-20 p-6 border-l-2 border-yellow-600 bg-black/50 overflow-y-auto">
-        <h2 className="text-2xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
+        <h2 className="text-3xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
           <span>👥</span> 조직원
         </h2>
         <div className="space-y-3">
@@ -571,25 +571,25 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">🕴️</span>
-                    <span className="font-bold text-white">{ai.name}</span>
+                    <span className="text-2xl">🕴️</span>
+                    <span className="font-bold text-white text-lg">{ai.name}</span>
                     {ai.isCheating && (
-                      <span className="text-xs bg-orange-600 text-white px-2 py-1 rounded">
+                      <span className="text-sm bg-orange-600 text-white px-2 py-1 rounded">
                         치팅 중
                       </span>
                     )}
                     {ai.status === 'jailed' && (
-                      <span className="text-xs bg-red-600 text-white px-2 py-1 rounded">
+                      <span className="text-sm bg-red-600 text-white px-2 py-1 rounded">
                         감옥
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="text-yellow-400 font-semibold">
+                <div className="text-yellow-400 font-semibold text-lg">
                   ${calculateLaunderedCash(ai).toLocaleString()}
                 </div>
                 {ai.multipliers.length > 0 && (
-                  <div className="text-xs text-blue-400 mt-1">
+                  <div className="text-sm text-blue-400 mt-1">
                     배수: x{calculateTotalMultiplier(ai.multipliers).toFixed(1)}
                   </div>
                 )}
@@ -602,10 +602,10 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
       {/* 하단: 로그 창 */}
       <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-sm border-t-2 border-yellow-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3">
-          <h3 className="text-lg font-bold text-yellow-400 mb-2 flex items-center gap-2">
+          <h3 className="text-xl font-bold text-yellow-400 mb-2 flex items-center gap-2">
             <span>📡</span> 도청 장치
           </h3>
-          <div className="h-32 overflow-y-auto bg-black/50 rounded-lg p-3 font-mono text-sm space-y-1">
+          <div className="h-32 overflow-y-auto bg-black/50 rounded-lg p-3 font-mono text-base space-y-1">
             {gameLog.map((log) => (
               <div
                 key={log.id}
@@ -643,7 +643,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
                 scale: [1, 1.2, 1],
                 rotate: [0, 5, -5, 0],
               }}
-              className="relative text-8xl font-bold text-white drop-shadow-2xl"
+              className="relative text-9xl font-bold text-white drop-shadow-2xl"
             >
               🚨 발각! 🚨
             </motion.div>

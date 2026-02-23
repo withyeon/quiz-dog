@@ -27,6 +27,30 @@
   font-display: swap;
 }
 
+@font-face {
+  font-family: 'OkDanDan';
+  font-style: normal;
+  font-weight: 700;
+  src: url('/fonts/OkDanDan-Bold.otf') format('opentype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BMKkubulim';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/BMKkubulim.otf') format('opentype');
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'BMJUA';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/fonts/BMJUA_otf.otf') format('opentype');
+  font-display: swap;
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -517,6 +541,74 @@
 
   .blooket-card-flip:hover .blooket-card-flip-inner {
     transform: rotateY(180deg);
+  }
+
+  /* ─── 토스 스타일 + 질감 (뉴모픽/플라스틱/금속 입체감) ─── */
+  /* 레퍼런스: 하단 하이라이트 Y:2 white 100%, 상단 그림자 Y:-2 black 10% */
+  .toss-depth-plastic {
+    box-shadow:
+      0 2px 1px rgba(255, 255, 255, 1),
+      0 -2px 1px rgba(0, 0, 0, 0.06);
+  }
+
+  .toss-depth-plastic-strong {
+    box-shadow:
+      0 3px 2px rgba(255, 255, 255, 0.95),
+      0 -3px 2px rgba(0, 0, 0, 0.08);
+  }
+
+  /* 카드용: 글래스 + 질감 입체감 */
+  .toss-card {
+    box-shadow:
+      0 2px 1px rgba(255, 255, 255, 1),
+      0 -2px 1px rgba(0, 0, 0, 0.06),
+      0 8px 24px rgba(14, 165, 233, 0.08);
+  }
+
+  .toss-card:hover {
+    box-shadow:
+      0 4px 2px rgba(255, 255, 255, 0.98),
+      0 -2px 1px rgba(0, 0, 0, 0.05),
+      0 12px 32px rgba(14, 165, 233, 0.12);
+  }
+
+  /* 버튼용 금속감: 입체감 + 그라디언트 힌트 */
+  .toss-btn-primary {
+    box-shadow:
+      0 2px 1px rgba(255, 255, 255, 0.4),
+      0 -2px 1px rgba(0, 0, 0, 0.15),
+      0 8px 24px rgba(14, 165, 233, 0.35);
+  }
+
+  .toss-btn-primary:hover {
+    box-shadow:
+      0 3px 2px rgba(255, 255, 255, 0.5),
+      0 -2px 1px rgba(0, 0, 0, 0.1),
+      0 12px 32px rgba(14, 165, 233, 0.45);
+  }
+
+  /* 살짝 질감: 미세 노이즈 오버레이용 (부모가 position: relative 필요) */
+  .texture-grain::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    overflow: hidden;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.04;
+    mix-blend-mode: overlay;
+  }
+
+  /* 전체 페이지 배경 질감 (고수들은 UI에 살짝 질감을 넣는다) */
+  .page-texture-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    mix-blend-mode: overlay;
   }
 }
 

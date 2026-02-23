@@ -341,7 +341,7 @@ export default function FactoryPage() {
       <AnimatedBackground />
       <ScreenFlash show={showFlash} color="rgba(34, 197, 94, 0.3)" />
 
-      <div className="relative z-10 p-4">
+      <div className="relative z-10 p-4" style={{ fontFamily: 'BMJUA, sans-serif' }}>
         {/* 헤더 */}
         <div className="max-w-6xl mx-auto mb-4">
           <div className="bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-xl p-4 shadow-2xl border-4 border-yellow-500">
@@ -392,7 +392,7 @@ export default function FactoryPage() {
                       animate={{ scale: 1, color: '#ffffff' }}
                       className="text-2xl font-bold text-white"
                     >
-                      ₩{money.toLocaleString()}
+                      {money.toLocaleString()}원
                     </motion.div>
                   </div>
                 )}

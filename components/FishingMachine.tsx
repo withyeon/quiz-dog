@@ -23,7 +23,7 @@ export default function FishingMachine({
   canInteract,
 }: FishingMachineProps) {
   return (
-    <div className="w-full flex flex-col md:flex-row gap-6">
+    <div className="w-full flex flex-col md:flex-row gap-6" style={{ fontFamily: 'OkDanDan, sans-serif' }}>
       {/* --- 왼쪽: 인형뽑기 기계 (메인) --- */}
       <div
         className={`relative flex-1 bg-slate-800 rounded-3xl border-8 border-pink-500 overflow-hidden shadow-[0_0_30px_rgba(236,72,153,0.3)] min-h-[500px] ${canInteract && fishingState === 'idle' ? 'cursor-pointer hover:border-yellow-400 transition-all' : ''
@@ -84,13 +84,13 @@ export default function FishingMachine({
         </motion.div>
 
         {/* --- 바닥에 쌓인 인형들 (장식용) --- */}
-        <div className="absolute bottom-0 w-full h-32 flex items-end justify-center gap-2 px-4 flex-wrap opacity-70">
+        <div className="absolute bottom-0 w-full h-44 flex items-end justify-center gap-3 px-4 flex-wrap opacity-70">
           {Array(12).fill(0).map((_, i) => (
             <img
               key={i}
               src={`/fishing/${(i % 16) + 1}.svg`}
               alt="doll"
-              className="w-10 h-10 object-contain animate-bounce"
+              className="w-16 h-16 md:w-20 md:h-20 object-contain animate-bounce"
               style={{ animationDuration: `${(i % 3) + 1}s` }}
             />
           ))}
@@ -98,12 +98,12 @@ export default function FishingMachine({
 
         {/* --- 배출구 --- */}
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/50 border-t-4 border-r-4 border-pink-500 rounded-tr-2xl flex items-center justify-center">
-          <span className="text-pink-300 text-sm font-bold animate-pulse">GET HERE</span>
+          <span className="text-pink-300 text-base font-bold animate-pulse" style={{ fontFamily: 'OkDanDan, sans-serif' }}>GET HERE</span>
         </div>
 
         {/* 메시지 오버레이 */}
         <div className="absolute top-10 w-full text-center z-30">
-          <span className="bg-black/60 px-6 py-2 rounded-full text-xl font-bold border border-white/20 backdrop-blur-md">
+          <span className="bg-black/60 px-6 py-2 rounded-full text-2xl font-bold border border-white/20 backdrop-blur-md" style={{ fontFamily: 'OkDanDan, sans-serif' }}>
             {message}
           </span>
         </div>
@@ -116,16 +116,17 @@ export default function FishingMachine({
           {canInteract && fishingState === 'idle' ? (
             <button
               onClick={onStartFishing}
-              className="w-full py-8 rounded-xl font-black text-2xl shadow-[0_5px_0_rgb(180,0,0)] active:translate-y-[5px] active:shadow-none transition bg-red-500 hover:bg-red-400 text-white animate-pulse flex flex-col items-center gap-2"
+              className="w-full py-8 rounded-xl font-black text-3xl shadow-[0_5px_0_rgb(180,0,0)] active:translate-y-[5px] active:shadow-none transition bg-red-500 hover:bg-red-400 text-white animate-pulse flex flex-col items-center gap-2"
+              style={{ fontFamily: 'OkDanDan, sans-serif' }}
             >
               🎣 인형 뽑기!
-              <span className="text-sm font-normal opacity-80">클릭해서 시작</span>
+              <span className="text-base font-normal opacity-80">클릭해서 시작</span>
             </button>
           ) : (
             <div className="text-center">
               <div className="text-4xl mb-2">🎣</div>
-              <h3 className="text-xl font-bold text-white mb-2">인형뽑기</h3>
-              <p className="text-sm text-gray-300">
+              <h3 className="text-2xl font-bold text-white mb-2" style={{ fontFamily: 'OkDanDan, sans-serif' }}>인형뽑기</h3>
+              <p className="text-base text-gray-300">
                 {fishingState === 'idle'
                   ? '정답을 맞춰서 인형뽑기 화면으로 오세요!'
                   : '집게가 움직이는 중...'}
@@ -134,11 +135,11 @@ export default function FishingMachine({
           )}
 
           <div className="border-t border-slate-600 pt-4 space-y-2">
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-base">
               <span className="text-gray-400">빠른 정답</span>
               <span className="text-yellow-400 font-bold">높은 점수!</span>
             </div>
-            <div className="flex justify-between text-sm">
+            <div className="flex justify-between text-base">
               <span className="text-gray-400">문제를 많이 맞추면</span>
               <span className="text-blue-400 font-bold">기계 업그레이드!</span>
             </div>
