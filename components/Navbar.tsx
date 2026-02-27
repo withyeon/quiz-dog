@@ -61,28 +61,28 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-6">
             <Link
               href="/teacher/library"
-              className="flex items-center gap-2 text-sky-700 hover:text-sky-500 transition-colors font-bold text-xl"
+              className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
               <span>📚</span>
               <span>자료실</span>
             </Link>
             <Link
               href="/#features"
-              className="flex items-center gap-2 text-sky-700 hover:text-sky-500 transition-colors font-bold text-xl"
+              className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
               <span>⚡</span>
               기능 소개
             </Link>
             <Link
               href="/pricing"
-              className="flex items-center gap-2 text-sky-700 hover:text-sky-500 transition-colors font-bold text-xl"
+              className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
               <span>💰</span>
               요금제
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/lobby">
-                <Button variant="outline" size="lg" className="text-lg relative z-10 bg-white/90 hover:bg-white text-sky-600 hover:text-sky-700 border-2 border-sky-300 font-bold">
+                <Button variant="outline" size="lg" className="text-lg relative z-10 bg-white/90 hover:bg-white text-sky-600 hover:text-sky-700 border-2 border-sky-300 font-bold btn-sky-outlined">
                   🎮 코드로 입장
                 </Button>
               </Link>
@@ -114,7 +114,7 @@ export default function Navbar() {
           <div className="px-4 py-4 space-y-3">
             <Link
               href="/teacher/library"
-              className="flex items-center gap-2 text-sky-700 hover:text-sky-500 py-2 font-bold text-xl"
+              className="flex items-center gap-2 py-2 font-bold text-xl nav-outlined-text"
               onClick={() => setIsMobileMenuOpen(false)}
             >
               <span>📚</span>
@@ -124,7 +124,7 @@ export default function Navbar() {
             <div className="border-t pt-3 mt-3 space-y-3">
               <Link
                 href="/#features"
-                className="flex items-center gap-2 text-sky-700 hover:text-sky-500 font-bold text-xl"
+                className="flex items-center gap-2 font-bold text-xl nav-outlined-text"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <span>⚡</span>
@@ -132,14 +132,14 @@ export default function Navbar() {
               </Link>
               <Link
                 href="/pricing"
-                className="flex items-center gap-2 text-sky-700 hover:text-sky-500 font-bold text-xl"
+                className="flex items-center gap-2 font-bold text-xl nav-outlined-text"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <span>💰</span>
                 요금제
               </Link>
               <Link href="/lobby" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="outline" size="lg" className="w-full text-lg relative z-10 bg-white/90 hover:bg-white text-sky-600 hover:text-sky-700 border-2 border-sky-300 font-bold mb-3">
+                <Button variant="outline" size="lg" className="w-full text-lg relative z-10 bg-white/90 hover:bg-white text-sky-600 hover:text-sky-700 border-2 border-sky-300 font-bold mb-3 btn-sky-outlined">
                   🎮 코드로 입장
                 </Button>
               </Link>
