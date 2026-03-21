@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 
 interface VictoryCelebrationProps {
   show: boolean
@@ -55,9 +56,9 @@ export default function VictoryCelebration({
             repeat: Infinity,
             repeatType: 'reverse',
           }}
-          className="text-8xl mb-4"
+          className="mb-4"
         >
-          🏆
+          <Image src="/trophy.svg" alt="트로피" width={128} height={128} className="w-32 h-32" />
         </motion.div>
 
         <motion.h1

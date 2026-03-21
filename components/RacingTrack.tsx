@@ -3,6 +3,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import Image from 'next/image'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
@@ -251,7 +252,7 @@ export default function RacingTrack({
           <span>시작</span>
         </div>
         <div className="flex items-center gap-2">
-          <span>🏆</span>
+          <Image src="/trophy.svg" alt="트로피" width={16} height={16} className="w-4 h-4" />
           <span>결승선: {finishLine}m</span>
         </div>
       </div>

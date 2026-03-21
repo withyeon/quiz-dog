@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMafiaStore } from '@/store/mafiaStore'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -235,9 +236,9 @@ export default function MafiaPage() {
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', stiffness: 200 }}
-                  className="text-7xl mb-4"
+                  className="mb-4 flex justify-center"
                 >
-                  {playerRank === 1 ? '🏆' : '🎯'}
+                  {playerRank === 1 ? <Image src="/trophy.svg" alt="트로피" width={112} height={112} className="w-28 h-28" /> : <span className="text-7xl">🎯</span>}
                 </motion.div>
                 <CardTitle className="text-5xl font-bold text-yellow-400 mb-2">
                   게임 종료!

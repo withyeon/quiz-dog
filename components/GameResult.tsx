@@ -92,8 +92,6 @@ export default function GameResult({
           {top3.map((player, index) => {
             const rank = index + 1
             const isCurrentPlayer = player.id === currentPlayerId
-            const icons = [Trophy, Medal, Award]
-            const Icon = icons[index]
             const colors = ['text-yellow-500', 'text-gray-400', 'text-amber-600']
 
             return (
@@ -119,7 +117,13 @@ export default function GameResult({
                       transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
                       className="flex justify-center mb-4"
                     >
-                      <Icon className={`h-20 w-20 ${colors[index]} drop-shadow-lg`} />
+                      {rank === 1 ? (
+                        <Image src="/trophy.svg" alt="트로피" width={80} height={80} className="h-20 w-20 drop-shadow-lg" />
+                      ) : rank === 2 ? (
+                        <Image src="/silver.svg" alt="은메달" width={80} height={80} className="h-20 w-20 drop-shadow-lg" />
+                      ) : (
+                        <Image src="/bronze.svg" alt="동메달" width={80} height={80} className="h-20 w-20 drop-shadow-lg" />
+                      )}
                     </motion.div>
                     <motion.div
                       animate={{ scale: [1, 1.1, 1] }}
@@ -147,7 +151,7 @@ export default function GameResult({
                             {(player as any).health || 0} HP
                           </div>
                           {rank === 1 && (
-                            <div className="text-xl text-red-600 font-bold">🏆 승리!</div>
+                            <div className="text-xl text-red-600 font-bold flex items-center gap-1"><Image src="/trophy.svg" alt="트로피" width={20} height={20} className="w-5 h-5" /> 승리!</div>
                           )}
                         </>
                       ) : (
