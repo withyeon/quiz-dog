@@ -11,6 +11,7 @@ import TowerDefenseMap from '@/components/TowerDefenseMap'
 import TowerCard from '@/components/TowerCard'
 import Countdown from '@/components/Countdown'
 import AnimatedBackground from '@/components/AnimatedBackground'
+import GameResult from '@/components/GameResult'
 import {
     Tower,
     Enemy,
@@ -33,22 +34,37 @@ import {
     hasReachedEnd,
     moveProjectile,
 } from '@/lib/game/tower'
+import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
 
-type Question = {
-    id: string
-    type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-    question_text: string
-    options: string[]
-    answer: string
-}
+type Player = Database['public']['Tables']['players']['Row']
 
 type TowerView = 'lobby' | 'countdown' | 'playing' | 'quiz' | 'result'
 
 export default function TowerPage() {
-    const [roomCode, setRoomCode] = useState('')
-    const [playerId, setPlayerId] = useState<string | null>(null)
-    const [currentView, setCurrentView] = useState<TowerView>('lobby')
+    const {
+        roomCode,
+        playerId,
+        currentView,
+        setCurrentView,
+        currentQuestionIndex,
+        setCurrentQuestionIndex,
+        questions,
+        players,
+        room,
+        roomLoading,
+        playersLoading,
+        currentPlayer,
+        currentQuestion,
+        playBGM,
+        playSFX,
+        checkAnswer,
+        handleWrongAnswer,
+        goToNextQuestion,
+        consecutiveCorrect,
+        getElapsedSeconds,
+        showCountdown,
+    } = useGameBase({ expectedGameMode: 'tower' })
 
     // 게임 상태
     const [hp, setHp] = useState(PLAYER_START_HP)
@@ -59,13 +75,6 @@ export default function TowerPage() {
     const [projectiles, setProjectiles] = useState<Projectile[]>([])
     const [selectedTowerType, setSelectedTowerType] = useState<TowerTypeId | null>(null)
     const [selectedTower, setSelectedTower] = useState<Tower | null>(null)
-    const [showCountdown, setShowCountdown] = useState(false)
-
-    // 퀴즈 관련
-    const [questions, setQuestions] = useState<Question[]>([])
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-    const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
-    const questionStartTime = useRef<number>(0)
 
     // 웨이브 관련
     const [isWaveActive, setIsWaveActive] = useState(false)
@@ -82,69 +91,11 @@ export default function TowerPage() {
     const nextTowerIdRef = useRef(0)
     const nextProjectileIdRef = useRef(0)
 
-    // URL에서 roomCode와 playerId 가져오기
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search)
-            const code = params.get('room')
-            const id = params.get('playerId')
-            if (code) setRoomCode(code)
-            if (id) setPlayerId(id)
-        }
-    }, [])
-
-    const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-    const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
-    const { playBGM, playSFX } = useAudioContext()
-
-    // 문제 데이터 가져오기
-    useEffect(() => {
-        if (!room?.set_id) return
-
-        const fetchQuestions = async () => {
-            try {
-                const { data, error } = await ((supabase
-                    .from('questions') as any)
-                    .select('*')
-                    .eq('set_id', room.set_id) as any)
-
-                if (error) throw error
-                setQuestions(data as Question[])
-            } catch (error) {
-                console.error('Error fetching questions:', error)
-            }
-        }
-
-        fetchQuestions()
-    }, [room?.set_id])
-
-    const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
-
-    // 게임 시작 감지
-    useEffect(() => {
-        if (room && room.status === 'playing') {
-            if (currentView === 'lobby') {
-                setShowCountdown(true)
-                setCurrentView('countdown')
-                playBGM('game')
-            }
-        } else if (room && room.status === 'waiting' && currentView !== 'lobby') {
-            setCurrentView('lobby')
-            setShowCountdown(false)
-        }
-    }, [room, currentView, playBGM])
-
     // 카운트다운 완료 후 게임 시작
-    useEffect(() => {
-        if (showCountdown) {
-            const timer = setTimeout(() => {
-                setShowCountdown(false)
-                setCurrentView('quiz')
-                questionStartTime.current = Date.now()
-            }, 4000)
-            return () => clearTimeout(timer)
-        }
-    }, [showCountdown])
+    const handleCountdownComplete = () => {
+        setCurrentView('quiz')
+        playBGM('game')
+    }
 
     // 타워 배치
     const handlePlaceTower = useCallback((x: number, y: number) => {
@@ -180,24 +131,17 @@ export default function TowerPage() {
     // 정답 후 플레이 화면으로 (클릭 시 즉시 이동)
     const goToPlaying = () => {
         setCurrentView('playing')
-        setCurrentQuestionIndex(prev => prev + 1)
+        goToNextQuestion()
     }
 
     // 퀴즈 답변 제출
-    const handleAnswerSubmit = async (answer: string) => {
-        if (!currentQuestion) return
-
-        const timeElapsed = (Date.now() - questionStartTime.current) / 1000
-        const normalizedAnswer = String(answer).trim()
-        const normalizedCorrect = String(currentQuestion.answer).trim()
-        const correct = normalizedAnswer === normalizedCorrect
+    const handleAnswer = async (answer: string) => {
+        const timeElapsed = getElapsedSeconds()
+        const correct = await checkAnswer(answer)
 
         if (correct) {
             playSFX('correct')
-            const newConsecutive = consecutiveCorrect + 1
-            setConsecutiveCorrect(newConsecutive)
-
-            const goldReward = calculateGoldReward(timeElapsed, 30, newConsecutive)
+            const goldReward = calculateGoldReward(timeElapsed, 30, consecutiveCorrect)
             setGold(prev => prev + goldReward)
             setTotalGoldEarned(prev => prev + goldReward)
 
@@ -205,20 +149,20 @@ export default function TowerPage() {
             setTimeout(goToPlaying, 1500)
         } else {
             playSFX('incorrect')
-            setConsecutiveCorrect(0)
+            handleWrongAnswer()
 
             // 오답 패널티: HP 감소
             setHp(prev => Math.max(0, prev - 5))
 
             setTimeout(goToPlaying, 2000)
         }
+        return correct
     }
 
     // 퀴즈 버튼 클릭
     const handleQuizClick = () => {
         if (currentQuestion) {
             setCurrentView('quiz')
-            questionStartTime.current = Date.now()
         }
     }
 
@@ -365,34 +309,34 @@ export default function TowerPage() {
                 prevProjectiles.forEach(projectile => {
                     // 적의 현재 위치 찾기
                     const targetEnemy = enemies.find(e => e.id === projectile.targetEnemyId)
-                    
+
                     // 적이 이미 죽었거나 사라진 경우 발사체 제거
                     if (!targetEnemy) {
                         projectilesToRemove.push(projectile.id)
                         return
                     }
-                    
+
                     // 적의 현재 위치로 타겟 업데이트
                     const updatedProjectile = {
                         ...projectile,
                         targetX: targetEnemy.x,
                         targetY: targetEnemy.y,
                     }
-                    
+
                     const newPos = moveProjectile(updatedProjectile, deltaTime)
-                    
+
                     // 발사체가 목표에 도달했는지 확인
                     const distanceToTarget = getDistance(newPos.x, newPos.y, targetEnemy.x, targetEnemy.y)
-                    
+
                     if (distanceToTarget < 15) {
                         // 발사체가 목표에 도달 - 데미지 적용
                         setEnemies(prev => {
                             let updated = [...prev]
                             const target = updated.find(e => e.id === projectile.targetEnemyId)
-                            
+
                             if (target) {
                                 const towerType = TOWER_TYPES[projectile.towerType]
-                                
+
                                 if (towerType.special === 'splash') {
                                     // 범위 공격
                                     updated = updated.map(e => {
@@ -413,8 +357,8 @@ export default function TowerPage() {
                                     // 둔화 효과
                                     updated = updated.map(e => {
                                         if (e.id === target.id) {
-                                            return { 
-                                                ...e, 
+                                            return {
+                                                ...e,
                                                 hp: e.hp - projectile.damage,
                                                 speed: e.speed * 0.5,
                                                 slowedUntil: now + 1000
@@ -432,7 +376,7 @@ export default function TowerPage() {
                                     })
                                 }
                             }
-                            
+
                             // 죽은 적 처리
                             const deadEnemies = updated.filter(e => e.hp <= 0)
                             if (deadEnemies.length > 0) {
@@ -441,10 +385,10 @@ export default function TowerPage() {
                                 setTotalGoldEarned(prev => prev + goldGain)
                                 setTotalEnemiesKilled(prev => prev + deadEnemies.length)
                             }
-                            
+
                             return updated.filter(e => e.hp > 0)
                         })
-                        
+
                         projectilesToRemove.push(projectile.id)
                     } else {
                         // 발사체 계속 이동
@@ -478,14 +422,14 @@ export default function TowerPage() {
                 clearInterval(gameLoopRef.current)
             }
         }
-    }, [currentView, isWaveActive, enemies.length, towers, currentWave])
+    }, [currentView, isWaveActive, enemies, towers, currentWave, setCurrentView])
 
     // HP가 0이 되면 게임 오버
     useEffect(() => {
         if (hp <= 0 && currentView === 'playing') {
             setCurrentView('result')
         }
-    }, [hp, currentView])
+    }, [hp, currentView, setCurrentView])
 
     if (!roomCode || !playerId) {
         return (
@@ -553,7 +497,7 @@ export default function TowerPage() {
                 )}
 
                 {/* 카운트다운 */}
-                {showCountdown && <Countdown onComplete={() => { }} />}
+                {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
 
                 {/* 게임 플레이 */}
                 {currentView === 'playing' && (
@@ -602,7 +546,7 @@ export default function TowerPage() {
 
                         <div className="grid grid-cols-[1fr_300px] gap-4">
                             {/* 맵 */}
-                            <div>
+                            <div className="relative border-4 border-gray-700 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                                 <TowerDefenseMap
                                     towers={towers}
                                     enemies={enemies}
@@ -651,7 +595,7 @@ export default function TowerPage() {
                     <div className="min-h-screen flex items-center justify-center">
                         <QuizView
                             question={currentQuestion}
-                            onAnswer={handleAnswerSubmit}
+                            onAnswer={handleAnswer}
                             onCorrectClick={goToPlaying}
                             timeLimit={30}
                         />
@@ -660,39 +604,15 @@ export default function TowerPage() {
 
                 {/* 결과 */}
                 {currentView === 'result' && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="min-h-screen flex items-center justify-center"
-                    >
-                        <div className="bg-white/90 backdrop-blur-sm rounded-xl p-8 shadow-2xl max-w-2xl border-4 border-yellow-500">
-                            <div className="text-center">
-                                <div className="text-6xl mb-4">{hp > 0 ? '🎉' : '💀'}</div>
-                                <h2 className="text-4xl font-bold mb-4">
-                                    {hp > 0 ? '게임 클리어!' : '게임 오버'}
-                                </h2>
-
-                                <div className="grid grid-cols-2 gap-4 mt-6">
-                                    <div className="bg-purple-100 rounded-lg p-4 border-2 border-purple-300">
-                                        <div className="text-3xl font-bold text-purple-900">{currentWave}</div>
-                                        <div className="text-sm text-purple-700">클리어 웨이브</div>
-                                    </div>
-                                    <div className="bg-yellow-100 rounded-lg p-4 border-2 border-yellow-300">
-                                        <div className="text-3xl font-bold text-yellow-900">{totalGoldEarned}</div>
-                                        <div className="text-sm text-yellow-700">총 획득 골드</div>
-                                    </div>
-                                    <div className="bg-blue-100 rounded-lg p-4 border-2 border-blue-300">
-                                        <div className="text-3xl font-bold text-blue-900">{totalTowersPlaced}</div>
-                                        <div className="text-sm text-blue-700">설치한 타워</div>
-                                    </div>
-                                    <div className="bg-red-100 rounded-lg p-4 border-2 border-red-300">
-                                        <div className="text-3xl font-bold text-red-900">{totalEnemiesKilled}</div>
-                                        <div className="text-sm text-red-700">처치한 적</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </motion.div>
+                    <div className="fixed inset-0 z-50 overflow-auto bg-slate-900/80 backdrop-blur-md">
+                        <GameResult
+                            players={players}
+                            currentPlayerId={playerId}
+                            gameMode="tower"
+                            onRestart={() => window.location.reload()}
+                            onExit={() => window.location.href = '/'}
+                        />
+                    </div>
                 )}
             </div>
         </main>

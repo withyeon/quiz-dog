@@ -7,10 +7,10 @@ import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useAudioContext } from '@/components/AudioProvider'
 import Leaderboard from '@/components/Leaderboard'
-import RacingTrack from '@/components/RacingTrack'
-import FishingPond from '@/components/FishingPond'
-import FactoryView from '@/components/FactoryView'
 import GameCodeModal from '@/components/GameCodeModal'
+import TeacherAnalytics from '@/components/TeacherAnalytics'
+import GameModeSelector from '@/components/dashboards/GameModeSelector'
+import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
 import { generateRoomCode } from '@/lib/utils/gameCode'
 import QRCodeSVG from 'react-qr-code'
 import type { Database } from '@/types/database.types'
@@ -21,7 +21,7 @@ export default function TeacherDashboard() {
   const [roomCode, setRoomCode] = useState('')
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
-  const [gameMode, setGameMode] = useState<'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'dontlookdown'>('gold_quest')
+  const [gameMode, setGameMode] = useState<'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'dontlookdown' | 'tower' | 'allin'>('gold_quest')
   const [factoryDurationMinutes, setFactoryDurationMinutes] = useState(5) // 편의점 게임 제한 시간(분)
 
   const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
@@ -123,6 +123,23 @@ export default function TeacherDashboard() {
     playSFX('click')
 
     try {
+      // 문제집에 문제가 있는지 확인
+      const params = new URLSearchParams(window.location.search)
+      const setId = params.get('set')
+      if (setId) {
+        const { data: questionCheck, error: checkError } = await (supabase
+          .from('questions')
+          .select('id')
+          .eq('set_id', setId)
+          .limit(1) as any)
+
+        if (checkError) {
+          console.error('문제 확인 실패:', checkError)
+        } else if (!questionCheck || questionCheck.length === 0) {
+          alert('이 문제집에 문제가 없습니다. 문제를 먼저 추가해주세요.')
+          return
+        }
+      }
       // Battle Royale 모드일 경우 모든 플레이어 체력을 100으로 초기화
       if (gameMode === 'battle_royale') {
         const { error: healthResetError } = await ((supabase
@@ -161,7 +178,7 @@ export default function TeacherDashboard() {
 
   // 게임 종료
   const handleEndGame = async () => {
-    if (!roomCode) return
+    if (!roomCode || !room) return
     playSFX('click')
 
     try {
@@ -171,6 +188,19 @@ export default function TeacherDashboard() {
         .eq('room_code', roomCode))
 
       if (error) throw error
+
+      // 게임 종료 순간의 최종 성적 스냅샷을 영구 보관함(game_reports)에 저장
+      try {
+        await supabase.from('game_reports').insert({
+          room_code: roomCode,
+          set_id: room.set_id,
+          game_mode: room.game_mode,
+          player_count: players.length,
+          players_data: players
+        } as any)
+      } catch (reportError) {
+        console.error('Error saving game report snapshot:', reportError)
+      }
 
       setIsGameStarted(false)
       alert('게임이 종료되었습니다.')
@@ -193,11 +223,27 @@ export default function TeacherDashboard() {
 
       if (error) throw error
 
-      // 모든 플레이어 점수 초기화
+      // 모든 플레이어 데이터 완전 초기화
       const { error: resetError } = await ((supabase
         .from('players') as any)
-        .update({ score: 0, gold: 0 })
-        .eq('room_code', roomCode))
+        .update({
+          score: 0,
+          gold: 0,
+          position: 0,
+          health: null,
+          active_item: null,
+          item_effects: null,
+          caught_fishes: null,
+          fishing_points: 0,
+          factories: null,
+          factory_money: 0,
+          cafe_cash: 0,
+          cafe_customers_served: 0,
+          mafia_cash: 0,
+          mafia_diamonds: 0,
+          answer_history: null,
+        })
+        .eq('room_code', roomCode) as any)
 
       if (resetError) throw resetError
 
@@ -219,152 +265,10 @@ export default function TeacherDashboard() {
 
         {/* 게임 모드 선택 */}
         {!roomCode && (
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-900 mb-4">게임 모드 선택</label>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => handleGameModeChange('gold_quest')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'gold_quest'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <Image
-                  src="/gold-quest.png"
-                  alt="Gold Quest"
-                  width={500}
-                  height={500}
-                  className="w-96 h-96 object-contain mb-4"
-                />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>🏴‍☠️ 해적왕의 보물찾기</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>황금빛 보물이 잠든 섬, 지도를 따라 모험을 떠나는 짜릿한 해적 어드벤처!</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('racing')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'racing'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <Image
-                  src="/racing.png"
-                  alt="Racing"
-                  width={500}
-                  height={500}
-                  className="w-96 h-96 object-contain mb-4"
-                />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>🏃 미션: 등교 임파서블</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>닫히는 교문을 향해 전력 질주! 장애물을 피해 달리는 스릴 만점 등교 레이싱.</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('battle_royale')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'battle_royale'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <Image
-                  src="/battle-royale.png"
-                  alt="Battle Royale"
-                  width={500}
-                  height={500}
-                  className="w-96 h-96 object-contain mb-4"
-                />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>❄️ 눈싸움 대작전</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>던지고 피하고 명중시켜라! 설원 위에서 펼쳐지는 예측불허 스노우 액션.</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('fishing')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'fishing'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <Image
-                  src="/fishing.png"
-                  alt="Fishing"
-                  width={500}
-                  height={500}
-                  className="w-96 h-96 object-contain mb-4"
-                />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'OkDanDan, sans-serif' }}>🕹️ 두근두근 인형뽑기</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'OkDanDan, sans-serif' }}>손끝에 집중하라! 집게가 움직일 때마다 심장이 쫄깃해지는 행운의 뽑기 한판.</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('factory')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'factory'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <Image
-                  src="/factory.png"
-                  alt="Factory"
-                  width={500}
-                  height={500}
-                  className="w-96 h-96 object-contain mb-4"
-                />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'BMJUA, sans-serif' }}>🏪 전설의 편의점</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'BMJUA, sans-serif' }}>진열부터 계산까지 내 손으로! 동네 최고의 핫플레이스를 만드는 경영 시뮬레이션.</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('cafe')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'cafe'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <Image
-                  src="/cafe.png"
-                  alt="Cafe"
-                  width={500}
-                  height={500}
-                  className="w-96 h-96 object-contain mb-4"
-                />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>☕ 달콤 바삭 카페</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>손님에게 음식을 서빙하고 카페를 성장시키는 달콤한 경영 게임!</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('mafia')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'mafia'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <Image
-                  src="/mafia.png"
-                  alt="Mafia"
-                  width={500}
-                  height={500}
-                  className="w-96 h-96 object-contain mb-4"
-                />
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>🕴️ 쉿! 마피아</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>금고를 털고, 배신하고, 색출하라! 느와르 스타일의 심리전 게임!</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('pool')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'pool'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <div className="text-9xl mb-4">🎱</div>
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>🎱 포켓볼 게임</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>퀴즈를 풀고 정답을 맞추면 공을 칠 수 있어요! 구멍에 넣으면 점수 획득!</div>
-              </button>
-              <button
-                onClick={() => handleGameModeChange('dontlookdown')}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${gameMode === 'dontlookdown'
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
-                  : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-                  }`}
-              >
-                <div className="text-9xl mb-4">⛰️</div>
-                <div className="font-bold text-xl text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>⛰️ Don't Look Down</div>
-                <div className="text-base text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>플랫폼을 점프하며 정상까지! 퀴즈로 에너지 얻고 더블 점프로 오르는 스릴 만점 등반 게임.</div>
-              </button>
-            </div>
-          </div>
+          <GameModeSelector
+            selectedMode={gameMode}
+            onSelectMode={handleGameModeChange}
+          />
         )}
 
         {roomCode ? (
@@ -378,11 +282,10 @@ export default function TeacherDashboard() {
                     <button
                       key={minutes}
                       onClick={() => setFactoryDurationMinutes(minutes)}
-                      className={`px-4 py-2 rounded-lg font-bold border-2 transition-all ${
-                        factoryDurationMinutes === minutes
-                          ? 'border-amber-500 bg-amber-200 text-amber-900'
-                          : 'border-amber-200 bg-white text-amber-800 hover:border-amber-400'
-                      }`}
+                      className={`px-4 py-2 rounded-lg font-bold border-2 transition-all ${factoryDurationMinutes === minutes
+                        ? 'border-amber-500 bg-amber-200 text-amber-900'
+                        : 'border-amber-200 bg-white text-amber-800 hover:border-amber-400'
+                        }`}
                     >
                       {minutes}분
                     </button>
@@ -468,121 +371,9 @@ export default function TeacherDashboard() {
         )}
       </div>
 
-      {/* 게임 모드에 따른 표시 */}
+      {/* 게임 모드에 따른 표시 또는 통계 화면 */}
       {roomCode && room && (
-        <>
-          {room.game_mode === 'racing' ? (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-900">🏁 레이스 현황</h2>
-              <RacingTrack
-                players={players.map(p => ({ ...p, position: p.position || 0 }))}
-                currentPlayerId={null}
-                trackLength={1000}
-              />
-              {/* 레이싱 순위 */}
-              <div className="mt-6">
-                <Leaderboard
-                  players={players}
-                  currentPlayerId={null}
-                  sortBy="score"
-                  title="🏁 레이싱 순위"
-                />
-              </div>
-            </div>
-          ) : (room.game_mode as string) === 'battle_royale' ? (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-900">⚔️ 배틀 현황</h2>
-              <div className="bg-gradient-to-br from-red-900 via-red-800 to-orange-900 rounded-xl p-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {players.map((player) => {
-                    const health = player.health || 100
-                    const isAlive = health > 0
-                    return (
-                      <div
-                        key={player.id}
-                        className={`bg-white/10 backdrop-blur-sm rounded-lg p-4 border-2 ${isAlive ? 'border-white/30' : 'border-gray-500'
-                          }`}
-                      >
-                        <div className="text-center">
-                          <div className="text-3xl mb-2">{player.avatar || '🐕'}</div>
-                          <div className="font-bold text-white text-sm mb-1">
-                            {player.nickname}
-                          </div>
-                          <div className={`text-lg font-bold ${isAlive ? 'text-green-300' : 'text-gray-400'
-                            }`}>
-                            {health} HP
-                          </div>
-                          {!isAlive && (
-                            <div className="text-xs text-gray-400 mt-1">💀 탈락</div>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-                <div className="mt-4 text-center">
-                  <div className="bg-black/50 rounded-lg p-3 inline-block">
-                    <span className="text-white font-bold">
-                      생존자: {players.filter(p => (p.health || 100) > 0).length}명
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (room.game_mode as string) === 'fishing' ? (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-900" style={{ fontFamily: 'OkDanDan, sans-serif' }}>🕹️ 인형뽑기 현황</h2>
-              <FishingPond
-                players={players as any}
-                currentPlayerId={null}
-              />
-              <div className="mt-6">
-                <Leaderboard
-                  players={players}
-                  currentPlayerId={null}
-                  sortBy="score"
-                  title="🎣 낚시 순위"
-                />
-              </div>
-            </div>
-          ) : (room.game_mode as string) === 'factory' ? (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-900">🏭 팩토리 현황</h2>
-              <FactoryView
-                players={players as any}
-                currentPlayerId={null}
-                roomCode={roomCode}
-              />
-            </div>
-          ) : (room.game_mode as string) === 'pool' ? (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-900">🎱 포켓볼 게임 현황</h2>
-              <Leaderboard
-                players={players}
-                currentPlayerId={null}
-                sortBy="score"
-                title="🎱 포켓볼 점수 순위"
-              />
-            </div>
-          ) : (room.game_mode as string) === 'dontlookdown' ? (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-              <h2 className="text-2xl font-semibold mb-4 text-gray-900">⛰️ Don't Look Down 현황</h2>
-              <Leaderboard
-                players={players}
-                currentPlayerId={null}
-                sortBy="score"
-                title="⛰️ 높이 순위"
-              />
-            </div>
-          ) : (
-            <Leaderboard
-              players={players}
-              currentPlayerId={null}
-              sortBy="gold"
-              title="💰 금괴 순위"
-            />
-          )}
-        </>
+        <LiveDashboardRenderer room={room} players={players} />
       )}
 
       {!roomCode && (

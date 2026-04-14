@@ -14,29 +14,13 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import { getGameModeUrl } from '@/hooks/useGameBase'
 
 // 게임 모드에 따른 버튼 컴포넌트
 function GameModeButton({ roomCode, playerId }: { roomCode: string; playerId: string | null }) {
   const { room } = useRoomRealtime({ roomCode })
-  const gameMode: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'dontlookdown' = (room?.game_mode as any) || 'gold_quest'
-
-  const gameUrl = gameMode === 'racing'
-    ? `/racing?room=${roomCode}&playerId=${playerId}`
-    : gameMode === 'battle_royale'
-      ? `/battle?room=${roomCode}&playerId=${playerId}`
-      : gameMode === 'fishing'
-        ? `/fishing?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'factory'
-          ? `/factory?room=${roomCode}&playerId=${playerId}`
-          : gameMode === 'cafe'
-            ? `/cafe?room=${roomCode}&playerId=${playerId}`
-            : gameMode === 'mafia'
-              ? `/mafia?room=${roomCode}&playerId=${playerId}`
-              : gameMode === 'pool'
-                ? `/pool?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'dontlookdown'
-                  ? `/dontlookdown?room=${roomCode}&playerId=${playerId}`
-                  : `/game?room=${roomCode}&playerId=${playerId}`
+  const gameMode = room?.game_mode || 'gold_quest'
+  const gameUrl = getGameModeUrl(gameMode, roomCode, playerId || '')
 
   return (
     <a
@@ -74,23 +58,7 @@ export default function LobbyPage() {
     if (room?.status === 'playing' && playerId && (step === 'character' || step === 'minigame')) {
       // 게임 페이지로 이동
       const gameMode = (room?.game_mode as string) || 'gold_quest'
-      const gameUrl = gameMode === 'racing'
-        ? `/racing?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'battle_royale'
-          ? `/battle?room=${roomCode}&playerId=${playerId}`
-          : gameMode === 'fishing'
-            ? `/fishing?room=${roomCode}&playerId=${playerId}`
-            : gameMode === 'factory'
-              ? `/factory?room=${roomCode}&playerId=${playerId}`
-              : gameMode === 'cafe'
-                ? `/cafe?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'mafia'
-                  ? `/mafia?room=${roomCode}&playerId=${playerId}`
-                  : gameMode === 'pool'
-                    ? `/pool?room=${roomCode}&playerId=${playerId}`
-                    : gameMode === 'dontlookdown'
-                      ? `/dontlookdown?room=${roomCode}&playerId=${playerId}`
-                      : `/game?room=${roomCode}&playerId=${playerId}`
+      const gameUrl = getGameModeUrl(gameMode, roomCode, playerId)
 
       window.location.href = gameUrl
     }
@@ -118,12 +86,40 @@ export default function LobbyPage() {
   }
 
   // 게임 코드 입력 후 다음 단계
-  const handleCodeSubmit = () => {
+  const [isCheckingRoom, setIsCheckingRoom] = useState(false)
+  const handleCodeSubmit = async () => {
     if (!roomCode.trim() || roomCode.length !== 6) {
       alert('6자리 게임 코드를 입력해주세요.')
       return
     }
-    setStep('nickname')
+
+    setIsCheckingRoom(true)
+    try {
+      // 방이 실제로 존재하는지 확인
+      const { data: roomData, error: roomError } = await (supabase
+        .from('rooms')
+        .select('room_code, status')
+        .eq('room_code', roomCode)
+        .single() as any)
+
+      if (roomError || !roomData) {
+        alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        return
+      }
+
+      // 이미 끝난 게임인지 확인
+      if ((roomData as any).status === 'finished') {
+        alert('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
+        return
+      }
+
+      setStep('nickname')
+    } catch (err) {
+      console.error('방 확인 실패:', err)
+      alert('방 확인에 실패했어요. 인터넷 연결을 확인하고 다시 시도해주세요.')
+    } finally {
+      setIsCheckingRoom(false)
+    }
   }
 
   // 닉네임 입력 후 다음 단계
@@ -182,11 +178,25 @@ export default function LobbyPage() {
 
       // 닉네임 필터링
       const nicknameCheck = filterNickname(nickname)
+      const finalNickname = nicknameCheck.filtered || nickname.trim()
+
+      // 닉네임 중복 체크
+      const { data: existingPlayers } = await (supabase
+        .from('players')
+        .select('id')
+        .eq('room_code', roomCode)
+        .eq('nickname', finalNickname) as any)
+
+      if (existingPlayers && existingPlayers.length > 0) {
+        alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
+        setStep('nickname')
+        return
+      }
 
       // 플레이어 생성
       const playerInsert: Database['public']['Tables']['players']['Insert'] = {
         room_code: roomCode,
-        nickname: nicknameCheck.filtered || nickname.trim(),
+        nickname: finalNickname,
         score: 0,
         gold: 0,
         avatar: character.emoji,
@@ -316,6 +326,7 @@ export default function LobbyPage() {
                   type="text"
                   value={roomCode}
                   onChange={(e) => setRoomCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !isCheckingRoom) handleCodeSubmit() }}
                   className="px-6 py-4 text-2xl font-bold text-center cloud-card border-2 border-sky-300 rounded-xl shadow-lg focus:outline-none focus:ring-2 focus:ring-sky-400 text-gray-800 font-bitbit"
                   placeholder="게임 코드"
                   maxLength={6}
@@ -324,11 +335,12 @@ export default function LobbyPage() {
                 />
                 <motion.button
                   onClick={handleCodeSubmit}
-                  className="px-6 py-4 cloud-card border-2 border-sky-300 rounded-xl shadow-lg hover:bg-sky-50 transition-colors text-2xl font-bold text-sky-700"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  disabled={isCheckingRoom}
+                  className="px-6 py-4 cloud-card border-2 border-sky-300 rounded-xl shadow-lg hover:bg-sky-50 transition-colors text-2xl font-bold text-sky-700 disabled:opacity-50"
+                  whileHover={{ scale: isCheckingRoom ? 1 : 1.05 }}
+                  whileTap={{ scale: isCheckingRoom ? 1 : 0.95 }}
                 >
-                  →
+                  {isCheckingRoom ? '⏳' : '→'}
                 </motion.button>
               </div>
               <motion.div

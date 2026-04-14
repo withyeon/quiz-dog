@@ -10,14 +10,25 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import { Trophy, Clock, DollarSign, Users } from 'lucide-react'
 import { formatTime, MENU_ITEMS } from '@/lib/game/cafe'
+import { useGameBase } from '@/hooks/useGameBase'
 
 type CafeViewType = 'lobby' | 'playing' | 'result'
 
 export default function CafePage() {
-  const [currentView, setCurrentView] = useState<CafeViewType>('lobby')
+  const {
+    roomCode,
+    playerId,
+    currentView,
+    setCurrentView,
+    room,
+    roomLoading,
+    playersLoading,
+    playBGM,
+    playSFX,
+  } = useGameBase({ expectedGameMode: 'cafe' })
+
   const [selectedDuration, setSelectedDuration] = useState(420) // 7분 기본값
-  const [roomCode, setRoomCode] = useState('')
-  
+
   const {
     status,
     totalCashEarned,
@@ -26,50 +37,6 @@ export default function CafePage() {
     startGame,
     resetGame,
   } = useCafeStore()
-
-  // URL에서 roomCode 가져오기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('room')
-      if (code) setRoomCode(code)
-    }
-  }, [])
-
-  // room 상태 구독
-  const { room } = useRoomRealtime({ roomCode: roomCode || '' })
-
-  // 게임 모드 확인 및 리다이렉트
-  useEffect(() => {
-    if (!room) return
-    
-    const gameMode = room.game_mode || 'gold_quest'
-    
-    // cafe가 아니면 올바른 페이지로 리다이렉트
-    if (gameMode !== 'cafe') {
-      const params = new URLSearchParams(window.location.search)
-      const playerId = params.get('playerId')
-      const gameUrl = gameMode === 'gold_quest'
-        ? `/game?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'racing'
-        ? `/racing?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'battle_royale'
-        ? `/battle?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'fishing'
-        ? `/fishing?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'factory'
-        ? `/factory?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'mafia'
-        ? `/mafia?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'pool'
-        ? `/pool?room=${roomCode}&playerId=${playerId || ''}`
-        : `/cafe?room=${roomCode}&playerId=${playerId || ''}`
-      
-      if (gameUrl !== window.location.pathname + window.location.search) {
-        window.location.href = gameUrl
-      }
-    }
-  }, [room, roomCode])
 
   // room 상태가 'playing'이 되면 자동으로 게임 시작
   useEffect(() => {
@@ -80,7 +47,7 @@ export default function CafePage() {
       resetGame()
       setCurrentView('lobby')
     }
-  }, [room?.status, currentView, status, startGame, resetGame, selectedDuration])
+  }, [room?.status, currentView, status, startGame, resetGame, selectedDuration, setCurrentView])
 
   // 게임 상태 동기화
   useEffect(() => {
@@ -89,7 +56,7 @@ export default function CafePage() {
     } else if (status === 'ended' && currentView !== 'result') {
       setCurrentView('result')
     }
-  }, [status, currentView])
+  }, [status, currentView, setCurrentView])
 
   const handleStartGame = () => {
     startGame(selectedDuration)
@@ -111,7 +78,7 @@ export default function CafePage() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-amber-50 to-orange-100">
       <AnimatedBackground />
-      
+
       <AnimatePresence mode="wait">
         {currentView === 'lobby' && (
           <motion.div
@@ -147,11 +114,10 @@ export default function CafePage() {
                       <button
                         key={option.seconds}
                         onClick={() => setSelectedDuration(option.seconds)}
-                        className={`p-4 rounded-xl border-4 transition-all ${
-                          selectedDuration === option.seconds
+                        className={`p-4 rounded-xl border-4 transition-all ${selectedDuration === option.seconds
                             ? 'border-amber-500 bg-amber-100 scale-105'
                             : 'border-gray-300 bg-gray-50 hover:border-amber-300'
-                        }`}
+                          }`}
                       >
                         <div className="text-2xl font-bold text-gray-900">{option.label}</div>
                         <div className="text-sm text-gray-600 mt-1">

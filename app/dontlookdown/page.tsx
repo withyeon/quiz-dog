@@ -27,26 +27,35 @@ import {
     updatePlatforms,
     respawnPlatforms,
 } from '@/lib/game/dontlookdown'
+import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
 
-type Question = {
-    id: string
-    type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-    question_text: string
-    options: string[]
-    answer: string
-}
-
 type DLDView = 'lobby' | 'countdown' | 'game' | 'result'
 
 export default function DontLookDownPage() {
-    const [roomCode, setRoomCode] = useState('')
-    const [playerId, setPlayerId] = useState<string | null>(null)
-    const [currentView, setCurrentView] = useState<DLDView>('lobby')
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-    const [questions, setQuestions] = useState<Question[]>([])
+    const {
+        roomCode,
+        playerId,
+        currentView,
+        setCurrentView,
+        currentQuestionIndex,
+        setCurrentQuestionIndex,
+        questions,
+        players,
+        room,
+        roomLoading,
+        playersLoading,
+        currentPlayer,
+        currentQuestion,
+        playBGM,
+        playSFX,
+        checkAnswer,
+        handleWrongAnswer,
+        goToNextQuestion,
+    } = useGameBase({ expectedGameMode: 'dontlookdown' })
+
     const [gameSettings, setGameSettings] = useState<GameSettings>(DEFAULT_SETTINGS)
     const [platforms, setPlatforms] = useState<Platform[]>([])
     const [powerUps, setPowerUps] = useState<PowerUp[]>([])
@@ -70,78 +79,6 @@ export default function DontLookDownPage() {
                 : p
         ))
     }, [])
-
-    // URL에서 roomCode와 playerId 가져오기
-    useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const params = new URLSearchParams(window.location.search)
-            const code = params.get('room')
-            const id = params.get('playerId')
-            if (code) setRoomCode(code)
-            if (id) setPlayerId(id)
-        }
-    }, [])
-
-    const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-    const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
-    const { playBGM, playSFX } = useAudioContext()
-
-    // 게임 모드 확인 및 리다이렉트
-    useEffect(() => {
-        if (!room || roomLoading) return
-
-        const gameMode = room.game_mode || 'gold_quest'
-
-        if ((gameMode as string) !== 'dontlookdown') {
-            const gameUrl = gameMode === 'gold_quest'
-                ? `/game?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'racing'
-                    ? `/racing?room=${roomCode}&playerId=${playerId}`
-                    : gameMode === 'battle_royale'
-                        ? `/battle?room=${roomCode}&playerId=${playerId}`
-                        : gameMode === 'fishing'
-                            ? `/fishing?room=${roomCode}&playerId=${playerId}`
-                            : gameMode === 'factory'
-                                ? `/factory?room=${roomCode}&playerId=${playerId}`
-                                : gameMode === 'cafe'
-                                    ? `/cafe?room=${roomCode}&playerId=${playerId}`
-                                    : gameMode === 'pool'
-                                        ? `/pool?room=${roomCode}&playerId=${playerId}`
-                                        : `/game?room=${roomCode}&playerId=${playerId}`
-
-            window.location.href = gameUrl
-        }
-    }, [room, roomLoading, roomCode, playerId])
-
-    // 퀴즈 세트 로드
-    useEffect(() => {
-        if (!room?.set_id) return
-
-        const loadQuestions = async () => {
-            const { data, error } = await (supabase
-                .from('questions')
-                .select('*')
-                .eq('set_id', room.set_id || '') as any)
-                .order('created_at')
-
-            if (error) {
-                console.error('Error loading questions:', error)
-                return
-            }
-
-            if (data) {
-                setQuestions(data.map((q: any) => ({
-                    id: q.id,
-                    type: (q.type as any) || 'CHOICE',
-                    question_text: q.question_text,
-                    options: q.options || [],
-                    answer: q.answer,
-                })))
-            }
-        }
-
-        loadQuestions()
-    }, [room?.set_id])
 
     // 게임 시작 (플레이어 로드 완료 후에만)
     useEffect(() => {
@@ -172,7 +109,7 @@ export default function DontLookDownPage() {
         })
         setDldPlayers(initialPlayers)
         setGameStartTime(Date.now())
-    }, [room?.status, currentView, players, gameSettings])
+    }, [room?.status, currentView, players, gameSettings, playerId, setCurrentView])
 
     // Update platformsRef when platforms change
     useEffect(() => {
@@ -190,20 +127,11 @@ export default function DontLookDownPage() {
             console.log('[DLD] Powerup system enabled, starting spawn timer')
             powerUpTimerRef.current = setInterval(() => {
                 const currentPlatforms = platformsRef.current
-                console.log('[DLD] Attempting to spawn powerup...', {
-                    platformCount: currentPlatforms.length,
-                    eligiblePlatforms: currentPlatforms.filter(p => p.type === 'normal' && p.summit >= 2 && p.isVisible).length
-                })
                 const newPowerUp = spawnPowerUp(currentPlatforms)
                 if (newPowerUp) {
-                    console.log('[DLD] Powerup spawned:', newPowerUp.type, 'at position', { x: newPowerUp.x, y: newPowerUp.y })
                     setPowerUps(prev => [...prev, newPowerUp])
-                } else {
-                    console.warn('[DLD] Failed to spawn powerup - no eligible platforms found')
                 }
             }, 10000)
-        } else {
-            console.warn('[DLD] Powerup system is disabled in settings')
         }
 
         // 장애물 업데이트 타이머
@@ -245,40 +173,29 @@ export default function DontLookDownPage() {
             score: Math.floor(player.height),
             gold: Math.floor(player.energy),
         }
-        await ((supabase
+        await (supabase
             .from('players') as any)
             .update(updateData)
-            .eq('id', player.id))
-
-        // Don't Look Down: 승리는 제한 시간 종료 시만 결정 (가장 높은 height = 승자). 정상 도달로 즉시 종료하지 않음.
+            .eq('id', player.id)
     }
 
     // 파워업 수집
     const handleCollectPowerUp = (powerUpId: string) => {
-        console.log('[DLD] Powerup collected:', powerUpId)
         setPowerUps(prev => prev.map(p =>
             p.id === powerUpId ? { ...p, active: false } : p
         ))
-        playSFX('correct')
+        playSFX('item')
     }
 
     // 퀴즈 정답 처리
-    const handleAnswerQuestion = async (answer: string) => {
-        if (!playerId || !questions[currentQuestionIndex]) return
-
-        const currentQuestion = questions[currentQuestionIndex]
-        const normalizedAnswer = String(answer).trim()
-        const normalizedCorrect = String(currentQuestion.answer).trim()
-        const isCorrect = normalizedAnswer === normalizedCorrect
-
-        if (isCorrect) {
+    const handleAnswer = async (answer: string) => {
+        const correct = await checkAnswer(answer)
+        if (correct) {
             playSFX('correct')
         } else {
-            playSFX('correct' as any)
+            playSFX('incorrect')
+            handleWrongAnswer()
         }
-
-        // 다음 문제
-        setCurrentQuestionIndex(prev => (prev + 1) % questions.length)
     }
 
     // 게임 시간 체크 (제한 시간 종료 시 가장 높은 height = 승자)
@@ -303,9 +220,7 @@ export default function DontLookDownPage() {
         }, 1000)
 
         return () => clearInterval(interval)
-    }, [currentView, gameStartTime, dldPlayers, gameSettings, roomCode])
-
-    const currentPlayer = players.find(p => p.id === playerId)
+    }, [currentView, gameStartTime, dldPlayers, gameSettings, roomCode, setCurrentView])
 
     // roomCode/playerId 없거나 로딩 중
     if (!roomCode || !playerId) {
@@ -412,8 +327,8 @@ export default function DontLookDownPage() {
                             settings={gameSettings}
                             onUpdatePlayer={handleUpdatePlayer}
                             onCollectPowerUp={handleCollectPowerUp}
-                            currentQuestion={questions[currentQuestionIndex] || null}
-                            onAnswerQuestion={handleAnswerQuestion}
+                            currentQuestion={currentQuestion}
+                            onAnswerQuestion={handleAnswer}
                             onPlatformImageSizesLoaded={handlePlatformImageSizesLoaded}
                             remainingTime={remainingTime}
                         />
@@ -426,6 +341,7 @@ export default function DontLookDownPage() {
                         <GameResult
                             players={players}
                             currentPlayerId={winner}
+                            gameMode="dontlookdown"
                         />
                     </div>
                 )}

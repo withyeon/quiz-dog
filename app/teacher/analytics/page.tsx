@@ -1,261 +1,198 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts'
-import { Download, TrendingUp, Target, Users } from 'lucide-react'
+import { BarChart3, Users, Clock, ChevronRight, Play, ArrowLeft } from 'lucide-react'
 import type { Database } from '@/types/database.types'
+import TeacherAnalytics from '@/components/TeacherAnalytics'
 
-type Question = Database['public']['Tables']['questions']['Row']
+type GameReport = Database['public']['Tables']['game_reports']['Row']
 
-const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6']
+const GAME_MODE_LABELS: Record<string, { label: string; emoji: string }> = {
+  gold_quest: { label: '골드 퀘스트', emoji: '💰' },
+  racing: { label: '레이싱', emoji: '🏎️' },
+  battle_royale: { label: '배틀로얄', emoji: '⚔️' },
+  fishing: { label: '낚시', emoji: '🎣' },
+  factory: { label: '공장', emoji: '🏭' },
+  cafe: { label: '카페', emoji: '☕' },
+  mafia: { label: '마피아', emoji: '🕵️' },
+  pool: { label: '당구', emoji: '🎱' },
+  tower: { label: '타워', emoji: '🗼' },
+  dontlookdown: { label: '돈룩다운', emoji: '🧗' },
+}
 
-export default function AnalyticsPage() {
-  const [questionSets, setQuestionSets] = useState<any[]>([])
-  const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
-  const [questions, setQuestions] = useState<Question[]>([])
+function AnalyticsPageContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const selectedReportId = searchParams?.get('report')
+
+  const [reports, setReports] = useState<GameReport[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadQuestionSets()
+    fetchReports()
   }, [])
 
-  useEffect(() => {
-    if (selectedSetId) {
-      loadQuestions(selectedSetId)
-    }
-  }, [selectedSetId])
-
-  const loadQuestionSets = async () => {
+  const fetchReports = async () => {
     try {
       const { data, error } = await ((supabase
-        .from('questions') as any)
-        .select('set_id, created_at')
-        .order('created_at', { ascending: false }) as any)
+        .from('game_reports') as any)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50) as any)
 
       if (error) throw error
-
-      const grouped = (data as any[]).reduce((acc: any, item: any) => {
-        if (!acc[item.set_id]) {
-          acc[item.set_id] = {
-            set_id: item.set_id,
-            name: item.set_id.replace('set-', '문제집 '),
-            question_count: 0,
-            created_at: item.created_at,
-          }
-        }
-        acc[item.set_id].question_count++
-        return acc
-      }, {})
-
-      const sets = Object.values(grouped)
-      setQuestionSets(sets as any[])
-      if (sets.length > 0) {
-        setSelectedSetId((sets[0] as any).set_id)
-      }
-    } catch (error) {
-      console.error('Error loading question sets:', error)
+      setReports(data || [])
+    } catch (err) {
+      console.error('Error fetching game reports:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const loadQuestions = async (setId: string) => {
-    try {
-      const { data, error } = await ((supabase
-        .from('questions') as any)
-        .select('*')
-        .eq('set_id', setId) as any)
+  // 상세 보기 모드
+  if (selectedReportId) {
+    const report = reports.find(r => r.id === selectedReportId)
 
-      if (error) throw error
-      setQuestions((data as Question[]) || [])
-    } catch (error) {
-      console.error('Error loading questions:', error)
+    if (loading) {
+      return <div className="p-8 text-center text-gray-500 font-bold">로딩 중...</div>
     }
-  }
 
-  // 문제별 통계 데이터 생성 (더미 데이터 - 실제로는 게임 결과에서 가져와야 함)
-  const questionStats = questions.map((q, index) => ({
-    name: `문제 ${index + 1}`,
-    correctRate: Math.floor(Math.random() * 40) + 60, // 60-100% (더미)
-    attempts: Math.floor(Math.random() * 20) + 10, // 10-30명 (더미)
-  }))
-
-  const typeDistribution = questions.reduce((acc, q) => {
-    acc[q.type] = (acc[q.type] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const typeData = Object.entries(typeDistribution).map(([type, count]) => ({
-    name: type === 'CHOICE' ? '객관식' : type === 'OX' ? 'OX' : type === 'SHORT' ? '주관식' : '빈칸',
-    value: count,
-  }))
-
-  const handleExport = () => {
-    // 엑셀 다운로드 로직 (실제로는 라이브러리 사용)
-    alert('엑셀 다운로드 기능은 준비 중입니다.')
-  }
-
-  if (loading) {
-    return <div className="text-center py-12">로딩 중...</div>
-  }
-
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">문제별 통계</h1>
-          <p className="text-gray-600 mt-2">문제집별 성취도와 정답률을 분석하세요</p>
+    if (!report) {
+      return (
+        <div className="p-8 text-center">
+          <p className="text-gray-500 mb-4">리포트를 찾을 수 없습니다.</p>
+          <Button variant="outline" onClick={() => router.push('/teacher/analytics')}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> 돌아가기
+          </Button>
         </div>
-        <Button onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" />
-          엑셀 다운로드
+      )
+    }
+
+    const players = Array.isArray(report.players_data) ? report.players_data as any[] : []
+    const modeCfg = GAME_MODE_LABELS[report.game_mode || ''] || { label: report.game_mode || '알 수 없음', emoji: '🎮' }
+
+    return (
+      <div className="p-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push('/teacher/analytics')}
+          className="mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" /> 리포트 목록
         </Button>
+
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {modeCfg.emoji} 게임 결과 리포트
+          </h1>
+          <div className="flex items-center gap-4 text-sm text-gray-500">
+            <span>방 코드: <span className="font-mono font-bold">{report.room_code}</span></span>
+            <span>참여 {report.player_count}명</span>
+            <span>{new Date(report.created_at).toLocaleString('ko-KR')}</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          <TeacherAnalytics setId={report.set_id || null} players={players} />
+        </div>
+
+        {/* 이 문제집으로 다시 게임 시작 */}
+        {report.set_id && (
+          <div className="mt-6 text-center">
+            <Button
+              onClick={() => router.push(`/teacher/dashboard?set=${encodeURIComponent(report.set_id!)}`)}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              <Play className="h-4 w-4 mr-2" /> 이 문제집으로 다시 게임 시작
+            </Button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // 목록 모드
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">📊 게임 히스토리</h1>
+        <p className="text-gray-600">지난 게임 결과를 다시 확인하세요</p>
       </div>
 
-      {/* 문제집 선택 */}
-      {questionSets.length > 0 && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>문제집 선택</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-4 gap-4">
-              {questionSets.map((set: any) => (
-                <button
-                  key={set.set_id}
-                  onClick={() => setSelectedSetId(set.set_id)}
-                  className={`p-4 rounded-lg border-2 text-left transition-all ${
-                    selectedSetId === set.set_id
-                      ? 'border-primary-500 bg-primary-50'
-                      : 'border-gray-200 hover:border-primary-300'
-                  }`}
-                >
-                  <div className="font-semibold text-gray-900">{set.name}</div>
-                  <div className="text-sm text-gray-600 mt-1">
-                    {set.question_count}개 문제
-                  </div>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {selectedSetId && questions.length > 0 ? (
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* 문제별 정답률 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Target className="h-5 w-5" />
-                문제별 정답률
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={questionStats}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip formatter={(value) => `${value}%`} />
-                  <Bar dataKey="correctRate" fill="#6366f1" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* 문제 유형 분포 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                문제 유형 분포
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={typeData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {typeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          {/* 통계 요약 */}
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                통계 요약
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-4 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-1">총 문제 수</div>
-                  <div className="text-3xl font-bold text-blue-600">{questions.length}개</div>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-1">평균 정답률</div>
-                  <div className="text-3xl font-bold text-green-600">
-                    {Math.round(
-                      questionStats.reduce((sum, q) => sum + q.correctRate, 0) /
-                        questionStats.length
-                    ) || 0}
-                    %
-                  </div>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-1">총 시도 횟수</div>
-                  <div className="text-3xl font-bold text-purple-600">
-                    {questionStats.reduce((sum, q) => sum + q.attempts, 0)}회
-                  </div>
-                </div>
-                <div className="p-4 bg-yellow-50 rounded-lg">
-                  <div className="text-sm text-gray-600 mb-1">문제 유형</div>
-                  <div className="text-3xl font-bold text-yellow-600">
-                    {Object.keys(typeDistribution).length}종류
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      {loading ? (
+        <div className="text-center py-12 text-gray-500">로딩 중...</div>
+      ) : reports.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <BarChart3 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-700 mb-2">아직 게임 기록이 없습니다</h2>
+          <p className="text-gray-500 mb-6">게임을 진행하면 결과가 여기에 자동으로 저장됩니다.</p>
+          <Button
+            onClick={() => router.push('/teacher/dashboard')}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            <Play className="h-4 w-4 mr-2" /> 게임 시작하기
+          </Button>
         </div>
       ) : (
-        <Card className="p-12 text-center">
-          <p className="text-gray-600">선택한 문제집에 문제가 없습니다.</p>
-        </Card>
+        <div className="space-y-3">
+          {reports.map((report, index) => {
+            const modeCfg = GAME_MODE_LABELS[report.game_mode || ''] || { label: report.game_mode || '알 수 없음', emoji: '🎮' }
+            const dateStr = new Date(report.created_at).toLocaleString('ko-KR', {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+
+            return (
+              <motion.button
+                key={report.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                onClick={() => router.push(`/teacher/analytics?report=${report.id}`)}
+                className="w-full bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4 hover:shadow-md hover:border-gray-300 transition-all text-left group"
+              >
+                {/* 게임 모드 아이콘 */}
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl">
+                  {modeCfg.emoji}
+                </div>
+
+                {/* 정보 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-gray-900">{modeCfg.label}</span>
+                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{report.room_code}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" /> {report.player_count}명
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" /> {dateStr}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 화살표 */}
+                <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-gray-500 transition-colors" />
+              </motion.button>
+            )
+          })}
+        </div>
       )}
     </div>
+  )
+}
+
+export default function AnalyticsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">로딩 중...</div>}>
+      <AnalyticsPageContent />
+    </Suspense>
   )
 }

@@ -115,14 +115,20 @@ export default function FactoryPage() {
       try {
         const { data, error } = await ((supabase
           .from('questions') as any)
-          .select('*')
+          .select('id, set_id, type, question_text, options, created_at')
           .eq('set_id', room.set_id) as any)
 
         if (error) throw error
 
         setQuestions(shuffle((data ?? []) as Question[]))
       } catch (error) {
-        console.error('Error fetching questions:', error)
+        const msg =
+          error instanceof Error
+            ? error.message
+            : error && typeof error === 'object' && 'message' in error
+              ? String((error as { message?: string }).message)
+              : JSON.stringify(error)
+        console.error('Error fetching questions:', msg, error)
       }
     }
 
@@ -231,9 +237,21 @@ export default function FactoryPage() {
     if (!currentPlayer || !roomCode || !playerId || !currentQuestion) return
 
     setSelectedAnswer(answer)
-    const normalizedAnswer = String(answer).trim()
-    const normalizedCorrect = String(currentQuestion.answer).trim()
-    const correct = normalizedAnswer === normalizedCorrect
+    // 팩토리 로직 반영 전에 기본 답안 체크 (RPC 호출)
+    let correct = false
+    try {
+      const { data, error } = await supabase.rpc<any>('check_question_answer', {
+        p_question_id: currentQuestion.id,
+        p_submitted_answer: answer
+      } as any)
+      if (!error && data !== null) {
+        correct = data
+      }
+    } catch (err) {
+      console.error('Error checking answer on server:', err)
+      correct = String(answer).trim() === String(currentQuestion.answer).trim() // fallback
+    }
+
     setIsCorrect(correct)
 
     if (correct) {
@@ -266,6 +284,7 @@ export default function FactoryPage() {
         questionStartTime.current = Date.now()
       }, 2000)
     }
+    return correct
   }
 
   // 상품 선택(발주) 완료 후 모달 닫고 다음 문제로 (랜덤)

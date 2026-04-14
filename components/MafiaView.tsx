@@ -163,7 +163,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
         setCurrentQuestionIndex((prev) => prev + 1)
         questionStartTime.current = Date.now()
       }, 2000)
-      return
+      return false
     }
 
     setSelectedAnswer(answer)
@@ -188,6 +188,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
         questionStartTime.current = Date.now()
       }, 2000)
     }
+    return correct
   }
 
   // 금고 열기 선택

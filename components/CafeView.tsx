@@ -191,7 +191,7 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
         setCurrentQuestionIndex((prev) => prev + 1)
         questionStartTime.current = Date.now()
       }, 2000)
-      return
+      return false
     }
 
     setSelectedAnswer(answer)
@@ -225,6 +225,7 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
         questionStartTime.current = Date.now()
       }, 2000)
     }
+    return correct
   }
 
   // Space 키로 Restock 버튼 클릭

@@ -1,25 +1,22 @@
-/**
- * PDF 파일에서 텍스트 추출
- */
 export async function extractTextFromPDF(file: File | Buffer): Promise<string> {
-  try {
-    // pdf-parse는 CommonJS 모듈이므로 require 사용
-    const pdfParse = require('pdf-parse')
-    
-    let buffer: Buffer
+  // pdf-parse의 index.js는 디버그 모드에서 테스트 파일을 읽으려 하므로
+  // lib/pdf-parse.js를 직접 사용
+  const pdfParse = require('pdf-parse/lib/pdf-parse.js')
 
-    if (file instanceof File) {
-      const arrayBuffer = await file.arrayBuffer()
-      buffer = Buffer.from(arrayBuffer)
-    } else {
-      buffer = file
-    }
+  let buffer: Buffer
 
-    const data = await pdfParse(buffer)
-    return data.text
-  } catch (error) {
-    throw new Error(
-      `Failed to extract text from PDF: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
+  if (file instanceof File) {
+    const arrayBuffer = await file.arrayBuffer()
+    buffer = Buffer.from(arrayBuffer)
+  } else {
+    buffer = file
   }
+
+  const data = await pdfParse(buffer)
+
+  if (!data.text || data.text.trim().length === 0) {
+    return ''
+  }
+
+  return data.text
 }

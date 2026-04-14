@@ -11,64 +11,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import { Trophy, Clock, DollarSign, Users } from 'lucide-react'
 import { formatTime, calculateLaunderedCash } from '@/lib/game/mafia'
+import { useGameBase } from '@/hooks/useGameBase'
 
 type MafiaViewType = 'lobby' | 'playing' | 'result'
 
 export default function MafiaPage() {
-  const [currentView, setCurrentView] = useState<MafiaViewType>('lobby')
+  const {
+    roomCode,
+    playerId,
+    currentView,
+    setCurrentView,
+    room,
+    roomLoading,
+    playersLoading,
+    playBGM,
+    playSFX,
+  } = useGameBase({ expectedGameMode: 'mafia' })
+
   const [selectedDuration, setSelectedDuration] = useState(420) // 7분 기본값
-  const [roomCode, setRoomCode] = useState('')
-  
+
   const {
     status,
     players,
     gameLog,
     actions,
   } = useMafiaStore()
-
-  // URL에서 roomCode 가져오기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('room')
-      if (code) setRoomCode(code)
-    }
-  }, [])
-
-  // room 상태 구독
-  const { room } = useRoomRealtime({ roomCode })
-
-  // 게임 모드 확인 및 리다이렉트
-  useEffect(() => {
-    if (!room) return
-    
-    const gameMode = room.game_mode || 'gold_quest'
-    
-    // mafia가 아니면 올바른 페이지로 리다이렉트
-    if (gameMode !== 'mafia') {
-      const params = new URLSearchParams(window.location.search)
-      const playerId = params.get('playerId')
-      const gameUrl = gameMode === 'gold_quest'
-        ? `/game?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'racing'
-        ? `/racing?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'battle_royale'
-        ? `/battle?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'fishing'
-        ? `/fishing?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'factory'
-        ? `/factory?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'cafe'
-        ? `/cafe?room=${roomCode}&playerId=${playerId || ''}`
-        : gameMode === 'pool'
-        ? `/pool?room=${roomCode}&playerId=${playerId || ''}`
-        : `/mafia?room=${roomCode}&playerId=${playerId || ''}`
-      
-      if (gameUrl !== window.location.pathname + window.location.search) {
-        window.location.href = gameUrl
-      }
-    }
-  }, [room, roomCode])
 
   // room 상태가 'playing'이 되면 자동으로 게임 시작
   useEffect(() => {
@@ -79,7 +46,7 @@ export default function MafiaPage() {
       actions.resetGame()
       setCurrentView('lobby')
     }
-  }, [room?.status, currentView, status, actions, selectedDuration])
+  }, [room?.status, currentView, status, actions, selectedDuration, setCurrentView])
 
   // 게임 상태 동기화
   useEffect(() => {
@@ -88,7 +55,7 @@ export default function MafiaPage() {
     } else if (status === 'ended' && currentView !== 'result') {
       setCurrentView('result')
     }
-  }, [status, currentView])
+  }, [status, currentView, setCurrentView])
 
   const handleStartGame = () => {
     actions.startGame(selectedDuration)
@@ -111,7 +78,7 @@ export default function MafiaPage() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>
       <AnimatedBackground />
-      
+
       <AnimatePresence mode="wait">
         {currentView === 'lobby' && (
           <motion.div
@@ -147,11 +114,10 @@ export default function MafiaPage() {
                       <button
                         key={option.seconds}
                         onClick={() => setSelectedDuration(option.seconds)}
-                        className={`p-4 rounded-xl border-4 transition-all ${
-                          selectedDuration === option.seconds
+                        className={`p-4 rounded-xl border-4 transition-all ${selectedDuration === option.seconds
                             ? 'border-yellow-500 bg-yellow-900/50 scale-105'
                             : 'border-gray-600 bg-gray-800/50 hover:border-yellow-600'
-                        }`}
+                          }`}
                       >
                         <div className="text-3xl font-bold text-yellow-400">{option.label}</div>
                         <div className="text-base text-gray-400 mt-1">
@@ -214,10 +180,10 @@ export default function MafiaPage() {
             exit={{ opacity: 0 }}
             className="w-full h-screen"
           >
-            <MafiaView 
-              onGameEnd={() => setCurrentView('result')} 
+            <MafiaView
+              onGameEnd={() => setCurrentView('result')}
               roomCode={roomCode}
-              playerId={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('playerId') || undefined : undefined}
+              playerId={playerId || undefined}
             />
           </motion.div>
         )}
@@ -254,13 +220,12 @@ export default function MafiaPage() {
                   {sortedPlayers.map((p, index) => (
                     <div
                       key={p.id}
-                      className={`flex items-center justify-between p-4 rounded-xl border-2 ${
-                        index === 0
+                      className={`flex items-center justify-between p-4 rounded-xl border-2 ${index === 0
                           ? 'border-yellow-500 bg-yellow-900/30'
                           : p.id === player?.id
-                          ? 'border-blue-500 bg-blue-900/30'
-                          : 'border-gray-600 bg-gray-800/50'
-                      }`}
+                            ? 'border-blue-500 bg-blue-900/30'
+                            : 'border-gray-600 bg-gray-800/50'
+                        }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className="text-3xl font-bold text-yellow-400 w-8">

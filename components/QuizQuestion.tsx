@@ -35,7 +35,7 @@ export default function QuizQuestion({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">{question.question_text}</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">{question.question_text.replace(/\{\{blank\}\}/g, ' ▢ ')}</h2>
         {timeLimit && timeLeft > 0 && (
           <div className="text-sm text-gray-500">남은 시간: {timeLeft}초</div>
         )}
@@ -127,7 +127,9 @@ export default function QuizQuestion({
                         value={selectedAnswer}
                         onChange={(e) => setSelectedAnswer(e.target.value)}
                         disabled={isAnswered}
-                        className="inline-block mx-2 px-2 py-1 border-b-2 border-indigo-500 focus:outline-none min-w-[100px]"
+                        className="inline-block mx-2 px-3 py-1.5 border-2 border-indigo-400 rounded-md bg-white focus:outline-none focus:border-indigo-600 min-w-[120px] text-center"
+                        placeholder=""
+                        aria-label="빈칸 정답 입력"
                       />
                     )}
                   </span>

@@ -14,7 +14,9 @@ import {
   GripVertical,
   Edit,
   X,
+  Search,
 } from 'lucide-react'
+import MergeQuestionsModal from '@/components/MergeQuestionsModal'
 import type { Database } from '@/types/database.types'
 
 type Question = Database['public']['Tables']['questions']['Row']
@@ -28,10 +30,14 @@ export default function EditQuestionSetPage() {
 
   const [questions, setQuestions] = useState<Question[]>([])
   const [setName, setSetName] = useState('')
+  const [subject, setSubject] = useState('')
+  const [grade, setGrade] = useState('')
+  const [isEditingInfo, setIsEditingInfo] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [newQuestion, setNewQuestion] = useState<Partial<Question> | null>(null)
+  const [isMergeModalOpen, setIsMergeModalOpen] = useState(false)
 
   useEffect(() => {
     if (setId) {
@@ -56,6 +62,8 @@ export default function EditQuestionSetPage() {
         if (!setName) setSetName(setId.replace('set-', '').replace(/-/g, ' '))
       } else if (setData) {
         setSetName(setData.title)
+        setSubject(setData.subject || '')
+        setGrade(setData.grade || '')
       }
 
       // 2. 문제 목록 가져오기
@@ -76,9 +84,51 @@ export default function EditQuestionSetPage() {
     }
   }
 
+  const handleSaveSetInfo = async () => {
+    try {
+      if (!setName.trim()) { alert('문제집 이름을 입력하세요.'); return }
+      const { error } = await (supabase.from('question_sets') as any).update({
+        title: setName.trim(),
+        subject,
+        grade
+      }).eq('id', setId)
+      if (error) throw error
+      setIsEditingInfo(false)
+      alert('문제집 정보가 저장되었습니다.')
+    } catch (e) {
+      console.error(e)
+      alert('문제집 정보 저장 중 오류가 발생했습니다.')
+    }
+  }
+
   const handleSaveQuestion = async (index: number) => {
     const question = questions[index]
     if (!question) return
+
+    // 유효성 검증
+    if (!question.question_text?.trim()) {
+      alert('문제 내용을 입력해주세요.')
+      return
+    }
+    if (!question.answer?.trim()) {
+      alert('정답을 입력해주세요.')
+      return
+    }
+    if (question.type === 'CHOICE') {
+      const opts = Array.isArray(question.options) ? question.options.filter((o: any) => String(o).trim()) : []
+      if (opts.length < 2) {
+        alert('객관식 문제는 보기가 2개 이상 필요합니다.')
+        return
+      }
+      if (!opts.map((o: any) => String(o).trim()).includes(question.answer.trim())) {
+        alert('정답이 보기에 포함되어 있지 않습니다.')
+        return
+      }
+    }
+    if (question.type === 'OX' && question.answer !== 'O' && question.answer !== 'X') {
+      alert('OX 문제의 정답은 O 또는 X여야 합니다.')
+      return
+    }
 
     try {
       const { error } = await ((supabase
@@ -123,8 +173,25 @@ export default function EditQuestionSetPage() {
   const handleAddQuestion = async () => {
     if (!newQuestion) return
 
-    if (!newQuestion.type || !newQuestion.question_text || !newQuestion.answer) {
+    if (!newQuestion.type || !newQuestion.question_text?.trim() || !newQuestion.answer?.trim()) {
       alert('문제 유형, 문제 내용, 정답을 모두 입력해주세요.')
+      return
+    }
+
+    if (newQuestion.type === 'CHOICE') {
+      const opts = Array.isArray(newQuestion.options) ? newQuestion.options.filter((o: any) => String(o).trim()) : []
+      if (opts.length < 2) {
+        alert('객관식 문제는 보기가 2개 이상 필요합니다.')
+        return
+      }
+      if (!opts.map((o: any) => String(o).trim()).includes(newQuestion.answer.trim())) {
+        alert('정답이 보기에 포함되어 있지 않습니다.')
+        return
+      }
+    }
+
+    if (newQuestion.type === 'OX' && newQuestion.answer !== 'O' && newQuestion.answer !== 'X') {
+      alert('OX 문제의 정답은 O 또는 X여야 합니다.')
       return
     }
 
@@ -151,6 +218,28 @@ export default function EditQuestionSetPage() {
     } catch (error) {
       console.error('Error adding question:', error)
       alert('문제 추가에 실패했습니다.')
+    }
+  }
+
+  const handleMergeQuestions = async (selectedQs: Question[]) => {
+    try {
+      const qsToInsert = selectedQs.map(q => ({
+        set_id: setId,
+        type: q.type,
+        question_text: q.question_text,
+        options: q.options || [],
+        answer: q.answer
+      }))
+
+      const { data, error } = await (supabase.from('questions') as any).insert(qsToInsert).select()
+      if (error) throw error
+
+      setQuestions([...questions, ...(data as Question[])])
+      setIsMergeModalOpen(false)
+      alert(`${data.length}개의 문제를 성공적으로 가져왔습니다!`)
+    } catch (err) {
+      console.error(err)
+      alert('문제를 가져오는 중 오류가 발생했습니다.')
     }
   }
 
@@ -190,12 +279,65 @@ export default function EditQuestionSetPage() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             뒤로 가기
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">문제집 편집</h1>
-            <p className="text-gray-600 mt-1">{setName}</p>
+          <div className="flex-1 w-full max-w-2xl">
+            {isEditingInfo ? (
+              <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-3">
+                <input
+                  type="text"
+                  value={setName}
+                  onChange={(e) => setSetName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-bold text-gray-900"
+                  placeholder="문제집 이름"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <select
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 bg-white"
+                  >
+                    <option value="">과목 선택</option>
+                    <option value="국어">국어</option>
+                    <option value="영어">영어</option>
+                    <option value="수학">수학</option>
+                    <option value="사회">사회</option>
+                    <option value="과학">과학</option>
+                    <option value="역사">역사</option>
+                    <option value="기타">기타</option>
+                  </select>
+                  <select
+                    value={grade}
+                    onChange={(e) => setGrade(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 bg-white"
+                  >
+                    <option value="">학년 선택</option>
+                    <option value="초등 저학년">초등 저학년</option>
+                    <option value="초등 고학년">초등 고학년</option>
+                    <option value="중학교">중학교</option>
+                    <option value="고등학교">고등학교</option>
+                    <option value="기타">기타</option>
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button size="sm" onClick={handleSaveSetInfo} className="bg-purple-600 hover:bg-purple-700 text-white">저장</Button>
+                  <Button size="sm" variant="outline" onClick={() => setIsEditingInfo(false)}>취소</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 group">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => setIsEditingInfo(true)}>{setName}</h1>
+                  <div className="flex items-center gap-2 mt-1.5 cursor-pointer" onClick={() => setIsEditingInfo(true)}>
+                    {subject ? <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold">{subject}</span> : ''}
+                    {grade ? <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-xs font-semibold">{grade}</span> : ''}
+                    {(!subject && !grade) && <span className="text-xs text-gray-400">과목/학년 미설정</span>}
+                  </div>
+                </div>
+                <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setIsEditingInfo(true)}>
+                  수정
+                </Button>
+              </div>
+            )}
           </div>
-        </div>
-        <div className="flex items-center gap-2">
           <span className="text-sm text-gray-600">
             총 {questions.length}문제
           </span>
@@ -467,18 +609,35 @@ export default function EditQuestionSetPage() {
           </CardContent>
         </Card>
       ) : (
-        <Button
-          onClick={() => setNewQuestion({
-            type: 'CHOICE',
-            question_text: '',
-            options: [],
-            answer: '',
-          })}
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-bold"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          새 문제 추가
-        </Button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Button
+            onClick={() => setNewQuestion({
+              type: 'CHOICE',
+              question_text: '',
+              options: [],
+              answer: '',
+            })}
+            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-bold shadow-sm"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            새 문제 직접 추가
+          </Button>
+          <Button
+            onClick={() => setIsMergeModalOpen(true)}
+            className="w-full bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50 py-6 text-lg font-bold shadow-sm"
+          >
+            <Search className="h-5 w-5 mr-2 text-purple-600" />
+            다른 문제집에서 픽(Pick) 해오기
+          </Button>
+        </div>
+      )}
+
+      {isMergeModalOpen && (
+        <MergeQuestionsModal
+          currentSetId={setId}
+          onClose={() => setIsMergeModalOpen(false)}
+          onMerge={handleMergeQuestions}
+        />
       )}
     </div>
   )

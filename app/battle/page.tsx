@@ -10,8 +10,8 @@ import QuizView from '@/components/QuizView'
 import BattleArena from '@/components/BattleArena'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
-
 import AnimatedBackground from '@/components/AnimatedBackground'
+import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
 import {
   calculateDamage,
   isCriticalHit,
@@ -38,27 +38,39 @@ type Player = Database['public']['Tables']['players']['Row'] & {
   player_class?: PlayerClass
 }
 
-type Question = {
-  id: string
-  type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-  question_text: string
-  options: string[]
-  answer: string
-}
-
 type BattleView = 'lobby' | 'classSelect' | 'countdown' | 'quiz' | 'attack' | 'wrong' | 'result'
 
 export default function BattlePage() {
-  const [roomCode, setRoomCode] = useState('')
-  const [playerId, setPlayerId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<BattleView>('lobby')
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('')
-  const [isCorrect, setIsCorrect] = useState(false)
+  const {
+    roomCode,
+    playerId,
+    currentView,
+    setCurrentView,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    selectedAnswer,
+    isCorrect,
+    showCountdown,
+    setShowCountdown,
+    consecutiveCorrect,
+    answerHistory,
+    questions,
+    players,
+    room,
+    roomLoading,
+    playersLoading,
+    currentPlayer,
+    currentQuestion,
+    playBGM,
+    playSFX,
+    checkAnswer,
+    handleWrongAnswer,
+    goToNextQuestion,
+    questionStartTime,
+  } = useGameBase({ expectedGameMode: 'battle_royale' })
+
   const [answerTime, setAnswerTime] = useState(0)
   const [attackResult, setAttackResult] = useState<AttackResult | null>(null)
-  const [showCountdown, setShowCountdown] = useState(false)
-
   const [selectedClass, setSelectedClass] = useState<PlayerClass | null>(null)
   const [hasSnowball, setHasSnowball] = useState(false) // 눈뭉치 장전 여부
   const [currentItem, setCurrentItem] = useState<SnowballItem | null>(null)
@@ -67,81 +79,6 @@ export default function BattlePage() {
   const [isBlizzardActive, setIsBlizzardActive] = useState(false)
   const [gameStartTime, setGameStartTime] = useState<number>(0)
   const [zoneLevel, setZoneLevel] = useState(1)
-
-  const questionStartTime = useRef<number>(0)
-
-  // URL에서 roomCode와 playerId 가져오기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('room')
-      const id = params.get('playerId')
-      if (code) setRoomCode(code)
-      if (id) setPlayerId(id)
-    }
-  }, [])
-
-  const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-  const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
-  const { playBGM, playSFX } = useAudioContext()
-
-  // 게임 모드 확인 및 리다이렉트
-  useEffect(() => {
-    if (!room || roomLoading) return
-
-    const gameMode = room.game_mode || 'gold_quest'
-
-    // battle_royale이 아니면 올바른 페이지로 리다이렉트
-    if (gameMode !== 'battle_royale') {
-      const gameUrl = gameMode === 'gold_quest'
-        ? `/game?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'racing'
-          ? `/racing?room=${roomCode}&playerId=${playerId}`
-          : gameMode === 'fishing'
-            ? `/fishing?room=${roomCode}&playerId=${playerId}`
-            : gameMode === 'factory'
-              ? `/factory?room=${roomCode}&playerId=${playerId}`
-              : gameMode === 'cafe'
-                ? `/cafe?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'mafia'
-                  ? `/mafia?room=${roomCode}&playerId=${playerId}`
-                  : gameMode === 'pool'
-                    ? `/pool?room=${roomCode}&playerId=${playerId}`
-                    : `/battle?room=${roomCode}&playerId=${playerId}`
-
-      if (gameUrl !== window.location.pathname + window.location.search) {
-        window.location.href = gameUrl
-      }
-    }
-  }, [room, roomLoading, roomCode, playerId])
-
-  // 현재 플레이어 정보
-  const currentPlayer = players.find((p) => p.id === playerId) as Player | undefined
-  // 문제 데이터 가져오기
-  const [questions, setQuestions] = useState<Question[]>([])
-
-  useEffect(() => {
-    if (!room?.set_id) return
-
-    const fetchQuestions = async () => {
-      try {
-        const { data, error } = await ((supabase
-          .from('questions') as any)
-          .select('*')
-          .eq('set_id', room.set_id) as any)
-
-        if (error) throw error
-
-        setQuestions(data as Question[])
-      } catch (error) {
-        console.error('Error fetching questions:', error)
-      }
-    }
-
-    fetchQuestions()
-  }, [room?.set_id])
-
-  const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
 
   // 직업 선택 저장
   const handleClassSelect = async (playerClass: PlayerClass) => {
@@ -152,13 +89,13 @@ export default function BattlePage() {
     try {
       const classInfo = PLAYER_CLASSES[playerClass]
       // 직업별 초기 체력 설정
-      await ((supabase
+      await (supabase
         .from('players') as any)
         .update({
           player_class: playerClass,
           health: classInfo.maxHealth // 직업별 최대 체력으로 설정
         })
-        .eq('id', playerId))
+        .eq('id', playerId)
     } catch (error) {
       console.error('Error updating class:', error)
     }
@@ -166,46 +103,27 @@ export default function BattlePage() {
 
   // 저장된 직업 불러오기
   useEffect(() => {
-    if (currentPlayer?.player_class) {
-      setSelectedClass(currentPlayer.player_class as PlayerClass)
+    if ((currentPlayer as Player)?.player_class) {
+      setSelectedClass((currentPlayer as Player).player_class as PlayerClass)
     }
-  }, [currentPlayer?.player_class])
+  }, [(currentPlayer as Player)?.player_class])
 
-  // 게임 시작 감지
+  // 배틀로얄 전용: 게임 시작 시 직업 선택 단계 추가
   useEffect(() => {
-    if (room?.status === 'playing') {
-      // 게임이 시작되면 직업 선택 또는 카운트다운으로 이동
-      if (currentView === 'lobby') {
-        if (!selectedClass) {
-          setCurrentView('classSelect')
-        } else {
-          setShowCountdown(true)
-          setGameStartTime(Date.now())
-          playBGM('game')
-          setTimeout(() => {
-            setShowCountdown(false)
-            setCurrentView('quiz')
-            questionStartTime.current = Date.now()
-          }, 3000)
-        }
-      } else if (currentView === 'classSelect' && selectedClass) {
-        setShowCountdown(true)
-        setGameStartTime(Date.now())
-        playBGM('game')
-        setTimeout(() => {
-          setShowCountdown(false)
-          setCurrentView('quiz')
-          questionStartTime.current = Date.now()
-        }, 3000)
-      }
-    } else if (room?.status === 'waiting' && currentView !== 'lobby') {
-      setCurrentView('lobby')
+    if (room?.status === 'playing' && currentView === 'countdown' && !selectedClass) {
+      setCurrentView('classSelect')
       setShowCountdown(false)
-      setSelectedClass(null)
-      setHasSnowball(false)
-      setCurrentItem(null)
     }
-  }, [room?.status, currentView, playBGM, selectedClass])
+  }, [room?.status, currentView, selectedClass, setCurrentView, setShowCountdown])
+
+  // 직업 선택 후 다시 카운트다운으로
+  useEffect(() => {
+    if (currentView === 'classSelect' && selectedClass) {
+      setShowCountdown(true)
+      setGameStartTime(Date.now())
+      setCurrentView('countdown')
+    }
+  }, [currentView, selectedClass, setShowCountdown, setCurrentView])
 
   // 자기장(폭설 주의보) 시스템
   useEffect(() => {
@@ -270,23 +188,12 @@ export default function BattlePage() {
 
   // 정답 후 다음 문제로 (클릭 시 즉시 이동)
   const goToNextQuiz = () => {
-    setCurrentView('quiz')
-    setSelectedAnswer('')
-    setIsCorrect(false)
+    goToNextQuestion()
   }
 
   // 답안 제출
   const handleAnswerSubmit = async (answer: string) => {
-    if (!currentPlayer || !roomCode || !playerId || !currentQuestion) return
-
-    setSelectedAnswer(answer)
-    const time = Date.now() - questionStartTime.current
-    setAnswerTime(time)
-
-    const normalizedAnswer = String(answer).trim()
-    const normalizedCorrect = String(currentQuestion.answer).trim()
-    const correct = normalizedAnswer === normalizedCorrect
-    setIsCorrect(correct)
+    const correct = await checkAnswer(answer)
 
     if (correct) {
       playSFX('correct')
@@ -294,12 +201,12 @@ export default function BattlePage() {
       // 핫초코 직업: 체온 회복
       if (selectedClass === 'hot_choco') {
         const maxHealth = PLAYER_CLASSES[selectedClass].maxHealth
-        const newHealth = applyHeal(currentPlayer.health || 100, selectedClass)
+        const newHealth = applyHeal(currentPlayer?.health || 100, selectedClass)
         try {
-          await ((supabase
+          await (supabase
             .from('players') as any)
             .update({ health: Math.min(newHealth, maxHealth) })
-            .eq('id', playerId))
+            .eq('id', playerId)
         } catch (error) {
           console.error('Error healing:', error)
         }
@@ -321,15 +228,9 @@ export default function BattlePage() {
       setTimeout(goToNextQuiz, 1500)
     } else {
       playSFX('incorrect')
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex(prev => prev + 1)
-        questionStartTime.current = Date.now()
-      }, 2000)
+      handleWrongAnswer()
     }
+    return correct
   }
 
   // 플레이어 공격 처리
@@ -368,10 +269,10 @@ export default function BattlePage() {
       const newHealth = applyDamage(currentHealth, damage, targetPlayer.player_class)
 
       try {
-        await ((supabase
+        await (supabase
           .from('players') as any)
           .update({ health: newHealth })
-          .eq('id', targetId))
+          .eq('id', targetId)
 
         // 공격 화면 표시 및 이펙트
         setIsShaking(true)
@@ -390,11 +291,7 @@ export default function BattlePage() {
 
         setTimeout(() => {
           setAttackResult(null)
-          setCurrentView('quiz')
-          setCurrentQuestionIndex(prev => prev + 1)
-          setSelectedAnswer('')
-          setIsCorrect(false)
-          questionStartTime.current = Date.now()
+          goToNextQuestion()
         }, 2000)
       } catch (error) {
         console.error('Error updating health:', error)

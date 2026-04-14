@@ -4,164 +4,53 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase/client'
-import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
-import { useRoomRealtime } from '@/hooks/useRoomRealtime'
-import { useAudioContext } from '@/components/AudioProvider'
 import QuizView from '@/components/QuizView'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import AnimatedBackground from '@/components/AnimatedBackground'
+import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
 import { generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
 import PlayerSelector from '@/components/PlayerSelector'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
 
-// 더미 문제 데이터
-// 더미 데이터 제거
-type Question = {
-  id: string
-  type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-  question_text: string
-  options: string[]
-  answer: string
-}
-
 type GameView = 'lobby' | 'countdown' | 'quiz' | 'chest' | 'playerSelect' | 'wrong' | 'result'
 
 export default function GamePage() {
-  const [roomCode, setRoomCode] = useState('')
-  const [playerId, setPlayerId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<GameView>('lobby')
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('')
-  const [isCorrect, setIsCorrect] = useState(false)
+  const {
+    roomCode,
+    playerId,
+    currentView,
+    setCurrentView,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    selectedAnswer,
+    isCorrect,
+    showCountdown,
+    setShowCountdown,
+    consecutiveCorrect,
+    answerHistory,
+    questions,
+    players,
+    room,
+    roomLoading,
+    playersLoading,
+    currentPlayer,
+    currentQuestion,
+    playBGM,
+    playSFX,
+    checkAnswer,
+    handleWrongAnswer,
+    goToNextQuestion,
+  } = useGameBase({ expectedGameMode: 'gold_quest' })
+
   const [selectedChest, setSelectedChest] = useState<number | null>(null)
   const [boxEvent, setBoxEvent] = useState<BoxEvent | null>(null)
   const [isProcessingReward, setIsProcessingReward] = useState(false)
-  const [showCountdown, setShowCountdown] = useState(false)
-  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0) // 연속 정답 카운트
   const [hasShield, setHasShield] = useState(false) // 방어권 보유 여부
   const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
-
-  // URL에서 roomCode와 playerId 가져오기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('room')
-      const id = params.get('playerId')
-      if (code) setRoomCode(code)
-      if (id) setPlayerId(id)
-    }
-  }, [])
-
-  const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-  const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
-  const { playBGM, playSFX } = useAudioContext()
-
-  // 게임 모드 확인 및 리다이렉트
-  useEffect(() => {
-    if (!room || roomLoading) return
-
-    const gameMode = room.game_mode || 'gold_quest'
-
-    // gold_quest가 아니면 올바른 페이지로 리다이렉트
-    if (gameMode !== 'gold_quest') {
-      const gameUrl = gameMode === 'racing'
-        ? `/racing?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'battle_royale'
-          ? `/battle?room=${roomCode}&playerId=${playerId}`
-          : gameMode === 'fishing'
-            ? `/fishing?room=${roomCode}&playerId=${playerId}`
-            : gameMode === 'factory'
-              ? `/factory?room=${roomCode}&playerId=${playerId}`
-              : gameMode === 'cafe'
-                ? `/cafe?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'mafia'
-                  ? `/mafia?room=${roomCode}&playerId=${playerId}`
-                  : gameMode === 'pool'
-                    ? `/pool?room=${roomCode}&playerId=${playerId}`
-                    : `/game?room=${roomCode}&playerId=${playerId}`
-
-      if (gameUrl !== window.location.pathname + window.location.search) {
-        window.location.href = gameUrl
-      }
-    }
-  }, [room, roomLoading, roomCode, playerId])
-
-  // 문제 데이터 가져오기
-  const [questions, setQuestions] = useState<Question[]>([])
-
-  useEffect(() => {
-    if (!room?.set_id) return
-
-    const fetchQuestions = async () => {
-      try {
-        const { data, error } = await ((supabase
-          .from('questions') as any)
-          .select('*')
-          .eq('set_id', room.set_id) as any)
-
-        if (error) throw error
-
-        // options가 JSONB로 오므로 string[]으로 변환 처리 필요할 수 있음
-        // 지금은 그대로 사용
-        setQuestions(data as Question[])
-      } catch (error) {
-        console.error('Error fetching questions:', error)
-      }
-    }
-
-    fetchQuestions()
-  }, [room?.set_id])
-
-  // 현재 플레이어 정보
-  const currentPlayer = players.find((p) => p.id === playerId) || null
-  const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
-
-  // 문제가 끝나면 게임 종료
-  useEffect(() => {
-    if (questions.length > 0 && currentQuestionIndex >= questions.length && currentView === 'quiz') {
-      // 모든 문제를 풀었으면 게임 종료
-      if (room && room.status !== 'finished') {
-        ; (async () => {
-          try {
-            await ((supabase
-              .from('rooms') as any)
-              .update({ status: 'finished' })
-              .eq('room_code', roomCode) as any)
-          } catch (error) {
-            console.error('게임 종료 업데이트 실패:', error)
-          }
-        })()
-      }
-    }
-  }, [currentQuestionIndex, currentView, room, roomCode, questions.length])
-
-  // 게임 상태에 따른 화면 전환 및 BGM 재생 (게임 시작 후에만)
-  useEffect(() => {
-    if (!room) return
-
-    if (room.status === 'playing') {
-      // 게임이 시작되면 로비에서 카운트다운으로 이동
-      if (currentView === 'lobby' && !showCountdown) {
-        setShowCountdown(true)
-      }
-    } else if (room.status === 'waiting') {
-      if (currentView !== 'lobby') {
-        setCurrentView('lobby')
-        setShowCountdown(false)
-        // waiting 상태에서는 소리 재생하지 않음
-      }
-    } else if (room.status === 'finished') {
-      if (currentView !== 'result') {
-        setCurrentView('result')
-        // 게임 종료 시 결과 BGM 재생
-        playBGM('result')
-      }
-    }
-  }, [room?.status, currentView, showCountdown, playBGM])
 
   // 뺏기(엘프/마법사)인데 뺏을 상대가 없으면 2초 후 다음 문제로
   const selectableForSteal = pendingEvent && (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD')
@@ -172,27 +61,22 @@ export default function GamePage() {
     if (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD') {
       if (selectableForSteal.length === 0) {
         const t = setTimeout(() => {
-          setCurrentView('quiz')
           setSelectedChest(null)
           setBoxEvent(null)
           setPendingEvent(null)
-          setSelectedAnswer('')
-          setIsCorrect(false)
-          setCurrentQuestionIndex((prev) => prev + 1)
           setIsProcessingReward(false)
+          goToNextQuestion()
         }, 2000)
         return () => clearTimeout(t)
       }
     }
-  }, [currentView, pendingEvent, selectableForSteal.length])
+  }, [currentView, pendingEvent, selectableForSteal.length, goToNextQuestion])
 
   // 카운트다운 완료 후 게임 시작
   const handleCountdownComplete = () => {
     setShowCountdown(false)
     setCurrentView('quiz')
-    setCurrentQuestionIndex(0)
-    setSelectedAnswer('')
-    setIsCorrect(false)
+    // 인덱스 초기화는 useGameBase에서 처리되지만, 필요시 수동 이동
     playBGM('game')
   }
 
@@ -204,58 +88,24 @@ export default function GamePage() {
     setIsProcessingReward(false)
   }
 
-  // 답안 제출 처리
-  const handleAnswerSubmit = (answer: string) => {
-    // 시간 초과로 빈 답안이 오면 오답 처리
-    if (answer === '') {
-      playSFX('incorrect')
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-      }, 3000)
-      return
-    }
+  // 뒤집혀진 퀴즈 화면에서 호출될 '골드퀘스트'용 커스텀 핸들러
+  const handleAnswerSubmit = async (answer: string) => {
+    const correct = await checkAnswer(answer)
 
-    setSelectedAnswer(answer)
-    if (!currentQuestion) return
-    // DB가 숫자로 올 수 있으므로 문자열로 통일 후 비교
-    const normalizedAnswer = String(answer).trim()
-    const normalizedCorrect = String(currentQuestion.answer).trim()
-    const correct = normalizedAnswer === normalizedCorrect
-    setIsCorrect(correct)
-
-    // 사운드 효과
     if (correct) {
       playSFX('correct')
-      // 연속 정답 카운트 증가
-      const newConsecutive = consecutiveCorrect + 1
-      setConsecutiveCorrect(newConsecutive)
-
-      // 연속 3정답 시 방어권 획득
-      if (newConsecutive >= 3 && !hasShield) {
+      // 연속 3정답 시 방어권 획득 (Gold Quest 전용)
+      if (consecutiveCorrect + 1 >= 3 && !hasShield) {
         setHasShield(true)
         playSFX('item')
       }
-
       // 정답: 상자 선택 화면으로 (1.5초 후 자동 이동)
       setTimeout(goToChestView, 1500)
     } else {
-      // 오답 시 연속 정답 카운트 리셋
-      setConsecutiveCorrect(0)
       playSFX('incorrect')
-      // 오답: 3초간 틀렸습니다 화면
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        // 다음 문제로 (순환)
-        setCurrentQuestionIndex((prev) => prev + 1)
-      }, 3000)
+      handleWrongAnswer() // 공통 오답 처리 (wrong 뷰 -> 다음 문제)
     }
+    return correct
   }
 
   // 상자 선택 처리
@@ -312,13 +162,10 @@ export default function GamePage() {
         setBoxEvent(blockedEvent)
 
         setTimeout(() => {
-          setCurrentView('quiz')
           setSelectedChest(null)
           setBoxEvent(null)
-          setSelectedAnswer('')
-          setIsCorrect(false)
-          setCurrentQuestionIndex((prev) => prev + 1)
           setIsProcessingReward(false)
+          goToNextQuestion()
         }, 3000)
         return
       }
@@ -338,15 +185,12 @@ export default function GamePage() {
 
       await applyBoxEvent(event, playerId, freshPlayer, targetPlayer, supabase)
 
-      // 3초  다음 문제로
+      // 3초 후 다음 문제로
       setTimeout(() => {
-        setCurrentView('quiz')
         setSelectedChest(null)
         setBoxEvent(null)
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
         setIsProcessingReward(false)
+        goToNextQuestion()
       }, 3000)
     } catch (error) {
       console.error('Error updating reward:', error)
@@ -407,14 +251,11 @@ export default function GamePage() {
 
       // 3초 후 다음 문제로
       setTimeout(() => {
-        setCurrentView('quiz')
         setSelectedChest(null)
         setBoxEvent(null)
         setPendingEvent(null)
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
         setIsProcessingReward(false)
+        goToNextQuestion()
       }, 3000)
     } catch (error) {
       console.error('Error applying event:', error)
@@ -650,7 +491,12 @@ export default function GamePage() {
 
         {/* 게임 결과 화면 */}
         {currentView === 'result' && (
-          <GameResult players={players} currentPlayerId={playerId} />
+          <GameResult
+            players={players}
+            currentPlayerId={playerId}
+            answerHistory={answerHistory}
+            questions={questions}
+          />
         )}
 
         {/* 플레이어 순위 (결과 화면이 아닐 때만 표시) */}

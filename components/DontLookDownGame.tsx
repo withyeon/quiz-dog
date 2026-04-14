@@ -446,10 +446,13 @@ export default function DontLookDownGame({
             if (normalizedAnswer === normalizedCorrect) {
                 const updatedPlayer = giveEnergy(localPlayer, settings.energyPerQuestion)
                 setLocalPlayer(updatedPlayer)
+                setShowQuiz(false)
+                return true
             }
         }
 
         setShowQuiz(false)
+        return false
     }
 
     if (!localPlayer) {

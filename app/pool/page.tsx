@@ -26,143 +26,61 @@ import {
   type PoolItemEffect,
   HOLES,
 } from '@/lib/game/pool'
+import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
 
-type Question = {
-  id: string
-  type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-  question_text: string
-  options: string[]
-  answer: string
-}
-
 type PoolView = 'lobby' | 'countdown' | 'quiz' | 'pool' | 'wrong' | 'result'
 
 export default function PoolPage() {
-  const [roomCode, setRoomCode] = useState('')
-  const [playerId, setPlayerId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<PoolView>('lobby')
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('')
-  const [isCorrect, setIsCorrect] = useState(false)
+  const {
+    roomCode,
+    playerId,
+    currentView,
+    setCurrentView,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    selectedAnswer,
+    isCorrect,
+    showCountdown,
+    setShowCountdown,
+    consecutiveCorrect,
+    answerHistory,
+    questions,
+    players,
+    room,
+    roomLoading,
+    playersLoading,
+    currentPlayer,
+    currentQuestion,
+    playBGM,
+    playSFX,
+    checkAnswer,
+    handleWrongAnswer,
+    goToNextQuestion,
+    getElapsedSeconds,
+  } = useGameBase({ expectedGameMode: 'pool' })
+
   const [answerTime, setAnswerTime] = useState(0)
+  const [hasEarnedShot, setHasEarnedShot] = useState(false)
   const [canShoot, setCanShoot] = useState(false)
   const [ballPosition, setBallPosition] = useState<BallPosition>({ x: 0.5, y: 0.5, vx: 0, vy: 0 })
   const [acquiredItem, setAcquiredItem] = useState<PoolItem | null>(null)
   const [activeItems, setActiveItems] = useState<PoolItemEffect[]>([])
-  const [showCountdown, setShowCountdown] = useState(false)
   const [consecutiveStreak, setConsecutiveStreak] = useState(0)
   const [isBlinded, setIsBlinded] = useState(false)
   const [isShaking, setIsShaking] = useState(false)
   const [showGuideLine, setShowGuideLine] = useState(false)
   const [remainingShots, setRemainingShots] = useState(1) // 더블 샷 아이템용
-  const [questions, setQuestions] = useState<Question[]>([])
 
-  const questionStartTime = useRef<number>(0)
   const animationFrameRef = useRef<number>()
-
-  // URL에서 roomCode와 playerId 가져오기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('room')
-      const id = params.get('playerId')
-      if (code) setRoomCode(code)
-      if (id) setPlayerId(id)
-    }
-  }, [])
-
-  const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-  const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
-  const { playBGM, playSFX } = useAudioContext()
-
-  // 게임 모드 확인 및 리다이렉트
-  useEffect(() => {
-    if (!room || roomLoading) return
-
-    const gameMode = room.game_mode || 'gold_quest'
-
-    // pool이 아니면 올바른 페이지로 리다이렉트
-    if (gameMode !== 'pool') {
-      const gameUrl = gameMode === 'gold_quest'
-        ? `/game?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'racing'
-          ? `/racing?room=${roomCode}&playerId=${playerId}`
-          : gameMode === 'battle_royale'
-            ? `/battle?room=${roomCode}&playerId=${playerId}`
-            : gameMode === 'fishing'
-              ? `/fishing?room=${roomCode}&playerId=${playerId}`
-              : gameMode === 'factory'
-                ? `/factory?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'cafe'
-                  ? `/cafe?room=${roomCode}&playerId=${playerId}`
-                  : gameMode === 'mafia'
-                    ? `/mafia?room=${roomCode}&playerId=${playerId}`
-                    : `/pool?room=${roomCode}&playerId=${playerId}`
-
-      if (gameUrl !== window.location.pathname + window.location.search) {
-        window.location.href = gameUrl
-      }
-    }
-  }, [room, roomLoading, roomCode, playerId])
-
-  // 현재 플레이어 정보
-  const currentPlayer = players.find((p) => p.id === playerId) || null
-
-  // 문제 데이터 가져오기
-  useEffect(() => {
-    if (!room?.set_id) return
-
-    const fetchQuestions = async () => {
-      try {
-        const { data, error } = await ((supabase
-          .from('questions') as any)
-          .select('*')
-          .eq('set_id', room.set_id) as any)
-
-        if (error) throw error
-
-        setQuestions(data as Question[])
-      } catch (error) {
-        console.error('Error fetching questions:', error)
-      }
-    }
-
-    fetchQuestions()
-  }, [room?.set_id])
-
-  const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
-
-  // 게임 상태에 따른 화면 전환
-  useEffect(() => {
-    if (!room) return
-
-    if (room.status === 'playing') {
-      if (currentView === 'lobby' && !showCountdown) {
-        setShowCountdown(true)
-      }
-    } else if (room.status === 'waiting') {
-      if (currentView !== 'lobby') {
-        setCurrentView('lobby')
-        setShowCountdown(false)
-      }
-    } else if (room.status === 'finished') {
-      if (currentView !== 'result') {
-        setCurrentView('result')
-        playBGM('result')
-      }
-    }
-  }, [room?.status, currentView, showCountdown, playBGM])
 
   // 카운트다운 완료 후 게임 시작
   const handleCountdownComplete = () => {
     setShowCountdown(false)
     setCurrentView('quiz')
     setCurrentQuestionIndex(0)
-    setSelectedAnswer('')
-    setIsCorrect(false)
     setBallPosition({ x: 0.5, y: 0.5, vx: 0, vy: 0 })
     setCanShoot(false)
     setRemainingShots(1)
@@ -224,10 +142,10 @@ export default function PoolPage() {
 
       const newScore = (playerData?.score || 0) + scoreGain
 
-      await ((supabase
+      await (supabase
         .from('players') as any)
         .update({ score: newScore })
-        .eq('id', playerId))
+        .eq('id', playerId)
 
       // 연속 성공 카운트 증가
       setConsecutiveStreak((prev) => prev + 1)
@@ -246,10 +164,9 @@ export default function PoolPage() {
 
       // 다음 문제로
       setTimeout(() => {
-        setCurrentView('quiz')
+        goToNextQuestion()
         setCanShoot(false)
         setRemainingShots(1)
-        setCurrentQuestionIndex((prev) => prev + 1)
       }, 2000)
     } catch (error) {
       console.error('Error updating score:', error)
@@ -264,47 +181,24 @@ export default function PoolPage() {
   }
 
   // 답안 제출 처리
-  const handleAnswerSubmit = (answer: string) => {
-    if (!currentQuestion) return
-
-    if (answer === '') {
-      playSFX('incorrect')
-      setConsecutiveStreak(0)
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-      }, 3000)
-      return
-    }
-
-    setSelectedAnswer(answer)
-    const normalizedAnswer = String(answer).trim()
-    const normalizedCorrect = String(currentQuestion.answer).trim()
-    const correct = normalizedAnswer === normalizedCorrect
-    setIsCorrect(correct)
-
-    const timeSpent = Date.now() - questionStartTime.current
+  const handleAnswerSubmit = async (answer: string) => {
+    const timeSpent = getElapsedSeconds() * 1000 // ms
     setAnswerTime(timeSpent)
 
-    if (correct) {
-      playSFX('correct')
+    const correct = await checkAnswer(answer)
 
+    if (correct) {
+      setHasEarnedShot(true)
+      playSFX('correct')
+      setCurrentView('pool')
       // 정답: 1.5초 후 자동 또는 정답 클릭 시 즉시 포켓볼 화면으로
       setTimeout(goToPoolView, 1500)
     } else {
       setConsecutiveStreak(0)
       playSFX('incorrect')
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-      }, 3000)
+      handleWrongAnswer()
     }
+    return correct
   }
 
   // 공 치기
@@ -357,10 +251,9 @@ export default function PoolPage() {
     } else {
       // 다음 문제로
       setTimeout(() => {
-        setCurrentView('quiz')
+        goToNextQuestion()
         setCanShoot(false)
         setRemainingShots(1)
-        setCurrentQuestionIndex((prev) => prev + 1)
       }, 1000)
     }
   }
@@ -370,7 +263,7 @@ export default function PoolPage() {
     if (!playerId) return
 
     playSFX('item')
-    const effect = applyPoolItemEffect(item, playerId, players)
+    const effect = applyPoolItemEffect(item, playerId, (players as any))
 
     // 자신에게 적용되는 효과
     if (effect.type === 'GUIDE_LINE') {
@@ -389,13 +282,6 @@ export default function PoolPage() {
 
     setAcquiredItem(null)
   }
-
-  // 문제 시작 시간 기록
-  useEffect(() => {
-    if (currentView === 'quiz') {
-      questionStartTime.current = Date.now()
-    }
-  }, [currentView, currentQuestionIndex])
 
   if (!roomCode || !playerId) {
     return (
@@ -430,9 +316,7 @@ export default function PoolPage() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="text-4xl">
-                🎱
-              </div>
+              <div className="text-4xl">🎱</div>
               <div>
                 <h1 className="text-2xl font-bold text-white">포켓볼 게임</h1>
                 <p className="text-sm text-green-200">방 코드: {roomCode}</p>
@@ -466,7 +350,7 @@ export default function PoolPage() {
             </motion.div>
           )}
 
-          {currentView === 'quiz' && currentQuestion && (
+          {currentView === 'quiz' && !showCountdown && currentQuestion && (
             <QuizView
               question={currentQuestion}
               onAnswer={handleAnswerSubmit}
@@ -521,11 +405,15 @@ export default function PoolPage() {
               initial={{ y: 20 }}
               animate={{ y: 0 }}
               className="bg-white rounded-xl p-8 max-w-md text-center"
+              onClick={(e) => e.stopPropagation()}
             >
               <div className="text-6xl mb-4">{acquiredItem.icon}</div>
               <h3 className="text-2xl font-bold mb-2">{acquiredItem.name}</h3>
               <p className="text-gray-600 mb-4">{acquiredItem.description}</p>
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700">
+              <button
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700"
+                onClick={() => handleUseItem(acquiredItem)}
+              >
                 사용하기
               </button>
             </motion.div>
@@ -534,7 +422,7 @@ export default function PoolPage() {
 
         {/* 게임 결과 화면 */}
         {currentView === 'result' && (
-          <GameResult players={players} currentPlayerId={playerId} />
+          <GameResult players={players} currentPlayerId={playerId} gameMode="pool" />
         )}
 
         {/* 플레이어 순위 (결과 화면이 아닐 때만 표시) */}

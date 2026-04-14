@@ -6,10 +6,27 @@ import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/utils/gameCode'
 import { CHARACTERS } from '@/lib/utils/characters'
+import { getGameModeUrl } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
 import Image from 'next/image'
 
-type GameMode = 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'pool'
+type GameMode = 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'pool' | 'allin'
+
+function formatDevStartError(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object') {
+    const e = error as { message?: string; details?: string; hint?: string; code?: string }
+    const parts = [e.message, e.details, e.hint, e.code].filter(
+      (s): s is string => typeof s === 'string' && s.length > 0,
+    )
+    if (parts.length > 0) return parts.join(' — ')
+  }
+  try {
+    return JSON.stringify(error)
+  } catch {
+    return String(error)
+  }
+}
 
 const GAME_MODES: { mode: GameMode; name: string; description: string; image: string; emoji: string }[] = [
   {
@@ -81,6 +98,13 @@ const GAME_MODES: { mode: GameMode; name: string; description: string; image: st
     description: '퀴즈로 공을 쏴라! 구멍에 넣을수록 점수 UP, 아이템으로 역전도 가능!',
     image: '/fishing.png',
     emoji: '🎱',
+  },
+  {
+    mode: 'allin',
+    name: '💎 올인 퀴즈',
+    description: '점수를 걸고 문제를 풀어라! 맞히면 대박, 틀리면 쪽박! 역전의 짜릿함!',
+    image: '/gold-quest.png',
+    emoji: '💎',
   },
 ]
 
@@ -154,31 +178,19 @@ export default function DevPage() {
 
       if (playerError) throw playerError
 
-      // 4. 게임 페이지로 이동
-      const gameUrl = selectedMode === 'racing'
-        ? `/racing?room=${roomCode}&playerId=${playerData.id}`
-        : selectedMode === 'battle_royale'
-          ? `/battle?room=${roomCode}&playerId=${playerData.id}`
-          : selectedMode === 'fishing'
-            ? `/fishing?room=${roomCode}&playerId=${playerData.id}`
-            : selectedMode === 'factory'
-              ? `/factory?room=${roomCode}&playerId=${playerData.id}`
-              : selectedMode === 'cafe'
-                ? `/cafe?room=${roomCode}&playerId=${playerData.id}`
-                : selectedMode === 'mafia'
-                  ? `/mafia?room=${roomCode}&playerId=${playerData.id}`
-                  : selectedMode === 'tower'
-                    ? `/tower?room=${roomCode}&playerId=${playerData.id}`
-                    : selectedMode === 'dontlookdown'
-                      ? `/dontlookdown?room=${roomCode}&playerId=${playerData.id}`
-                      : selectedMode === 'pool'
-                        ? `/pool?room=${roomCode}&playerId=${playerData.id}`
-                        : `/game?room=${roomCode}&playerId=${playerData.id}`
+      const pid = playerData?.id
+      if (!pid) {
+        throw new Error('플레이어 생성 후 id를 받지 못했습니다.')
+      }
+
+      // 4. 게임 페이지로 이동 (모드별 경로는 useGameBase와 동일)
+      const gameUrl = getGameModeUrl(selectedMode, roomCode, pid)
 
       router.push(gameUrl)
     } catch (error) {
-      console.error('Error starting dev game:', error)
-      alert('게임 시작에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      const msg = formatDevStartError(error)
+      console.error('Error starting dev game:', msg, error)
+      alert('게임 시작에 실패했습니다: ' + msg)
       setLoading(false)
     }
   }

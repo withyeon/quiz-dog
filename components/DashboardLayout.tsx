@@ -5,10 +5,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { 
-  BookOpen, 
-  BarChart3, 
-  Settings, 
+import {
+  BookOpen,
+  BarChart3,
+  Settings,
   TrendingUp,
   Compass,
   Star,
@@ -31,8 +31,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
   const navItems = [
     { href: '/teacher', label: '내 문제집', icon: Compass, id: 'discover' },
-    { href: '/teacher', label: '즐겨찾기', icon: Star, id: 'favorites' },
-    { href: '/teacher', label: '히스토리', icon: History, id: 'history' },
+    { href: '/teacher/library', label: '라이브러리', icon: Star, id: 'library' },
+    { href: '/teacher/analytics', label: '히스토리', icon: History, id: 'history' },
     { href: '/teacher/dashboard', label: '게임 시작', icon: Play, id: 'play' },
     { href: '/teacher/settings', label: '설정', icon: Settings, id: 'settings' },
   ]
@@ -42,7 +42,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     if (item.id === 'discover') {
       return pathname === '/teacher' && !pathname.includes('create')
     }
-    return pathname === item.href
+    return pathname?.startsWith(item.href) && item.href !== '/teacher'
   }
 
   return (
@@ -132,11 +132,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {/* 내 퀴즈함 링크 */}
           <Link
             href="/teacher"
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              pathname === '/teacher' || pathname === '/teacher/'
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${pathname === '/teacher' || pathname === '/teacher/'
                 ? 'bg-blue-50 text-blue-700 font-semibold'
                 : 'text-gray-700 hover:bg-gray-50'
-            }`}
+              }`}
           >
             <Library className="h-5 w-5" />
             <span className="font-medium">내 퀴즈함</span>

@@ -34,6 +34,7 @@ export interface Database {
           mafia_diamonds?: number
           created_at: string
           updated_at: string
+          answer_history?: Json[] | null
         }
         Insert: {
           id?: string
@@ -59,6 +60,7 @@ export interface Database {
           mafia_diamonds?: number
           created_at?: string
           updated_at?: string
+          answer_history?: Json[] | null
         }
         Update: {
           id?: string
@@ -84,6 +86,7 @@ export interface Database {
           mafia_diamonds?: number
           created_at?: string
           updated_at?: string
+          answer_history?: Json[] | null
         }
       }
       question_sets: {
@@ -91,6 +94,9 @@ export interface Database {
           id: string
           title: string
           description: string | null
+          subject: string | null
+          grade: string | null
+          tags: Json
           created_at: string
           updated_at: string
         }
@@ -98,6 +104,9 @@ export interface Database {
           id: string
           title: string
           description?: string | null
+          subject?: string | null
+          grade?: string | null
+          tags?: Json
           created_at?: string
           updated_at?: string
         }
@@ -105,6 +114,9 @@ export interface Database {
           id?: string
           title?: string
           description?: string | null
+          subject?: string | null
+          grade?: string | null
+          tags?: Json
           created_at?: string
           updated_at?: string
         }
@@ -114,7 +126,7 @@ export interface Database {
           room_code: string
           status: 'waiting' | 'playing' | 'finished'
           current_q_index: number
-          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown'
+          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown' | 'allin'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -125,7 +137,7 @@ export interface Database {
           room_code: string
           status?: 'waiting' | 'playing' | 'finished'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown'
+          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown' | 'allin'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -136,7 +148,7 @@ export interface Database {
           room_code?: string
           status?: 'waiting' | 'playing' | 'finished'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown'
+          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown' | 'allin'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -173,12 +185,47 @@ export interface Database {
           created_at?: string
         }
       }
+      game_reports: {
+        Row: {
+          id: string
+          room_code: string
+          set_id: string | null
+          game_mode: string | null
+          player_count: number
+          players_data: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          room_code: string
+          set_id?: string | null
+          game_mode?: string | null
+          player_count?: number
+          players_data?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          room_code?: string
+          set_id?: string | null
+          game_mode?: string | null
+          player_count?: number
+          players_data?: Json
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_question_answer: {
+        Args: {
+          p_question_id: string
+          p_submitted_answer: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

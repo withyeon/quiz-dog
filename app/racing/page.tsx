@@ -13,6 +13,7 @@ import ItemEffectOverlay from '@/components/ItemEffectOverlay'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import AnimatedBackground from '@/components/AnimatedBackground'
+import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
 import {
   generateSchoolRacingItem,
   calculateMoveDistance,
@@ -28,29 +29,40 @@ type Player = Database['public']['Tables']['players']['Row'] & {
   position?: number
 }
 
-// 더미 문제 데이터
-type Question = {
-  id: string
-  type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-  question_text: string
-  options: string[]
-  answer: string
-}
-
-
 type RacingView = 'lobby' | 'countdown' | 'quiz' | 'item' | 'wrong' | 'result'
 
 export default function RacingPage() {
-  const [roomCode, setRoomCode] = useState('')
-  const [playerId, setPlayerId] = useState<string | null>(null)
-  const [currentView, setCurrentView] = useState<RacingView>('lobby')
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('')
-  const [isCorrect, setIsCorrect] = useState(false)
+  const {
+    roomCode,
+    playerId,
+    currentView,
+    setCurrentView,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    selectedAnswer,
+    isCorrect,
+    showCountdown,
+    setShowCountdown,
+    consecutiveCorrect,
+    answerHistory,
+    questions,
+    players,
+    room,
+    roomLoading,
+    playersLoading,
+    currentPlayer,
+    currentQuestion,
+    playBGM,
+    playSFX,
+    checkAnswer,
+    handleWrongAnswer,
+    goToNextQuestion,
+    getElapsedSeconds,
+  } = useGameBase({ expectedGameMode: 'racing' })
+
   const [answerTime, setAnswerTime] = useState(0)
   const [acquiredItem, setAcquiredItem] = useState<SchoolRacingItem | null>(null)
   const [activeItems, setActiveItems] = useState<SchoolRacingItem[]>([])
-  const [showCountdown, setShowCountdown] = useState(false)
   const [activeEffect, setActiveEffect] = useState<{ type: SchoolRacingItemType; fromPlayer?: string } | null>(null)
   const [isStunned, setIsStunned] = useState(false) // 기절 효과
   const [isBlinded, setIsBlinded] = useState(false) // 화면 가리기 효과
@@ -62,89 +74,11 @@ export default function RacingPage() {
   const [rankChange, setRankChange] = useState<{ type: 'up' | 'down' | null; value: number }>({ type: null, value: 0 })
   const [speedBoostActive, setSpeedBoostActive] = useState(false)
   const [showRankChange, setShowRankChange] = useState(false)
-  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0) // 연속 정답 카운트
   const [showReversal, setShowReversal] = useState(false) // 역전 효과
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0) // 정답 횟수 (아이템 획득용)
 
-  const questionStartTime = useRef<number>(0)
-
-  // URL에서 roomCode와 playerId 가져오기
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('room')
-      const id = params.get('playerId')
-      if (code) setRoomCode(code)
-      if (id) setPlayerId(id)
-    }
-  }, [])
-
-  const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-  const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
-  const { playBGM, playSFX } = useAudioContext()
-
-  // 게임 모드 확인 및 리다이렉트
-  useEffect(() => {
-    if (!room || roomLoading) return
-
-    const gameMode = room.game_mode || 'gold_quest'
-
-    // racing이 아니면 올바른 페이지로 리다이렉트
-    if (gameMode !== 'racing') {
-      const gameUrl = gameMode === 'gold_quest'
-        ? `/game?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'battle_royale'
-          ? `/battle?room=${roomCode}&playerId=${playerId}`
-          : gameMode === 'fishing'
-            ? `/fishing?room=${roomCode}&playerId=${playerId}`
-            : gameMode === 'factory'
-              ? `/factory?room=${roomCode}&playerId=${playerId}`
-              : gameMode === 'cafe'
-                ? `/cafe?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'mafia'
-                  ? `/mafia?room=${roomCode}&playerId=${playerId}`
-                  : gameMode === 'pool'
-                    ? `/pool?room=${roomCode}&playerId=${playerId}`
-                    : `/racing?room=${roomCode}&playerId=${playerId}`
-
-      if (gameUrl !== window.location.pathname + window.location.search) {
-        window.location.href = gameUrl
-      }
-    }
-  }, [room, roomLoading, roomCode, playerId])
-
-  // 문제 데이터 가져오기
-  const [questions, setQuestions] = useState<Question[]>([])
-
-  useEffect(() => {
-    if (!room?.set_id) return
-
-    const fetchQuestions = async () => {
-      try {
-        const { data, error } = await ((supabase
-          .from('questions') as any)
-          .select('*')
-          .eq('set_id', room.set_id) as any)
-
-        if (error) throw error
-
-        setQuestions(data as Question[])
-      } catch (error) {
-        console.error('Error fetching questions:', error)
-      }
-    }
-
-    fetchQuestions()
-  }, [room?.set_id])
-
-  // 현재 플레이어 정보
-  const currentPlayer = players.find((p) => p.id === playerId) as Player | undefined
-  const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
-
   // 순위 계산
   const sortedPlayers = [...players].sort((a, b) => (b.position || 0) - (a.position || 0))
-
-  // 현재 플레이어 순위 계산
   const currentRank = sortedPlayers.findIndex(p => p.id === playerId) + 1
 
   // 순위 변동 감지
@@ -169,64 +103,17 @@ export default function RacingPage() {
     setPreviousRank(currentRank)
   }, [currentRank, previousRank, playSFX])
 
-  // 게임 시작 감지
-  useEffect(() => {
-    if (room && room.status === 'playing') {
-      // 게임이 시작되면 로비에서 카운트다운으로 이동
-      if (currentView === 'lobby') {
-        setShowCountdown(true)
-        setCurrentView('countdown')
-        playBGM('game')
-      }
-    } else if (room && room.status === 'waiting' && currentView !== 'lobby') {
-      setCurrentView('lobby')
-      setShowCountdown(false)
-    }
-  }, [room, currentView, playBGM])
-
-  // 카운트다운 완료 후 퀴즈 시작
-  useEffect(() => {
-    if (showCountdown) {
-      const timer = setTimeout(() => {
-        setShowCountdown(false)
-        setCurrentView('quiz')
-        questionStartTime.current = Date.now()
-      }, 4000) // 3초 카운트다운 + 1초 여유
-      return () => clearTimeout(timer)
-    }
-  }, [showCountdown])
-
-  // 정답 후 다음 퀴즈로 (아이템 없을 때 클릭 시 즉시 이동)
-  const goToNextQuiz = () => {
-    setCurrentView('quiz')
-    setCurrentQuestionIndex((prev) => prev + 1)
-    setSelectedAnswer('')
-    setIsCorrect(false)
-    questionStartTime.current = Date.now()
-  }
-
   // 정답 제출
   const handleAnswerSubmit = async (answer: string) => {
-    if (!currentPlayer || !roomCode || !currentQuestion) return
-
-    const timeElapsed = (Date.now() - questionStartTime.current) / 1000
+    const correct = await checkAnswer(answer)
+    const timeElapsed = getElapsedSeconds()
     setAnswerTime(timeElapsed)
-    setSelectedAnswer(answer)
-
-    const normalizedAnswer = String(answer).trim()
-    const normalizedCorrect = String(currentQuestion.answer).trim()
-    const correct = normalizedAnswer === normalizedCorrect
-    setIsCorrect(correct)
 
     if (correct) {
       playSFX('correct')
 
-      // 연속 정답 카운트 증가
-      const newConsecutive = consecutiveCorrect + 1
-      setConsecutiveCorrect(newConsecutive)
-
-      // 이동 거리 계산 (연속 정답 보너스 포함)
-      let baseDistance = calculateMoveDistance(timeElapsed, 30, newConsecutive)
+      // 이동 거리 계산 (축소된 currentConsecutive 사용)
+      let baseDistance = calculateMoveDistance(timeElapsed, 30, consecutiveCorrect + 1)
 
       // 매운 고추 효과: 2배 가치
       const spicyPepperActive = activeItems.find(item => item.type === 'SPICY_PEPPER')
@@ -239,57 +126,39 @@ export default function RacingPage() {
         }
       }
 
-      // 아이템 효과 적용
-      let finalDistance = baseDistance
-
       // 위치 업데이트
-      const newPosition = (currentPlayer.position || 0) + finalDistance
-      const newScore = (currentPlayer.score || 0) + finalDistance
+      const newPosition = (currentPlayer?.position || 0) + baseDistance
+      const newScore = (currentPlayer?.score || 0) + baseDistance
 
       try {
-        await ((supabase
+        await (supabase
           .from('players') as any)
           .update({
             position: newPosition,
             score: newScore,
           })
-          .eq('id', playerId))
+          .eq('id', playerId)
 
         // Blooket Racing: 4문제마다 2개 파워업 획득
         const newCorrectCount = correctAnswersCount + 1
         setCorrectAnswersCount(newCorrectCount)
 
-        // 4문제마다 아이템 획득
         if (newCorrectCount % 4 === 0) {
-          // 아이템 획득 사운드 및 효과
           playSFX('item')
-
-          // 아이템 생성 및 화면 전환
           const item1 = generateSchoolRacingItem()
           setAcquiredItem(item1)
           setCurrentView('item')
-          // 아이템 화면은 useEffect에서 5초 후 자동으로 다음 문제로 넘어감
         } else {
-          // 아이템 없으면 1초 후 자동 또는 정답 클릭 시 즉시
-          setTimeout(goToNextQuiz, 1000)
+          setTimeout(goToNextQuestion, 1000)
         }
       } catch (error) {
         console.error('Error updating position:', error)
       }
     } else {
       playSFX('incorrect')
-      // 오답 시 연속 정답 카운트 리셋
-      setConsecutiveCorrect(0)
-
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
-      }, 2000)
+      handleWrongAnswer()
     }
+    return correct
   }
 
   // 아이템 사용
@@ -303,16 +172,12 @@ export default function RacingPage() {
       item.type === 'BUSY_BEES' || item.type === 'FREEZE' || item.type === 'MINIFY' ||
       item.type === 'BLOOK_FIESTA')) {
       setHasShield(false)
-      setActiveEffect({ type: 'MIGHTY_SHIELD', fromPlayer: currentPlayer.nickname })
+      setActiveEffect({ type: 'MIGHTY_SHIELD', fromPlayer: currentPlayer?.nickname || '' })
       setTimeout(() => setActiveEffect(null), 2000)
 
       // 아이템 사용 완료
       setAcquiredItem(null)
-      setCurrentView('quiz')
-      setSelectedAnswer('')
-      setIsCorrect(false)
-      setCurrentQuestionIndex((prev) => prev + 1)
-      questionStartTime.current = Date.now()
+      goToNextQuestion()
       return
     }
 
@@ -398,22 +263,14 @@ export default function RacingPage() {
 
     // 아이템 사용 완료
     setAcquiredItem(null)
-    setCurrentView('quiz')
-    setSelectedAnswer('')
-    setIsCorrect(false)
-    setCurrentQuestionIndex((prev) => prev + 1)
-    questionStartTime.current = Date.now()
+    goToNextQuestion()
   }
 
   // 아이템 건너뛰기
   const handleSkipItem = useCallback(() => {
     setAcquiredItem(null)
-    setCurrentView('quiz')
-    setSelectedAnswer('')
-    setIsCorrect(false)
-    setCurrentQuestionIndex((prev) => prev + 1)
-    questionStartTime.current = Date.now()
-  }, [])
+    goToNextQuestion()
+  }, [goToNextQuestion])
 
   // 아이템 화면에서 자동으로 다음 문제로 넘어가기 (5초 후)
   useEffect(() => {
@@ -772,7 +629,7 @@ export default function RacingPage() {
                 <QuizView
                   question={currentQuestion}
                   onAnswer={handleAnswerSubmit}
-                  onCorrectClick={goToNextQuiz}
+                  onCorrectClick={goToNextQuestion}
                   timeLimit={30}
                 />
               ) : (
