@@ -65,6 +65,21 @@ export const supabase: SupabaseClient<Database> = supabaseUrl && supabaseAnonKey
       }
     )
 
+/** 클라우드·로컬 CLI 등에서 쓰는 Supabase REST URL인지 확인 */
+function isAllowedSupabaseApiUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    const host = u.hostname
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return u.protocol === 'http:' || u.protocol === 'https:'
+    }
+    if (host.endsWith('.supabase.co') && u.protocol === 'https:') return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 // 환경 변수 확인 헬퍼 함수
 export function checkSupabaseConfig(): { isValid: boolean; error?: string } {
   const url = getSupabaseUrl()
@@ -76,17 +91,27 @@ export function checkSupabaseConfig(): { isValid: boolean; error?: string } {
       error: 'Supabase 환경 변수가 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY를 .env.local 파일에 설정해주세요.',
     }
   }
-  
-  // URL 형식 검증
-  if (!url.startsWith('https://') || !url.includes('.supabase.co')) {
+
+  if (url.includes('placeholder.supabase.co') || key === 'placeholder-key') {
     return {
       isValid: false,
-      error: 'Supabase URL 형식이 올바르지 않습니다. https://your-project.supabase.co 형식이어야 합니다.',
+      error:
+        'Supabase가 기본 placeholder로 연결되어 있습니다. .env.local에 실제 NEXT_PUBLIC_SUPABASE_URL과 NEXT_PUBLIC_SUPABASE_ANON_KEY를 넣은 뒤 개발 서버를 다시 시작하세요.',
     }
   }
   
-  // 키 형식 검증 (JWT 토큰은 보통 길고 점으로 구분됨)
-  if (key.length < 100) {
+  // URL 형식 검증 (클라우드: https://xxx.supabase.co, 로컬: http://127.0.0.1:54321 등)
+  if (!isAllowedSupabaseApiUrl(url)) {
+    return {
+      isValid: false,
+      error:
+        'Supabase URL 형식이 올바르지 않습니다. 클라우드: https://your-project.supabase.co, 로컬 CLI: http://127.0.0.1:54321',
+    }
+  }
+  
+  // 키 형식 검증 (JWT; 로컬 키도 대체로 동일 길이)
+  const minKeyLen = url.includes('127.0.0.1') || url.includes('localhost') ? 32 : 100
+  if (key.length < minKeyLen) {
     return {
       isValid: false,
       error: 'Supabase Anon Key 형식이 올바르지 않습니다.',

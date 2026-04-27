@@ -15,6 +15,7 @@ import AnimatedBackground from '@/components/AnimatedBackground'
 import ScreenFlash from '@/components/ScreenFlash'
 import type { Database } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
+import { getAnswerSpeed, getSpeedBonus } from '@/lib/game/convenienceStore'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   convenience_products?: Product[]
@@ -47,6 +48,9 @@ export default function FactoryPage() {
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0) // Blooket: 3문제마다 유닛 획득
   const [showOrderModal, setShowOrderModal] = useState(false) // 정답 3개마다 발주 모달
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null) // 제한 시간 남은 초
+  const [lastAnswerSpeed, setLastAnswerSpeed] = useState<'fast' | 'normal' | 'slow'>('normal') // 마지막 정답 속도
+  const [speedBonusDisplay, setSpeedBonusDisplay] = useState<number | null>(null) // 속도 보너스 표시용
+  const [stolenProduct, setStolenProduct] = useState<string | null>(null) // 도난당한 상품 이름 표시
 
   const questionStartTime = useRef<number>(0)
 
@@ -257,6 +261,19 @@ export default function FactoryPage() {
     if (correct) {
       playSFX('correct')
 
+      // 정답 속도 계산
+      const answerTimeMs = Date.now() - questionStartTime.current
+      const speed = getAnswerSpeed(answerTimeMs, 30)
+      setLastAnswerSpeed(speed)
+
+      // 속도 보너스 골드 지급
+      const bonus = getSpeedBonus(answerTimeMs, 30)
+      if (bonus > 0) {
+        handleMoneyChange(money + bonus)
+        setSpeedBonusDisplay(bonus)
+        setTimeout(() => setSpeedBonusDisplay(null), 1500)
+      }
+
       // Blooket 스타일: 3문제마다 상품 획득
       const newCorrectCount = correctAnswersCount + 1
       setCorrectAnswersCount(newCorrectCount)
@@ -273,6 +290,17 @@ export default function FactoryPage() {
       }
     } else {
       playSFX('incorrect')
+
+      // 🚨 오답 패널티: 상품 도난 (진열대에 상품이 있으면 랜덤 1개 제거)
+      if (products.length > 0) {
+        const stolenIndex = Math.floor(Math.random() * products.length)
+        const stolen = products[stolenIndex]
+        setStolenProduct(stolen.name)
+        const newProducts = products.filter((_, idx) => idx !== stolenIndex)
+        handleProductsChange(newProducts)
+        setTimeout(() => setStolenProduct(null), 2500)
+      }
+
       setIsQuizMode(false)
       setCurrentView('wrong')
       setTimeout(() => {
@@ -282,7 +310,7 @@ export default function FactoryPage() {
         setSelectedAnswer('')
         setIsCorrect(false)
         questionStartTime.current = Date.now()
-      }, 2000)
+      }, 2500)
     }
     return correct
   }
@@ -360,6 +388,20 @@ export default function FactoryPage() {
       <AnimatedBackground />
       <ScreenFlash show={showFlash} color="rgba(34, 197, 94, 0.3)" />
 
+      {/* 속도 보너스 플로팅 표시 */}
+      {speedBonusDisplay !== null && (
+        <motion.div
+          initial={{ opacity: 0, y: 0, scale: 0.5 }}
+          animate={{ opacity: [0, 1, 1, 0], y: -80, scale: [0.5, 1.2, 1, 0.8] }}
+          transition={{ duration: 1.5 }}
+          className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+        >
+          <div className="bg-yellow-400 text-gray-900 font-black text-3xl px-6 py-3 rounded-2xl shadow-2xl border-4 border-yellow-600">
+            ⚡ +{speedBonusDisplay.toLocaleString()}원 속도 보너스!
+          </div>
+        </motion.div>
+      )}
+
       <div className="relative z-10 p-4" style={{ fontFamily: 'BMJUA, sans-serif' }}>
         {/* 헤더 */}
         <div className="max-w-6xl mx-auto mb-4">
@@ -421,7 +463,7 @@ export default function FactoryPage() {
         </div>
 
         {/* 메인 컨텐츠 */}
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-[1600px] mx-auto">
           {/* 카운트다운 */}
           {showCountdown && <Countdown onComplete={() => { }} />}
 
@@ -438,28 +480,35 @@ export default function FactoryPage() {
             </motion.div>
           )}
 
-          {/* 퀴즈 */}
+          {/* 퀴즈 + 편의점 — 좌우 분리 레이아웃 */}
           {currentView === 'quiz' && !showCountdown && currentQuestion && (
-            <div className="space-y-4">
-              <QuizView
-                question={currentQuestion}
-                onAnswer={handleAnswerSubmit}
-                onCorrectClick={goToNextQuiz}
-                timeLimit={30}
-              />
+            <div className="flex gap-4 items-start">
+              {/* 왼쪽: 퀴즈 */}
+              <div className="flex-1 min-w-0 sticky top-4">
+                <QuizView
+                  question={currentQuestion}
+                  onAnswer={handleAnswerSubmit}
+                  onCorrectClick={goToNextQuiz}
+                  timeLimit={30}
+                  className="bg-white rounded-xl shadow-2xl p-8 w-full border-2 border-gray-200"
+                />
+              </div>
 
-              {/* 편의점 뷰 */}
-              <ConvenienceStore
-                money={money}
-                onMoneyChange={handleMoneyChange}
-                products={products}
-                onProductsChange={handleProductsChange}
-                onQuizStart={handleQuizStart}
-                canInteract={!isQuizMode}
-                quizCorrect={isCorrect && currentView === 'quiz'}
-                onProductSelected={handleProductSelected}
-                showOrderModal={showOrderModal}
-              />
+              {/* 오른쪽: 편의점 */}
+              <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+                <ConvenienceStore
+                  money={money}
+                  onMoneyChange={handleMoneyChange}
+                  products={products}
+                  onProductsChange={handleProductsChange}
+                  onQuizStart={handleQuizStart}
+                  canInteract={!isQuizMode}
+                  quizCorrect={isCorrect && currentView === 'quiz'}
+                  onProductSelected={handleProductSelected}
+                  showOrderModal={showOrderModal}
+                  answerSpeed={lastAnswerSpeed}
+                />
+              </div>
             </div>
           )}
 
@@ -472,7 +521,17 @@ export default function FactoryPage() {
             >
               <div className="text-6xl mb-4">❌</div>
               <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다!</h2>
-              <p className="text-gray-700">다음 문제로 넘어갑니다...</p>
+              {stolenProduct ? (
+                <motion.p
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-red-700 font-bold text-lg"
+                >
+                  🚨 도둑이 [{stolenProduct}]을(를) 훔쳐갔습니다!
+                </motion.p>
+              ) : (
+                <p className="text-gray-700">다음 문제로 넘어갑니다...</p>
+              )}
             </motion.div>
           )}
 

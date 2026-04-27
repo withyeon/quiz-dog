@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import {
   Play,
@@ -144,141 +145,175 @@ function TeacherPageContent() {
   }
 
   return (
-    <div className="p-6">
-      {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">내 퀴즈함</h1>
-          <p className="text-gray-600">내가 만든 문제집을 관리하세요</p>
-        </div>
-        <Button
-          onClick={() => router.push('/teacher/create')}
-          className="bg-sky-500 hover:bg-sky-600 text-white"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          퀴즈 만들기
-        </Button>
-      </div>
-
-      {/* 문제집 리스트 */}
+    <div style={{ padding: '0' }}>
       {loading ? (
-        <div className="text-center py-12 text-gray-500">로딩 중...</div>
+        <div style={{ textAlign: 'center', padding: '100px 0', color: '#888' }}>로딩 중...</div>
       ) : questionSets.length === 0 ? (
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-8">
-            <div className="text-5xl mb-4">👋</div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">환영합니다, 선생님!</h2>
-            <p className="text-gray-600">퀴즈독으로 수업을 재미있게 만들어보세요</p>
+        <div style={{ maxWidth: 740, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', padding: '40px 20px 32px' }}>
+            <div style={{ fontSize: 72, marginBottom: 18, animation: 'bob 2.5s ease-in-out infinite' }}>🐕</div>
+            <div style={{ fontFamily: "'BMJUA', monospace", fontSize: 28, marginBottom: 10 }}>환영합니다, 선생님!</div>
+            <div style={{ fontSize: 15, color: '#888', marginBottom: 36 }}>퀴즈독으로 수업을 재미있게 만들어보세요</div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-4 mb-8">
-            {/* 샘플 체험 */}
-            <motion.div
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/teacher/library')}
-              className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-200 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-shadow text-center"
-            >
-              <div className="text-4xl mb-3">🎮</div>
-              <h3 className="font-bold text-purple-900 text-lg mb-2">샘플 문제집 체험</h3>
-              <p className="text-sm text-purple-700">라이브러리에서 문제집을 가져와 바로 게임을 시작해보세요</p>
-            </motion.div>
-
-            {/* AI 생성 */}
-            <motion.div
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/teacher/create')}
-              className="bg-gradient-to-br from-sky-50 to-sky-100 border-2 border-sky-200 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-shadow text-center"
-            >
-              <div className="text-4xl mb-3">🤖</div>
-              <h3 className="font-bold text-sky-900 text-lg mb-2">AI로 문제 만들기</h3>
-              <p className="text-sm text-sky-700">주제, 파일, 유튜브, 시험지에서 문제를 자동 생성하세요</p>
-            </motion.div>
-
-            {/* 직접 만들기 */}
-            <motion.div
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => router.push('/teacher/create')}
-              className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-shadow text-center"
-            >
-              <div className="text-4xl mb-3">✏️</div>
-              <h3 className="font-bold text-green-900 text-lg mb-2">직접 문제 만들기</h3>
-              <p className="text-sm text-green-700">객관식, 주관식, OX 문제를 직접 만들어보세요</p>
-            </motion.div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18, marginBottom: 28 }}>
+            {[
+              { icon: '🎮', title: '샘플 체험', desc: '라이브러리에서 문제집을 가져와 바로 게임을 시작해보세요', bg: '#F5F3FF', href: '/teacher/library' },
+              { icon: '🤖', title: 'AI로 만들기', desc: '주제, 파일, 유튜브에서 문제를 자동 생성하세요', bg: '#F0F9FF', href: '/teacher/create' },
+              { icon: '✏️', title: '직접 만들기', desc: '객관식, 주관식, OX 문제를 직접 만들어보세요', bg: '#F0FDF4', href: '/teacher/create' },
+            ].map((c) => (
+              <Link key={c.title} href={c.href} style={{ textDecoration: 'none' }}>
+                <div
+                  style={{
+                    padding: '28px 20px', textAlign: 'center',
+                    background: c.bg, border: '3px solid #0C2340',
+                    boxShadow: '4px 4px 0 #0C2340', borderRadius: 12,
+                    cursor: 'pointer', transition: 'all .12s',
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translate(-2px,-2px)'; (e.currentTarget as HTMLElement).style.boxShadow = '6px 6px 0 #0C2340'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = ''; (e.currentTarget as HTMLElement).style.boxShadow = '4px 4px 0 #0C2340'; }}
+                >
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>{c.icon}</div>
+                  <div style={{ fontFamily: "'BMJUA', monospace", fontSize: 15, marginBottom: 8 }}>{c.title}</div>
+                  <div style={{ fontSize: 12, color: '#888', lineHeight: 1.65 }}>{c.desc}</div>
+                </div>
+              </Link>
+            ))}
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-            <p className="text-sm text-amber-800">
-              💡 <strong>추천:</strong> 먼저 라이브러리에서 샘플 문제집을 가져와 게임을 체험해보세요!
-            </p>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 10,
+              padding: '12px 20px',
+              background: '#E0F2FE', border: '2px solid #0C2340',
+              boxShadow: '2px 2px 0 #0C2340', borderRadius: 10,
+              fontSize: 13, color: '#0369A1',
+            }}>
+              💡 먼저 라이브러리에서 샘플 문제집을 가져와 게임을 체험해보세요!
+            </div>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {questionSets.map((set, index) => (
-            <motion.div
-              key={set.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-gray-900 mb-1">
-                    {set.title}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {set.question_count}문제
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(set.created_at).toLocaleDateString('ko-KR')}
-                  </p>
+        <div>
+          {/* 통계 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 28 }}>
+            {[
+              { icon: '📚', label: '내 문제집', value: questionSets.length, bg: '#FFF3C8' },
+              { icon: '❓', label: '총 문제 수', value: questionSets.reduce((a, s) => a + s.question_count, 0), bg: '#DBEEFF' },
+              { icon: '🎮', label: '진행한 게임', value: 0, bg: '#DCFCE7' },
+            ].map((s) => (
+              <div key={s.label} style={{
+                background: '#fff', border: '3px solid #0C2340',
+                boxShadow: '4px 4px 0 #0C2340', borderRadius: 12,
+                padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14,
+              }}>
+                <div style={{
+                  width: 46, height: 46, background: s.bg,
+                  border: '2px solid #0C2340', boxShadow: '2px 2px 0 #0C2340',
+                  borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 22, flexShrink: 0,
+                }}>{s.icon}</div>
+                <div>
+                  <div style={{ fontFamily: "'BMJUA', monospace", fontSize: 26, lineHeight: 1 }}>{s.value}</div>
+                  <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>{s.label}</div>
                 </div>
               </div>
+            ))}
+          </div>
 
-              <div className="flex items-center gap-2 mt-4">
-                <Button
-                  size="sm"
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
-                  onClick={() => handleStartGame(set.id)}
-                >
-                  <Play className="h-4 w-4 mr-1" />
-                  게임 시작
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => router.push(`/teacher/sets/${encodeURIComponent(set.id)}/edit`)}
-                  title="편집"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDuplicate(set)}
-                  title="복제"
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDelete(set.id)}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                  title="삭제"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+          {/* 헤더 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+            <div>
+              <div style={{ fontFamily: "'BMJUA', monospace", fontSize: 22 }}>내 문제집</div>
+              <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>총 {questionSets.length}개의 문제집</div>
+            </div>
+            <Link
+              href="/teacher/create"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7,
+                padding: '10px 18px',
+                background: '#0EA5E9', color: '#fff',
+                border: '3px solid #0C2340', boxShadow: '4px 4px 0 #0C2340',
+                borderRadius: 8, fontFamily: "'BMJUA', monospace", fontSize: 13,
+                textDecoration: 'none',
+              }}
+            >＋ 퀴즈 만들기</Link>
+          </div>
+
+          {/* 카드 그리드 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px,1fr))', gap: 20 }}>
+            {questionSets.map((set, i) => {
+              const colors = ['#0284C7,#38BDF8','#7C3AED,#A78BFA','#059669,#34D399','#D97706,#FCD34D','#DB2777,#F9A8D4','#0C4A6E,#0EA5E9']
+              const emojis = ['🌍','🔢','🌱','📜','🔤','⚗️']
+              const [c1, c2] = colors[i % colors.length].split(',')
+              return (
+                <div key={set.id} style={{
+                  background: '#fff', border: '3px solid #0C2340',
+                  boxShadow: '4px 4px 0 #0C2340', borderRadius: 12, overflow: 'hidden',
+                  transition: 'all .12s', cursor: 'pointer',
+                }}>
+                  <div style={{
+                    height: 80, background: `linear-gradient(135deg,${c1},${c2})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    position: 'relative',
+                  }}>
+                    <span style={{ fontSize: 40, filter: 'drop-shadow(2px 2px 0 rgba(0,0,0,.2))' }}>
+                      {emojis[i % emojis.length]}
+                    </span>
+                    <span style={{
+                      position: 'absolute', top: 10, right: 10,
+                      background: 'rgba(0,0,0,.3)', border: '1.5px solid rgba(255,255,255,.3)',
+                      borderRadius: 6, padding: '2px 8px',
+                      fontFamily: "'BMJUA', monospace", fontSize: 10, color: '#fff',
+                    }}>{set.question_count}문제</span>
+                  </div>
+                  <div style={{ padding: 16 }}>
+                    <div style={{
+                      fontFamily: "'BMJUA', monospace", fontSize: 15, marginBottom: 6,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{set.title}</div>
+                    <div style={{ fontSize: 11, color: '#aaa', marginBottom: 14 }}>
+                      {new Date(set.created_at).toLocaleDateString('ko-KR')}
+                    </div>
+                    <div style={{ display: 'flex', gap: 7 }}>
+                      <button
+                        onClick={() => handleStartGame(set.id)}
+                        style={{
+                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          padding: 9, background: '#0EA5E9', color: '#fff',
+                          border: '2px solid #0C2340', boxShadow: '2px 2px 0 #0C2340',
+                          borderRadius: 8, fontFamily: "'BMJUA', monospace", fontSize: 12,
+                          cursor: 'pointer',
+                        }}
+                      >▶ 게임 시작</button>
+                      <button onClick={() => router.push(`/teacher/sets/${encodeURIComponent(set.id)}/edit`)}
+                        style={{ width: 36, height: 36, background: '#F0F9FF', border: '2px solid #0C2340', boxShadow: '2px 2px 0 #0C2340', borderRadius: 8, cursor: 'pointer', fontSize: 15 }}>✏️</button>
+                      <button onClick={() => handleDuplicate(set)}
+                        style={{ width: 36, height: 36, background: '#F0F9FF', border: '2px solid #0C2340', boxShadow: '2px 2px 0 #0C2340', borderRadius: 8, cursor: 'pointer', fontSize: 15 }}>📋</button>
+                      <button onClick={() => handleDelete(set.id)}
+                        style={{ width: 36, height: 36, background: '#FEF2F2', border: '2px solid #0C2340', boxShadow: '2px 2px 0 #0C2340', borderRadius: 8, cursor: 'pointer', fontSize: 15 }}>🗑️</button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
+            {/* 새로 만들기 카드 */}
+            <Link href="/teacher/create" style={{ textDecoration: 'none' }}>
+              <div style={{
+                border: '3px dashed #CBD5E1', borderRadius: 12, minHeight: 170,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: '#F0F9FF', cursor: 'pointer',
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 40, opacity: .4, marginBottom: 10 }}>＋</div>
+                  <div style={{ fontFamily: "'BMJUA', monospace", fontSize: 13, color: '#aaa' }}>새 문제집 만들기</div>
+                </div>
               </div>
-            </motion.div>
-          ))}
+            </Link>
+          </div>
         </div>
       )}
-
     </div>
   )
 }

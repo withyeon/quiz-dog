@@ -24,29 +24,29 @@ export interface Product {
 export type ProductCategory = '음료' | '식품' | '간식' | '프리미엄'
 
 export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
-  // 일반 (Common) - 50%
-  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.svg', tier: '일반', income: 10, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
-  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.svg', tier: '일반', income: 15, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
-  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.svg', tier: '일반', income: 12, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
-  { baseId: 'p4', name: '초코바', emoji: '🍫', image: '/store/chocolate.svg', tier: '일반', income: 8, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
+  // 일반 (Common) - 50%  — 수익 30~50원/초
+  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.svg', tier: '일반', income: 30, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
+  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.svg', tier: '일반', income: 40, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
+  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.svg', tier: '일반', income: 35, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
+  { baseId: 'p4', name: '초코바', emoji: '🍫', image: '/store/chocolate.svg', tier: '일반', income: 50, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
 
-  // 희귀 (Rare) - 30%
-  { baseId: 'p5', name: '뚱바나나우유', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 50, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
-  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.svg', tier: '희귀', income: 60, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
-  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.svg', tier: '희귀', income: 55, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
+  // 희귀 (Rare) - 30%  — 수익 80~120원/초
+  { baseId: 'p5', name: '뚱바나나우유', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 80, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
+  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.svg', tier: '희귀', income: 120, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
+  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.svg', tier: '희귀', income: 100, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
 
-  // 영웅 (Epic) - 15%
-  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.svg', tier: '영웅', income: 200, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
-  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.svg', tier: '영웅', income: 250, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
-  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.svg', tier: '영웅', income: 220, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
+  // 영웅 (Epic) - 15%  — 수익 300~400원/초
+  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.svg', tier: '영웅', income: 300, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
+  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.svg', tier: '영웅', income: 400, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
+  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.svg', tier: '영웅', income: 350, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
 
-  // 전설 (Legendary) - 5%
-  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.svg', tier: '전설', income: 1000, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
-  { baseId: 'p12', name: '캐릭터 빵', emoji: '🍞', image: '/store/character_bread.svg', tier: '전설', income: 1200, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
-  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.svg', tier: '전설', income: 1500, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
+  // 전설 (Legendary) - 5%  — 수익 800~1200원/초
+  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.svg', tier: '전설', income: 800, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
+  { baseId: 'p12', name: '캐릭터 빵', emoji: '🍞', image: '/store/character_bread.svg', tier: '전설', income: 1000, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
+  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.svg', tier: '전설', income: 1200, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
 ]
 
-export const GRID_SIZE = 10 // 10칸 진열대 (Blooket Factory와 동일)
+export const GRID_SIZE = 9 // 9칸 진열대 (3x3)
 
 // 고객 타입
 export type CustomerType = 'normal' | 'vip' | 'bulk'
@@ -115,18 +115,35 @@ export const STORE_EVENTS: StoreEvent[] = [
 
 /**
  * 가챠 시스템 (랜덤 뽑기)
+ * @param answerSpeed - 정답 속도 ('fast' | 'normal' | 'slow'), 빠를수록 좋은 등급 확률 증가
  */
-export function generateProductOptions(): Product[] {
+export function generateProductOptions(answerSpeed?: 'fast' | 'normal' | 'slow'): Product[] {
   const options: Product[] = []
+
+  // 정답 속도에 따른 확률 보정
+  let legendChance = 5   // 전설 확률 (%)
+  let epicChance = 15    // 영웅 확률 (%)
+  let rareChance = 30    // 희귀 확률 (%)
+
+  if (answerSpeed === 'fast') {
+    legendChance = 15
+    epicChance = 30
+    rareChance = 35
+    // 일반 = 100 - 15 - 30 - 35 = 20%
+  } else if (answerSpeed === 'slow') {
+    legendChance = 2
+    epicChance = 8
+    rareChance = 30
+    // 일반 = 100 - 2 - 8 - 30 = 60%
+  }
 
   for (let i = 0; i < 3; i++) {
     const rand = Math.random() * 100
     let tier: ProductTier = '일반'
 
-    // 확률 설정: 전설(5%), 영웅(15%), 희귀(30%), 일반(50%)
-    if (rand > 95) tier = '전설'
-    else if (rand > 80) tier = '영웅'
-    else if (rand > 50) tier = '희귀'
+    if (rand > (100 - legendChance)) tier = '전설'
+    else if (rand > (100 - legendChance - epicChance)) tier = '영웅'
+    else if (rand > (100 - legendChance - epicChance - rareChance)) tier = '희귀'
     else tier = '일반'
 
     // 해당 티어 풀에서 랜덤 선택
@@ -144,6 +161,30 @@ export function generateProductOptions(): Product[] {
   }
 
   return options
+}
+
+/**
+ * 정답 속도 등급 계산
+ * @param answerTimeMs - 정답까지 걸린 시간 (ms)
+ * @param timeLimitSeconds - 제한 시간 (초)
+ */
+export function getAnswerSpeed(answerTimeMs: number, timeLimitSeconds: number = 30): 'fast' | 'normal' | 'slow' {
+  const answerTimeSec = answerTimeMs / 1000
+  const ratio = answerTimeSec / timeLimitSeconds
+
+  if (ratio <= 0.33) return 'fast'    // 제한시간의 1/3 이내
+  if (ratio <= 0.66) return 'normal'  // 제한시간의 2/3 이내
+  return 'slow'                        // 그 이상
+}
+
+/**
+ * 정답 속도에 따른 보너스 골드 계산
+ */
+export function getSpeedBonus(answerTimeMs: number, timeLimitSeconds: number = 30): number {
+  const remainingMs = (timeLimitSeconds * 1000) - answerTimeMs
+  if (remainingMs <= 0) return 0
+  // 남은 시간 1초당 50원 보너스
+  return Math.floor((remainingMs / 1000) * 50)
 }
 
 /**

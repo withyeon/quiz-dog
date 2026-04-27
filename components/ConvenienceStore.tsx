@@ -29,6 +29,7 @@ interface ConvenienceStoreProps {
   quizCorrect?: boolean // 퀴즈 정답 여부
   onProductSelected?: () => void // 상품 선택 완료 콜백
   showOrderModal?: boolean // 정답 3개마다 부모에서 열어주는 발주 모달
+  answerSpeed?: 'fast' | 'normal' | 'slow' // 정답 속도 (가챠 등급 보정용)
 }
 
 export default function ConvenienceStore({
@@ -41,6 +42,7 @@ export default function ConvenienceStore({
   quizCorrect = false,
   onProductSelected,
   showOrderModal = false,
+  answerSpeed = 'normal',
 }: ConvenienceStoreProps) {
   const [cps, setCps] = useState(0)
   const [gameState, setGameState] = useState<'idle' | 'quiz' | 'selection'>('idle')
@@ -126,19 +128,19 @@ export default function ConvenienceStore({
   // 퀴즈 정답 시 상품 선택 모달 표시 (기존: 발주 버튼 → 퀴즈 → 정답 시)
   useEffect(() => {
     if (quizCorrect && gameState === 'quiz') {
-      const options = generateProductOptions()
+      const options = generateProductOptions(answerSpeed)
       setSelectionOptions(options)
       setGameState('selection')
     }
-  }, [quizCorrect, gameState])
+  }, [quizCorrect, gameState, answerSpeed])
 
   // 부모에서 정답 3개마다 열어주는 발주 모달
   useEffect(() => {
     if (showOrderModal) {
-      setSelectionOptions(generateProductOptions())
+      setSelectionOptions(generateProductOptions(answerSpeed))
       setGameState('selection')
     }
-  }, [showOrderModal])
+  }, [showOrderModal, answerSpeed])
 
   useEffect(() => {
     if (!showOrderModal && gameState === 'selection') {
@@ -313,7 +315,7 @@ export default function ConvenienceStore({
             🏪 나의 편의점 진열대
           </h2>
 
-          <div className="grid grid-cols-5 grid-rows-2 gap-3 h-[calc(100%-3rem)]">
+          <div className="grid grid-cols-3 grid-rows-3 gap-3 h-[calc(100%-3rem)]">
             {Array(GRID_SIZE)
               .fill(null)
               .map((_, idx) => {

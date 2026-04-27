@@ -208,6 +208,14 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
     }, [room?.status, currentView, showCountdown, playBGM, roomCode])
 
+    // ─── 카운트다운 완료 처리 ───
+    const handleCountdownComplete = useCallback(() => {
+        setShowCountdown(false)
+        setCurrentView('quiz')
+        playBGM('game')
+        questionStartTime.current = Date.now()
+    }, [playBGM])
+
     // ─── 문제 인덱스 저장 ───
     useEffect(() => {
         if (roomCode && currentQuestionIndex > 0) {
@@ -360,6 +368,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         checkAnswer,
         goToNextQuestion,
         handleWrongAnswer,
+        handleCountdownComplete,
         finishGame,
         getElapsedSeconds,
 

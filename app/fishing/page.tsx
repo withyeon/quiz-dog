@@ -62,6 +62,7 @@ export default function FishingPage() {
     playSFX,
     checkAnswer,
     handleWrongAnswer,
+    handleCountdownComplete,
     goToNextQuestion,
     getElapsedSeconds,
   } = useGameBase({ expectedGameMode: 'fishing' })
@@ -425,7 +426,7 @@ export default function FishingPage() {
         {/* 메인 컨텐츠 */}
         <div className="max-w-6xl mx-auto">
           {/* 카운트다운 */}
-          {showCountdown && <Countdown onComplete={() => { }} />}
+          {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
 
           {/* 로비 */}
           {currentView === 'lobby' && (

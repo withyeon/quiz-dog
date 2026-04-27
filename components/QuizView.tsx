@@ -15,9 +15,10 @@ interface QuizViewProps {
   onAnswer: (answer: string) => void | boolean | Promise<void | boolean>
   timeLimit?: number
   onCorrectClick?: () => void // 정답 확인 후 클릭 시 호출
+  className?: string // 외부에서 스타일 오버라이드 가능
 }
 
-export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick }: QuizViewProps) {
+export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick, className }: QuizViewProps) {
   const [inputValue, setInputValue] = useState<string>('')
   const [submittedAnswer, setSubmittedAnswer] = useState<string>('')
   const [answerResult, setAnswerResult] = useState<boolean | null>(null)
@@ -97,7 +98,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
     <MotionDiv
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-gray-200"
+      className={className ?? "bg-white rounded-xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-gray-200"}
     >
       <div className="mb-6">
         {timeLimit && (

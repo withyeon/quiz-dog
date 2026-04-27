@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
+import { supabase, checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/utils/gameCode'
 import { CHARACTERS } from '@/lib/utils/characters'
 import { getGameModeUrl } from '@/hooks/useGameBase'
@@ -13,13 +13,25 @@ import Image from 'next/image'
 type GameMode = 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'pool' | 'allin'
 
 function formatDevStartError(error: unknown): string {
-  if (error instanceof Error) return error.message
+  if (error instanceof Error) {
+    const m = error.message
+    if (/failed to fetch|load failed|networkerror/i.test(m)) {
+      return `${m} — Supabase에 연결하지 못했습니다. .env.local(URL·Anon Key)·클라우드 프로젝트 활성화·로컬이면 supabase start·VPN/확장프로그램 차단을 확인하세요.`
+    }
+    return m
+  }
   if (error && typeof error === 'object') {
     const e = error as { message?: string; details?: string; hint?: string; code?: string }
     const parts = [e.message, e.details, e.hint, e.code].filter(
       (s): s is string => typeof s === 'string' && s.length > 0,
     )
-    if (parts.length > 0) return parts.join(' — ')
+    if (parts.length > 0) {
+      const joined = parts.join(' — ')
+      if (/failed to fetch|load failed|networkerror/i.test(joined)) {
+        return `${joined} — Supabase에 연결하지 못했습니다. .env.local(URL·Anon Key)·클라우드 프로젝트 활성화·로컬이면 supabase start·VPN/확장프로그램 차단을 확인하세요.`
+      }
+      return joined
+    }
   }
   try {
     return JSON.stringify(error)
@@ -115,25 +127,54 @@ export default function DevPage() {
   const [nickname, setNickname] = useState('개발자')
   const [questionSets, setQuestionSets] = useState<any[]>([])
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
+  const [connectionHint, setConnectionHint] = useState<string | null>(null)
 
-  // 문제집 로드
+  // Supabase 연결 + 문제집 로드
   useEffect(() => {
-    const loadSets = async () => {
-      const { data } = await supabase
+    let cancelled = false
+    const run = async () => {
+      const cfg = checkSupabaseConfig()
+      if (!cfg.isValid) {
+        if (!cancelled) setConnectionHint(cfg.error ?? 'Supabase 설정을 확인할 수 없습니다.')
+        return
+      }
+      const conn = await testSupabaseConnection()
+      if (!cancelled && !conn.success) {
+        setConnectionHint(conn.error ?? 'Supabase 연결에 실패했습니다.')
+        return
+      }
+      if (!cancelled) setConnectionHint(null)
+
+      const { data, error } = await supabase
         .from('question_sets')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(5)
+      if (cancelled) return
+      if (error) {
+        setConnectionHint((prev) => prev ?? `문제집을 불러오지 못했습니다: ${error.message}`)
+        setQuestionSets([])
+        return
+      }
       setQuestionSets(data || [])
       if (data && data.length > 0) {
         setSelectedSetId((data as any)[0].id) // 첫 번째 세트 자동 선택
       }
     }
-    loadSets()
+    void run()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const handleStartGame = async () => {
     if (!selectedMode) return
+
+    const cfg = checkSupabaseConfig()
+    if (!cfg.isValid) {
+      alert(cfg.error ?? 'Supabase 설정이 올바르지 않습니다.')
+      return
+    }
 
     setLoading(true)
     try {
@@ -198,6 +239,15 @@ export default function DevPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-8">
       <div className="max-w-6xl mx-auto">
+        {connectionHint && (
+          <div
+            className="mb-6 rounded-xl border-2 border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900"
+            role="alert"
+          >
+            <strong className="block font-semibold mb-1">Supabase 연결</strong>
+            {connectionHint}
+          </div>
+        )}
         {/* 헤더 */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
