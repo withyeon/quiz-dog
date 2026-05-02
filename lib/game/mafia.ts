@@ -34,12 +34,8 @@ export const AI_NAMES = ['Tony', 'Vinnie', 'Sonny', 'Frankie', 'Joey']
 // 금고 개수 (Deceptive Dinos 스타일: 3개)
 export const VAULT_COUNT = 3
 
-// 시간 포맷팅 (MM:SS)
-export function formatTime(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = seconds % 60
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-}
+// 시간 포맷팅 (공통 유틸 re-export)
+export { formatTime } from '@/lib/utils/formatTime'
 
 // 3개 금고 생성 (Deceptive Dinos 스타일)
 // Deceptive Dinos 보상 참고:

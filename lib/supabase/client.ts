@@ -2,23 +2,9 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
 
 // 환경 변수 가져오기 (클라이언트/서버 모두에서 동작)
-const getSupabaseUrl = () => {
-  if (typeof window !== 'undefined') {
-    // 클라이언트 사이드
-    return process.env.NEXT_PUBLIC_SUPABASE_URL
-  }
-  // 서버 사이드
-  return process.env.NEXT_PUBLIC_SUPABASE_URL
-}
+const getSupabaseUrl = () => process.env.NEXT_PUBLIC_SUPABASE_URL
 
-const getSupabaseAnonKey = () => {
-  if (typeof window !== 'undefined') {
-    // 클라이언트 사이드
-    return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  }
-  // 서버 사이드
-  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-}
+const getSupabaseAnonKey = () => process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 const supabaseUrl = getSupabaseUrl()
 const supabaseAnonKey = getSupabaseAnonKey()

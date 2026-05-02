@@ -36,9 +36,9 @@ export const CHARACTERS: Character[] = [
   { id: 'blook_15', name: '보더 콜리', imagePath: '/character/15.svg', emoji: '🐶', category: 'default' },
   { id: 'blook_16', name: '파피용', imagePath: '/character/16.svg', emoji: '🐶', category: 'default' },
   { id: 'blook_17', name: '도베르만', imagePath: '/character/17.svg', emoji: '🐶', category: 'default' },
-  { id: 'blook_18', name: '웰시 코기', imagePath: '/character/18.svg', emoji: '🐶', category: 'default' },
+  { id: 'blook_18', name: '닥스훈트', imagePath: '/character/18.svg', emoji: '🐶', category: 'default' },
   { id: 'blook_19', name: '치와와', imagePath: '/character/19.svg', emoji: '🐶', category: 'default' },
-  { id: 'blook_20', name: '웰시 코기', imagePath: '/character/20.svg', emoji: '🐶', category: 'default' },
+  { id: 'blook_20', name: '요크셔 테리어', imagePath: '/character/20.svg', emoji: '🐶', category: 'default' },
 ]
 
 /**

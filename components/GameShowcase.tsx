@@ -30,7 +30,7 @@ const games: GameData[] = [
     {
         name: '해적왕의 보물찾기',
         emoji: '🏴‍☠️',
-        videoSrc: '/videos/gold-quest.mp4',
+        videoSrc: '/main/mp4/gold-quest.mov',
         imageSrc: '/gold-quest.png',
         keywords: ['💰 골드 수집', '⚔️ 실시간 대결', '🗺️ 맵 탐험', '🏆 최고 부자 우승'],
         description: '퀴즈를 맞추면 골드를 획득! 해적이 되어 보물을 차지하세요.',
@@ -192,6 +192,7 @@ export default function GameShowcase() {
                                     backdropFilter: 'blur(20px)',
                                     WebkitBackdropFilter: 'blur(20px)',
                                     border: '1px solid rgba(255,255,255,0.9)',
+                                    transform: 'translateZ(0)',
                                 }}
                             >
                                 <VideoOrImage game={game} />
@@ -316,7 +317,7 @@ function VideoOrImage({ game }: { game: GameData }) {
                 loop
                 muted
                 playsInline
-                className="w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
                 onError={() => {
                     // 동영상 로드 실패 시 비디오 숨기고 이미지 표시
                     if (videoRef.current) videoRef.current.style.display = 'none'
@@ -330,7 +331,7 @@ function VideoOrImage({ game }: { game: GameData }) {
             src={game.imageSrc}
             alt={game.name}
             fill
-            className="object-cover"
+            className="absolute inset-0 object-cover"
             sizes="(max-width: 768px) 100vw, 50vw"
         />
     )

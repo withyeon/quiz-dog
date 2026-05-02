@@ -362,9 +362,4 @@ export function getCategoryEmoji(category: ProductCategory): string {
   }
 }
 
-/**
- * 티어별 한글 이름
- */
-export function getTierName(tier: ProductTier): string {
-  return tier
-}
+

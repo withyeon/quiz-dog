@@ -212,13 +212,6 @@ export function applyHeal(
 }
 
 /**
- * 눈보라 아이템 효과 (1등 플레이어 화면 가리기)
- */
-export function applyBlizzard(targetPlayerId: string): void {
-  // 클라이언트에서 처리 (화면 가리기 효과)
-}
-
-/**
  * 난로 아이템 효과 (체온 회복)
  */
 export function applyHeater(currentHealth: number, maxHealth: number): number {

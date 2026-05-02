@@ -2,17 +2,6 @@
  * 인형뽑기 게임 로직 (Fishing Frenzy 방식)
  */
 
-// 물고기 관련 타입 (FishingPond 컴포넌트용)
-export type FishRarity = 'common' | 'rare' | 'epic' | 'legendary'
-
-export interface Fish {
-  id: string
-  name: string
-  emoji: string
-  rarity: FishRarity
-  points: number
-  catchChance: number // 0-100 (낚을 확률)
-}
 
 export type DollTier = '꽝' | '일반' | '희귀' | '영웅' | '전설'
 
@@ -306,40 +295,4 @@ export function getMachineRankName(rank: MachineRank): string {
     5: '전설의 기계',
   }
   return names[rank]
-}
-
-/**
- * 희귀도별 색상 (FishingPond 컴포넌트용)
- */
-export function getRarityColor(rarity: FishRarity): string {
-  switch (rarity) {
-    case 'common':
-      return 'bg-gray-500'
-    case 'rare':
-      return 'bg-blue-500'
-    case 'epic':
-      return 'bg-purple-500'
-    case 'legendary':
-      return 'bg-yellow-500'
-    default:
-      return 'bg-gray-500'
-  }
-}
-
-/**
- * 희귀도별 한글 이름 (FishingPond 컴포넌트용)
- */
-export function getRarityName(rarity: FishRarity): string {
-  switch (rarity) {
-    case 'common':
-      return '일반'
-    case 'rare':
-      return '레어'
-    case 'epic':
-      return '에픽'
-    case 'legendary':
-      return '전설'
-    default:
-      return '일반'
-  }
 }
