@@ -9,7 +9,7 @@ import { BOX_EVENT_IMAGE } from '@/lib/game/goldQuest'
 
 interface ChestViewProps {
   onChestSelect: (chestIndex: number) => void
-  selectedChest: number | null
+  selectedChest: number | null 
   reward: BoxEvent | null
   isProcessing: boolean
 }
