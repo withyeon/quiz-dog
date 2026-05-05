@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { motion, Reorder } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -17,6 +16,15 @@ import {
   Search,
 } from 'lucide-react'
 import MergeQuestionsModal from '@/components/MergeQuestionsModal'
+import {
+  copyQuestionsIntoSet,
+  createQuestionInSet,
+  deleteQuestion as deleteQuestionRecord,
+  getQuestionSetWithQuestions,
+  updateQuestion as updateQuestionRecord,
+  updateQuestionSetMetadata,
+} from '@/lib/services/questionSets'
+import { formatServiceError } from '@/lib/services/errors'
 import type { Database } from '@/types/database.types'
 
 type Question = Database['public']['Tables']['questions']['Row']
@@ -39,60 +47,43 @@ export default function EditQuestionSetPage() {
   const [newQuestion, setNewQuestion] = useState<Partial<Question> | null>(null)
   const [isMergeModalOpen, setIsMergeModalOpen] = useState(false)
 
-  useEffect(() => {
-    if (setId) {
-      loadQuestions()
-    }
-  }, [setId])
-
-  const loadQuestions = async () => {
+  const loadQuestions = useCallback(async () => {
     try {
       setLoading(true)
+      const { set, questions: loadedQuestions } = await getQuestionSetWithQuestions(setId)
 
-      // 1. 문제집 정보 가져오기
-      const { data: setData, error: setError } = await ((supabase
-        .from('question_sets') as any)
-        .select('*')
-        .eq('id', setId)
-        .single() as any)
-
-      if (setError) {
-        console.error('Error loading set info:', setError)
+      if (!set) {
         // DB에 없다면 ID에서 유추 (fallback)
-        if (!setName) setSetName(setId.replace('set-', '').replace(/-/g, ' '))
-      } else if (setData) {
-        setSetName(setData.title)
-        setSubject(setData.subject || '')
-        setGrade(setData.grade || '')
+        setSetName(setId.replace('set-', '').replace(/-/g, ' '))
+      } else {
+        setSetName(set.title)
+        setSubject(set.subject || '')
+        setGrade(set.grade || '')
       }
 
-      // 2. 문제 목록 가져오기
-      const { data, error } = await ((supabase
-        .from('questions') as any)
-        .select('*')
-        .eq('set_id', setId)
-        .order('created_at', { ascending: true }) as any)
-
-      if (error) throw error
-
-      setQuestions((data as Question[]) || [])
+      setQuestions(loadedQuestions)
     } catch (error) {
       console.error('Error loading questions:', error)
       alert('문제를 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)
     }
-  }
+  }, [setId])
+
+  useEffect(() => {
+    if (setId) {
+      loadQuestions()
+    }
+  }, [setId, loadQuestions])
 
   const handleSaveSetInfo = async () => {
     try {
       if (!setName.trim()) { alert('문제집 이름을 입력하세요.'); return }
-      const { error } = await (supabase.from('question_sets') as any).update({
+      await updateQuestionSetMetadata(setId, {
         title: setName.trim(),
         subject,
-        grade
-      }).eq('id', setId)
-      if (error) throw error
+        grade,
+      })
       setIsEditingInfo(false)
       alert('문제집 정보가 저장되었습니다.')
     } catch (e) {
@@ -105,49 +96,13 @@ export default function EditQuestionSetPage() {
     const question = questions[index]
     if (!question) return
 
-    // 유효성 검증
-    if (!question.question_text?.trim()) {
-      alert('문제 내용을 입력해주세요.')
-      return
-    }
-    if (!question.answer?.trim()) {
-      alert('정답을 입력해주세요.')
-      return
-    }
-    if (question.type === 'CHOICE') {
-      const opts = Array.isArray(question.options) ? question.options.filter((o: any) => String(o).trim()) : []
-      if (opts.length < 2) {
-        alert('객관식 문제는 보기가 2개 이상 필요합니다.')
-        return
-      }
-      if (!opts.map((o: any) => String(o).trim()).includes(question.answer.trim())) {
-        alert('정답이 보기에 포함되어 있지 않습니다.')
-        return
-      }
-    }
-    if (question.type === 'OX' && question.answer !== 'O' && question.answer !== 'X') {
-      alert('OX 문제의 정답은 O 또는 X여야 합니다.')
-      return
-    }
-
     try {
-      const { error } = await ((supabase
-        .from('questions') as any)
-        .update({
-          type: question.type,
-          question_text: question.question_text,
-          options: question.options,
-          answer: question.answer,
-        })
-        .eq('id', question.id))
-
-      if (error) throw error
-
+      await updateQuestionRecord(question.id, question)
       setEditingIndex(null)
       alert('문제가 저장되었습니다.')
     } catch (error) {
       console.error('Error saving question:', error)
-      alert('문제 저장에 실패했습니다.')
+      alert('문제 저장에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -155,13 +110,7 @@ export default function EditQuestionSetPage() {
     if (!confirm('정말 이 문제를 삭제하시겠습니까?')) return
 
     try {
-      const { error } = await ((supabase
-        .from('questions') as any)
-        .delete()
-        .eq('id', id))
-
-      if (error) throw error
-
+      await deleteQuestionRecord(id)
       setQuestions(questions.filter(q => q.id !== id))
       alert('문제가 삭제되었습니다.')
     } catch (error) {
@@ -173,73 +122,26 @@ export default function EditQuestionSetPage() {
   const handleAddQuestion = async () => {
     if (!newQuestion) return
 
-    if (!newQuestion.type || !newQuestion.question_text?.trim() || !newQuestion.answer?.trim()) {
-      alert('문제 유형, 문제 내용, 정답을 모두 입력해주세요.')
-      return
-    }
-
-    if (newQuestion.type === 'CHOICE') {
-      const opts = Array.isArray(newQuestion.options) ? newQuestion.options.filter((o: any) => String(o).trim()) : []
-      if (opts.length < 2) {
-        alert('객관식 문제는 보기가 2개 이상 필요합니다.')
-        return
-      }
-      if (!opts.map((o: any) => String(o).trim()).includes(newQuestion.answer.trim())) {
-        alert('정답이 보기에 포함되어 있지 않습니다.')
-        return
-      }
-    }
-
-    if (newQuestion.type === 'OX' && newQuestion.answer !== 'O' && newQuestion.answer !== 'X') {
-      alert('OX 문제의 정답은 O 또는 X여야 합니다.')
-      return
-    }
-
     try {
-      const questionToAdd = {
-        set_id: setId,
-        type: newQuestion.type,
-        question_text: newQuestion.question_text,
-        options: newQuestion.options || [],
-        answer: newQuestion.answer,
-      }
-
-      const { data, error } = await ((supabase
-        .from('questions') as any)
-        .insert(questionToAdd as any)
-        .select()
-        .single() as any)
-
-      if (error) throw error
-
-      setQuestions([...questions, data as Question])
+      const createdQuestion = await createQuestionInSet(setId, newQuestion)
+      setQuestions([...questions, createdQuestion])
       setNewQuestion(null)
       alert('문제가 추가되었습니다.')
     } catch (error) {
       console.error('Error adding question:', error)
-      alert('문제 추가에 실패했습니다.')
+      alert('문제 추가에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
   const handleMergeQuestions = async (selectedQs: Question[]) => {
     try {
-      const qsToInsert = selectedQs.map(q => ({
-        set_id: setId,
-        type: q.type,
-        question_text: q.question_text,
-        options: q.options || [],
-        answer: q.answer
-      }))
-
-      const { data, error } = await (supabase.from('questions') as any).insert(qsToInsert).select()
-      if (error) throw error
-
-      setQuestions([...questions, ...(data as Question[])])
+      const copiedQuestions = await copyQuestionsIntoSet(setId, selectedQs)
+      setQuestions([...questions, ...copiedQuestions])
       setIsMergeModalOpen(false)
-      alert(`${data.length}개의 문제를 성공적으로 가져왔습니다!`)
+      alert(`${copiedQuestions.length}개의 문제를 성공적으로 가져왔습니다!`)
     } catch (err) {
       console.error(err)
-      alert('문제를 가져오는 중 오류가 발생했습니다.')
+      alert('문제를 가져오는 중 오류가 발생했습니다: ' + formatServiceError(err))
     }
   }
 
@@ -248,7 +150,7 @@ export default function EditQuestionSetPage() {
     // 순서는 created_at으로 관리되므로, 필요시 별도 order 필드 추가 가능
   }
 
-  const updateQuestion = (index: number, field: keyof Question, value: any) => {
+  const updateQuestionField = (index: number, field: keyof Question, value: any) => {
     const updated = [...questions]
     updated[index] = { ...updated[index], [field]: value }
     setQuestions(updated)
@@ -380,7 +282,7 @@ export default function EditQuestionSetPage() {
                         </label>
                         <select
                           value={question.type}
-                          onChange={(e) => updateQuestion(index, 'type', e.target.value)}
+                          onChange={(e) => updateQuestionField(index, 'type', e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                         >
                           <option value="CHOICE">객관식</option>
@@ -397,7 +299,7 @@ export default function EditQuestionSetPage() {
                         </label>
                         <textarea
                           value={question.question_text}
-                          onChange={(e) => updateQuestion(index, 'question_text', e.target.value)}
+                          onChange={(e) => updateQuestionField(index, 'question_text', e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                           rows={3}
                         />
@@ -414,7 +316,7 @@ export default function EditQuestionSetPage() {
                             value={Array.isArray(question.options) ? question.options.join(', ') : ''}
                             onChange={(e) => {
                               const options = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                              updateQuestion(index, 'options', options)
+                              updateQuestionField(index, 'options', options)
                             }}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                             placeholder="보기1, 보기2, 보기3, 보기4"
@@ -430,7 +332,7 @@ export default function EditQuestionSetPage() {
                         <input
                           type="text"
                           value={question.answer}
-                          onChange={(e) => updateQuestion(index, 'answer', e.target.value)}
+                          onChange={(e) => updateQuestionField(index, 'answer', e.target.value)}
                           className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                         />
                       </div>

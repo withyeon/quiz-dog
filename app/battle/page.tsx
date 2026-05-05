@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useAudioContext } from '@/components/AudioProvider'
@@ -11,7 +10,7 @@ import BattleArena from '@/components/BattleArena'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import AnimatedBackground from '@/components/AnimatedBackground'
-import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
+import { useGameBase } from '@/hooks/useGameBase'
 import {
   calculateDamage,
   isCriticalHit,
@@ -32,6 +31,7 @@ import SnowEffect from '@/components/SnowEffect'
 import BlizzardOverlay from '@/components/BlizzardOverlay'
 import ScreenShake from '@/components/ScreenShake'
 import type { Database } from '@/types/database.types'
+import { updatePlayer } from '@/lib/services/players'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
@@ -65,7 +65,10 @@ export default function BattlePage() {
     playSFX,
     checkAnswer,
     handleWrongAnswer,
+    handleCountdownComplete,
     goToNextQuestion,
+    isRoomHost,
+    finishGame,
     questionStartTime,
   } = useGameBase({ expectedGameMode: 'battle_royale' })
 
@@ -79,6 +82,11 @@ export default function BattlePage() {
   const [isBlizzardActive, setIsBlizzardActive] = useState(false)
   const [gameStartTime, setGameStartTime] = useState<number>(0)
   const [zoneLevel, setZoneLevel] = useState(1)
+  const currentPlayerClass = (currentPlayer as Player | null)?.player_class ?? null
+  const hasFinishedGameRef = useRef(false)
+  const battleStartTime = room?.started_at
+    ? new Date(room.started_at).getTime()
+    : gameStartTime
 
   // 직업 선택 저장
   const handleClassSelect = async (playerClass: PlayerClass) => {
@@ -89,13 +97,10 @@ export default function BattlePage() {
     try {
       const classInfo = PLAYER_CLASSES[playerClass]
       // 직업별 초기 체력 설정
-      await (supabase
-        .from('players') as any)
-        .update({
-          player_class: playerClass,
-          health: classInfo.maxHealth // 직업별 최대 체력으로 설정
-        })
-        .eq('id', playerId)
+      await updatePlayer(playerId, {
+        player_class: playerClass,
+        health: classInfo.maxHealth,
+      })
     } catch (error) {
       console.error('Error updating class:', error)
     }
@@ -103,10 +108,10 @@ export default function BattlePage() {
 
   // 저장된 직업 불러오기
   useEffect(() => {
-    if ((currentPlayer as Player)?.player_class) {
-      setSelectedClass((currentPlayer as Player).player_class as PlayerClass)
+    if (currentPlayerClass) {
+      setSelectedClass(currentPlayerClass as PlayerClass)
     }
-  }, [(currentPlayer as Player)?.player_class])
+  }, [currentPlayerClass])
 
   // 배틀로얄 전용: 게임 시작 시 직업 선택 단계 추가
   useEffect(() => {
@@ -125,44 +130,48 @@ export default function BattlePage() {
     }
   }, [currentView, selectedClass, setShowCountdown, setCurrentView])
 
+  useEffect(() => {
+    if (room?.status !== 'playing') {
+      hasFinishedGameRef.current = false
+    }
+  }, [room?.status])
+
   // 자기장(폭설 주의보) 시스템
   useEffect(() => {
-    if (room?.status !== 'playing' || !gameStartTime) return
+    if (room?.status !== 'playing' || !battleStartTime) return
 
     const interval = setInterval(() => {
-      const elapsed = Date.now() - gameStartTime
+      const elapsed = Date.now() - battleStartTime
       const newZoneLevel = Math.floor(elapsed / 120000) + 1 // 2분마다 레벨 증가
       setZoneLevel(newZoneLevel)
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [room?.status, gameStartTime])
+  }, [battleStartTime, room?.status])
 
   // 자기장 데미지 적용
   useEffect(() => {
-    if (room?.status !== 'playing' || !gameStartTime || zoneLevel <= 1) return
+    if (room?.status !== 'playing' || !battleStartTime || zoneLevel <= 1) return
+    if (!isRoomHost) return
 
     const interval = setInterval(() => {
       // 자기장 데미지 (10초마다)
-      const zoneDamage = calculateZoneDamage(Date.now() - gameStartTime, zoneLevel)
+      const zoneDamage = calculateZoneDamage(Date.now() - battleStartTime, zoneLevel)
 
-      players.forEach(async (player) => {
-        if ((player.health || 100) > 0) {
-          const newHealth = Math.max(0, (player.health || 100) - zoneDamage)
-          try {
-            await ((supabase
-              .from('players') as any)
-              .update({ health: newHealth })
-              .eq('id', player.id))
-          } catch (error) {
-            console.error('Error applying zone damage:', error)
-          }
-        }
+      Promise.all(
+        players
+          .filter((player) => (player.health || 100) > 0)
+          .map(async (player) => {
+            const newHealth = Math.max(0, (player.health || 100) - zoneDamage)
+            await updatePlayer(player.id, { health: newHealth })
+          }),
+      ).catch((error) => {
+        console.error('Error applying zone damage:', error)
       })
     }, 10000) // 10초마다
 
     return () => clearInterval(interval)
-  }, [room?.status, gameStartTime, zoneLevel, players])
+  }, [battleStartTime, isRoomHost, players, room?.status, zoneLevel])
 
   // 탈락 감지 (체온이 0이 되면 눈사람으로)
   useEffect(() => {
@@ -173,7 +182,7 @@ export default function BattlePage() {
         // 관전 모드로 전환 (다른 플레이어들이 게임하는 것을 볼 수 있음)
       }, 2000)
     }
-  }, [currentPlayer?.health, currentView])
+  }, [currentPlayer, currentView, playSFX])
 
   // 게임 종료 확인
   useEffect(() => {
@@ -182,9 +191,13 @@ export default function BattlePage() {
       if (winner || isGameOver(players as Player[])) {
         setCurrentView('result')
         playSFX('item')
+        if (isRoomHost && !hasFinishedGameRef.current) {
+          hasFinishedGameRef.current = true
+          void finishGame()
+        }
       }
     }
-  }, [players, room?.status, playSFX])
+  }, [finishGame, isRoomHost, players, room?.status, playSFX, setCurrentView])
 
   // 정답 후 다음 문제로 (클릭 시 즉시 이동)
   const goToNextQuiz = () => {
@@ -193,6 +206,8 @@ export default function BattlePage() {
 
   // 답안 제출
   const handleAnswerSubmit = async (answer: string) => {
+    if (!playerId) return false
+
     const correct = await checkAnswer(answer)
 
     if (correct) {
@@ -203,10 +218,7 @@ export default function BattlePage() {
         const maxHealth = PLAYER_CLASSES[selectedClass].maxHealth
         const newHealth = applyHeal(currentPlayer?.health || 100, selectedClass)
         try {
-          await (supabase
-            .from('players') as any)
-            .update({ health: Math.min(newHealth, maxHealth) })
-            .eq('id', playerId)
+          await updatePlayer(playerId, { health: Math.min(newHealth, maxHealth) })
         } catch (error) {
           console.error('Error healing:', error)
         }
@@ -242,7 +254,7 @@ export default function BattlePage() {
 
     const time = Date.now() - questionStartTime.current
     const isCritical = isCriticalHit()
-    const gameTime = Date.now() - gameStartTime
+    const gameTime = battleStartTime ? Date.now() - battleStartTime : 0
     const hasGiantBall = currentItem?.type === 'giant_ball'
 
     // 데미지 계산
@@ -269,10 +281,7 @@ export default function BattlePage() {
       const newHealth = applyDamage(currentHealth, damage, targetPlayer.player_class)
 
       try {
-        await (supabase
-          .from('players') as any)
-          .update({ health: newHealth })
-          .eq('id', targetId)
+        await updatePlayer(targetId, { health: newHealth })
 
         // 공격 화면 표시 및 이펙트
         setIsShaking(true)
@@ -321,10 +330,7 @@ export default function BattlePage() {
           : 100
         const newHealth = Math.min((currentPlayer.health || 100) + 30, maxHealth)
 
-        await ((supabase
-          .from('players') as any)
-          .update({ health: newHealth })
-          .eq('id', playerId))
+        await updatePlayer(playerId, { health: newHealth })
       }
     }
 
@@ -449,7 +455,7 @@ export default function BattlePage() {
           <div className="max-w-6xl mx-auto">
             {/* 카운트다운 */}
             {showCountdown && (
-              <Countdown onComplete={() => { }} />
+              <Countdown onComplete={handleCountdownComplete} />
             )}
 
             {/* 로비 */}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMafiaStore } from '@/store/mafiaStore'
@@ -16,6 +17,7 @@ import { useGameBase } from '@/hooks/useGameBase'
 type MafiaViewType = 'lobby' | 'playing' | 'result'
 
 export default function MafiaPage() {
+  const router = useRouter()
   const {
     roomCode,
     playerId,
@@ -271,7 +273,7 @@ export default function MafiaPage() {
                     🔄 다시 하기
                   </Button>
                   <Button
-                    onClick={() => (window.location.href = '/teacher/dashboard')}
+                    onClick={() => router.push('/teacher/dashboard')}
                     size="lg"
                     variant="outline"
                     className="flex-1 border-4 border-gray-600 text-gray-300 font-bold text-xl py-6"

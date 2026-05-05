@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useAudioContext } from '@/components/AudioProvider'
@@ -27,8 +27,9 @@ import {
     updatePlatforms,
     respawnPlatforms,
 } from '@/lib/game/dontlookdown'
-import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
+import { useGameBase } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
+import { updatePlayer } from '@/lib/services/players'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -53,7 +54,8 @@ export default function DontLookDownPage() {
         playSFX,
         checkAnswer,
         handleWrongAnswer,
-        goToNextQuestion,
+        isRoomHost,
+        finishGame,
     } = useGameBase({ expectedGameMode: 'dontlookdown' })
 
     const [gameSettings, setGameSettings] = useState<GameSettings>(DEFAULT_SETTINGS)
@@ -70,6 +72,10 @@ export default function DontLookDownPage() {
     const platformUpdateRef = useRef<NodeJS.Timeout>()
     const platformRespawnRef = useRef<NodeJS.Timeout>()
     const platformsRef = useRef<Platform[]>([])
+    const hasFinishedGameRef = useRef(false)
+    const resolvedGameStartTime = room?.started_at
+        ? new Date(room.started_at).getTime()
+        : gameStartTime
 
     // 플랫폼 이미지 로드 시 크기로 박스 갱신 (이미지 크기 = 플랫폼 박스)
     const handlePlatformImageSizesLoaded = useCallback((sizes: Record<number, { w: number; h: number }>) => {
@@ -86,6 +92,8 @@ export default function DontLookDownPage() {
         // 현재 플레이어가 players에 있을 때만 시작 (로딩 타임아웃 방지)
         if (!playerId || !players.some(p => p.id === playerId)) return
 
+        hasFinishedGameRef.current = false
+        setWinner(null)
         setCurrentView('countdown')
 
         // 플랫폼 맵 생성
@@ -108,8 +116,8 @@ export default function DontLookDownPage() {
             )
         })
         setDldPlayers(initialPlayers)
-        setGameStartTime(Date.now())
-    }, [room?.status, currentView, players, gameSettings, playerId, setCurrentView])
+        setGameStartTime(room?.started_at ? new Date(room.started_at).getTime() : Date.now())
+    }, [room?.started_at, room?.status, currentView, players, gameSettings, playerId, setCurrentView])
 
     // Update platformsRef when platforms change
     useEffect(() => {
@@ -152,6 +160,12 @@ export default function DontLookDownPage() {
 
     // 게임 종료 시 타이머 정리
     useEffect(() => {
+        if (room?.status !== 'playing') {
+            hasFinishedGameRef.current = false
+        }
+    }, [room?.status])
+
+    useEffect(() => {
         if (currentView !== 'game') {
             if (powerUpTimerRef.current) clearInterval(powerUpTimerRef.current)
             if (obstacleUpdateRef.current) clearInterval(obstacleUpdateRef.current)
@@ -173,10 +187,7 @@ export default function DontLookDownPage() {
             score: Math.floor(player.height),
             gold: Math.floor(player.energy),
         }
-        await (supabase
-            .from('players') as any)
-            .update(updateData)
-            .eq('id', player.id)
+        await updatePlayer(player.id, updateData)
     }
 
     // 파워업 수집
@@ -200,10 +211,10 @@ export default function DontLookDownPage() {
 
     // 게임 시간 체크 (제한 시간 종료 시 가장 높은 height = 승자)
     useEffect(() => {
-        if (currentView !== 'game' || !gameStartTime) return
+        if (currentView !== 'game' || !resolvedGameStartTime) return
 
         const interval = setInterval(() => {
-            const elapsed = (Date.now() - gameStartTime) / 1000
+            const elapsed = (Date.now() - resolvedGameStartTime) / 1000
             const remaining = Math.max(0, Math.ceil(gameSettings.duration - elapsed))
             setRemainingTime(remaining)
 
@@ -212,15 +223,20 @@ export default function DontLookDownPage() {
                 if (leaderboard.length > 0) {
                     setWinner(leaderboard[0].id)
                     setCurrentView('result')
-                        ; (supabase.from('rooms') as any)
-                            .update({ status: 'finished' })
-                            .eq('room_code', roomCode)
+                    if (isRoomHost && !hasFinishedGameRef.current) {
+                        hasFinishedGameRef.current = true
+                        void finishGame().then((didFinish) => {
+                            if (!didFinish) {
+                                hasFinishedGameRef.current = false
+                            }
+                        })
+                    }
                 }
             }
         }, 1000)
 
         return () => clearInterval(interval)
-    }, [currentView, gameStartTime, dldPlayers, gameSettings, roomCode, setCurrentView])
+    }, [currentView, dldPlayers, finishGame, gameSettings, isRoomHost, resolvedGameStartTime, setCurrentView])
 
     // roomCode/playerId 없거나 로딩 중
     if (!roomCode || !playerId) {
@@ -231,7 +247,7 @@ export default function DontLookDownPage() {
                     <div className="text-center text-white bg-black/50 backdrop-blur px-8 py-6 rounded-2xl">
                         <p className="text-xl font-bold mb-2">잘못된 접근입니다</p>
                         <p className="text-gray-300">방 코드와 플레이어 정보가 필요합니다. 로비에서 게임에 입장해주세요.</p>
-                        <a href="/" className="inline-block mt-4 text-cyan-400 hover:underline">홈으로 돌아가기</a>
+                        <Link href="/" className="inline-block mt-4 text-cyan-400 hover:underline">홈으로 돌아가기</Link>
                     </div>
                 </div>
             </main>
@@ -268,7 +284,7 @@ export default function DontLookDownPage() {
                     >
                         <div className="text-center max-w-2xl">
                             <h1 className="text-6xl font-bold text-white mb-8 drop-shadow-lg font-bitbit">
-                                ⛰️ Don't Look Down
+                                ⛰️ Don&apos;t Look Down
                             </h1>
                             <div className="bg-white/90 rounded-2xl p-8 mb-8">
                                 <p className="text-2xl font-bold text-gray-800 mb-4">

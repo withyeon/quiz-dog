@@ -1,21 +1,27 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
+import { getGameModeUrl } from '@/lib/game/modes'
+import { isRoomHostPlayer } from '@/lib/realtime/roomChannel'
+import { finishRoom } from '@/lib/services/rooms'
+import { formatServiceError } from '@/lib/services/errors'
+import { updatePlayer } from '@/lib/services/players'
+import {
+    checkQuestionAnswer,
+    listQuestionsForGame,
+    type GameQuestion,
+} from '@/lib/services/questions'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
+type PlayerPatch = Partial<Player> & Record<string, unknown>
 
-export type Question = {
-    id: string
-    type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-    question_text: string
-    options: string[]
-    answer: string
-}
+export type Question = GameQuestion
 
 export type AnswerRecord = {
     questionIndex: number
@@ -23,28 +29,7 @@ export type AnswerRecord = {
     selectedAnswer?: string
 }
 
-type GameMode = Database['public']['Tables']['rooms']['Row']['game_mode']
-
-/** 게임 모드별 URL 매핑 */
-const GAME_MODE_URLS: Record<string, string> = {
-    gold_quest: '/game',
-    racing: '/racing',
-    battle_royale: '/battle',
-    fishing: '/fishing',
-    factory: '/factory',
-    cafe: '/cafe',
-    mafia: '/mafia',
-    pool: '/pool',
-    tower: '/tower',
-    dontlookdown: '/dontlookdown',
-    allin: '/allin',
-}
-
-/** 게임 모드에 맞는 URL 생성 */
-export function getGameModeUrl(gameMode: string, roomCode: string, playerId: string): string {
-    const basePath = GAME_MODE_URLS[gameMode] || '/game'
-    return `${basePath}?room=${roomCode}&playerId=${playerId}`
-}
+export { getGameModeUrl }
 
 interface UseGameBaseOptions {
     /** 이 게임 페이지가 어떤 게임 모드인지 (리다이렉트용) */
@@ -70,17 +55,7 @@ interface UseGameBaseOptions {
  */
 export function useGameBase(options: UseGameBaseOptions) {
     const { expectedGameMode, wrongAnswerDelay = 2000, timeLimit = 30 } = options
-
-    const formatSupabaseError = (error: unknown): string => {
-        if (error instanceof Error) return error.message
-        if (error && typeof error === 'object') {
-            const e = error as { message?: string; details?: string; hint?: string; code?: string }
-            return [e.message, e.details, e.hint, e.code]
-                .filter((v): v is string => typeof v === 'string' && v.length > 0)
-                .join(' | ')
-        }
-        return String(error)
-    }
+    const router = useRouter()
 
     // ─── 핵심 상태 ───
     const [roomCode, setRoomCode] = useState('')
@@ -119,8 +94,39 @@ export function useGameBase(options: UseGameBaseOptions) {
     }, [])
 
     // ─── 실시간 구독 ───
-    const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-    const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
+    const {
+        players,
+        loading: playersLoading,
+        refreshPlayers,
+        applyPlayerPatch,
+    } = usePlayersRealtime({ roomCode })
+    const {
+        room,
+        loading: roomLoading,
+        refreshRoom,
+    } = useRoomRealtime({ roomCode })
+    const resyncRoomSnapshot = useCallback(async (reason?: string) => {
+        if (reason === 'broadcast_hint') return
+        await Promise.all([
+            refreshRoom({ silent: true }),
+            refreshPlayers({ silent: true }),
+        ])
+    }, [refreshPlayers, refreshRoom])
+    const roomChannel = useRoomChannel({
+        roomCode,
+        playerId,
+        role: 'student',
+        enabled: Boolean(roomCode),
+        onResyncNeeded: resyncRoomSnapshot,
+    })
+    const {
+        presence,
+        status: roomChannelStatus,
+        onlineCount: roomOnlineCount,
+        sendEvent: sendRoomEvent,
+        requestResync: requestRoomResync,
+    } = roomChannel
+    const roomStatus = room?.status
     const { playBGM, playSFX } = useAudioContext()
 
     // ─── 현재 플레이어 & 문제 ───
@@ -128,6 +134,30 @@ export function useGameBase(options: UseGameBaseOptions) {
     const currentQuestion = questions.length > 0
         ? questions[currentQuestionIndex % questions.length]
         : null
+    const isRoomHost = useMemo(
+        () => isRoomHostPlayer(playerId, players, presence),
+        [playerId, players, presence],
+    )
+
+    const commitPlayerPatch = useCallback(async (
+        targetPlayerId: string,
+        patch: PlayerPatch,
+        reason = 'player_update',
+    ) => {
+        applyPlayerPatch(targetPlayerId, patch)
+        void sendRoomEvent('player:patch', {
+            playerId: targetPlayerId,
+            patch,
+            reason,
+        })
+
+        try {
+            await updatePlayer(targetPlayerId, patch)
+        } catch (error) {
+            requestRoomResync('manual')
+            throw error
+        }
+    }, [applyPlayerPatch, requestRoomResync, sendRoomEvent])
 
     // ─── 기존 데이터 복구 (새로고침 방어) ───
     useEffect(() => {
@@ -147,32 +177,22 @@ export function useGameBase(options: UseGameBaseOptions) {
         if (gameMode !== expectedGameMode) {
             const correctUrl = getGameModeUrl(gameMode, roomCode, playerId)
             if (correctUrl !== window.location.pathname + window.location.search) {
-                window.location.href = correctUrl
+                router.replace(correctUrl)
             }
         }
-    }, [room, roomLoading, roomCode, playerId, expectedGameMode])
+    }, [room, roomLoading, roomCode, playerId, expectedGameMode, router])
 
     // ─── 문제 가져오기 ───
     useEffect(() => {
         if (!room?.set_id) return
+        const setId = room.set_id
 
         const fetchQuestions = async () => {
             try {
-                // 보안 패치: 진짜 정답(answer)은 학생 폰으로 내려보내지 않음 (*) 대신 명시적 컬럼 선택
-                const { data, error } = await ((supabase
-                    .from('questions') as any)
-                    .select('id, set_id, type, question_text, options, created_at')
-                    .eq('set_id', room.set_id) as any)
-
-                if (error) throw error
-                setQuestions(data as Question[])
+                const loadedQuestions = await listQuestionsForGame(setId)
+                setQuestions(loadedQuestions)
             } catch (error) {
-                const msg =
-                    error instanceof Error
-                        ? error.message
-                        : error && typeof error === 'object' && 'message' in error
-                          ? String((error as { message?: string }).message)
-                          : JSON.stringify(error)
+                const msg = formatServiceError(error)
                 console.error('Error fetching questions:', msg, error)
             }
         }
@@ -184,7 +204,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     useEffect(() => {
         if (!room) return
 
-        if (room.status === 'playing') {
+        if (roomStatus === 'playing') {
             if (currentView === 'lobby' && !showCountdown) {
                 // 새로고침 복구: 인덱스 남아있으면 카운트다운 건너뛰기
                 const savedIndex = roomCode ? sessionStorage.getItem(`quiz_index_${roomCode}`) : null
@@ -195,18 +215,18 @@ export function useGameBase(options: UseGameBaseOptions) {
                     setShowCountdown(true)
                 }
             }
-        } else if (room.status === 'waiting') {
+        } else if (roomStatus === 'waiting') {
             if (currentView !== 'lobby') {
                 setCurrentView('lobby')
                 setShowCountdown(false)
             }
-        } else if (room.status === 'finished') {
+        } else if (roomStatus === 'finished') {
             if (currentView !== 'result') {
                 setCurrentView('result')
                 playBGM('result')
             }
         }
-    }, [room?.status, currentView, showCountdown, playBGM, roomCode])
+    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room])
 
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {
@@ -242,20 +262,9 @@ export function useGameBase(options: UseGameBaseOptions) {
         let correct = false
 
         try {
-            // 🚨 보안 패치: 진짜 정답을 폰에서 비교하지 않고, 서버의 RPC 함수('check_question_answer')에 채점을 요청함
-            const { data, error } = await (supabase.rpc as any)('check_question_answer', {
-                p_question_id: currentQuestion.id,
-                p_submitted_answer: normalizedAnswer
-            })
-
-            if (error) {
-                console.error('[Server Check] 채점 요청 실패:', formatSupabaseError(error), error)
-                throw error
-            }
-
-            correct = Boolean(data)
+            correct = await checkQuestionAnswer(currentQuestion.id, normalizedAnswer)
         } catch (err) {
-            console.error('채점 오류, 오답 처리함:', formatSupabaseError(err), err)
+            console.error('채점 오류, 오답 처리함:', formatServiceError(err), err)
             correct = false
         }
 
@@ -274,25 +283,24 @@ export function useGameBase(options: UseGameBaseOptions) {
     // ─── 정답 기록 DB 동기화 ───
     useEffect(() => {
         if (playerId && answerHistory.length > 0 && canSyncAnswerHistory) {
-            (supabase
-                .from('players') as any)
-                .update({ answer_history: answerHistory })
-                .eq('id', playerId)
-                .then(({ error }: { error: any }) => {
-                    if (error) {
-                        const message = formatSupabaseError(error)
-                        console.error('정답 기록 동기화 실패:', message, error)
+            const syncTimer = window.setTimeout(() => {
+                updatePlayer(playerId, { answer_history: answerHistory })
+                .catch((error) => {
+                    const message = formatServiceError(error)
+                    console.error('정답 기록 동기화 실패:', message, error)
 
-                        // 구형 스키마에서는 answer_history 컬럼이 없을 수 있다.
-                        if (
-                            message.includes('answer_history')
-                            || message.includes('42703')
-                            || message.includes('column')
-                        ) {
-                            setCanSyncAnswerHistory(false)
-                        }
+                    // 구형 스키마에서는 answer_history 컬럼이 없을 수 있다.
+                    if (
+                        message.includes('answer_history')
+                        || message.includes('42703')
+                        || message.includes('column')
+                    ) {
+                        setCanSyncAnswerHistory(false)
                     }
                 })
+            }, 700)
+
+            return () => window.clearTimeout(syncTimer)
         }
     }, [answerHistory, playerId, canSyncAnswerHistory])
 
@@ -315,17 +323,24 @@ export function useGameBase(options: UseGameBaseOptions) {
     }, [wrongAnswerDelay, goToNextQuestion])
 
     // ─── 게임 종료 (모든 문제 풀었을 때) ───
-    const finishGame = useCallback(async () => {
-        if (!roomCode || !room || room.status === 'finished') return
+    const finishGame = useCallback(async (): Promise<boolean> => {
+        if (!roomCode || !room || room.status === 'finished') return false
         try {
-            await ((supabase
-                .from('rooms') as any)
-                .update({ status: 'finished' })
-                .eq('room_code', roomCode) as any)
+            await finishRoom(roomCode)
+            void sendRoomEvent('room:patch', {
+                patch: { status: 'finished' },
+                reason: 'student_finished',
+            })
+            void sendRoomEvent('game:finished', {
+                finishedBy: playerId,
+                reason: 'student_finished',
+            })
+            return true
         } catch (error) {
             console.error('게임 종료 업데이트 실패:', error)
+            return false
         }
-    }, [roomCode, room])
+    }, [playerId, roomCode, room, sendRoomEvent])
 
     // ─── 문제가 다 끝났는지 확인 ───
     const isAllQuestionsAnswered = questions.length > 0 && currentQuestionIndex >= questions.length
@@ -359,6 +374,10 @@ export function useGameBase(options: UseGameBaseOptions) {
         roomLoading,
         currentPlayer,
         currentQuestion,
+        roomChannelStatus,
+        roomOnlineCount,
+        presence,
+        isRoomHost,
 
         // 오디오
         playBGM,
@@ -371,6 +390,10 @@ export function useGameBase(options: UseGameBaseOptions) {
         handleCountdownComplete,
         finishGame,
         getElapsedSeconds,
+        sendRoomEvent,
+        requestRoomResync,
+        applyPlayerPatch,
+        commitPlayerPatch,
 
         // 유틸
         isAllQuestionsAnswered,

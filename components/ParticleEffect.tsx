@@ -100,7 +100,7 @@ export default function ParticleEffect({ type, duration = 3000, onComplete }: Pa
         cancelAnimationFrame(animationFrame)
       }
     }
-  }, [type, duration])
+  }, [type, duration, onComplete])
 
   return (
     <canvas

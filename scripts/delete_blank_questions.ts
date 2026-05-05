@@ -26,9 +26,21 @@ function loadEnv() {
 
 loadEnv()
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabasePublicKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabasePublicKey) {
+    console.error(
+        'Missing Supabase credentials: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or legacy NEXT_PUBLIC_SUPABASE_ANON_KEY)'
+    )
+    process.exit(1)
+}
+
 const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    supabaseUrl,
+    supabasePublicKey
 )
 
 async function run() {

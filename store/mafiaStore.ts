@@ -8,7 +8,7 @@ import {
   createInitialPlayers,
   generateSafeVaults,
   openSafeVault,
-  useCheat,
+  applyCheat,
   detectCheating,
   attemptInvestigate,
   calculateLaunderedCash,
@@ -235,7 +235,7 @@ export const useMafiaStore = create<MafiaGameState>((set, get) => ({
       const player = state.players.find((p) => !p.isAi)
       if (!player) return
 
-      const result = useCheat(state.currentVaults, player, Date.now())
+      const result = applyCheat(state.currentVaults, player, Date.now())
 
       set({
         ...state,

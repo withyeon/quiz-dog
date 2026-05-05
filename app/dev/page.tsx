@@ -3,14 +3,12 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { supabase, checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
-import { generateRoomCode } from '@/lib/utils/gameCode'
+import { checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
 import { CHARACTERS } from '@/lib/utils/characters'
-import { getGameModeUrl } from '@/hooks/useGameBase'
-import type { Database } from '@/types/database.types'
+import { GAME_MODES, getGameModeUrl, type GameModeId } from '@/lib/game/modes'
+import { listQuestionSetsWithCounts } from '@/lib/services/questionSets'
+import { createPlayerForRoom, createRoom, startRoom } from '@/lib/services/rooms'
 import Image from 'next/image'
-
-type GameMode = 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'pool' | 'allin'
 
 function formatDevStartError(error: unknown): string {
   if (error instanceof Error) {
@@ -40,89 +38,9 @@ function formatDevStartError(error: unknown): string {
   }
 }
 
-const GAME_MODES: { mode: GameMode; name: string; description: string; image: string; emoji: string }[] = [
-  {
-    mode: 'gold_quest',
-    name: '🏴‍☠️ 해적왕의 보물찾기',
-    description: '황금빛 보물이 잠든 섬, 지도를 따라 모험을 떠나는 짜릿한 해적 어드벤처!',
-    image: '/gold-quest.png',
-    emoji: '🏴‍☠️',
-  },
-  {
-    mode: 'racing',
-    name: '🏃 미션: 등교 임파서블',
-    description: '닫히는 교문을 향해 전력 질주! 장애물을 피해 달리는 스릴 만점 등교 레이싱.',
-    image: '/racing.png',
-    emoji: '🏃',
-  },
-  {
-    mode: 'battle_royale',
-    name: '❄️ 눈싸움 대작전',
-    description: '던지고 피하고 명중시켜라! 설원 위에서 펼쳐지는 예측불허 스노우 액션.',
-    image: '/battle-royale.png',
-    emoji: '❄️',
-  },
-  {
-    mode: 'fishing',
-    name: '🕹️ 두근두근 인형뽑기',
-    description: '손끝에 집중하라! 집게가 움직일 때마다 심장이 쫄깃해지는 행운의 뽑기 한판.',
-    image: '/fishing.png',
-    emoji: '🕹️',
-  },
-  {
-    mode: 'factory',
-    name: '🏪 전설의 편의점',
-    description: '진열부터 계산까지 내 손으로! 동네 최고의 핫플레이스를 만드는 경영 시뮬레이션.',
-    image: '/factory.png',
-    emoji: '🏪',
-  },
-  {
-    mode: 'cafe',
-    name: '☕ 달콤 바삭 카페',
-    description: '손님에게 음식을 서빙하고 카페를 성장시키는 달콤한 경영 게임!',
-    image: '/cafe.png',
-    emoji: '☕',
-  },
-  {
-    mode: 'mafia',
-    name: '🕴️ 쉿! 마피아',
-    description: '금고를 털고, 배신하고, 색출하라! 느와르 스타일의 심리전 게임!',
-    image: '/mafia.png',
-    emoji: '🕴️',
-  },
-  {
-    mode: 'tower',
-    name: '🏰 타워 디펜스',
-    description: '퀴즈를 풀어 타워를 설치하고, 밀려오는 적들을 막아내는 전략 게임!',
-    image: '/tower-defense.svg',
-    emoji: '🏰',
-  },
-  {
-    mode: 'dontlookdown',
-    name: '⛰️ Don\'t Look Down',
-    description: '파워업을 모으고 장애물을 피하며 6개 Summit을 넘어 정상을 정복하라!',
-    image: '/tower-defense.svg',
-    emoji: '⛰️',
-  },
-  {
-    mode: 'pool',
-    name: '🎱 포켓볼',
-    description: '퀴즈로 공을 쏴라! 구멍에 넣을수록 점수 UP, 아이템으로 역전도 가능!',
-    image: '/fishing.png',
-    emoji: '🎱',
-  },
-  {
-    mode: 'allin',
-    name: '💎 올인 퀴즈',
-    description: '점수를 걸고 문제를 풀어라! 맞히면 대박, 틀리면 쪽박! 역전의 짜릿함!',
-    image: '/gold-quest.png',
-    emoji: '💎',
-  },
-]
-
 export default function DevPage() {
   const router = useRouter()
-  const [selectedMode, setSelectedMode] = useState<GameMode | null>(null)
+  const [selectedMode, setSelectedMode] = useState<GameModeId | null>(null)
   const [loading, setLoading] = useState(false)
   const [nickname, setNickname] = useState('개발자')
   const [questionSets, setQuestionSets] = useState<any[]>([])
@@ -145,20 +63,18 @@ export default function DevPage() {
       }
       if (!cancelled) setConnectionHint(null)
 
-      const { data, error } = await supabase
-        .from('question_sets')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5)
       if (cancelled) return
-      if (error) {
-        setConnectionHint((prev) => prev ?? `문제집을 불러오지 못했습니다: ${error.message}`)
+      try {
+        const sets = await listQuestionSetsWithCounts()
+        if (cancelled) return
+        setQuestionSets(sets.slice(0, 5))
+        if (sets.length > 0) {
+          setSelectedSetId(sets[0].id)
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        setConnectionHint((prev) => prev ?? `문제집을 불러오지 못했습니다: ${message}`)
         setQuestionSets([])
-        return
-      }
-      setQuestionSets(data || [])
-      if (data && data.length > 0) {
-        setSelectedSetId((data as any)[0].id) // 첫 번째 세트 자동 선택
       }
     }
     void run()
@@ -178,54 +94,27 @@ export default function DevPage() {
 
     setLoading(true)
     try {
-      // 1. 방 코드 생성
-      const roomCode = generateRoomCode()
+      const room = await createRoom({
+        setId: selectedSetId,
+        gameMode: selectedMode,
+      })
+      await startRoom({ roomCode: room.room_code, gameMode: selectedMode })
 
-      // 2. 방 생성
-      const roomInsert: Database['public']['Tables']['rooms']['Insert'] = {
-        room_code: roomCode,
-        status: 'playing', // 바로 playing 상태로 시작
-        current_q_index: 0,
-        game_mode: selectedMode,
-        set_id: selectedSetId, // 선택된 문제집 ID 포함
-      }
-
-      const { error: roomError } = await (supabase
-        .from('rooms')
-        .insert(roomInsert as any) as any)
-
-      if (roomError) throw roomError
-
-      // 3. 플레이어 생성
       const randomCharacter = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)]
-      const isBattleRoyale = selectedMode === 'battle_royale'
 
-      const playerInsert: Database['public']['Tables']['players']['Insert'] = {
-        room_code: roomCode,
+      const playerData = await createPlayerForRoom({
+        roomCode: room.room_code,
         nickname: nickname.trim() || '개발자',
-        score: 0,
-        gold: 0,
         avatar: randomCharacter.emoji,
-        is_online: true,
-        health: isBattleRoyale ? 100 : undefined,
-        position: selectedMode === 'racing' ? 0 : undefined,
-      }
-
-      const { data: playerData, error: playerError } = await (supabase
-        .from('players')
-        .insert(playerInsert as any)
-        .select()
-        .single() as any)
-
-      if (playerError) throw playerError
+        gameMode: selectedMode,
+      })
 
       const pid = playerData?.id
       if (!pid) {
         throw new Error('플레이어 생성 후 id를 받지 못했습니다.')
       }
 
-      // 4. 게임 페이지로 이동 (모드별 경로는 useGameBase와 동일)
-      const gameUrl = getGameModeUrl(selectedMode, roomCode, pid)
+      const gameUrl = getGameModeUrl(selectedMode, room.room_code, pid)
 
       router.push(gameUrl)
     } catch (error) {
@@ -322,29 +211,35 @@ export default function DevPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {GAME_MODES.map((game) => (
               <motion.button
-                key={game.mode}
-                onClick={() => setSelectedMode(game.mode)}
+                key={game.id}
+                onClick={() => setSelectedMode(game.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${selectedMode === game.mode
+                className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center ${selectedMode === game.id
                   ? 'border-blue-500 bg-blue-50 shadow-lg scale-[1.02]'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-md'
                   }`}
               >
-                <Image
-                  src={game.image}
-                  alt={game.name}
-                  width={200}
-                  height={200}
-                  className="w-32 h-32 object-contain mb-3"
-                />
+                {game.image ? (
+                  <Image
+                    src={game.image}
+                    alt={game.label}
+                    width={200}
+                    height={200}
+                    className="w-32 h-32 object-contain mb-3"
+                  />
+                ) : (
+                  <div className="w-32 h-32 mb-3 flex items-center justify-center text-7xl">
+                    {game.emoji}
+                  </div>
+                )}
                 <div className="font-bold text-lg text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>
-                  {game.name}
+                  {game.emoji} {game.label}
                 </div>
                 <div className="text-sm text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>
                   {game.description}
                 </div>
-                {selectedMode === game.mode && (
+                {selectedMode === game.id && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}

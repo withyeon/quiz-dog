@@ -3,7 +3,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { Database } from '@/types/database.types'
 import {
   type PlayerFactory,
@@ -15,7 +15,7 @@ import {
   buyFactory,
   upgradeFactory,
 } from '@/lib/game/factory'
-import { supabase } from '@/lib/supabase/client'
+import { updatePlayer } from '@/lib/services/players'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   factories?: PlayerFactory[]
@@ -41,20 +41,17 @@ export default function FactoryView({
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now())
 
   // DB 업데이트 함수
-  const updateMoneyInDB = async (newMoney: number) => {
+  const updateMoneyInDB = useCallback(async (newMoney: number) => {
     if (!currentPlayerId) return
     try {
-      await ((supabase
-        .from('players') as any)
-        .update({
-          factory_money: newMoney,
-          score: newMoney, // 점수도 돈으로
-        })
-        .eq('id', currentPlayerId))
+      await updatePlayer(currentPlayerId, {
+        factory_money: newMoney,
+        score: newMoney,
+      })
     } catch (error) {
       console.error('Error updating money:', error)
     }
-  }
+  }, [currentPlayerId])
 
   // 실시간 생산량 계산
   useEffect(() => {
@@ -80,7 +77,7 @@ export default function FactoryView({
     }, 1000) // 1초마다 업데이트
 
     return () => clearInterval(interval)
-  }, [factories, currentPlayerId])
+  }, [factories, currentPlayerId, updateMoneyInDB])
 
   const handleBuyFactory = async (factoryType: keyof typeof FACTORIES) => {
     if (!canBuyFactory(money, factoryType)) return
@@ -94,14 +91,11 @@ export default function FactoryView({
       // DB 업데이트
       if (currentPlayerId) {
         try {
-          await ((supabase
-            .from('players') as any)
-            .update({
-              factories: newFactories,
-              factory_money: result.newMoney,
-              score: result.newMoney,
-            })
-            .eq('id', currentPlayerId))
+          await updatePlayer(currentPlayerId, {
+            factories: newFactories,
+            factory_money: result.newMoney,
+            score: result.newMoney,
+          })
         } catch (error) {
           console.error('Error buying factory:', error)
         }
@@ -124,14 +118,11 @@ export default function FactoryView({
       // DB 업데이트
       if (currentPlayerId) {
         try {
-          await ((supabase
-            .from('players') as any)
-            .update({
-              factories: newFactories,
-              factory_money: result.newMoney,
-              score: result.newMoney,
-            })
-            .eq('id', currentPlayerId))
+          await updatePlayer(currentPlayerId, {
+            factories: newFactories,
+            factory_money: result.newMoney,
+            score: result.newMoney,
+          })
         } catch (error) {
           console.error('Error upgrading factory:', error)
         }

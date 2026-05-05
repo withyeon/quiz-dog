@@ -1,9 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
-import { Question } from '@/hooks/useGameBase'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { CheckCircle2, XCircle, Users, Target, Trophy, AlertTriangle, TrendingDown, ChevronDown, ChevronUp, Download } from 'lucide-react'
 import { useRef } from 'react'
@@ -11,9 +9,19 @@ import { toPng } from 'html-to-image'
 import download from 'downloadjs'
 import { Button } from './ui/button'
 import StudentDetailModal from './StudentDetailModal'
+import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
+import { formatServiceError } from '@/lib/services/errors'
 
 type Player = Database['public']['Tables']['players']['Row']
 type AnswerRecord = { questionIndex: number, isCorrect: boolean, selectedAnswer?: string }
+type PlayerSummary = {
+    id: string
+    nickname: string
+    score: number
+    correctAnswers: number
+    totalAnswered: number
+    accuracy: number
+}
 
 interface TeacherAnalyticsProps {
     setId: string | null
@@ -21,31 +29,30 @@ interface TeacherAnalyticsProps {
 }
 
 export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsProps) {
-    const [questions, setQuestions] = useState<Question[]>([])
+    const [questions, setQuestions] = useState<AnalyticsQuestion[]>([])
     const [loading, setLoading] = useState(true)
     const [showAllQuestions, setShowAllQuestions] = useState(false)
-    const [selectedStudent, setSelectedStudent] = useState<any>(null)
+    const [selectedStudent, setSelectedStudent] = useState<PlayerSummary | null>(null)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const reportRef = useRef<HTMLDivElement>(null)
 
     // 문제 불러오기
     useEffect(() => {
         if (!setId) {
+            setQuestions([])
             setLoading(false)
             return
         }
 
         const fetchQuestions = async () => {
+            setLoading(true)
+            setErrorMessage(null)
             try {
-                const { data, error } = await (supabase
-                    .from('questions')
-                    .select('*')
-                    .eq('set_id', setId)
-                    .order('created_at', { ascending: true }) as any)
-
-                if (error) throw error
-                setQuestions(data || [])
+                const data = await listQuestionsForAnalytics(setId)
+                setQuestions(data)
             } catch (err) {
                 console.error('Failed to load questions:', err)
+                setErrorMessage(formatServiceError(err))
             } finally {
                 setLoading(false)
             }
@@ -161,12 +168,16 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
             download(dataUrl, `quiz_report_${setId}.png`)
         } catch (err) {
             console.error('Failed to export image', err)
-            alert('이미지 저장 중 오류가 발생했습니다.')
+            setErrorMessage('이미지 저장 중 오류가 발생했습니다.')
         }
     }
 
     if (loading) {
         return <div className="p-8 text-center text-gray-500 font-bold">통계 데이터를 불러오는 중...</div>
+    }
+
+    if (errorMessage && questions.length === 0) {
+        return <div className="p-8 text-center text-red-500">문제 데이터를 불러오지 못했습니다. {errorMessage}</div>
     }
 
     if (!setId || questions.length === 0) {
@@ -178,7 +189,12 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
     return (
         <div className="space-y-6" ref={reportRef}>
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">📊 학습 분석 리포트</h2>
+                <div>
+                    <h2 className="text-2xl font-bold text-gray-900">📊 학습 분석 리포트</h2>
+                    {errorMessage && (
+                        <p className="mt-2 text-sm text-red-500">{errorMessage}</p>
+                    )}
+                </div>
                 <Button
                     onClick={handleExportToImage}
                     className="bg-gray-900 hover:bg-gray-800 text-white"
@@ -266,7 +282,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                                         <span>맞힌 학생: <span className="text-green-600 font-bold">{q.correctCount}</span>/{q.totalCount}명</span>
                                         {q.topWrongAnswer && (
                                             <span className="ml-auto bg-red-50 text-red-700 px-2 py-1 rounded text-xs font-semibold">
-                                                가장 많이 고른 오답: <span className="font-bold">"{q.topWrongAnswer[0]}"</span> ({q.topWrongAnswer[1]}명)
+                                                가장 많이 고른 오답: <span className="font-bold">&ldquo;{q.topWrongAnswer[0]}&rdquo;</span> ({q.topWrongAnswer[1]}명)
                                             </span>
                                         )}
                                     </div>

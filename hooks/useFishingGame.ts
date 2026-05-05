@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { supabase } from '@/lib/supabase/client'
 import {
   tryFishing,
   trySpecialItem,
@@ -14,6 +13,7 @@ import {
   calculateTotalPoints,
   getMachineRank,
 } from '@/lib/game/fishing'
+import { getPlayerById, updatePlayer } from '@/lib/services/players'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
@@ -114,14 +114,11 @@ export function useFishingGame({
 
               ;(async () => {
                 try {
-                  await (supabase
-                    .from('players') as any)
-                    .update({
-                      caught_dolls: newDolls,
-                      claw_points: totalPoints,
-                      score: totalPoints,
-                    })
-                    .eq('id', playerId)
+                  await updatePlayer(playerId, {
+                    caught_dolls: newDolls,
+                    claw_points: totalPoints,
+                    score: totalPoints,
+                  })
 
                   playSFX('item')
                 } catch (error) {
@@ -168,8 +165,10 @@ export function useFishingGame({
         if (specialItem.type === 'COIN_RAIN') {
           const bonus = specialItem.bonusPoints ?? 150
           try {
-            const { data: pd } = await (supabase.from('players') as any).select('score').eq('id', playerId).single()
-            await (supabase.from('players') as any).update({ score: (pd?.score || 0) + bonus }).eq('id', playerId)
+            if (playerId) {
+              const player = await getPlayerById(playerId)
+              await updatePlayer(playerId, { score: (player?.score || 0) + bonus })
+            }
           } catch (e) { console.error(e) }
         } else if (specialItem.type === 'EXTRA_PULL') {
           // 한 번 더

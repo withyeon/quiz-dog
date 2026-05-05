@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCafeStore } from '@/store/cafeStore'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -15,6 +16,7 @@ import { useGameBase } from '@/hooks/useGameBase'
 type CafeViewType = 'lobby' | 'playing' | 'result'
 
 export default function CafePage() {
+  const router = useRouter()
   const {
     roomCode,
     playerId,
@@ -221,7 +223,7 @@ export default function CafePage() {
                     🔄 다시 하기
                   </Button>
                   <Button
-                    onClick={() => (window.location.href = '/teacher/dashboard')}
+                    onClick={() => router.push('/teacher/dashboard')}
                     size="lg"
                     variant="outline"
                     className="flex-1 border-4 border-gray-300 font-bold text-lg py-6"

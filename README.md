@@ -15,7 +15,14 @@ npm install
 ```bash
 # Supabase 설정 (필수)
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key-here
+
+# 서버/스크립트에서 관리자 권한이 필요할 때만
+SUPABASE_SECRET_KEY=your-secret-key-here
+
+# legacy 키/이름도 계속 지원됩니다.
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=your-legacy-anon-key-here
+# SUPABASE_SERVICE_ROLE_KEY=your-legacy-service-role-key-here
 
 # AI API 설정 (문제 생성 기능 사용 시 필수)
 # Gemini API 또는 OpenAI API 중 하나만 설정

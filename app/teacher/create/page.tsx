@@ -3,13 +3,15 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { supabase, checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
+import { checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Pencil, CheckCircle2, MessageSquare, XCircle, ScanLine } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { filterNickname } from '@/lib/utils/profanityFilter'
 import QuestionReviewEditor from '@/components/teacher/QuestionReviewEditor'
 import QuestionSourceSelector from '@/components/teacher/QuestionSourceSelector'
+import { createQuestionSetWithQuestions } from '@/lib/services/questionSets'
+import { formatServiceError } from '@/lib/services/errors'
 
 type SourceType = 'topic' | 'youtube' | 'file' | 'exam'
 
@@ -23,6 +25,7 @@ export default function CreateQuestionPage() {
   const [examFile, setExamFile] = useState<File | null>(null)
   const [questionCount, setQuestionCount] = useState(5)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([])
   const [isReviewing, setIsReviewing] = useState(false)
   const [setName, setSetName] = useState('')
@@ -92,6 +95,8 @@ export default function CreateQuestionPage() {
   }
 
   const handleSaveQuestions = async () => {
+    if (isSaving) return
+
     if (!setName.trim()) {
       alert('문제집 이름을 입력해주세요.')
       return
@@ -124,62 +129,25 @@ export default function CreateQuestionPage() {
     }
 
     try {
-      const setId = `set-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-
-      const questionsToSave = generatedQuestions.map((q) => {
-        let optionsArray: string[] = []
-        if (Array.isArray(q.options)) {
-          optionsArray = q.options
-        } else if (q.options && typeof q.options === 'string') {
-          optionsArray = (q.options as string).split(',').map((s: string) => s.trim()).filter(Boolean)
-        }
-
-        return {
-          set_id: setId,
-          type: q.type,
-          question_text: q.question_text.trim(),
-          options: optionsArray,
-          answer: q.answer.trim(),
-        }
-      })
-
-      const { error: setListError } = await ((supabase
-        .from('question_sets') as any)
-        .insert({
-          id: setId,
-          title: setName.trim(),
-          description: `AI로 생성된 문제집 (${sourceType})`,
+      setIsSaving(true)
+      await createQuestionSetWithQuestions({
+        metadata: {
+          title: setName,
+          description: activeTab === 'ai' ? `AI로 생성된 문제집 (${sourceType})` : '직접 만든 문제집',
           subject,
           grade,
-        } as any))
-
-      if (setListError) throw setListError
-
-      const { data, error } = await ((supabase
-        .from('questions') as any)
-        .insert(questionsToSave as any)
-        .select() as any)
-
-      if (error) {
-        let errorMessage = '알 수 없는 오류가 발생했습니다.'
-        if (error.message) errorMessage = error.message
-        else if (error.details) errorMessage = error.details
-        else if (error.hint) errorMessage = error.hint
-        throw new Error(errorMessage)
-      }
+        },
+        questions: generatedQuestions,
+      })
 
       alert('문제가 저장되었습니다!')
       router.push('/teacher')
     } catch (error) {
       console.error('Error saving questions:', error)
-      let errorMessage = '알 수 없는 오류가 발생했습니다.'
-      if (error instanceof Error) {
-        errorMessage = error.message
-      } else if (typeof error === 'object' && error !== null) {
-        const err = error as any
-        errorMessage = err.message || err.details || err.hint || errorMessage
-      }
+      const errorMessage = formatServiceError(error)
       alert(`문제 저장에 실패했습니다: ${errorMessage}`)
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -209,6 +177,7 @@ export default function CreateQuestionPage() {
         onBack={() => setIsReviewing(false)}
         onSave={handleSaveQuestions}
         onCreateManual={handleCreateManual}
+        isSaving={isSaving}
       />
     )
   }

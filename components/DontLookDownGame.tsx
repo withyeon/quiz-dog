@@ -37,7 +37,7 @@ import {
     giveEnergy,
     isPlayerAtPeak,
     collectPowerUp,
-    usePowerUp,
+    applyPowerUp,
     updateActivePowerUps,
     updateObstacles,
     updatePlatforms,
@@ -136,12 +136,12 @@ export default function DontLookDownGame({
 
                 if (gameKey === 'q' && !showQuiz) setShowQuiz(true)
                 if (gameKey === 'e' && localPlayer && (localPlayer.powerUps?.length ?? 0) > 0) {
-                    const updated = usePowerUp(localPlayer, 0)
+                    const updated = applyPowerUp(localPlayer, 0)
                     setLocalPlayer(updated)
                     onUpdatePlayer(updated)
                 }
                 if (gameKey === 'r' && localPlayer && (localPlayer.powerUps?.length ?? 0) > 1) {
-                    const updated = usePowerUp(localPlayer, 1)
+                    const updated = applyPowerUp(localPlayer, 1)
                     setLocalPlayer(updated)
                     onUpdatePlayer(updated)
                 }

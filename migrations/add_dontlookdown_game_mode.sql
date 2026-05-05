@@ -9,13 +9,11 @@ BEGIN
         -- Create the enum with all values if it doesn't exist
         CREATE TYPE game_mode AS ENUM (
             'gold_quest',
-            'racing', 
             'battle_royale',
             'fishing',
             'factory',
             'cafe',
             'mafia',
-            'pool',
             'tower',
             'dontlookdown'
         );
@@ -46,8 +44,8 @@ BEGIN
     
     -- Add the updated check constraint with all game modes including dontlookdown
     ALTER TABLE rooms ADD CONSTRAINT rooms_game_mode_check 
-        CHECK (game_mode IN ('gold_quest', 'racing', 'battle_royale', 'fishing', 'factory', 'cafe', 'mafia', 'pool', 'tower', 'dontlookdown'));
+        CHECK (game_mode IN ('gold_quest', 'battle_royale', 'fishing', 'factory', 'cafe', 'mafia', 'tower', 'dontlookdown'));
 END $$;
 
 -- Add comment
-COMMENT ON TYPE game_mode IS 'Game modes: gold_quest, racing, battle_royale, fishing, factory, cafe, mafia, pool, tower, dontlookdown';
+COMMENT ON TYPE game_mode IS 'Game modes: gold_quest, battle_royale, fishing, factory, cafe, mafia, tower, dontlookdown';

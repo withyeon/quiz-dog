@@ -24,10 +24,15 @@ export interface Database {
           health?: number
           attack_power?: number
           defense?: number
+          player_class?: string | null
+          caught_dolls?: Json | null
+          claw_points?: number
           caught_fishes?: Json | null
           fishing_points?: number
           factories?: Json | null
           factory_money?: number
+          convenience_products?: Json | null
+          convenience_money?: number
           cafe_cash?: number
           cafe_customers_served?: number
           mafia_cash?: number
@@ -50,10 +55,15 @@ export interface Database {
           health?: number
           attack_power?: number
           defense?: number
+          player_class?: string | null
+          caught_dolls?: Json | null
+          claw_points?: number
           caught_fishes?: Json | null
           fishing_points?: number
           factories?: Json | null
           factory_money?: number
+          convenience_products?: Json | null
+          convenience_money?: number
           cafe_cash?: number
           cafe_customers_served?: number
           mafia_cash?: number
@@ -76,10 +86,15 @@ export interface Database {
           health?: number
           attack_power?: number
           defense?: number
+          player_class?: string | null
+          caught_dolls?: Json | null
+          claw_points?: number
           caught_fishes?: Json | null
           fishing_points?: number
           factories?: Json | null
           factory_money?: number
+          convenience_products?: Json | null
+          convenience_money?: number
           cafe_cash?: number
           cafe_customers_served?: number
           mafia_cash?: number
@@ -126,7 +141,7 @@ export interface Database {
           room_code: string
           status: 'waiting' | 'playing' | 'finished'
           current_q_index: number
-          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown' | 'allin'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -137,7 +152,7 @@ export interface Database {
           room_code: string
           status?: 'waiting' | 'playing' | 'finished'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown' | 'allin'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -148,7 +163,7 @@ export interface Database {
           room_code?: string
           status?: 'waiting' | 'playing' | 'finished'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'tower' | 'dontlookdown' | 'allin'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -232,4 +247,3 @@ export interface Database {
     }
   }
 }
-

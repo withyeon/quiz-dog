@@ -1,32 +1,26 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useCallback, useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRoomChannel } from '@/hooks/useRoomChannel'
 import QRCodeSVG from 'react-qr-code'
-import type { Database } from '@/types/database.types'
 import { filterNickname } from '@/lib/utils/profanityFilter'
+import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
+import { createPlayerForRoom, ensureRoomExists } from '@/lib/services/rooms'
 
 // 게임 모드에 따른 버튼 컴포넌트
-function GameModeButton({ roomCode, playerId }: { roomCode: string; playerId: string | null }) {
-  const { room } = useRoomRealtime({ roomCode })
-  const gameMode = room?.game_mode || 'gold_quest'
-  
-  const gameUrl = gameMode === 'racing' 
-    ? `/racing?room=${roomCode}&playerId=${playerId}`
-    : gameMode === 'battle_royale'
-    ? `/battle?room=${roomCode}&playerId=${playerId}`
-    : gameMode === 'fishing'
-    ? `/fishing?room=${roomCode}&playerId=${playerId}`
-    : gameMode === 'factory'
-    ? `/factory?room=${roomCode}&playerId=${playerId}`
-    : gameMode === 'dontlookdown'
-    ? `/dontlookdown?room=${roomCode}&playerId=${playerId}`
-    : gameMode === 'tower'
-    ? `/tower?room=${roomCode}&playerId=${playerId}`
-    : `/game?room=${roomCode}&playerId=${playerId}`
+function GameModeButton({
+  roomCode,
+  playerId,
+  gameMode,
+}: {
+  roomCode: string
+  playerId: string | null
+  gameMode?: string | null
+}) {
+  const gameUrl = getGameModeUrl(gameMode || DEFAULT_GAME_MODE, roomCode, playerId || '')
   
   return (
     <a
@@ -51,43 +45,35 @@ export default function PlayPage() {
 
   const avatars = ['🎮', '👤', '🎯', '🏆', '⭐', '🔥', '💎', '🌟', '🎨', '🚀', '🎪', '🎭']
 
-  const { players, loading, error } = usePlayersRealtime({
+  const { players, loading, error, refreshPlayers } = usePlayersRealtime({
     roomCode,
     onPlayerUpdate: (player) => {
       console.log('Player updated:', player)
     },
   })
 
-  const { room } = useRoomRealtime({ roomCode })
+  const { room, refreshRoom } = useRoomRealtime({ roomCode })
+  const resyncPlay = useCallback(async (reason?: string) => {
+    if (reason === 'broadcast_hint') return
+    await Promise.all([
+      refreshRoom({ silent: true }),
+      refreshPlayers({ silent: true }),
+    ])
+  }, [refreshPlayers, refreshRoom])
+  const { status: realtimeStatus, onlineCount, sendEvent: sendRoomEvent } = useRoomChannel({
+    roomCode,
+    playerId,
+    role: 'student',
+    enabled: Boolean(roomCode),
+    onResyncNeeded: resyncPlay,
+  })
 
   // 게임 시작 감지 - 입장 후 로비에서 게임으로 이동
   useEffect(() => {
     if (room?.status === 'playing' && isJoined && playerId) {
-      // 게임 페이지로 이동
-      const gameMode = room?.game_mode || 'gold_quest'
-      const gameUrl = gameMode === 'racing' 
-        ? `/racing?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'battle_royale'
-        ? `/battle?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'fishing'
-        ? `/fishing?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'factory'
-        ? `/factory?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'cafe'
-        ? `/cafe?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'mafia'
-        ? `/mafia?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'pool'
-        ? `/pool?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'dontlookdown'
-        ? `/dontlookdown?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'tower'
-        ? `/tower?room=${roomCode}&playerId=${playerId}`
-        : `/game?room=${roomCode}&playerId=${playerId}`
-      
-      window.location.href = gameUrl
+      router.replace(getGameModeUrl(room?.game_mode || DEFAULT_GAME_MODE, roomCode, playerId))
     }
-  }, [room?.status, isJoined, playerId, roomCode, room?.game_mode])
+  }, [room?.status, isJoined, playerId, roomCode, room?.game_mode, router])
 
   // 로비에서는 소리 재생하지 않음 (게임 시작 후에만 재생)
 
@@ -125,62 +111,17 @@ export default function PlayPage() {
     }
 
     try {
-      // 먼저 room이 존재하는지 확인 (없으면 생성)
-      let roomData: any = null
-      const { data: existingRoomData, error: roomError } = await (supabase
-        .from('rooms')
-        .select('*')
-        .eq('room_code', roomCode)
-        .single() as any)
-
-      if (roomError && roomError.code === 'PGRST116') {
-        // 방이 없으면 생성
-        const { error: createError } = await (supabase
-          .from('rooms')
-          .insert({
-            room_code: roomCode,
-            status: 'waiting',
-            current_q_index: 0,
-          } as any) as any)
-
-        if (createError) throw createError
-        
-        // 방 생성 후 다시 조회
-        const { data: newRoomData } = await (supabase
-          .from('rooms')
-          .select('*')
-          .eq('room_code', roomCode)
-          .single() as any)
-        
-        roomData = newRoomData
-      } else if (roomError) {
-        throw roomError
-      } else {
-        roomData = existingRoomData
-      }
-
-      // 게임 모드 확인 (Battle Royale일 경우 체력 초기화)
-      const isBattleRoyale = roomData?.game_mode === 'battle_royale'
-
-      // 플레이어 생성 (Guest Mode - 영구 계정 없음)
-      const { data: playerData, error: playerError } = await (supabase
-        .from('players')
-        .insert({
-          room_code: roomCode,
-          nickname: nicknameCheck.filtered || nickname.trim(),
-          score: 0,
-          gold: 0,
-          avatar: selectedAvatar,
-          is_online: true,
-          health: isBattleRoyale ? 100 : undefined,
-        } as any)
-        .select()
-        .single() as any)
-
-      if (playerError) throw playerError
+      const roomData = await ensureRoomExists(roomCode)
+      const playerData = await createPlayerForRoom({
+        roomCode,
+        nickname: nicknameCheck.filtered || nickname.trim(),
+        avatar: selectedAvatar,
+        gameMode: roomData.game_mode,
+      })
 
       setPlayerId(playerData.id)
       setIsJoined(true)
+      void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
     } catch (err) {
       console.error('Error joining room:', err)
       alert('방 입장에 실패했습니다: ' + (err instanceof Error ? err.message : 'Unknown error'))
@@ -211,7 +152,7 @@ export default function PlayPage() {
           {players.length > 0 && (
             <div className="inline-flex items-center gap-2 bg-primary-50 px-4 py-2 rounded-full border border-primary-200">
               <span className="text-sm font-medium text-primary-700">
-                현재 {players.length}명 참가 중
+                현재 {players.length}명 참가 중 · 실시간 {realtimeStatus === 'subscribed' ? '연결됨' : '연결 중'} · 온라인 {Math.max(players.length, onlineCount)}명
               </span>
             </div>
           )}
@@ -313,7 +254,7 @@ export default function PlayPage() {
               <p className="text-green-800 font-medium mb-3">
                 ✅ {nickname}님, 방에 입장하셨습니다!
               </p>
-              <GameModeButton roomCode={roomCode} playerId={playerId} />
+              <GameModeButton roomCode={roomCode} playerId={playerId} gameMode={room?.game_mode || DEFAULT_GAME_MODE} />
             </div>
           </>
         )}

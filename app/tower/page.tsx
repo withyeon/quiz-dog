@@ -1,11 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
-import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
-import { useRoomRealtime } from '@/hooks/useRoomRealtime'
-import { useAudioContext } from '@/components/AudioProvider'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import QuizView from '@/components/QuizView'
 import TowerDefenseMap from '@/components/TowerDefenseMap'
 import TowerCard from '@/components/TowerCard'
@@ -34,14 +31,10 @@ import {
     hasReachedEnd,
     moveProjectile,
 } from '@/lib/game/tower'
-import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
-import type { Database } from '@/types/database.types'
-
-type Player = Database['public']['Tables']['players']['Row']
-
-type TowerView = 'lobby' | 'countdown' | 'playing' | 'quiz' | 'result'
+import { useGameBase } from '@/hooks/useGameBase'
 
 export default function TowerPage() {
+    const router = useRouter()
     const {
         roomCode,
         playerId,
@@ -49,21 +42,19 @@ export default function TowerPage() {
         setCurrentView,
         currentQuestionIndex,
         setCurrentQuestionIndex,
-        questions,
         players,
-        room,
         roomLoading,
         playersLoading,
-        currentPlayer,
         currentQuestion,
         playBGM,
         playSFX,
         checkAnswer,
-        handleWrongAnswer,
         goToNextQuestion,
         consecutiveCorrect,
         getElapsedSeconds,
+        questionStartTime,
         showCountdown,
+        setShowCountdown,
     } = useGameBase({ expectedGameMode: 'tower' })
 
     // 게임 상태
@@ -90,12 +81,63 @@ export default function TowerPage() {
     const nextEnemyIdRef = useRef(0)
     const nextTowerIdRef = useRef(0)
     const nextProjectileIdRef = useRef(0)
+    const quizReturnTimerRef = useRef<NodeJS.Timeout | null>(null)
+    const quizTransitionHandledRef = useRef(false)
 
-    // 카운트다운 완료 후 게임 시작
-    const handleCountdownComplete = () => {
-        setCurrentView('quiz')
-        playBGM('game')
-    }
+    const clearQuizReturnTimer = useCallback(() => {
+        if (quizReturnTimerRef.current) {
+            clearTimeout(quizReturnTimerRef.current)
+            quizReturnTimerRef.current = null
+        }
+    }, [])
+
+    const returnToPlaying = useCallback(() => {
+        if (quizTransitionHandledRef.current) return
+
+        quizTransitionHandledRef.current = true
+        clearQuizReturnTimer()
+        goToNextQuestion()
+        setCurrentView('playing')
+    }, [clearQuizReturnTimer, goToNextQuestion, setCurrentView])
+
+    const scheduleReturnToPlaying = useCallback((delayMs: number) => {
+        clearQuizReturnTimer()
+        quizReturnTimerRef.current = setTimeout(() => {
+            returnToPlaying()
+        }, delayMs)
+    }, [clearQuizReturnTimer, returnToPlaying])
+
+    const handleRestart = useCallback(() => {
+        clearQuizReturnTimer()
+        quizTransitionHandledRef.current = false
+        setHp(PLAYER_START_HP)
+        setGold(PLAYER_START_GOLD)
+        setCurrentWave(0)
+        setTowers([])
+        setEnemies([])
+        setProjectiles([])
+        setSelectedTowerType(null)
+        setSelectedTower(null)
+        setIsWaveActive(false)
+        setWaveEnemiesRemaining(0)
+        setTotalEnemiesKilled(0)
+        setTotalGoldEarned(0)
+        setTotalTowersPlaced(0)
+
+        enemySpawnQueueRef.current = []
+        lastUpdateRef.current = Date.now()
+        nextEnemyIdRef.current = 0
+        nextTowerIdRef.current = 0
+        nextProjectileIdRef.current = 0
+
+        if (roomCode) {
+            sessionStorage.removeItem(`quiz_index_${roomCode}`)
+        }
+
+        setCurrentQuestionIndex(0)
+        setCurrentView('lobby')
+        setShowCountdown(true)
+    }, [clearQuizReturnTimer, roomCode, setCurrentQuestionIndex, setCurrentView, setShowCountdown])
 
     // 타워 배치
     const handlePlaceTower = useCallback((x: number, y: number) => {
@@ -128,12 +170,6 @@ export default function TowerPage() {
         playSFX('click')
     }, [selectedTowerType, gold, towers, playSFX])
 
-    // 정답 후 플레이 화면으로 (클릭 시 즉시 이동)
-    const goToPlaying = () => {
-        setCurrentView('playing')
-        goToNextQuestion()
-    }
-
     // 퀴즈 답변 제출
     const handleAnswer = async (answer: string) => {
         const timeElapsed = getElapsedSeconds()
@@ -145,16 +181,15 @@ export default function TowerPage() {
             setGold(prev => prev + goldReward)
             setTotalGoldEarned(prev => prev + goldReward)
 
-            // 골드 획득 애니메이션 후 1.5초 자동 또는 정답 클릭 시 즉시
-            setTimeout(goToPlaying, 1500)
+            // 골드 획득 애니메이션 후 1.5초 자동 또는 정답 클릭 시 즉시 복귀
+            scheduleReturnToPlaying(1500)
         } else {
             playSFX('incorrect')
-            handleWrongAnswer()
 
             // 오답 패널티: HP 감소
             setHp(prev => Math.max(0, prev - 5))
 
-            setTimeout(goToPlaying, 2000)
+            scheduleReturnToPlaying(2000)
         }
         return correct
     }
@@ -162,9 +197,17 @@ export default function TowerPage() {
     // 퀴즈 버튼 클릭
     const handleQuizClick = () => {
         if (currentQuestion) {
+            quizTransitionHandledRef.current = false
+            questionStartTime.current = Date.now()
             setCurrentView('quiz')
         }
     }
+
+    const handleTowerCountdownComplete = useCallback(() => {
+        setShowCountdown(false)
+        setCurrentView('playing')
+        playBGM('game')
+    }, [playBGM, setCurrentView, setShowCountdown])
 
     // 웨이브 시작
     const startWave = useCallback(() => {
@@ -431,6 +474,12 @@ export default function TowerPage() {
         }
     }, [hp, currentView, setCurrentView])
 
+    useEffect(() => {
+        return () => {
+            clearQuizReturnTimer()
+        }
+    }, [clearQuizReturnTimer])
+
     if (!roomCode || !playerId) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -497,7 +546,7 @@ export default function TowerPage() {
                 )}
 
                 {/* 카운트다운 */}
-                {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
+                {showCountdown && <Countdown onComplete={handleTowerCountdownComplete} />}
 
                 {/* 게임 플레이 */}
                 {currentView === 'playing' && (
@@ -596,7 +645,7 @@ export default function TowerPage() {
                         <QuizView
                             question={currentQuestion}
                             onAnswer={handleAnswer}
-                            onCorrectClick={goToPlaying}
+                            onCorrectClick={returnToPlaying}
                             timeLimit={30}
                         />
                     </div>
@@ -609,8 +658,8 @@ export default function TowerPage() {
                             players={players}
                             currentPlayerId={playerId}
                             gameMode="tower"
-                            onRestart={() => window.location.reload()}
-                            onExit={() => window.location.href = '/'}
+                            onRestart={handleRestart}
+                            onExit={() => router.push('/')}
                         />
                     </div>
                 )}

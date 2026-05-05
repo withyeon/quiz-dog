@@ -2,26 +2,15 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 import {
-  Play,
-  Edit,
-  Trash2,
-  Plus,
-  BookOpen,
-  Copy,
-} from 'lucide-react'
+  deleteQuestionSet,
+  duplicateQuestionSet,
+  listQuestionSetsWithCounts,
+  type QuestionSetSummary,
+} from '@/lib/services/questionSets'
 
-type QuestionSet = {
-  id: string
-  title: string
-  description?: string
-  question_count: number
-  created_at: string
-}
+type QuestionSet = QuestionSetSummary
 
 type SourceType = 'topic' | 'youtube' | 'text' | 'pdf'
 
@@ -42,31 +31,8 @@ function TeacherPageContent() {
   const loadQuestionSets = async () => {
     try {
       setLoading(true)
-
-      // question_sets와 questions를 조인하여 문제 개수 계산
-      const { data: sets, error } = await supabase
-        .from('question_sets')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      // 각 세트별로 문제 개수 조회
-      const setsWithCount = await Promise.all(
-        (sets || []).map(async (set: any) => {
-          const { count } = await supabase
-            .from('questions')
-            .select('*', { count: 'exact', head: true })
-            .eq('set_id', set.id)
-
-          return {
-            ...set,
-            question_count: count || 0
-          }
-        })
-      )
-
-      setQuestionSets(setsWithCount as QuestionSet[])
+      const sets = await listQuestionSetsWithCounts()
+      setQuestionSets(sets)
     } catch (error) {
       console.error('Error loading question sets:', error)
     } finally {
@@ -81,43 +47,7 @@ function TeacherPageContent() {
 
   const handleDuplicate = async (set: QuestionSet) => {
     try {
-      const newSetId = `set-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
-
-      // 1. question_sets 복사
-      const { error: setError } = await ((supabase
-        .from('question_sets') as any)
-        .insert({
-          id: newSetId,
-          title: `${set.title} (복사본)`,
-          description: set.description || null
-        } as any))
-
-      if (setError) throw setError
-
-      // 2. questions 전부 복사
-      const { data: questions, error: fetchError } = await ((supabase
-        .from('questions') as any)
-        .select('*')
-        .eq('set_id', set.id) as any)
-
-      if (fetchError) throw fetchError
-
-      if (questions && questions.length > 0) {
-        const newQuestions = questions.map((q: any) => ({
-          set_id: newSetId,
-          type: q.type,
-          question_text: q.question_text,
-          options: q.options,
-          answer: q.answer,
-        }))
-
-        const { error: insertError } = await ((supabase
-          .from('questions') as any)
-          .insert(newQuestions) as any)
-
-        if (insertError) throw insertError
-      }
-
+      await duplicateQuestionSet(set.id, `${set.title} (복사본)`)
       alert('문제집이 복제되었습니다!')
       loadQuestionSets()
     } catch (error) {
@@ -130,12 +60,7 @@ function TeacherPageContent() {
     if (!confirm('정말 이 문제집을 삭제하시겠습니까?')) return
 
     try {
-      const { error } = await ((supabase
-        .from('questions') as any)
-        .delete()
-        .eq('set_id', setId) as any)
-
-      if (error) throw error
+      await deleteQuestionSet(setId)
       alert('문제집이 삭제되었습니다.')
       loadQuestionSets()
     } catch (error) {

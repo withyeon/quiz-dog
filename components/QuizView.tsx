@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { useAudioContext } from '@/components/AudioProvider'
 
@@ -28,6 +28,29 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
 
   const MotionDiv = motion.div
   const MotionButton = motion.button
+
+  const handleAnswerSelect = useCallback(async (answer: string) => {
+    if (submittedAnswer || isSubmitting) return
+    playSFX('click')
+    setSubmittedAnswer(answer)
+    setInputValue(answer)
+    setIsSubmitting(true)
+
+    try {
+      const result = await onAnswer(answer)
+
+      if (typeof result === 'boolean') {
+        setAnswerResult(result)
+        return
+      }
+
+      if (typeof question.answer === 'string') {
+        setAnswerResult(answer === question.answer)
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }, [submittedAnswer, isSubmitting, playSFX, onAnswer, question.answer])
 
   // 시간 제한 카운트다운
   useEffect(() => {
@@ -60,7 +83,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         clearInterval(timerId)
       }
     }
-  }, [submittedAnswer, timeLimit, isSubmitting])
+  }, [submittedAnswer, timeLimit, isSubmitting, handleAnswerSelect])
 
   // 문제가 바뀔 때마다 시간 리셋
   useEffect(() => {
@@ -70,29 +93,6 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
     setAnswerResult(null)
     setIsSubmitting(false)
   }, [question.id, timeLimit])
-
-  const handleAnswerSelect = async (answer: string) => {
-    if (submittedAnswer || isSubmitting) return // 이미 제출했으면 무시
-    playSFX('click')
-    setSubmittedAnswer(answer)
-    setInputValue(answer)
-    setIsSubmitting(true)
-
-    try {
-      const result = await onAnswer(answer)
-
-      if (typeof result === 'boolean') {
-        setAnswerResult(result)
-        return
-      }
-
-      if (typeof question.answer === 'string') {
-        setAnswerResult(answer === question.answer)
-      }
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
 
   return (
     <MotionDiv

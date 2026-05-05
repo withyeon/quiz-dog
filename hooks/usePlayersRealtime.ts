@@ -1,18 +1,37 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase, checkSupabaseConfig } from '@/lib/supabase/client'
+import {
+  subscribeRoomRuntimeEvent,
+  type PlayerPatchPayload,
+} from '@/lib/realtime/roomChannel'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
+type PlayerPatch = Partial<Player> & Record<string, unknown>
 
 interface UsePlayersRealtimeOptions {
   roomCode: string
+  enabled?: boolean
   onPlayerUpdate?: (player: Player) => void
   onPlayerInsert?: (player: Player) => void
   onPlayerDelete?: (player: Player) => void
 }
 
+type RefreshOptions = {
+  silent?: boolean
+}
+
+function sortPlayers(players: Player[]): Player[] {
+  return [...players].sort((a, b) => {
+    const scoreCompare = (b.score ?? 0) - (a.score ?? 0)
+    if (scoreCompare !== 0) return scoreCompare
+    return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))
+  })
+}
+
 export function usePlayersRealtime({
   roomCode,
+  enabled = true,
   onPlayerUpdate,
   onPlayerInsert,
   onPlayerDelete,
@@ -21,8 +40,50 @@ export function usePlayersRealtime({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
+  const loadSeqRef = useRef(0)
+  const onPlayerUpdateRef = useRef(onPlayerUpdate)
+  const onPlayerInsertRef = useRef(onPlayerInsert)
+  const onPlayerDeleteRef = useRef(onPlayerDelete)
+
   useEffect(() => {
-    // Supabase 설정 확인
+    onPlayerUpdateRef.current = onPlayerUpdate
+  }, [onPlayerUpdate])
+
+  useEffect(() => {
+    onPlayerInsertRef.current = onPlayerInsert
+  }, [onPlayerInsert])
+
+  useEffect(() => {
+    onPlayerDeleteRef.current = onPlayerDelete
+  }, [onPlayerDelete])
+
+  const applyPlayerPatch = useCallback((playerId: string, patch: PlayerPatch) => {
+    setPlayers((prev) => {
+      let didPatch = false
+      const next = prev.map((player) => {
+        if (player.id !== playerId) return player
+        didPatch = true
+        return { ...player, ...patch, id: player.id } as Player
+      })
+      return didPatch ? sortPlayers(next) : prev
+    })
+  }, [])
+
+  const refreshPlayers = useCallback(async ({ silent = false }: RefreshOptions = {}) => {
+    if (!enabled) {
+      setPlayers([])
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    if (!roomCode) {
+      setPlayers([])
+      setLoading(false)
+      setError(null)
+      return
+    }
+
     const configCheck = checkSupabaseConfig()
     if (!configCheck.isValid) {
       setError(new Error(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.'))
@@ -30,45 +91,54 @@ export function usePlayersRealtime({
       return
     }
 
-    // roomCode가 없으면 로드하지 않음
-    if (!roomCode) {
+    const seq = ++loadSeqRef.current
+    if (!silent) setLoading(true)
+
+    try {
+      setError(null)
+      const { data, error: fetchError } = await supabase
+        .from('players')
+        .select('*')
+        .eq('room_code', roomCode)
+        .order('score', { ascending: false })
+
+      if (fetchError) {
+        throw new Error(fetchError.message || 'Failed to load players')
+      }
+
+      if (seq === loadSeqRef.current) {
+        setPlayers(sortPlayers((data ?? []) as Player[]))
+      }
+    } catch (err) {
+      if (seq === loadSeqRef.current) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load players'
+        console.error('플레이어 로드 실패:', errorMessage, err)
+        setError(new Error(errorMessage))
+      }
+    } finally {
+      if (seq === loadSeqRef.current && !silent) {
+        setLoading(false)
+      }
+    }
+  }, [enabled, roomCode])
+
+  useEffect(() => {
+    if (!enabled || !roomCode) {
+      setPlayers([])
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    const configCheck = checkSupabaseConfig()
+    if (!configCheck.isValid) {
+      setError(new Error(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.'))
       setLoading(false)
       return
     }
 
-    // 초기 데이터 로드
-    const loadInitialPlayers = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        
-        console.log('플레이어 로드 시도:', roomCode)
-        const { data, error: fetchError } = await supabase
-          .from('players')
-          .select('*')
-          .eq('room_code', roomCode)
-          .order('score', { ascending: false })
+    void refreshPlayers()
 
-        if (fetchError) {
-          console.error('Supabase 에러:', fetchError)
-          throw new Error(fetchError.message || 'Failed to load players')
-        }
-        
-        console.log('플레이어 로드 성공:', data?.length || 0, '명')
-        setPlayers(data || [])
-        setError(null)
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load players'
-        console.error('플레이어 로드 실패:', errorMessage, err)
-        setError(new Error(errorMessage))
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    loadInitialPlayers()
-
-    // Realtime 구독 설정
     const channel = supabase
       .channel(`players:${roomCode}`)
       .on(
@@ -80,44 +150,69 @@ export function usePlayersRealtime({
           filter: `room_code=eq.${roomCode}`,
         },
         (payload) => {
-          console.log('Realtime event:', payload)
-
           if (payload.eventType === 'INSERT' && payload.new) {
             const newPlayer = payload.new as Player
             setPlayers((prev) => {
-              const exists = prev.find((p) => p.id === newPlayer.id)
+              const exists = prev.some((player) => player.id === newPlayer.id)
               if (exists) return prev
-              return [...prev, newPlayer].sort((a, b) => b.score - a.score)
+              return sortPlayers([...prev, newPlayer])
             })
-            onPlayerInsert?.(newPlayer)
+            onPlayerInsertRef.current?.(newPlayer)
           } else if (payload.eventType === 'UPDATE' && payload.new) {
             const updatedPlayer = payload.new as Player
             setPlayers((prev) =>
-              prev
-                .map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p))
-                .sort((a, b) => b.score - a.score)
+              sortPlayers(prev.map((player) => (
+                player.id === updatedPlayer.id ? updatedPlayer : player
+              )))
             )
-            onPlayerUpdate?.(updatedPlayer)
+            onPlayerUpdateRef.current?.(updatedPlayer)
           } else if (payload.eventType === 'DELETE' && payload.old) {
             const deletedPlayer = payload.old as Player
-            setPlayers((prev) => prev.filter((p) => p.id !== deletedPlayer.id))
-            onPlayerDelete?.(deletedPlayer)
+            setPlayers((prev) => prev.filter((player) => player.id !== deletedPlayer.id))
+            onPlayerDeleteRef.current?.(deletedPlayer)
           }
         }
       )
       .subscribe((status) => {
-        console.log('Subscription status:', status)
-        if (status === 'SUBSCRIBED') {
-          console.log('Successfully subscribed to players changes')
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          void refreshPlayers({ silent: true })
         }
       })
 
-    // 클린업
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [roomCode, onPlayerUpdate, onPlayerInsert, onPlayerDelete])
+  }, [enabled, refreshPlayers, roomCode])
 
-  return { players, loading, error }
+  useEffect(() => {
+    if (!enabled || !roomCode) return
+
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.roomCode !== roomCode) return
+
+      if (event.type === 'player:patch') {
+        const payload = event.payload as PlayerPatchPayload | undefined
+        if (payload?.playerId && payload.patch) {
+          applyPlayerPatch(payload.playerId, payload.patch)
+        }
+        return
+      }
+
+      if (
+        event.type === 'room:snapshot-hint'
+        || event.type === 'game:finished'
+        || event.type === 'room:patch'
+      ) {
+        void refreshPlayers({ silent: true })
+      }
+    })
+  }, [applyPlayerPatch, enabled, refreshPlayers, roomCode])
+
+  return {
+    players,
+    loading,
+    error,
+    refreshPlayers,
+    applyPlayerPatch,
+  }
 }
-

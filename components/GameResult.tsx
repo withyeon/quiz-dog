@@ -19,6 +19,7 @@ import {
   Cell,
 } from 'recharts'
 import type { Database } from '@/types/database.types'
+import type { GameModeId } from '@/lib/game/modes'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -38,7 +39,7 @@ interface GameResultProps {
   currentPlayerId: string | null
   onRestart?: () => void
   onExit?: () => void
-  gameMode?: 'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'dontlookdown' | 'tower' | 'allin'
+  gameMode?: GameModeId
   answerHistory?: AnswerRecord[]
   questions?: QuestionInfo[]
 }

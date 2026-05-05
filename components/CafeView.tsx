@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCafeStore } from '@/store/cafeStore'
@@ -396,9 +397,12 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
                             }`}
                         >
                           <div className="relative w-20 h-20">
-                            <img
+                            <Image
                               src={customer.characterImage}
                               alt="Customer"
+                              width={80}
+                              height={80}
+                              unoptimized
                               className="w-full h-full object-contain"
                               onError={(e) => {
                                 // SVG 로드 실패 시 이모지로 대체
@@ -422,9 +426,12 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
                         >
                           <div className="text-center">
                             <div className="mb-2 flex items-center justify-center">
-                              <img
+                              <Image
                                 src={menu.image}
                                 alt={menu.name}
+                                width={64}
+                                height={64}
+                                unoptimized
                                 className="w-16 h-16 object-contain"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement
@@ -496,9 +503,12 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
                         {/* 메뉴 이미지 (해금되고 재고가 있을 때만) */}
                         {isUnlocked && stock > 0 && (
                           <div className="absolute inset-0 flex items-center justify-center p-2">
-                            <img
+                            <Image
                               src={menu.image}
                               alt={menu.name}
+                              width={64}
+                              height={64}
+                              unoptimized
                               className="w-full h-full object-contain"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement
@@ -660,9 +670,12 @@ function ShopContent({ onClose }: { onClose: () => void }) {
               >
                 <CardHeader>
                   <div className="flex justify-center mb-2">
-                    <img
+                    <Image
                       src={menu.image}
                       alt={menu.name}
+                      width={64}
+                      height={64}
+                      unoptimized
                       className="w-16 h-16 object-contain"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement

@@ -5,7 +5,7 @@
 
 -- rooms 테이블에 game_mode 확장 (fishing 추가)
 ALTER TABLE rooms 
-ADD COLUMN IF NOT EXISTS game_mode TEXT CHECK (game_mode IN ('gold_quest', 'racing', 'battle_royale', 'fishing'));
+ADD COLUMN IF NOT EXISTS game_mode TEXT CHECK (game_mode IN ('gold_quest', 'battle_royale', 'fishing'));
 
 -- players 테이블에 낚시 관련 필드 추가
 ALTER TABLE players 

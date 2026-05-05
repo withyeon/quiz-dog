@@ -1,51 +1,92 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
-import { supabase, checkSupabaseConfig } from '@/lib/supabase/client'
+import { useCallback, useState, useEffect } from 'react'
+import { checkSupabaseConfig } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
-import Leaderboard from '@/components/Leaderboard'
 import GameCodeModal from '@/components/GameCodeModal'
-import TeacherAnalytics from '@/components/TeacherAnalytics'
 import GameModeSelector from '@/components/dashboards/GameModeSelector'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
-import { generateRoomCode } from '@/lib/utils/gameCode'
 import QRCodeSVG from 'react-qr-code'
-import type { Database } from '@/types/database.types'
-
-type Player = Database['public']['Tables']['players']['Row']
+import { DEFAULT_GAME_MODE, isGameModeId, type GameModeId } from '@/lib/game/modes'
+import {
+  assertQuestionSetHasQuestions,
+  createRoom,
+  finishRoom,
+  resetRoom,
+  startRoom,
+  updateRoomGameMode,
+} from '@/lib/services/rooms'
+import { saveGameReportSnapshot } from '@/lib/services/reports'
 
 export default function TeacherDashboard() {
   const [roomCode, setRoomCode] = useState('')
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
-  const [gameMode, setGameMode] = useState<'gold_quest' | 'racing' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'pool' | 'dontlookdown' | 'tower' | 'allin'>('gold_quest')
+  const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [factoryDurationMinutes, setFactoryDurationMinutes] = useState(5) // 편의점 게임 제한 시간(분)
 
-  const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
-  const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
+  const { players, refreshPlayers } = usePlayersRealtime({ roomCode })
+  const { room, refreshRoom } = useRoomRealtime({ roomCode })
+  const resyncDashboard = useCallback(async (reason?: string) => {
+    if (reason === 'broadcast_hint') return
+    await Promise.all([
+      refreshRoom({ silent: true }),
+      refreshPlayers({ silent: true }),
+    ])
+  }, [refreshPlayers, refreshRoom])
+  const {
+    status: realtimeStatus,
+    onlineCount,
+    sendEvent: sendRoomEvent,
+  } = useRoomChannel({
+    roomCode,
+    role: 'teacher',
+    enabled: Boolean(roomCode),
+    onResyncNeeded: resyncDashboard,
+  })
+  const roomStatus = room?.status
   const { playSFX } = useAudioContext()
+
+  const broadcastRoomPatch = useCallback((
+    patch: Record<string, unknown>,
+    reason: string,
+  ) => {
+    void sendRoomEvent('room:patch', { patch, reason })
+    void sendRoomEvent('room:snapshot-hint', { reason })
+  }, [sendRoomEvent])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const modeFromUrl = params.get('gameMode')
+    if (isGameModeId(modeFromUrl)) {
+      setGameMode(modeFromUrl)
+    }
+  }, [])
 
   // room의 game_mode를 초기값으로 사용
   useEffect(() => {
     if (room?.game_mode) {
-      setGameMode(room.game_mode as typeof gameMode)
+      setGameMode(room.game_mode as GameModeId)
     }
   }, [room?.game_mode])
 
+  useEffect(() => {
+    if (!roomStatus) return
+    setIsGameStarted(roomStatus === 'playing')
+  }, [roomStatus])
+
   // 게임 모드 변경 핸들러 (방이 있으면 DB도 업데이트)
-  const handleGameModeChange = async (newMode: typeof gameMode) => {
+  const handleGameModeChange = async (newMode: GameModeId) => {
     setGameMode(newMode)
 
     // 이미 방이 있으면 game_mode 업데이트
     if (roomCode) {
       try {
-        await ((supabase
-          .from('rooms') as any)
-          .update({ game_mode: newMode })
-          .eq('room_code', roomCode))
+        await updateRoomGameMode(roomCode, newMode)
+        broadcastRoomPatch({ game_mode: newMode }, 'teacher_mode_change')
       } catch (error) {
         console.error('Error updating game mode:', error)
       }
@@ -67,33 +108,9 @@ export default function TeacherDashboard() {
     const params = new URLSearchParams(window.location.search)
     const setId = params.get('set')
 
-    // 랜덤 방 코드 생성
-    const newRoomCode = generateRoomCode()
-    setRoomCode(newRoomCode)
-
     try {
-      console.log('방 생성 시도:', newRoomCode, 'Set ID:', setId)
-
-      // 방 생성 (waiting 상태로)
-      const { data, error: createError } = await ((supabase.from('rooms') as any).insert({
-        room_code: newRoomCode,
-        status: 'waiting',
-        current_q_index: 0,
-        game_mode: gameMode,
-        set_id: setId || null, // set_id 추가
-      } as any))
-
-      if (createError) {
-        console.error('방 생성 에러 상세:', {
-          message: createError.message,
-          details: createError.details,
-          hint: createError.hint,
-          code: createError.code,
-        })
-        throw createError
-      }
-
-      console.log('방 생성 성공:', data)
+      const createdRoom = await createRoom({ setId, gameMode })
+      setRoomCode(createdRoom.room_code)
 
       // 게임 코드 모달 표시
       setShowGameCodeModal(true)
@@ -123,50 +140,21 @@ export default function TeacherDashboard() {
     playSFX('click')
 
     try {
-      // 문제집에 문제가 있는지 확인
       const params = new URLSearchParams(window.location.search)
       const setId = params.get('set')
-      if (setId) {
-        const { data: questionCheck, error: checkError } = await (supabase
-          .from('questions')
-          .select('id')
-          .eq('set_id', setId)
-          .limit(1) as any)
-
-        if (checkError) {
-          console.error('문제 확인 실패:', checkError)
-        } else if (!questionCheck || questionCheck.length === 0) {
-          alert('이 문제집에 문제가 없습니다. 문제를 먼저 추가해주세요.')
-          return
-        }
-      }
-      // Battle Royale 모드일 경우 모든 플레이어 체력을 100으로 초기화
-      if (gameMode === 'battle_royale') {
-        const { error: healthResetError } = await ((supabase
-          .from('players') as any)
-          .update({ health: 100 })
-          .eq('room_code', roomCode))
-
-        if (healthResetError) {
-          console.error('Error resetting health:', healthResetError)
-          // 체력 초기화 실패해도 게임은 시작
-        }
-      }
-
-      // 방 상태를 playing으로 변경 (편의점일 때 제한 시간·시작 시각 저장)
-      const updatePayload: Record<string, unknown> = {
+      const startedAt = new Date().toISOString()
+      await assertQuestionSetHasQuestions(setId)
+      await startRoom({
+        roomCode,
+        gameMode,
+        durationSeconds: gameMode === 'factory' ? factoryDurationMinutes * 60 : null,
+      })
+      broadcastRoomPatch({
         status: 'playing',
-      }
-      if (gameMode === 'factory') {
-        updatePayload.duration_seconds = factoryDurationMinutes * 60
-        updatePayload.started_at = new Date().toISOString()
-      }
-      const { error: updateError } = await ((supabase
-        .from('rooms') as any)
-        .update(updatePayload)
-        .eq('room_code', roomCode))
-
-      if (updateError) throw updateError
+        game_mode: gameMode,
+        started_at: startedAt,
+        duration_seconds: gameMode === 'factory' ? factoryDurationMinutes * 60 : null,
+      }, 'teacher_start')
 
       setIsGameStarted(true)
       setShowGameCodeModal(false)
@@ -182,22 +170,16 @@ export default function TeacherDashboard() {
     playSFX('click')
 
     try {
-      const { error } = await ((supabase
-        .from('rooms') as any)
-        .update({ status: 'finished' })
-        .eq('room_code', roomCode))
-
-      if (error) throw error
+      await finishRoom(roomCode)
+      broadcastRoomPatch({ status: 'finished' }, 'teacher_finish')
+      void sendRoomEvent('game:finished', {
+        finishedBy: 'teacher',
+        reason: 'teacher_finish',
+      })
 
       // 게임 종료 순간의 최종 성적 스냅샷을 영구 보관함(game_reports)에 저장
       try {
-        await supabase.from('game_reports').insert({
-          room_code: roomCode,
-          set_id: room.set_id,
-          game_mode: room.game_mode,
-          player_count: players.length,
-          players_data: players
-        } as any)
+        await saveGameReportSnapshot(room, players)
       } catch (reportError) {
         console.error('Error saving game report snapshot:', reportError)
       }
@@ -216,36 +198,13 @@ export default function TeacherDashboard() {
     playSFX('click')
 
     try {
-      const { error } = await ((supabase
-        .from('rooms') as any)
-        .update({ status: 'waiting', current_q_index: 0 })
-        .eq('room_code', roomCode))
-
-      if (error) throw error
-
-      // 모든 플레이어 데이터 완전 초기화
-      const { error: resetError } = await ((supabase
-        .from('players') as any)
-        .update({
-          score: 0,
-          gold: 0,
-          position: 0,
-          health: null,
-          active_item: null,
-          item_effects: null,
-          caught_fishes: null,
-          fishing_points: 0,
-          factories: null,
-          factory_money: 0,
-          cafe_cash: 0,
-          cafe_customers_served: 0,
-          mafia_cash: 0,
-          mafia_diamonds: 0,
-          answer_history: null,
-        })
-        .eq('room_code', roomCode) as any)
-
-      if (resetError) throw resetError
+      await resetRoom(roomCode)
+      broadcastRoomPatch({
+        status: 'waiting',
+        current_q_index: 0,
+        started_at: null,
+        duration_seconds: null,
+      }, 'teacher_reset')
 
       setIsGameStarted(false)
       alert('게임이 초기화되었습니다.')
@@ -303,6 +262,9 @@ export default function TeacherDashboard() {
               </div>
               <div className="flex items-center justify-center gap-4 text-blue-50">
                 <span className="text-lg font-semibold">참가자: {players.length}명</span>
+                <span className="text-sm font-medium">
+                  실시간 {realtimeStatus === 'subscribed' ? '연결됨' : '연결 중'} · 온라인 {Math.max(players.length, onlineCount)}명
+                </span>
               </div>
             </div>
 

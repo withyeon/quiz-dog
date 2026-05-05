@@ -59,7 +59,7 @@
 
 -- rooms 테이블에 game_mode 확장 (이미 있을 수 있음)
 ALTER TABLE rooms 
-ADD COLUMN IF NOT EXISTS game_mode TEXT CHECK (game_mode IN ('gold_quest', 'racing', 'battle_royale'));
+ADD COLUMN IF NOT EXISTS game_mode TEXT CHECK (game_mode IN ('gold_quest', 'battle_royale'));
 
 -- players 테이블에 체력 필드 추가
 ALTER TABLE players 

@@ -216,7 +216,7 @@ export function openSafeVault(
 }
 
 // Cheat 버튼 사용 (모든 금고 내용 보기)
-export function useCheat(
+export function applyCheat(
   vaults: SafeVault[],
   player: Player,
   currentTime: number
@@ -385,7 +385,7 @@ export function aiAttemptCheat(
 ): { newPlayer: Player; log: string; vaultContents: SafeVault[] | null } {
   // AI는 20% 확률로 치팅 시도
   if (Math.random() < 0.2 && !player.isCheating) {
-    const result = useCheat(vaults, player, currentTime)
+    const result = applyCheat(vaults, player, currentTime)
     const hint = generateCheatHint(result.newPlayer)
     return {
       newPlayer: result.newPlayer,

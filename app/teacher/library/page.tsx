@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, Suspense, useMemo } from 'react'
+import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   Search,
@@ -17,7 +16,11 @@ import {
   Copy as CopyIcon,
 } from 'lucide-react'
 import GameTypeSelector, { type GameType } from '@/components/GameTypeSelector'
-import type { Database } from '@/types/database.types'
+import { DEFAULT_GAME_MODE, type GameModeId } from '@/lib/game/modes'
+import {
+  copyQuestionSetFromQuestionsOnly,
+  listQuestionSetIndexFromQuestions,
+} from '@/lib/services/questionSets'
 
 type QuestionSet = {
   set_id: string
@@ -74,6 +77,33 @@ const HIGH_GRADES = [
 
 type SortType = 'popular_weekly' | 'popular_daily' | 'popular_monthly' | 'recent' | 'name'
 
+const extractSubject = (setId: string): string => {
+  const subject = SUBJECTS.find(s => setId.includes(s.id))
+  return subject?.id || 'integrated'
+}
+
+const extractGrade = (setId: string): string => {
+  const gradeMatch = setId.match(/(초|중|고)\s*(\d)/)
+  if (gradeMatch) {
+    const level = gradeMatch[1] === '초' ? 'elementary' : gradeMatch[1] === '중' ? 'middle' : 'high'
+    return `${level}-${gradeMatch[2]}`
+  }
+  return 'elementary-3'
+}
+
+const generateTags = (setId: string): string[] => {
+  const tags: string[] = []
+  const grade = extractGrade(setId)
+  if (grade.startsWith('elementary')) {
+    tags.push(`초등 ${grade.split('-')[1]}`)
+  } else if (grade.startsWith('middle')) {
+    tags.push(`중등 ${grade.split('-')[1]}`)
+  } else if (grade.startsWith('high')) {
+    tags.push(`고등 ${grade.split('-')[1]}`)
+  }
+  return tags
+}
+
 function LibraryPageContent() {
   const router = useRouter()
   
@@ -93,43 +123,22 @@ function LibraryPageContent() {
   const [showGameTypeSelector, setShowGameTypeSelector] = useState(false)
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadQuestionSets()
-  }, [])
-
-  const loadQuestionSets = async () => {
+  const loadQuestionSets = useCallback(async () => {
     try {
       setLoading(true)
-      // 모든 공개된 문제집 가져오기 (나중에 is_public 필드 추가 가능)
-      const { data, error } = await ((supabase
-        .from('questions') as any)
-        .select('set_id, created_at')
-        .order('created_at', { ascending: false }) as any)
+      const indexItems = await listQuestionSetIndexFromQuestions()
+      const sets = indexItems.map((item) => ({
+        ...item,
+        name: item.set_id.replace('set-', '문제집 '),
+        subject: extractSubject(item.set_id),
+        grade: extractGrade(item.set_id),
+        creator: '선생님',
+        view_count: Math.floor(Math.random() * 10000) + 100,
+        save_count: Math.floor(Math.random() * 500) + 10,
+        tags: generateTags(item.set_id),
+        is_public: true,
+      }))
 
-      if (error) throw error
-
-      // set_id별로 그룹화
-      const grouped = (data as any[]).reduce((acc, item: any) => {
-        if (!acc[item.set_id]) {
-          acc[item.set_id] = {
-            set_id: item.set_id,
-            name: item.set_id.replace('set-', '문제집 '),
-            question_count: 0,
-            created_at: item.created_at,
-            subject: extractSubject(item.set_id),
-            grade: extractGrade(item.set_id),
-            creator: '선생님',
-            view_count: Math.floor(Math.random() * 10000) + 100,
-            save_count: Math.floor(Math.random() * 500) + 10,
-            tags: generateTags(item.set_id),
-            is_public: true,
-          }
-        }
-        acc[item.set_id].question_count++
-        return acc
-      }, {} as Record<string, QuestionSet>)
-
-      const sets = Object.values(grouped) as QuestionSet[]
       setAllQuestionSets(sets)
       setQuestionSets(sets)
     } catch (error) {
@@ -137,34 +146,11 @@ function LibraryPageContent() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const extractSubject = (setId: string): string => {
-    const subject = SUBJECTS.find(s => setId.includes(s.id))
-    return subject?.id || 'integrated'
-  }
-
-  const extractGrade = (setId: string): string => {
-    const gradeMatch = setId.match(/(초|중|고)\s*(\d)/)
-    if (gradeMatch) {
-      const level = gradeMatch[1] === '초' ? 'elementary' : gradeMatch[1] === '중' ? 'middle' : 'high'
-      return `${level}-${gradeMatch[2]}`
-    }
-    return 'elementary-3'
-  }
-
-  const generateTags = (setId: string): string[] => {
-    const tags: string[] = []
-    const grade = extractGrade(setId)
-    if (grade.startsWith('elementary')) {
-      tags.push(`초등 ${grade.split('-')[1]}`)
-    } else if (grade.startsWith('middle')) {
-      tags.push(`중등 ${grade.split('-')[1]}`)
-    } else if (grade.startsWith('high')) {
-      tags.push(`고등 ${grade.split('-')[1]}`)
-    }
-    return tags
-  }
+  useEffect(() => {
+    loadQuestionSets()
+  }, [loadQuestionSets])
 
   const getSubjectCount = (subjectId: string) => {
     return allQuestionSets.filter(set => set.subject === subjectId).length
@@ -173,38 +159,7 @@ function LibraryPageContent() {
   // 문제집 복사
   const handleCopySet = async (setId: string) => {
     try {
-      // 원본 문제집의 문제들 가져오기
-      const { data: questions, error } = await ((supabase
-        .from('questions') as any)
-        .select('*')
-        .eq('set_id', setId) as any)
-
-      if (error) throw error
-
-      if (!questions || questions.length === 0) {
-        alert('복사할 문제가 없습니다.')
-        return
-      }
-
-      // 새 문제집 ID 생성
-      const originalSet = allQuestionSets.find(s => s.set_id === setId)
-      const newSetId = `set-${Date.now()}-${originalSet?.name.replace(/\s+/g, '-') || 'copied'}`
-
-      // 문제 복사 (새 set_id로)
-      const questionsToCopy = questions.map((q: any) => ({
-        set_id: newSetId,
-        type: q.type,
-        question_text: q.question_text,
-        options: q.options,
-        answer: q.answer,
-      }))
-
-      const { error: insertError } = await ((supabase
-        .from('questions') as any)
-        .insert(questionsToCopy as any))
-
-      if (insertError) throw insertError
-
+      await copyQuestionSetFromQuestionsOnly(setId)
       alert('문제집이 복사되었습니다! 내 문제집에서 확인하세요.')
       router.push('/teacher')
     } catch (error) {
@@ -266,11 +221,16 @@ function LibraryPageContent() {
 
   const handleGameTypeSelect = (gameType: GameType) => {
     if (!selectedSetId) return
-    
-    const gameMode = gameType === 'sequential' ? 'gold_quest' : 
-                     gameType === 'free' ? 'racing' : 'gold_quest'
-    
-    window.location.href = `/teacher/dashboard?set=${selectedSetId}&gameType=${gameType}&gameMode=${gameMode}`
+
+    const modeByType: Record<GameType, GameModeId> = {
+      sequential: DEFAULT_GAME_MODE,
+      free: 'dontlookdown',
+      round: 'battle_royale',
+      team: 'gold_quest',
+    }
+    const gameMode = modeByType[gameType]
+
+    router.push(`/teacher/dashboard?set=${selectedSetId}&gameType=${gameType}&gameMode=${gameMode}`)
   }
 
   const handleCopy = async (setId: string) => {

@@ -3,25 +3,34 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { BarChart3, Users, Clock, ChevronRight, Play, ArrowLeft } from 'lucide-react'
-import type { Database } from '@/types/database.types'
 import TeacherAnalytics from '@/components/TeacherAnalytics'
+import { getGameModeConfig, isGameModeId } from '@/lib/game/modes'
+import {
+  getGameReportById,
+  listRecentGameReports,
+  parseReportPlayers,
+  type GameReportRow,
+} from '@/lib/services/reports'
+import { formatServiceError } from '@/lib/services/errors'
 
-type GameReport = Database['public']['Tables']['game_reports']['Row']
+const LEGACY_REPORT_MODE_CONFIG: Record<string, { label: string; emoji: string }> = {
+  racing: { label: '미션: 등교 임파서블', emoji: '🏃' },
+  pool: { label: '포켓볼 게임', emoji: '🎱' },
+  allin: { label: '올인 퀴즈', emoji: '💎' },
+}
 
-const GAME_MODE_LABELS: Record<string, { label: string; emoji: string }> = {
-  gold_quest: { label: '골드 퀘스트', emoji: '💰' },
-  racing: { label: '레이싱', emoji: '🏎️' },
-  battle_royale: { label: '배틀로얄', emoji: '⚔️' },
-  fishing: { label: '낚시', emoji: '🎣' },
-  factory: { label: '공장', emoji: '🏭' },
-  cafe: { label: '카페', emoji: '☕' },
-  mafia: { label: '마피아', emoji: '🕵️' },
-  pool: { label: '당구', emoji: '🎱' },
-  tower: { label: '타워', emoji: '🗼' },
-  dontlookdown: { label: '돈룩다운', emoji: '🧗' },
+function getReportModeConfig(mode: string | null | undefined) {
+  if (!mode) {
+    return { label: '알 수 없음', emoji: '🎮' }
+  }
+
+  if (isGameModeId(mode)) {
+    return getGameModeConfig(mode)
+  }
+
+  return LEGACY_REPORT_MODE_CONFIG[mode] ?? { label: mode, emoji: '🎮' }
 }
 
 function AnalyticsPageContent() {
@@ -29,33 +38,50 @@ function AnalyticsPageContent() {
   const searchParams = useSearchParams()
   const selectedReportId = searchParams?.get('report')
 
-  const [reports, setReports] = useState<GameReport[]>([])
+  const [reports, setReports] = useState<GameReportRow[]>([])
+  const [selectedReport, setSelectedReport] = useState<GameReportRow | null>(null)
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchReports()
-  }, [])
+    let cancelled = false
 
-  const fetchReports = async () => {
-    try {
-      const { data, error } = await ((supabase
-        .from('game_reports') as any)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50) as any)
+    const loadReports = async () => {
+      setLoading(true)
+      setErrorMessage(null)
+      setSelectedReport(null)
 
-      if (error) throw error
-      setReports(data || [])
-    } catch (err) {
-      console.error('Error fetching game reports:', err)
-    } finally {
-      setLoading(false)
+      try {
+        const [recentReports, detailReport] = await Promise.all([
+          listRecentGameReports(50),
+          selectedReportId ? getGameReportById(selectedReportId) : Promise.resolve(null),
+        ])
+
+        if (cancelled) return
+
+        setReports(recentReports)
+        setSelectedReport(detailReport)
+      } catch (error) {
+        if (cancelled) return
+        console.error('Error fetching game reports:', error)
+        setErrorMessage(formatServiceError(error))
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
     }
-  }
+
+    loadReports()
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedReportId])
 
   // 상세 보기 모드
   if (selectedReportId) {
-    const report = reports.find(r => r.id === selectedReportId)
+    const report = selectedReport ?? reports.find((item) => item.id === selectedReportId) ?? null
 
     if (loading) {
       return <div className="p-8 text-center text-gray-500 font-bold">로딩 중...</div>
@@ -64,7 +90,9 @@ function AnalyticsPageContent() {
     if (!report) {
       return (
         <div className="p-8 text-center">
-          <p className="text-gray-500 mb-4">리포트를 찾을 수 없습니다.</p>
+          <p className="text-gray-500 mb-4">
+            {errorMessage ? `리포트를 불러오지 못했습니다. ${errorMessage}` : '리포트를 찾을 수 없습니다.'}
+          </p>
           <Button variant="outline" onClick={() => router.push('/teacher/analytics')}>
             <ArrowLeft className="h-4 w-4 mr-2" /> 돌아가기
           </Button>
@@ -72,8 +100,8 @@ function AnalyticsPageContent() {
       )
     }
 
-    const players = Array.isArray(report.players_data) ? report.players_data as any[] : []
-    const modeCfg = GAME_MODE_LABELS[report.game_mode || ''] || { label: report.game_mode || '알 수 없음', emoji: '🎮' }
+    const players = parseReportPlayers(report.players_data)
+    const modeCfg = getReportModeConfig(report.game_mode)
 
     return (
       <div className="p-6">
@@ -121,6 +149,9 @@ function AnalyticsPageContent() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">📊 게임 히스토리</h1>
         <p className="text-gray-600">지난 게임 결과를 다시 확인하세요</p>
+        {errorMessage && (
+          <p className="mt-3 text-sm text-red-500">리포트를 불러오는 중 문제가 발생했습니다: {errorMessage}</p>
+        )}
       </div>
 
       {loading ? (
@@ -140,7 +171,7 @@ function AnalyticsPageContent() {
       ) : (
         <div className="space-y-3">
           {reports.map((report, index) => {
-            const modeCfg = GAME_MODE_LABELS[report.game_mode || ''] || { label: report.game_mode || '알 수 없음', emoji: '🎮' }
+            const modeCfg = getReportModeConfig(report.game_mode)
             const dateStr = new Date(report.created_at).toLocaleString('ko-KR', {
               month: 'short',
               day: 'numeric',

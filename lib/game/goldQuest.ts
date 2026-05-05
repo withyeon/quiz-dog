@@ -1,6 +1,9 @@
 import type { Database } from '@/types/database.types'
+import { updatePlayer } from '@/lib/services/players'
 
 type Player = Database['public']['Tables']['players']['Row']
+type PlayerPatch = Partial<Player> & Record<string, unknown>
+type PlayerPatchUpdater = (playerId: string, patch: PlayerPatch) => Promise<void>
 
 export type BoxEventType = 
   | 'GOLD_STACK'          // 골드 스택 (10, 20, 30, 40, 50, 100)
@@ -109,7 +112,7 @@ export async function applyBoxEvent(
   currentPlayerId: string,
   currentPlayer: Player,
   targetPlayer: Player | null,
-  supabaseClient: any
+  updatePlayerPatch: PlayerPatchUpdater = updatePlayer,
 ): Promise<void> {
   switch (event.type) {
     case 'GOLD_STACK':
@@ -117,13 +120,10 @@ export async function applyBoxEvent(
     case 'UNICORN':
       // 골드 추가 (스택/광대 2배/유니콘 3배 — value로 결정됨)
       if (event.value !== undefined) {
-        await supabaseClient
-          .from('players')
-          .update({
-            gold: currentPlayer.gold + event.value,
-            score: currentPlayer.score + event.value,
-          })
-          .eq('id', currentPlayerId)
+        await updatePlayerPatch(currentPlayerId, {
+          gold: currentPlayer.gold + event.value,
+          score: currentPlayer.score + event.value,
+        })
       }
       break
 
@@ -131,13 +131,10 @@ export async function applyBoxEvent(
     case 'DRAGON':
       // 골드 손실 (슬라임 25%/드래곤 50% — value로 결정됨)
       if (event.value !== undefined) {
-        await supabaseClient
-          .from('players')
-          .update({
-            gold: Math.max(currentPlayer.gold - event.value, 0),
-            score: Math.max(currentPlayer.score - event.value, 0),
-          })
-          .eq('id', currentPlayerId)
+        await updatePlayerPatch(currentPlayerId, {
+          gold: Math.max(currentPlayer.gold - event.value, 0),
+          score: Math.max(currentPlayer.score - event.value, 0),
+        })
       }
       break
 
@@ -148,23 +145,16 @@ export async function applyBoxEvent(
         const tempScore = currentPlayer.score
         const tempGold = currentPlayer.gold
 
-        // 현재 플레이어 업데이트
-        await supabaseClient
-          .from('players')
-          .update({
+        await Promise.all([
+          updatePlayerPatch(currentPlayerId, {
             score: targetPlayer.score,
             gold: targetPlayer.gold,
-          })
-          .eq('id', currentPlayerId)
-
-        // 대상 플레이어 업데이트
-        await supabaseClient
-          .from('players')
-          .update({
+          }),
+          updatePlayerPatch(event.targetPlayerId, {
             score: tempScore,
             gold: tempGold,
-          })
-          .eq('id', event.targetPlayerId)
+          }),
+        ])
       }
       break
 
@@ -173,24 +163,17 @@ export async function applyBoxEvent(
       // 엘프/마법사: 골드 훔치기 (비율은 event.value로 결정)
       if (event.targetPlayerId && targetPlayer && event.value !== undefined) {
         const stealAmount = Math.min(event.value, targetPlayer.gold)
-        
-        // 현재 플레이어에게 골드 추가
-        await supabaseClient
-          .from('players')
-          .update({
+
+        await Promise.all([
+          updatePlayerPatch(currentPlayerId, {
             gold: currentPlayer.gold + stealAmount,
             score: currentPlayer.score + stealAmount,
-          })
-          .eq('id', currentPlayerId)
-
-        // 대상 플레이어에서 골드 차감
-        await supabaseClient
-          .from('players')
-          .update({
+          }),
+          updatePlayerPatch(event.targetPlayerId, {
             gold: Math.max(targetPlayer.gold - stealAmount, 0),
             score: Math.max(targetPlayer.score - stealAmount, 0),
-          })
-          .eq('id', event.targetPlayerId)
+          }),
+        ])
       }
       break
 

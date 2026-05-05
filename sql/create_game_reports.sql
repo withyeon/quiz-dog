@@ -3,7 +3,7 @@ create table if not exists public.game_reports (
   id uuid default gen_random_uuid() primary key,
   room_code text not null,       -- 보관 당시의 방 코드
   set_id text,                   -- 사용된 문제집 ID
-  game_mode text,                -- 플레이한 게임 모드 (예: factory, racing 등)
+  game_mode text,                -- 플레이한 게임 모드 (예: factory, tower 등)
   player_count integer not null default 0, -- 총 참가자 수
   players_data jsonb not null default '[]'::jsonb, -- 학생별 성적과 풀이 기록 전체 스냅샷
   created_at timestamp with time zone default timezone('utc'::text, now()) not null

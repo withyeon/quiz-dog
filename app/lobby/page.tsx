@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { useCallback, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
-import type { Database } from '@/types/database.types'
+import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { filterNickname } from '@/lib/utils/profanityFilter'
 import CharacterSelector from '@/components/CharacterSelector'
 import Minigame from '@/components/Minigame'
@@ -12,7 +12,8 @@ import { CHARACTERS, type Character } from '@/lib/utils/characters'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
-import { getGameModeUrl } from '@/hooks/useGameBase'
+import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
+import { createPlayerForRoom, ensureRoomExists, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
 import { ShibaDog, DogGroup } from '@/components/PixelDogs'
 import { PixelBtn, PixelInput, PixelPanel, GameModeButton, PlayerAvatar } from '@/components/lobby/LobbyUI'
 import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
@@ -20,6 +21,7 @@ import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
 type LobbyStep = 'code' | 'nickname' | 'character' | 'minigame'
 
 export default function LobbyPage() {
+  const router = useRouter()
   const [step, setStep] = useState<LobbyStep>('code')
   const [roomCode, setRoomCode] = useState('')
   const [nickname, setNickname] = useState('')
@@ -29,21 +31,35 @@ export default function LobbyPage() {
   const [minigameScore, setMinigameScore] = useState(0)
   const [isCheckingRoom, setIsCheckingRoom] = useState(false)
 
-  const { players } = usePlayersRealtime({
+  const { players, refreshPlayers } = usePlayersRealtime({
     roomCode: step !== 'code' ? roomCode : '',
     onPlayerUpdate: (player) => { console.log('Player updated:', player) },
   })
 
-  const { room } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })
+  const { room, refreshRoom } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })
+  const resyncLobby = useCallback(async (reason?: string) => {
+    if (reason === 'broadcast_hint') return
+    await Promise.all([
+      refreshRoom({ silent: true }),
+      refreshPlayers({ silent: true }),
+    ])
+  }, [refreshPlayers, refreshRoom])
+  const { status: realtimeStatus, onlineCount, sendEvent: sendRoomEvent } = useRoomChannel({
+    roomCode,
+    playerId,
+    role: 'student',
+    enabled: step !== 'code' && Boolean(roomCode),
+    onResyncNeeded: resyncLobby,
+  })
 
   // 게임 시작 감지
   useEffect(() => {
     if (room?.status === 'playing' && playerId && (step === 'character' || step === 'minigame')) {
-      const gameMode = (room?.game_mode as string) || 'gold_quest'
+      const gameMode = room?.game_mode || DEFAULT_GAME_MODE
       const gameUrl = getGameModeUrl(gameMode, roomCode, playerId)
-      window.location.href = gameUrl
+      router.replace(gameUrl)
     }
-  }, [room?.status, step, roomCode, playerId, room?.game_mode])
+  }, [room?.status, step, roomCode, playerId, room?.game_mode, router])
 
   const handleCodeSubmit = async () => {
     if (!roomCode.trim() || roomCode.length !== 6) {
@@ -52,17 +68,13 @@ export default function LobbyPage() {
     }
     setIsCheckingRoom(true)
     try {
-      const { data: roomData, error: roomError } = await (supabase
-        .from('rooms')
-        .select('room_code, status')
-        .eq('room_code', roomCode)
-        .single() as any)
+      const roomData = await getRoomByCode(roomCode)
 
-      if (roomError || !roomData) {
+      if (!roomData) {
         alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
         return
       }
-      if ((roomData as any).status === 'finished') {
+      if (roomData.status === 'finished') {
         alert('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
         return
       }
@@ -84,44 +96,26 @@ export default function LobbyPage() {
   const handleCharacterSelect = async (character: Character) => {
     setSelectedCharacter(character)
     try {
-      const { error: roomError } = await supabase
-        .from('rooms').select('*').eq('room_code', roomCode).single()
-
-      if (roomError && roomError.code === 'PGRST116') {
-        const roomInsert: Database['public']['Tables']['rooms']['Insert'] = {
-          room_code: roomCode, status: 'waiting', current_q_index: 0,
-        }
-        const { error: createError } = await (supabase.from('rooms').insert(roomInsert as any) as any)
-        if (createError) throw createError
-      } else if (roomError) throw roomError
-
-      const { data: roomDataForHealth } = await (supabase
-        .from('rooms').select('game_mode').eq('room_code', roomCode).single() as any)
-
-      const isBattleRoyale = roomDataForHealth?.game_mode === 'battle_royale'
+      const roomData = await ensureRoomExists(roomCode)
       const nicknameCheck = filterNickname(nickname)
       const finalNickname = nicknameCheck.filtered || nickname.trim()
 
-      const { data: existingPlayers } = await (supabase
-        .from('players').select('id').eq('room_code', roomCode).eq('nickname', finalNickname) as any)
-
-      if (existingPlayers && existingPlayers.length > 0) {
+      if (await nicknameExists(roomCode, finalNickname)) {
         alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         setStep('nickname')
         return
       }
 
-      const playerInsert: Database['public']['Tables']['players']['Insert'] = {
-        room_code: roomCode, nickname: finalNickname, score: 0, gold: 0,
-        avatar: character.emoji, is_online: true,
-        health: isBattleRoyale ? 100 : undefined,
-      }
-      const { data: playerData, error: playerError } = await (supabase
-        .from('players').insert(playerInsert as any).select().single() as any)
+      const playerData = await createPlayerForRoom({
+        roomCode,
+        nickname: finalNickname,
+        avatar: character.emoji,
+        gameMode: roomData.game_mode,
+      })
 
-      if (playerError) throw playerError
       setPlayerId(playerData.id)
       setIsJoined(true)
+      void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
     } catch (err) {
       console.error('Error joining room:', err)
       alert('방 입장에 실패했습니다: ' + (err instanceof Error ? err.message : 'Unknown error'))
@@ -275,7 +269,9 @@ export default function LobbyPage() {
               <div className="rounded-2xl px-6 py-3 flex items-center justify-between mb-4" style={{ background: 'rgba(91,45,10,0.85)', border: '3px solid #3B1A05', boxShadow: '0 4px 0 #2A1005', fontFamily: "'BMJUA', sans-serif" }}>
                 <span className="text-white font-black text-lg">👤 {nickname}</span>
                 <span className="text-amber-300 font-black">🎮 {room?.game_mode || '?'} 모드 · 대기 중...</span>
-                <span className="text-green-300 font-black">👥 {players.length}명 접속 중</span>
+                <span className="text-green-300 font-black">
+                  👥 {players.length}명 · 실시간 {realtimeStatus === 'subscribed' ? '연결됨' : '연결 중'} · 온라인 {Math.max(players.length, onlineCount)}명
+                </span>
               </div>
 
               <div className="grid md:grid-cols-3 gap-5">
@@ -297,7 +293,7 @@ export default function LobbyPage() {
 
                       {isJoined ? (
                         <>
-                          <GameModeButton roomCode={roomCode} playerId={playerId} />
+                          <GameModeButton roomCode={roomCode} playerId={playerId} gameMode={room?.game_mode || DEFAULT_GAME_MODE} />
                           <PixelBtn color="purple" onClick={() => setStep('minigame')} className="w-full text-base py-3 mt-3">🎮 미니게임 하기</PixelBtn>
                         </>
                       ) : (

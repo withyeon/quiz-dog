@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/database.types'
 import { X, Search, ChevronRight, CheckSquare, Square, ChevronLeft } from 'lucide-react'
 import { Button } from './ui/button'
+import {
+    getQuestionSetWithQuestions,
+    listQuestionSetsExcept,
+} from '@/lib/services/questionSets'
 
 type QuestionSet = Database['public']['Tables']['question_sets']['Row']
 type Question = Database['public']['Tables']['questions']['Row']
@@ -31,15 +34,9 @@ export default function MergeQuestionsModal({ currentSetId, onClose, onMerge }: 
     useEffect(() => {
         const fetchSets = async () => {
             try {
-                const { data, error } = await supabase
-                    .from('question_sets')
-                    .select('*')
-                    .neq('id', currentSetId)
-                    .order('created_at', { ascending: false })
-
-                if (error) throw error
-                setSets(data || [])
-                setFilteredSets(data || [])
+                const loadedSets = await listQuestionSetsExcept(currentSetId)
+                setSets(loadedSets)
+                setFilteredSets(loadedSets)
             } catch (err) {
                 console.error('Failed to load sets', err)
             } finally {
@@ -63,14 +60,8 @@ export default function MergeQuestionsModal({ currentSetId, onClose, onMerge }: 
         setSelectedSet(set)
         setLoadingQuestions(true)
         try {
-            const { data, error } = await supabase
-                .from('questions')
-                .select('*')
-                .eq('set_id', set.id)
-                .order('created_at', { ascending: true })
-
-            if (error) throw error
-            setQuestionsMenu(data || [])
+            const { questions } = await getQuestionSetWithQuestions(set.id)
+            setQuestionsMenu(questions)
         } catch (err) {
             console.error('Failed to load questions', err)
         } finally {

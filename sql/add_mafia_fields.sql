@@ -10,7 +10,7 @@ DROP CONSTRAINT IF EXISTS rooms_game_mode_check;
 
 ALTER TABLE rooms 
 ADD CONSTRAINT rooms_game_mode_check 
-CHECK (game_mode IN ('gold_quest', 'racing', 'battle_royale', 'fishing', 'factory', 'cafe', 'mafia'));
+CHECK (game_mode IN ('gold_quest', 'battle_royale', 'fishing', 'factory', 'cafe', 'mafia'));
 
 -- players 테이블에 마피아 관련 필드 추가 (선택적, 단일 플레이어 게임이지만 통계용)
 ALTER TABLE players 

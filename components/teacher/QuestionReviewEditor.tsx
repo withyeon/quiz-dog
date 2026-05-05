@@ -42,6 +42,7 @@ interface QuestionReviewEditorProps {
   onBack: () => void
   onSave: () => void
   onCreateManual: (type: 'CHOICE' | 'SHORT' | 'OX') => void
+  isSaving?: boolean
 }
 
 export default function QuestionReviewEditor({
@@ -56,6 +57,7 @@ export default function QuestionReviewEditor({
   onBack,
   onSave,
   onCreateManual,
+  isSaving = false,
 }: QuestionReviewEditorProps) {
   const handleEditQuestion = (index: number, field: keyof GeneratedQuestion, value: any) => {
     const updated = [...generatedQuestions]
@@ -371,14 +373,21 @@ export default function QuestionReviewEditor({
           </Button>
           <Button
             onClick={() => {
+              if (isSaving) return
               if (totalErrors > 0) {
                 if (!confirm(`수정이 필요한 항목이 ${totalErrors}개 있습니다. 그래도 저장하시겠습니까?`)) return
               }
               onSave()
             }}
+            disabled={isSaving}
             className={`flex-1 font-bold ${totalErrors > 0 ? 'bg-amber-500 hover:bg-amber-600' : 'bg-sky-500 hover:bg-sky-600'} text-white`}
           >
-            {totalErrors > 0 ? `⚠ ${totalErrors}개 주의 · 저장하기` : `✓ ${generatedQuestions.length}문제 저장하기`}
+            {isSaving
+              ? '저장 중...'
+              : totalErrors > 0
+                ? `⚠ ${totalErrors}개 주의 · 저장하기`
+                : `✓ ${generatedQuestions.length}문제 저장하기`
+            }
           </Button>
         </div>
       </div>

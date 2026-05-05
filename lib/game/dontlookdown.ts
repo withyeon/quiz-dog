@@ -655,7 +655,7 @@ export function collectPowerUp(player: DLDPlayer, powerUp: PowerUp): DLDPlayer {
     return updated
 }
 
-export function usePowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer {
+export function applyPowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer {
     if (powerUpIndex < 0 || powerUpIndex >= player.powerUps.length) {
         return player
     }

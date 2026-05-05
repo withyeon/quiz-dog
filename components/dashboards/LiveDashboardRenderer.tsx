@@ -2,11 +2,11 @@
 
 import type { Database } from '@/types/database.types'
 import Leaderboard from '@/components/Leaderboard'
-import RacingTrack from '@/components/RacingTrack'
 import FishingPond from '@/components/FishingPond'
 import FactoryView from '@/components/FactoryView'
 import BattleRoyaleDashboard from './BattleRoyaleDashboard'
 import Link from 'next/link'
+import { getGameModeConfig } from '@/lib/game/modes'
 
 type Player = Database['public']['Tables']['players']['Row']
 type Room = Database['public']['Tables']['rooms']['Row']
@@ -34,67 +34,43 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
     }
 
     const mode = room.game_mode
+    const modeConfig = getGameModeConfig(mode)
 
-    if (mode === 'racing') {
-        return (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-900">🏁 레이스 현황</h2>
-                <RacingTrack
-                    players={players.map(p => ({ ...p, position: p.position || 0 }))}
-                    currentPlayerId={null}
-                    trackLength={1000}
-                />
-                <div className="mt-6">
-                    <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="🏁 레이싱 순위" />
-                </div>
-            </div>
-        )
-    } else if (mode === 'battle_royale') {
+    if (mode === 'battle_royale') {
         return <BattleRoyaleDashboard players={players} />
     } else if (mode === 'fishing') {
         return (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-900" style={{ fontFamily: 'OkDanDan, sans-serif' }}>🕹️ 인형뽑기 현황</h2>
+                <h2 className="text-2xl font-semibold mb-4 text-gray-900" style={{ fontFamily: modeConfig.fontFamily }}>🕹️ 인형뽑기 현황</h2>
                 <FishingPond players={players as any} currentPlayerId={null} />
                 <div className="mt-6">
-                    <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="🎣 낚시 순위" />
+                    <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="🕹️ 인형뽑기 순위" />
                 </div>
             </div>
         )
     } else if (mode === 'factory') {
         return (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-900">🏭 팩토리 현황</h2>
+                <h2 className="text-2xl font-semibold mb-4 text-gray-900">{modeConfig.emoji} {modeConfig.shortLabel} 현황</h2>
                 <FactoryView players={players as any} currentPlayerId={null} roomCode={room.room_code} />
-            </div>
-        )
-    } else if (mode === 'pool') {
-        return (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-900">🎱 포켓볼 게임 현황</h2>
-                <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="🎱 포켓볼 점수 순위" />
             </div>
         )
     } else if (mode === 'dontlookdown') {
         return (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-900">⛰️ Don't Look Down 현황</h2>
+                <h2 className="text-2xl font-semibold mb-4 text-gray-900">{modeConfig.emoji} {modeConfig.shortLabel} 현황</h2>
                 <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="⛰️ 높이 순위" />
-            </div>
-        )
-    }
-
-    if (mode === 'allin') {
-        return (
-            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-900">💎 올인 퀴즈 현황</h2>
-                <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="💎 점수 순위" />
             </div>
         )
     }
 
     // 기본 리더보드 (골드 퀘스트, 까페, 마피아, 타워 등 복잡한 전용 UI가 없는 게임들)
     return (
-        <Leaderboard players={players} currentPlayerId={null} sortBy="gold" title="💰 금괴/점수 순위" />
+        <Leaderboard
+            players={players}
+            currentPlayerId={null}
+            sortBy={modeConfig.leaderboardSort === 'gold' ? 'gold' : 'score'}
+            title={`${modeConfig.emoji} ${modeConfig.shortLabel} 순위`}
+        />
     )
 }

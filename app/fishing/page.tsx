@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { History, Zap } from 'lucide-react'
 import QuizView from '@/components/QuizView'
@@ -171,7 +172,7 @@ export default function FishingPage() {
                       caughtDolls.map((item, idx) => (
                         <div key={idx} className={`aspect-square ${getTierColor(item.tier)} rounded-lg flex flex-col items-center justify-center border-2 border-white/20 relative group`}>
                           {item.image ? (
-                            <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
+                            <Image src={item.image} alt={item.name} width={32} height={32} unoptimized className="w-8 h-8 object-contain" />
                           ) : (
                             <span className={`text-2xl ${item.color}`}>{item.emoji}</span>
                           )}
@@ -243,7 +244,7 @@ export default function FishingPage() {
                     <div className="flex justify-center mb-6">
                       <div className="bg-white/20 rounded-2xl p-6 flex items-center justify-center">
                         {fishingResult.doll.image ? (
-                          <img src={fishingResult.doll.image} alt={fishingResult.doll.name} className="w-24 h-24 object-contain" />
+                          <Image src={fishingResult.doll.image} alt={fishingResult.doll.name} width={96} height={96} unoptimized className="w-24 h-24 object-contain" />
                         ) : (
                           <span className="text-8xl">{fishingResult.doll.emoji}</span>
                         )}
@@ -288,7 +289,7 @@ export default function FishingPage() {
                           caughtDolls.map((item, idx) => (
                             <div key={idx} className={`aspect-square ${getTierColor(item.tier)} rounded-lg flex flex-col items-center justify-center border-2 border-white/20 relative group`}>
                               {item.image ? (
-                                <img src={item.image} alt={item.name} className="w-8 h-8 object-contain" />
+                                <Image src={item.image} alt={item.name} width={32} height={32} unoptimized className="w-8 h-8 object-contain" />
                               ) : (
                                 <span className={`text-2xl ${item.color}`}>{item.emoji}</span>
                               )}

@@ -206,7 +206,6 @@ function ClassroomBg() {
 ───────────────────────────────────────────────────────────── */
 const gameModesData = [
   { name: '해적왕의 보물찾기', emoji: '🏴‍☠️', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', description: '황금을 모으며 보물을 찾는 모험' },
-  { name: '등교 임파서블', emoji: '🏃', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)', description: '장애물을 피해 달리기' },
   { name: '눈싸움 대작전', emoji: '❄️', color: '#38BDF8', bg: 'rgba(56,189,248,0.15)', description: '눈덩이로 상대를 맞추는 배틀' },
   { name: '인형뽑기', emoji: '🕹️', color: '#EC4899', bg: 'rgba(236,72,153,0.15)', description: '희귀 아이템을 노려라!' },
   { name: '전설의 편의점', emoji: '🏪', color: '#10B981', bg: 'rgba(16,185,129,0.15)', description: '편의점 경영 부자 되기' },
@@ -215,6 +214,7 @@ const gameModesData = [
   { name: '타워 디펜스', emoji: '🏰', color: '#6366F1', bg: 'rgba(99,102,241,0.15)', description: '타워로 적을 막아내기' },
   { name: "Don't Look Down", emoji: '⛰️', color: '#14B8A6', bg: 'rgba(20,184,166,0.15)', description: '떨어지지 않고 정상 등반' },
 ]
+const visibleGameModeCount = gameModesData.length
 
 const testimonialsData = [
   { name: '김선생님', school: '서울 ○○초등학교', rating: 5, text: '학생들이 너무 좋아해요! 수업 참여도가 2배 이상 올랐습니다.', avatar: '👩‍🏫' },
@@ -542,7 +542,7 @@ export default function LandingPage() {
               },
               {
                 emoji: '🎮',
-                title: '9가지 게임 모드',
+                title: `${visibleGameModeCount}가지 게임 모드`,
                 description: '다양한 게임으로 학생들의 참여를 극대화',
                 features: ['실시간 대결', '팀 플레이', '개인 미션'],
                 color: 'green' as const,
@@ -600,7 +600,7 @@ export default function LandingPage() {
           >
             <div className="inline-block mb-4">
               <PixelButton color="purple" className="text-3xl px-10 py-4 pointer-events-none">
-                🎮 9가지 게임 모드
+                {`🎮 ${visibleGameModeCount}가지 게임 모드`}
               </PixelButton>
             </div>
             <p className="text-lg mt-4" style={{ color: '#7B4B1A', fontFamily: "'BMJUA', sans-serif" }}>
@@ -682,7 +682,7 @@ export default function LandingPage() {
                       ))}
                     </div>
                     <p className="mb-6 italic leading-relaxed text-sm" style={{ color: '#5B3A1A' }}>
-                      "{t.text}"
+                      &ldquo;{t.text}&rdquo;
                     </p>
                     <div className="flex items-center gap-3">
                       <div

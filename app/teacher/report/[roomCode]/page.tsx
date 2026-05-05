@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
-import type { Database } from '@/types/database.types'
 import TeacherAnalytics from '@/components/TeacherAnalytics'
+import { getFinishedRoomReport } from '@/lib/services/reports'
+import { formatServiceError } from '@/lib/services/errors'
+import type { Database } from '@/types/database.types'
 
 type Room = Database['public']['Tables']['rooms']['Row']
 type Player = Database['public']['Tables']['players']['Row']
@@ -17,32 +18,20 @@ export default function ReportPage() {
     const [room, setRoom] = useState<Room | null>(null)
     const [players, setPlayers] = useState<Player[]>([])
     const [loading, setLoading] = useState(true)
+    const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
     useEffect(() => {
         if (!roomCode) return
 
         const fetchGameData = async () => {
             try {
-                // Fetch room data
-                const { data: roomData, error: roomError } = await ((supabase
-                    .from('rooms') as any)
-                    .select('*')
-                    .eq('room_code', roomCode)
-                    .single())
-
-                if (roomError) throw roomError
+                setErrorMessage(null)
+                const { room: roomData, players: playersData } = await getFinishedRoomReport(roomCode)
                 setRoom(roomData)
-
-                // Fetch players data
-                const { data: playersData, error: playersError } = await ((supabase
-                    .from('players') as any)
-                    .select('*')
-                    .eq('room_code', roomCode))
-
-                if (playersError) throw playersError
-                setPlayers(playersData || [])
+                setPlayers(playersData)
             } catch (err) {
                 console.error('Error fetching game report:', err)
+                setErrorMessage(formatServiceError(err))
             } finally {
                 setLoading(false)
             }
@@ -62,7 +51,9 @@ export default function ReportPage() {
     if (!room) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 gap-4">
-                <p className="text-xl font-bold text-red-500">게임 방 정보를 찾을 수 없습니다.</p>
+                <p className="text-xl font-bold text-red-500">
+                    {errorMessage ? `게임 방 정보를 불러오지 못했습니다. ${errorMessage}` : '게임 방 정보를 찾을 수 없습니다.'}
+                </p>
                 <button
                     onClick={() => router.push('/teacher/dashboard')}
                     className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"

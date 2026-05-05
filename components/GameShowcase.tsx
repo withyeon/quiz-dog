@@ -38,16 +38,6 @@ const games: GameData[] = [
         tagColor: 'rgba(245,158,11,0.15)',
     },
     {
-        name: '등교 임파서블',
-        emoji: '🏃',
-        videoSrc: '/videos/racing.mp4',
-        imageSrc: '/racing.png',
-        keywords: ['🚗 레이싱', '🧩 퀴즈 가속', '💥 아이템 공격', '🥇 1등 목표'],
-        description: '정답을 맞출수록 속도 UP! 장애물을 피해 가장 먼저 도착하세요.',
-        accentColor: '#3b82f6',
-        tagColor: 'rgba(59,130,246,0.15)',
-    },
-    {
         name: '눈싸움 대작전',
         emoji: '❄️',
         videoSrc: '/videos/battle-royale.mp4',

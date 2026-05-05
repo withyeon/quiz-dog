@@ -1,5 +1,6 @@
 'use client'
 
+import NextImage from 'next/image'
 import { motion } from 'framer-motion'
 import { TowerType, TowerTypeId } from '@/lib/game/tower'
 import { useState, useEffect } from 'react'
@@ -24,7 +25,7 @@ export default function TowerCard({ tower, isSelected, canAfford, onSelect }: To
     const [imageError, setImageError] = useState(false)
     
     useEffect(() => {
-        const img = new Image()
+        const img = new window.Image()
         img.src = towerImagePaths[tower.id]
         img.onload = () => setImageLoaded(true)
         img.onerror = () => setImageError(true)
@@ -60,9 +61,12 @@ export default function TowerCard({ tower, isSelected, canAfford, onSelect }: To
                     className="flex items-center justify-center mb-2 h-16"
                 >
                     {imageLoaded && !imageError ? (
-                        <img
+                        <NextImage
                             src={towerImagePaths[tower.id]}
                             alt={tower.name}
+                            width={64}
+                            height={64}
+                            unoptimized
                             className="w-16 h-16 object-contain"
                         />
                     ) : (

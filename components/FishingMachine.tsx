@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Doll, FishingState } from '@/lib/game/fishing'
 
@@ -73,7 +74,7 @@ export default function FishingMachine({
                   className={`absolute top-10 left-1/2 -translate-x-1/2 drop-shadow-lg ${caughtItem.color}`}
                 >
                   {caughtItem.image ? (
-                    <img src={caughtItem.image} alt={caughtItem.name} className="w-16 h-16 object-contain" />
+                    <Image src={caughtItem.image} alt={caughtItem.name} width={64} height={64} unoptimized className="w-16 h-16 object-contain" />
                   ) : (
                     <span className="text-6xl">{caughtItem.emoji}</span>
                   )}
@@ -86,10 +87,13 @@ export default function FishingMachine({
         {/* --- 바닥에 쌓인 인형들 (장식용) --- */}
         <div className="absolute bottom-0 w-full h-44 flex items-end justify-center gap-3 px-4 flex-wrap opacity-70">
           {Array(12).fill(0).map((_, i) => (
-            <img
+            <Image
               key={i}
               src={`/fishing/${(i % 16) + 1}.svg`}
               alt="doll"
+              width={80}
+              height={80}
+              unoptimized
               className="w-16 h-16 md:w-20 md:h-20 object-contain animate-bounce"
               style={{ animationDuration: `${(i % 3) + 1}s` }}
             />

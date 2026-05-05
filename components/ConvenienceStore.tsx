@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingCart, Coins, Zap, Store, Sparkles, PackagePlus, X } from 'lucide-react'
@@ -349,9 +350,12 @@ export default function ConvenienceStore({
 
                         <div className="flex-1 flex items-center justify-center text-4xl filter drop-shadow-md">
                           {slot.image ? (
-                            <img
+                            <Image
                               src={slot.image}
                               alt={slot.name}
+                              width={64}
+                              height={64}
+                              unoptimized
                               className="w-16 h-16 object-contain"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement
@@ -486,9 +490,12 @@ export default function ConvenienceStore({
 
                     <div className="text-7xl drop-shadow-md group-hover:scale-110 transition-transform duration-300">
                       {item.image ? (
-                        <img
+                        <Image
                           src={item.image}
                           alt={item.name}
+                          width={96}
+                          height={96}
+                          unoptimized
                           className="w-24 h-24 object-contain"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
@@ -531,9 +538,12 @@ export default function ConvenienceStore({
               <div className="text-center mb-4">
                 <div className="text-6xl mb-2 flex justify-center">
                   {selectedProductToSell.image ? (
-                    <img
+                    <Image
                       src={selectedProductToSell.image}
                       alt={selectedProductToSell.name}
+                      width={96}
+                      height={96}
+                      unoptimized
                       className="w-24 h-24 object-contain"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement

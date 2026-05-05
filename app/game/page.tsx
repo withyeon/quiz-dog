@@ -3,13 +3,12 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import { supabase } from '@/lib/supabase/client'
 import QuizView from '@/components/QuizView'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import AnimatedBackground from '@/components/AnimatedBackground'
-import { useGameBase, type Question, type AnswerRecord } from '@/hooks/useGameBase'
+import { useGameBase } from '@/hooks/useGameBase'
 import { generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
 import PlayerSelector from '@/components/PlayerSelector'
 import type { Database } from '@/types/database.types'
@@ -44,6 +43,9 @@ export default function GamePage() {
     checkAnswer,
     handleWrongAnswer,
     goToNextQuestion,
+    sendRoomEvent,
+    commitPlayerPatch,
+    roomChannelStatus,
   } = useGameBase({ expectedGameMode: 'gold_quest' })
 
   const [selectedChest, setSelectedChest] = useState<number | null>(null)
@@ -110,32 +112,23 @@ export default function GamePage() {
 
   // 상자 선택 처리
   const handleChestSelect = async (chestIndex: number) => {
-    if (isProcessingReward || !playerId) return
+    if (isProcessingReward || !playerId || !currentPlayer) return
 
     setIsProcessingReward(true)
     setSelectedChest(chestIndex)
 
     try {
-      // 현재 플레이어 데이터를 데이터베이스에서 직접 가져오기
-      const { data: freshPlayerData, error: playerError } = await supabase
-        .from('players')
-        .select('*')
-        .eq('id', playerId)
-        .single()
-
-      if (playerError || !freshPlayerData) {
-        console.error('플레이어 데이터 로드 실패:', playerError)
-        setIsProcessingReward(false)
-        return
-      }
-
-      const freshPlayer = freshPlayerData as Player
-
       playSFX('click')
 
       // 해적 컨셉 보상 생성
-      const event = generateBoxEvent(freshPlayer.gold, players, playerId, false)
+      const event = generateBoxEvent(currentPlayer.gold, players, playerId, false)
       setBoxEvent(event)
+      void sendRoomEvent('game:effect', {
+        mode: 'gold_quest',
+        actorPlayerId: playerId,
+        chestIndex,
+        event,
+      })
 
       // 긍정 효과 사운드
       if (event.type === 'GOLD_STACK' || event.type === 'JESTER' || event.type === 'UNICORN') {
@@ -183,7 +176,10 @@ export default function GamePage() {
         ? players.find((p) => p.id === event.targetPlayerId) || null
         : null
 
-      await applyBoxEvent(event, playerId, freshPlayer, targetPlayer, supabase)
+      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetPlayerId, patch) =>
+        commitPlayerPatch(targetPlayerId, patch, 'gold_quest_reward')
+      )
+      void sendRoomEvent('room:snapshot-hint', { reason: 'gold_quest_reward' })
 
       // 3초 후 다음 문제로
       setTimeout(() => {
@@ -200,28 +196,13 @@ export default function GamePage() {
 
   // 플레이어 선택 처리 (King/Elf/Wizard)
   const handlePlayerSelect = async (targetPlayerId: string) => {
-    if (!pendingEvent || !playerId) return
+    if (!pendingEvent || !playerId || !currentPlayer) return
 
     playSFX('click')
     setIsProcessingReward(true)
 
     try {
-      // 현재 플레이어 데이터를 데이터베이스에서 직접 가져오기
-      const { data: freshPlayerData, error: playerError } = await supabase
-        .from('players')
-        .select('*')
-        .eq('id', playerId)
-        .single()
-
-      if (playerError || !freshPlayerData) {
-        console.error('플레이어 데이터 로드 실패:', playerError)
-        setIsProcessingReward(false)
-        return
-      }
-
-      const freshPlayer = freshPlayerData as Player
-
-      const targetPlayer = players.find((p) => p.id === targetPlayerId) || null
+      const targetPlayer = players.find((player) => player.id === targetPlayerId) as Player | null
       if (!targetPlayer) {
         setIsProcessingReward(false)
         return
@@ -244,7 +225,10 @@ export default function GamePage() {
         event.message = `왕이 ${targetPlayer.nickname}님과 골드를 교환했다! 👑`
       }
 
-      await applyBoxEvent(event, playerId, freshPlayer, targetPlayer, supabase)
+      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetId, patch) =>
+        commitPlayerPatch(targetId, patch, 'gold_quest_target_reward')
+      )
+      void sendRoomEvent('room:snapshot-hint', { reason: 'gold_quest_target_reward' })
 
       // 이벤트 메시지 업데이트
       setBoxEvent(event)
@@ -318,7 +302,9 @@ export default function GamePage() {
                   height={40}
                   className="h-8 w-auto"
                 />
-                <p className="text-sm text-yellow-100">방 코드: {roomCode}</p>
+                <p className="text-sm text-yellow-100">
+                  방 코드: {roomCode} · 실시간 {roomChannelStatus === 'subscribed' ? '연결됨' : '연결 중'}
+                </p>
               </div>
             </div>
             {currentPlayer && (

@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { supabase } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useAudioContext } from '@/components/AudioProvider'
@@ -16,23 +16,25 @@ import ScreenFlash from '@/components/ScreenFlash'
 import type { Database } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
 import { getAnswerSpeed, getSpeedBonus } from '@/lib/game/convenienceStore'
+import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
+import { isRoomHostPlayer } from '@/lib/realtime/roomChannel'
+import { updatePlayer } from '@/lib/services/players'
+import { finishRoom } from '@/lib/services/rooms'
+import {
+  checkQuestionAnswer,
+  listQuestionsForGame,
+  type GameQuestion,
+} from '@/lib/services/questions'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   convenience_products?: Product[]
   convenience_money?: number
 }
 
-type Question = {
-  id: string
-  type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-  question_text: string
-  options: string[]
-  answer: string
-}
-
 type FactoryView = 'lobby' | 'countdown' | 'quiz' | 'wrong' | 'result' | 'selection'
 
 export default function FactoryPage() {
+  const router = useRouter()
   const [roomCode, setRoomCode] = useState('')
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [currentView, setCurrentView] = useState<FactoryView>('lobby')
@@ -44,7 +46,7 @@ export default function FactoryPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [money, setMoney] = useState(0)
   const [isQuizMode, setIsQuizMode] = useState(false)
-  const [questions, setQuestions] = useState<Question[]>([])
+  const [questions, setQuestions] = useState<GameQuestion[]>([])
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0) // Blooket: 3문제마다 유닛 획득
   const [showOrderModal, setShowOrderModal] = useState(false) // 정답 3개마다 발주 모달
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null) // 제한 시간 남은 초
@@ -73,58 +75,31 @@ export default function FactoryPage() {
   useEffect(() => {
     if (!room || roomLoading) return
 
-    const gameMode = room.game_mode || 'gold_quest'
+    const gameMode = room.game_mode || DEFAULT_GAME_MODE
 
     // factory가 아니면 올바른 페이지로 리다이렉트
     if (gameMode !== 'factory') {
-      const gameUrl = gameMode === 'gold_quest'
-        ? `/game?room=${roomCode}&playerId=${playerId}`
-        : gameMode === 'racing'
-          ? `/racing?room=${roomCode}&playerId=${playerId}`
-          : gameMode === 'battle_royale'
-            ? `/battle?room=${roomCode}&playerId=${playerId}`
-            : gameMode === 'fishing'
-              ? `/fishing?room=${roomCode}&playerId=${playerId}`
-              : gameMode === 'cafe'
-                ? `/cafe?room=${roomCode}&playerId=${playerId}`
-                : gameMode === 'mafia'
-                  ? `/mafia?room=${roomCode}&playerId=${playerId}`
-                  : gameMode === 'pool'
-                    ? `/pool?room=${roomCode}&playerId=${playerId}`
-                    : `/factory?room=${roomCode}&playerId=${playerId}`
+      const gameUrl = getGameModeUrl(gameMode, roomCode, playerId || '')
 
       if (gameUrl !== window.location.pathname + window.location.search) {
-        window.location.href = gameUrl
+        router.replace(gameUrl)
       }
     }
-  }, [room, roomLoading, roomCode, playerId])
+  }, [room, roomLoading, roomCode, playerId, router])
 
   // 현재 플레이어 정보
   const currentPlayer = players.find((p) => p.id === playerId) as Player | undefined
+  const isRoomHost = useMemo(() => isRoomHostPlayer(playerId, players, []), [playerId, players])
 
   // 문제 데이터 가져오기 (로드 후 한 번 셔플하여 랜덤 순서)
   useEffect(() => {
     if (!room?.set_id) return
-
-    const shuffle = <T,>(arr: T[]): T[] => {
-      const a = [...arr]
-      for (let i = a.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [a[i], a[j]] = [a[j], a[i]]
-      }
-      return a
-    }
+    const setId = room.set_id
 
     const fetchQuestions = async () => {
       try {
-        const { data, error } = await ((supabase
-          .from('questions') as any)
-          .select('id, set_id, type, question_text, options, created_at')
-          .eq('set_id', room.set_id) as any)
-
-        if (error) throw error
-
-        setQuestions(shuffle((data ?? []) as Question[]))
+        const loadedQuestions = await listQuestionsForGame(setId, { shuffle: true })
+        setQuestions(loadedQuestions)
       } catch (error) {
         const msg =
           error instanceof Error
@@ -170,16 +145,11 @@ export default function FactoryPage() {
   }, [room, currentView, playBGM])
 
   // 카운트다운 완료 후 퀴즈 시작
-  useEffect(() => {
-    if (showCountdown) {
-      const timer = setTimeout(() => {
-        setShowCountdown(false)
-        setCurrentView('quiz')
-        questionStartTime.current = Date.now()
-      }, 4000)
-      return () => clearTimeout(timer)
-    }
-  }, [showCountdown])
+  const handleCountdownComplete = () => {
+    setShowCountdown(false)
+    setCurrentView('quiz')
+    questionStartTime.current = Date.now()
+  }
 
   // 돈 변경 핸들러
   const handleMoneyChange = async (newMoney: number) => {
@@ -187,13 +157,10 @@ export default function FactoryPage() {
     if (!playerId) return
 
     try {
-      await ((supabase
-        .from('players') as any)
-        .update({
-          convenience_money: newMoney,
-          score: newMoney,
-        })
-        .eq('id', playerId))
+      await updatePlayer(playerId, {
+        convenience_money: newMoney,
+        score: newMoney,
+      })
     } catch (error) {
       console.error('Error updating money:', error)
     }
@@ -205,12 +172,9 @@ export default function FactoryPage() {
     if (!playerId) return
 
     try {
-      await ((supabase
-        .from('players') as any)
-        .update({
-          convenience_products: newProducts,
-        })
-        .eq('id', playerId))
+      await updatePlayer(playerId, {
+        convenience_products: newProducts,
+      })
     } catch (error) {
       console.error('Error updating products:', error)
     }
@@ -244,16 +208,10 @@ export default function FactoryPage() {
     // 팩토리 로직 반영 전에 기본 답안 체크 (RPC 호출)
     let correct = false
     try {
-      const { data, error } = await supabase.rpc<any>('check_question_answer', {
-        p_question_id: currentQuestion.id,
-        p_submitted_answer: answer
-      } as any)
-      if (!error && data !== null) {
-        correct = data
-      }
+      correct = await checkQuestionAnswer(currentQuestion.id, answer)
     } catch (err) {
       console.error('Error checking answer on server:', err)
-      correct = String(answer).trim() === String(currentQuestion.answer).trim() // fallback
+      correct = false
     }
 
     setIsCorrect(correct)
@@ -340,13 +298,10 @@ export default function FactoryPage() {
       const elapsed = (Date.now() - started) / 1000
       const remaining = Math.max(0, Math.ceil(durationSeconds - elapsed))
       setRemainingSeconds(remaining)
-      if (remaining <= 0) {
+      if (remaining <= 0 && isRoomHost) {
         ; (async () => {
           try {
-            await ((supabase
-              .from('rooms') as any)
-              .update({ status: 'finished' })
-              .eq('room_code', roomCode))
+            await finishRoom(roomCode)
           } catch (e) {
             console.error('편의점 시간 종료 업데이트 실패:', e)
           }
@@ -356,7 +311,7 @@ export default function FactoryPage() {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [room?.status, roomCode, durationSeconds, startedAt])
+  }, [durationSeconds, isRoomHost, room?.status, roomCode, startedAt])
 
   // 게임 종료 감지
   useEffect(() => {
@@ -465,7 +420,7 @@ export default function FactoryPage() {
         {/* 메인 컨텐츠 */}
         <div className="max-w-[1600px] mx-auto">
           {/* 카운트다운 */}
-          {showCountdown && <Countdown onComplete={() => { }} />}
+          {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
 
           {/* 로비 */}
           {currentView === 'lobby' && (

@@ -19,6 +19,11 @@
 - **내용**: 샘플 방, 샘플 문제 생성
 - **실행 순서**: `setup.sql` 실행 후 선택적으로 실행
 
+### 4. `20260504_game_runtime_integrity.sql`
+- **용도**: 현재 코드에서 사용하는 게임 모드/플레이어 런타임 필드 정합성 보강
+- **내용**: 전체 게임 모드 체크 제약, `rooms.set_id`, 제한 시간 필드, 인형뽑기/편의점/배틀/카페/마피아 런타임 컬럼
+- **실행 순서**: `setup.sql`, `migration_question_sets.sql`, `add_question_sets_metadata.sql` 이후 실행
+
 ## 실행 방법
 
 ### Supabase 대시보드에서 실행
@@ -43,6 +48,13 @@ setup.sql
 
 # 2. 샘플 데이터 (선택)
 sample_data.sql
+
+# 3. 문제집 원장 및 메타데이터 (권장)
+migration_question_sets.sql
+add_question_sets_metadata.sql
+
+# 4. 게임 런타임 정합성 보강 (권장)
+20260504_game_runtime_integrity.sql
 ```
 
 ## 테이블 구조

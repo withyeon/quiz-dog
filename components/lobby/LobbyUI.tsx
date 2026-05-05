@@ -2,8 +2,8 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { getGameModeUrl } from '@/hooks/useGameBase'
-import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRouter } from 'next/navigation'
+import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 
 /* ─────────────────────────────────────────────────────────────
    픽셀 버튼
@@ -115,17 +115,22 @@ export function PixelPanel({
 /* ─────────────────────────────────────────────────────────────
    게임 모드 버튼 컴포넌트
 ───────────────────────────────────────────────────────────── */
-export function GameModeButton({ roomCode, playerId }: { roomCode: string; playerId: string | null }) {
-  const { room } = useRoomRealtime({ roomCode })
-  const gameMode = room?.game_mode || 'gold_quest'
+export function GameModeButton({
+  roomCode,
+  playerId,
+  gameMode = DEFAULT_GAME_MODE,
+}: {
+  roomCode: string
+  playerId: string | null
+  gameMode?: string | null
+}) {
+  const router = useRouter()
   const gameUrl = getGameModeUrl(gameMode, roomCode, playerId || '')
 
   return (
-    <a href={gameUrl} className="block">
-      <PixelBtn color="green" className="w-full text-lg py-4">
-        🚀 게임 시작하기 →
-      </PixelBtn>
-    </a>
+    <PixelBtn color="green" className="w-full text-lg py-4" onClick={() => router.push(gameUrl)}>
+      🚀 게임 시작하기 →
+    </PixelBtn>
   )
 }
 
