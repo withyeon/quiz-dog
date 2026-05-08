@@ -1,19 +1,25 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  calculateTotalPoints,
+  checkFrenzyEvent,
+  getAimGrade,
+  getAimSpeed,
+  getComboState,
+  getMachineRank,
   tryFishing,
   trySpecialItem,
-  checkFrenzyEvent,
+  type ComboState,
   type Doll,
+  type FishingResult,
   type FishingState,
   type MachineRank,
   type SpecialItem,
   type SpecialItemType,
-  calculateTotalPoints,
-  getMachineRank,
 } from '@/lib/game/fishing'
-import { getPlayerById, updatePlayer } from '@/lib/services/players'
+import { updatePlayer } from '@/lib/services/players'
+import type { SFXType } from '@/hooks/useAudio'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
@@ -28,8 +34,28 @@ interface UseFishingGameParams {
   handleWrongAnswer: () => void
   goToNextQuestion: () => void
   getElapsedSeconds: () => number
-  playSFX: (sound: any) => void
+  playSFX: (sound: SFXType) => void
   setCurrentView: (view: string) => void
+}
+
+type PendingPull = {
+  answerTime: number
+  machineRank: MachineRank
+  frenzyActive: boolean
+}
+
+const AIM_MIN = 8
+const AIM_MAX = 92
+const TARGET_MIN = 20
+const TARGET_MAX = 80
+
+function createTargetPosition() {
+  return Math.round(TARGET_MIN + Math.random() * (TARGET_MAX - TARGET_MIN))
+}
+
+function calculateAimAccuracy(aimPosition: number, targetPosition: number) {
+  const distance = Math.abs(aimPosition - targetPosition)
+  return Math.max(0, Math.min(1, 1 - distance / 36))
 }
 
 export function useFishingGame({
@@ -44,203 +70,291 @@ export function useFishingGame({
 }: UseFishingGameParams) {
   const [fishingState, setFishingState] = useState<FishingState>('idle')
   const [caughtItem, setCaughtItem] = useState<Doll | null>(null)
-  const [fishingResult, setFishingResult] = useState<{
-    success: boolean
-    doll: Doll | null
-    points: number
-    message: string
-    willFail: boolean
-  } | null>(null)
+  const [fishingResult, setFishingResult] = useState<FishingResult | null>(null)
   const [caughtDolls, setCaughtDolls] = useState<Doll[]>([])
   const [correctAnswers, setCorrectAnswers] = useState(0)
+  const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
   const [isFrenzyEvent, setIsFrenzyEvent] = useState(false)
   const [frenzyTimeLeft, setFrenzyTimeLeft] = useState(0)
   const [savedAnswerTime, setSavedAnswerTime] = useState<number>(30)
-  const [isClawReady, setIsClawReady] = useState(false)
   const [activeItems, setActiveItems] = useState<SpecialItemType[]>([])
   const [pendingItem, setPendingItem] = useState<SpecialItem | null>(null)
   const [showItemModal, setShowItemModal] = useState(false)
+  const [pendingPull, setPendingPull] = useState<PendingPull | null>(null)
+  const [aimPosition, setAimPosition] = useState(50)
+  const [targetPosition, setTargetPosition] = useState(50)
+  const [lastAccuracy, setLastAccuracy] = useState(0)
+  const [comboState, setComboState] = useState<ComboState>({ count: 0, multiplier: 1.0, label: '' })
+
+  const caughtDollsRef = useRef<Doll[]>([])
+  const aimDirectionRef = useRef(1)
+  const aimPositionRef = useRef(50)
+  const sequenceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const fishingStateRef = useRef<FishingState>('idle')
+  const pendingPullRef = useRef<PendingPull | null>(null)
+  const activeItemsRef = useRef<SpecialItemType[]>([])
+  const consecutiveCorrectRef = useRef(0)
 
   const machineRank: MachineRank = getMachineRank(correctAnswers)
 
-  // 저장된 인형 불러오기
+  // refs를 최신 상태로 유지
+  useEffect(() => { fishingStateRef.current = fishingState }, [fishingState])
+  useEffect(() => { pendingPullRef.current = pendingPull }, [pendingPull])
+  useEffect(() => { caughtDollsRef.current = caughtDolls }, [caughtDolls])
+  useEffect(() => { activeItemsRef.current = activeItems }, [activeItems])
+  useEffect(() => { consecutiveCorrectRef.current = consecutiveCorrect }, [consecutiveCorrect])
+
+  // 저장된 데이터 복원
   useEffect(() => {
-    if (currentPlayer) {
-      if ((currentPlayer as Player).caught_dolls) {
-        setCaughtDolls((currentPlayer as Player).caught_dolls as Doll[])
-      }
-      if ((currentPlayer as Player).caught_dolls) {
-        setCorrectAnswers(((currentPlayer as Player).caught_dolls as Doll[]).length)
-      }
-    }
+    if (!currentPlayer) return
+    const savedDolls = Array.isArray(currentPlayer.caught_dolls)
+      ? (currentPlayer.caught_dolls as Doll[])
+      : []
+    setCaughtDolls(savedDolls)
+    setCorrectAnswers(savedDolls.length)
   }, [currentPlayer])
 
-  // 대성공 이벤트 타이머
+  // 언마운트 시 타이머 정리
   useEffect(() => {
-    if (isFrenzyEvent && frenzyTimeLeft > 0) {
-      const timer = setInterval(() => {
-        setFrenzyTimeLeft((prev) => {
-          if (prev <= 1) {
-            setIsFrenzyEvent(false)
-            return 0
-          }
-          return prev - 1
-        })
-      }, 1000)
-      return () => clearInterval(timer)
+    return () => {
+      sequenceTimersRef.current.forEach(clearTimeout)
     }
+  }, [])
+
+  // 조준 오실레이션 — 기계 랭크에 따라 속도 변화
+  useEffect(() => {
+    if (fishingState !== 'aim') return
+
+    const speed = getAimSpeed(machineRank)
+    const timer = window.setInterval(() => {
+      setAimPosition((prev) => {
+        let next = prev + speed * aimDirectionRef.current
+        if (next >= AIM_MAX) { aimDirectionRef.current = -1; next = AIM_MAX }
+        if (next <= AIM_MIN) { aimDirectionRef.current = 1; next = AIM_MIN }
+        aimPositionRef.current = next
+        return next
+      })
+    }, 24)
+
+    return () => window.clearInterval(timer)
+  }, [fishingState, machineRank])
+
+  // 프렌지 타이머
+  useEffect(() => {
+    if (!isFrenzyEvent || frenzyTimeLeft <= 0) return
+    const timer = window.setInterval(() => {
+      setFrenzyTimeLeft((prev) => {
+        if (prev <= 1) { setIsFrenzyEvent(false); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(timer)
   }, [isFrenzyEvent, frenzyTimeLeft])
 
-  const runFishingSequence = async (
-    result: typeof fishingResult,
-    newCorrectAnswers: number
-  ) => {
-    if (!result || !playerId) return
+  const queueTimer = useCallback((callback: () => void, delay: number) => {
+    const timer = setTimeout(callback, delay)
+    sequenceTimersRef.current.push(timer)
+    return timer
+  }, [])
 
-    setTimeout(() => {
+  const persistCaughtDoll = useCallback(async (doll: Doll) => {
+    if (!playerId) return
+    const newDolls = [...caughtDollsRef.current, doll]
+    caughtDollsRef.current = newDolls
+    setCaughtDolls(newDolls)
+    const totalPoints = calculateTotalPoints(newDolls)
+    try {
+      await updatePlayer(playerId, {
+        caught_dolls: newDolls,
+        claw_points: totalPoints,
+        score: totalPoints,
+      })
+      playSFX('item')
+    } catch (error) {
+      console.error('Error updating doll data:', error)
+    }
+  }, [playerId, playSFX])
+
+  const runFishingSequence = useCallback((result: FishingResult) => {
+    queueTimer(() => {
       setFishingState('grab')
-      setTimeout(() => {
+      queueTimer(() => {
         setFishingState('up')
-        setTimeout(() => {
+        queueTimer(() => {
           setFishingState('return')
-          setTimeout(() => {
+          queueTimer(() => {
             setFishingState('release')
-
             if (result.success && result.doll) {
-              const doll = result.doll
-              const newDolls = [...caughtDolls, doll]
-              setCaughtDolls(newDolls)
-              const totalPoints = calculateTotalPoints(newDolls)
-
-              ;(async () => {
-                try {
-                  await updatePlayer(playerId, {
-                    caught_dolls: newDolls,
-                    claw_points: totalPoints,
-                    score: totalPoints,
-                  })
-
-                  playSFX('item')
-                } catch (error) {
-                  console.error('Error updating doll data:', error)
-                }
-              })()
+              void persistCaughtDoll(result.doll)
             }
-
-            setTimeout(() => {
-              setFishingState('idle')
-              setCaughtItem(null)
-            }, 2000)
-          }, 2000)
-        }, 1500)
-      }, 500)
-    }, 1500)
-  }
+          }, 950)
+        }, 950)
+      }, 650)
+    }, 450)
+  }, [persistCaughtDoll, queueTimer])
 
   const handleAnswerSubmit = async (answer: string) => {
     const correct = await checkAnswer(answer)
-    if (correct) {
-      playSFX('correct')
 
-      const answerTime = getElapsedSeconds()
-      setSavedAnswerTime(answerTime)
-
-      let frenzyActive = isFrenzyEvent
-      if (!frenzyActive) {
-        frenzyActive = checkFrenzyEvent()
-        if (frenzyActive) {
-          setIsFrenzyEvent(true)
-          setFrenzyTimeLeft(10)
-          playSFX('item')
-        }
-      }
-
-      const newCorrectAnswers = correctAnswers + 1
-      setCorrectAnswers(newCorrectAnswers)
-
-      const newMachineRank = getMachineRank(newCorrectAnswers)
-      const specialItem = trySpecialItem()
-
-      if (specialItem) {
-        if (specialItem.type === 'COIN_RAIN') {
-          const bonus = specialItem.bonusPoints ?? 150
-          try {
-            if (playerId) {
-              const player = await getPlayerById(playerId)
-              await updatePlayer(playerId, { score: (player?.score || 0) + bonus })
-            }
-          } catch (e) { console.error(e) }
-        } else if (specialItem.type === 'EXTRA_PULL') {
-          // 한 번 더
-        } else {
-          setActiveItems(prev => [...prev, specialItem.type])
-        }
-        setPendingItem(specialItem)
-        setShowItemModal(true)
-        playSFX('item')
-        return true
-      }
-
-      const isLuckyBoosted = activeItems.includes('LUCKY_BOOST')
-      const result = tryFishing(answerTime, isLuckyBoosted ? Math.min(5, newMachineRank + 2) as MachineRank : newMachineRank, frenzyActive)
-      const isDoubled = activeItems.includes('DOUBLE_SCORE')
-
-      if (isDoubled && result.doll) {
-        result.doll.score = result.doll.score * 2
-        result.points = result.doll.score
-        result.message = `${result.doll.name} 획득! 2배! (+${result.doll.score}점)`
-        setActiveItems(prev => prev.filter(t => t !== 'DOUBLE_SCORE'))
-      }
-      if (isLuckyBoosted) setActiveItems(prev => prev.filter(t => t !== 'LUCKY_BOOST'))
-
-      setFishingResult(result)
-      setCaughtItem(result.doll)
-      setCurrentView('claw')
-      setFishingState('down')
-      setIsClawReady(false)
-      runFishingSequence(result, newCorrectAnswers)
-    } else {
+    if (!correct) {
       playSFX('incorrect')
       handleWrongAnswer()
+      setConsecutiveCorrect(0)
+      setComboState(getComboState(0))
+      return false
     }
-    return correct
+
+    playSFX('correct')
+
+    const answerTime = getElapsedSeconds()
+    setSavedAnswerTime(answerTime)
+
+    // 콤보 업데이트
+    const newConsecutive = consecutiveCorrect + 1
+    setConsecutiveCorrect(newConsecutive)
+    setComboState(getComboState(newConsecutive))
+
+    // 프렌지 이벤트
+    let frenzyActive = isFrenzyEvent
+    if (!frenzyActive) {
+      frenzyActive = checkFrenzyEvent()
+      if (frenzyActive) {
+        setIsFrenzyEvent(true)
+        setFrenzyTimeLeft(12)
+        playSFX('item')
+      }
+    }
+
+    const newCorrectAnswers = correctAnswers + 1
+    setCorrectAnswers(newCorrectAnswers)
+
+    const nextMachineRank = getMachineRank(newCorrectAnswers)
+    setPendingPull({ answerTime, machineRank: nextMachineRank, frenzyActive })
+
+    // 특별 아이템 확인
+    const specialItem = trySpecialItem()
+    if (specialItem) {
+      setActiveItems((prev) => [...prev, specialItem.type])
+      setPendingItem(specialItem)
+      setShowItemModal(true)
+      playSFX('item')
+    }
+
+    return true
   }
 
-  const handleStartFishing = () => {
-    if (fishingState !== 'idle') return
+  const handleOpenClaw = useCallback(() => {
+    if (!pendingPullRef.current || fishingStateRef.current !== 'idle') return
 
-    playSFX('click')
-    setFishingState('idle')
-    setIsClawReady(false)
     setFishingResult(null)
     setCaughtItem(null)
-    goToNextQuestion()
-  }
+    setLastAccuracy(0)
+    setTargetPosition(createTargetPosition())
+    setAimPosition(50)
+    aimDirectionRef.current = Math.random() > 0.5 ? 1 : -1
+    setFishingState('aim')
+    setCurrentView('claw')
+    playSFX('click')
+  }, [playSFX, setCurrentView])
+
+  const handleDropClaw = useCallback(() => {
+    if (!pendingPullRef.current || fishingStateRef.current !== 'aim') return
+
+    const currentAim = aimPositionRef.current
+    const currentActiveItems = activeItemsRef.current
+    const currentConsecutive = consecutiveCorrectRef.current
+
+    let accuracy = calculateAimAccuracy(currentAim, targetPosition)
+    let resultMachineRank = pendingPullRef.current.machineRank
+    let bonusPoints = 0
+    const consumedItems = new Set<SpecialItemType>()
+
+    if (currentActiveItems.includes('SHIELD')) {
+      accuracy = Math.max(accuracy, 0.56)
+      consumedItems.add('SHIELD')
+    }
+    if (currentActiveItems.includes('LUCKY_BOOST')) {
+      resultMachineRank = Math.min(5, resultMachineRank + 2) as MachineRank
+      consumedItems.add('LUCKY_BOOST')
+    }
+    if (currentActiveItems.includes('COIN_RAIN')) {
+      bonusPoints += 150
+      consumedItems.add('COIN_RAIN')
+    }
+    if (currentActiveItems.includes('EXTRA_PULL')) {
+      bonusPoints += 120
+      accuracy = Math.max(accuracy, 0.68)
+      consumedItems.add('EXTRA_PULL')
+    }
+
+    const comboMultiplier = getComboState(currentConsecutive).multiplier
+    let result = tryFishing(
+      pendingPullRef.current.answerTime,
+      resultMachineRank,
+      pendingPullRef.current.frenzyActive,
+      accuracy,
+      bonusPoints,
+      comboMultiplier,
+    )
+
+    if (currentActiveItems.includes('DOUBLE_SCORE') && result.doll) {
+      const doubledDoll = { ...result.doll, score: result.doll.score * 2 }
+      result = {
+        ...result,
+        doll: doubledDoll,
+        points: doubledDoll.score,
+        message: `${doubledDoll.name} 획득! 2배 보너스 (+${doubledDoll.score}점)`,
+      }
+      consumedItems.add('DOUBLE_SCORE')
+    }
+
+    setActiveItems((prev) => prev.filter((type) => !consumedItems.has(type)))
+    setPendingPull(null)
+    setLastAccuracy(accuracy)
+    setFishingResult(result)
+    setCaughtItem(result.doll)
+    setFishingState('down')
+    playSFX(getAimGrade(accuracy) === 'perfect' ? 'correct' : 'click')
+    runFishingSequence(result)
+  }, [playSFX, runFishingSequence, targetPosition])
+
+  const handleStartFishing = useCallback(() => {
+    if (fishingStateRef.current === 'aim') {
+      handleDropClaw()
+      return
+    }
+    handleOpenClaw()
+  }, [handleDropClaw, handleOpenClaw])
+
+  // 스페이스바 & 엔터 키 지원
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' && e.code !== 'Enter') return
+      if ((e.target as HTMLElement).tagName === 'INPUT') return
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return
+      e.preventDefault()
+
+      const state = fishingStateRef.current
+      if (state === 'aim') {
+        handleDropClaw()
+      } else if (state === 'idle' && pendingPullRef.current) {
+        handleOpenClaw()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [handleDropClaw, handleOpenClaw])
 
   const handleItemModalClose = () => {
     setShowItemModal(false)
-    const item = pendingItem
     setPendingItem(null)
-
-    if (!item) return
-
-    if (item.type === 'EXTRA_PULL') {
-      const isLucky = activeItems.includes('LUCKY_BOOST')
-      const result = tryFishing(savedAnswerTime, isLucky ? (Math.min(5, machineRank + 2) as MachineRank) : machineRank, isFrenzyEvent)
-      if (isLucky) setActiveItems(prev => prev.filter(t => t !== 'LUCKY_BOOST'))
-      setFishingResult(result)
-      setCaughtItem(result.doll)
-      setCurrentView('claw')
-      setFishingState('down')
-      setIsClawReady(false)
-      runFishingSequence(result, correctAnswers)
-    } else {
-      goToNextQuestion()
-    }
   }
 
   const handleResultCardClick = () => {
     setFishingResult(null)
+    setCaughtItem(null)
+    setFishingState('idle')
     goToNextQuestion()
   }
 
@@ -250,13 +364,22 @@ export function useFishingGame({
     fishingResult,
     caughtDolls,
     correctAnswers,
+    consecutiveCorrect,
+    comboState,
     isFrenzyEvent,
     frenzyTimeLeft,
     activeItems,
     pendingItem,
     showItemModal,
     machineRank,
+    pendingPull,
+    aimPosition,
+    targetPosition,
+    lastAccuracy,
+    savedAnswerTime,
     handleAnswerSubmit,
+    handleOpenClaw,
+    handleDropClaw,
     handleStartFishing,
     handleItemModalClose,
     handleResultCardClick,
