@@ -1,15 +1,26 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
-import { useRoomRealtime } from '@/hooks/useRoomRealtime'
-import { useAudioContext } from '@/components/AudioProvider'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { motion } from 'framer-motion'
+import {
+  AlertTriangle,
+  BadgeCheck,
+  Coffee,
+  Crosshair,
+  Flame,
+  RadioTower,
+  Shield,
+  Snowflake,
+  Thermometer,
+  Trophy,
+  Users,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import BattleArena from '@/components/BattleArena'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
-import AnimatedBackground from '@/components/AnimatedBackground'
 import { useGameBase } from '@/hooks/useGameBase'
 import {
   calculateDamage,
@@ -17,6 +28,7 @@ import {
   generateAttack,
   applyDamage,
   applyHeal,
+  applyHeater,
   checkWinner,
   isGameOver,
   generateItem,
@@ -40,28 +52,64 @@ type Player = Database['public']['Tables']['players']['Row'] & {
 
 type BattleView = 'lobby' | 'classSelect' | 'countdown' | 'quiz' | 'attack' | 'wrong' | 'result'
 
+const CLASS_BADGES: Record<PlayerClass, { Icon: LucideIcon; tone: string }> = {
+  ice_fist: { Icon: Snowflake, tone: 'text-cyan-700 bg-cyan-50 border-cyan-200' },
+  rapid_fire: { Icon: Zap, tone: 'text-amber-700 bg-amber-50 border-amber-200' },
+  shield: { Icon: Shield, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  hot_choco: { Icon: Coffee, tone: 'text-rose-700 bg-rose-50 border-rose-200' },
+}
+
+function getReloadDelay(playerClass: PlayerClass | null) {
+  const attackSpeed = playerClass ? PLAYER_CLASSES[playerClass].attackSpeed : 1
+  return Math.max(700, Math.round(1400 / attackSpeed))
+}
+
+function HudTile({
+  icon,
+  label,
+  value,
+  detail,
+  tone = 'default',
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+  detail?: string
+  tone?: 'default' | 'warm' | 'good' | 'danger'
+}) {
+  const toneClass = {
+    default: 'border-slate-200 bg-white/[0.68] text-slate-900',
+    warm: 'border-amber-200 bg-amber-50 text-amber-950',
+    good: 'border-teal-200 bg-teal-50 text-teal-950',
+    danger: 'border-rose-200 bg-rose-50 text-rose-950',
+  }[tone]
+
+  return (
+    <div className={`rounded-[8px] border px-3 py-2 shadow-sm ${toneClass}`}>
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-black text-slate-500">
+        {icon}
+        {label}
+      </div>
+      <div className="text-xl font-black tabular-nums leading-tight">{value}</div>
+      {detail && <div className="mt-0.5 text-[11px] font-bold text-slate-500">{detail}</div>}
+    </div>
+  )
+}
+
 export default function BattlePage() {
   const {
     roomCode,
     playerId,
     currentView,
     setCurrentView,
-    currentQuestionIndex,
-    setCurrentQuestionIndex,
-    selectedAnswer,
-    isCorrect,
     showCountdown,
     setShowCountdown,
-    consecutiveCorrect,
-    answerHistory,
-    questions,
     players,
     room,
     roomLoading,
     playersLoading,
     currentPlayer,
     currentQuestion,
-    playBGM,
     playSFX,
     checkAnswer,
     handleWrongAnswer,
@@ -72,7 +120,6 @@ export default function BattlePage() {
     questionStartTime,
   } = useGameBase({ expectedGameMode: 'battle_royale' })
 
-  const [answerTime, setAnswerTime] = useState(0)
   const [attackResult, setAttackResult] = useState<AttackResult | null>(null)
   const [selectedClass, setSelectedClass] = useState<PlayerClass | null>(null)
   const [hasSnowball, setHasSnowball] = useState(false) // 눈뭉치 장전 여부
@@ -80,13 +127,23 @@ export default function BattlePage() {
   const [isShaking, setIsShaking] = useState(false)
   const [showSnowEffect, setShowSnowEffect] = useState(false)
   const [isBlizzardActive, setIsBlizzardActive] = useState(false)
+  const [isReloading, setIsReloading] = useState(false)
   const [gameStartTime, setGameStartTime] = useState<number>(0)
   const [zoneLevel, setZoneLevel] = useState(1)
   const currentPlayerClass = (currentPlayer as Player | null)?.player_class ?? null
   const hasFinishedGameRef = useRef(false)
+  const nextQuestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const battleStartTime = room?.started_at
     ? new Date(room.started_at).getTime()
     : gameStartTime
+
+  useEffect(() => {
+    return () => {
+      if (nextQuestionTimerRef.current) clearTimeout(nextQuestionTimerRef.current)
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    }
+  }, [])
 
   // 직업 선택 저장
   const handleClassSelect = async (playerClass: PlayerClass) => {
@@ -201,6 +258,10 @@ export default function BattlePage() {
 
   // 정답 후 다음 문제로 (클릭 시 즉시 이동)
   const goToNextQuiz = () => {
+    if (nextQuestionTimerRef.current) {
+      clearTimeout(nextQuestionTimerRef.current)
+      nextQuestionTimerRef.current = null
+    }
     goToNextQuestion()
   }
 
@@ -224,22 +285,34 @@ export default function BattlePage() {
         }
       }
 
-      // 눈뭉치 장전 완료
-      setHasSnowball(true)
+      if (reloadTimerRef.current) {
+        clearTimeout(reloadTimerRef.current)
+      }
+
+      const reloadDelay = getReloadDelay(selectedClass)
+      setIsReloading(true)
+      reloadTimerRef.current = setTimeout(() => {
+        setHasSnowball(true)
+        setIsReloading(false)
+        reloadTimerRef.current = null
+      }, reloadDelay)
 
       // 랜덤 아이템 획득 (20% 확률)
       if (Math.random() < 0.2) {
         const item = generateItem()
-        if (item) {
-          setCurrentItem(item)
-          playSFX('item')
-        }
+        setCurrentItem(item)
+        playSFX('item')
       }
 
-      // 다음 문제로 (1.5초 후 자동 또는 정답 클릭 시 즉시)
-      setTimeout(goToNextQuiz, 1500)
+      nextQuestionTimerRef.current = setTimeout(goToNextQuiz, reloadDelay + 900)
     } else {
       playSFX('incorrect')
+      setHasSnowball(false)
+      setIsReloading(false)
+      if (reloadTimerRef.current) {
+        clearTimeout(reloadTimerRef.current)
+        reloadTimerRef.current = null
+      }
       handleWrongAnswer()
     }
     return correct
@@ -251,6 +324,11 @@ export default function BattlePage() {
 
     playSFX('click')
     setHasSnowball(false)
+    setIsReloading(false)
+    if (nextQuestionTimerRef.current) {
+      clearTimeout(nextQuestionTimerRef.current)
+      nextQuestionTimerRef.current = null
+    }
 
     const time = Date.now() - questionStartTime.current
     const isCritical = isCriticalHit()
@@ -328,7 +406,7 @@ export default function BattlePage() {
         const maxHealth = selectedClass
           ? PLAYER_CLASSES[selectedClass].maxHealth
           : 100
-        const newHealth = Math.min((currentPlayer.health || 100) + 30, maxHealth)
+        const newHealth = applyHeater(currentPlayer.health ?? 100, maxHealth)
 
         await updatePlayer(playerId, { health: newHealth })
       }
@@ -339,19 +417,22 @@ export default function BattlePage() {
 
   if (!roomCode || !playerId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <p className="text-gray-800">방 코드와 플레이어 ID가 필요합니다.</p>
+      <main className="battle-shell flex min-h-screen items-center justify-center p-4">
+        <div className="battle-frost-panel max-w-md p-6 text-center">
+          <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-amber-600" />
+          <p className="font-bold text-slate-800">방 코드와 플레이어 ID가 필요합니다.</p>
         </div>
-      </div>
+      </main>
     )
   }
 
   if (roomLoading || playersLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-2xl font-bold text-gray-800">로딩 중...</div>
-      </div>
+      <main className="battle-shell flex min-h-screen items-center justify-center p-4">
+        <div className="battle-frost-panel px-6 py-5 text-xl font-black text-slate-800">
+          로딩 중...
+        </div>
+      </main>
     )
   }
 
@@ -359,125 +440,160 @@ export default function BattlePage() {
   const isTopPlayer = players
     .filter(p => (p.health || 100) > 0)
     .sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.id === playerId
+  const currentHealth = Math.round(currentPlayer?.health ?? 100)
+  const aliveCount = players.filter((player) => (player.health ?? 100) > 0).length
+  const currentRank = players.filter((player) => (player.health ?? 100) > currentHealth).length + 1
+  const selectedClassInfo = selectedClass ? PLAYER_CLASSES[selectedClass] : null
+  const SelectedClassIcon = selectedClass ? CLASS_BADGES[selectedClass].Icon : Snowflake
+  const selectedClassTone = selectedClass ? CLASS_BADGES[selectedClass].tone : 'text-slate-600 bg-slate-50 border-slate-200'
+  const healthTone = currentHealth <= 30 ? 'danger' : currentHealth <= 65 ? 'warm' : 'good'
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 via-cyan-50 to-white relative overflow-hidden">
-      <AnimatedBackground />
+    <main
+      className="battle-shell relative min-h-screen overflow-x-hidden"
+      style={{ fontFamily: 'var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+    >
       <SnowEffect isActive={showSnowEffect} />
       {isBlizzardActive && isTopPlayer && <BlizzardOverlay isActive={true} />}
 
       <ScreenShake intensity={15} duration={500} isShaking={isShaking}>
-        <div className="relative z-10 p-4">
-          {/* 헤더 - 눈싸움 테마 */}
-          <div className="max-w-6xl mx-auto mb-4">
-            <div className="bg-gradient-to-r from-blue-800 via-cyan-700 to-blue-800 rounded-xl p-4 shadow-2xl border-4 border-blue-400 relative overflow-hidden">
-              <div className="absolute inset-0 opacity-20">
-                <div className="h-full w-full" style={{
-                  backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)'
-                }} />
-              </div>
-
-              <div className="relative flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="text-4xl">
-                    ❄️
+        <div className="relative z-10 px-3 py-4 sm:px-5 sm:py-6">
+          <div className="mx-auto mb-4 max-w-7xl">
+            <header className="battle-frost-panel overflow-hidden p-4 sm:p-5">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[8px] bg-slate-950 text-cyan-100 shadow-lg">
+                    <Snowflake className="h-7 w-7" strokeWidth={2.4} />
                   </div>
                   <div>
-                    <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="battle-chip inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black text-slate-600">
+                        <RadioTower className="h-3.5 w-3.5 text-teal-600" />
+                        ROOM {roomCode}
+                      </span>
+                      <span className="battle-chip px-3 py-1 text-xs font-black text-slate-600">
+                        LIVE BATTLE
+                      </span>
+                    </div>
+                    <h1 className="text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
                       눈싸움 대작전
                     </h1>
-                    <p className="text-xs text-blue-200 font-semibold">방 코드: {roomCode}</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                      퀴즈로 장전하고, 체온이 남은 플레이어가 끝까지 버팁니다.
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-4">
-                  {selectedClass && (
-                    <div className="bg-black/50 rounded-lg px-3 py-2 border-2 border-blue-400">
-                      <div className="text-xs text-blue-300 font-semibold mb-1">직업</div>
-                      <div className="text-lg font-bold text-white flex items-center gap-1">
-                        {PLAYER_CLASSES[selectedClass].icon}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-blue-400">
-                    <div className="text-sm text-blue-300 font-semibold mb-1">체온</div>
-                    <div className="text-lg font-bold text-white">
-                      {currentPlayer?.health || 100}°C
-                    </div>
-                  </div>
-
-                  <div className="bg-black/50 rounded-lg px-3 py-2 border-2 border-yellow-400">
-                    <div className="text-xs text-yellow-300 font-semibold mb-1">순위</div>
-                    <div className="text-lg font-bold text-white">
-                      #{players.filter(p => (p.health || 100) > (currentPlayer?.health || 100)).length + 1}
-                    </div>
-                  </div>
-
-                  {hasSnowball && (
-                    <motion.div
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="bg-green-500 rounded-lg px-4 py-2 border-2 border-green-300"
-                    >
-                      <div className="text-sm text-white font-semibold flex items-center gap-2">
-                        ❄️ 눈뭉치 장전 완료!
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {currentItem && (
-                    <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="bg-purple-500 rounded-lg px-4 py-2 border-2 border-purple-300 cursor-pointer"
-                      onClick={handleUseItem}
-                    >
-                      <div className="text-sm text-white font-semibold flex items-center gap-2">
-                        {currentItem.icon} {currentItem.name}
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {zoneLevel > 1 && (
-                    <div className="bg-red-500 rounded-lg px-4 py-2 border-2 border-red-300">
-                      <div className="text-sm text-white font-semibold">
-                        🌨️ 폭설 주의보 Lv.{zoneLevel}
-                      </div>
-                    </div>
-                  )}
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[620px]">
+                  <HudTile
+                    icon={<Thermometer className="h-3.5 w-3.5" />}
+                    label="체온"
+                    value={`${currentHealth}°`}
+                    detail={selectedClassInfo ? `최대 ${selectedClassInfo.maxHealth}°` : '기본 장비'}
+                    tone={healthTone}
+                  />
+                  <HudTile
+                    icon={<Trophy className="h-3.5 w-3.5" />}
+                    label="순위"
+                    value={`#${currentRank}`}
+                    detail={`${players.length}명 중`}
+                    tone="warm"
+                  />
+                  <HudTile
+                    icon={<Users className="h-3.5 w-3.5" />}
+                    label="생존"
+                    value={`${aliveCount}/${players.length}`}
+                    detail="아레나"
+                  />
+                  <HudTile
+                    icon={<SelectedClassIcon className="h-3.5 w-3.5" />}
+                    label="장비"
+                    value={selectedClassInfo ? selectedClassInfo.name : '미선택'}
+                    detail={selectedClassInfo ? `${selectedClassInfo.attackSpeed}x 장전` : '대기 중'}
+                  />
                 </div>
               </div>
-            </div>
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                {selectedClassInfo && (
+                  <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-black ${selectedClassTone}`}>
+                    <SelectedClassIcon className="h-4 w-4" />
+                    {selectedClassInfo.name}
+                  </div>
+                )}
+
+                {isReloading && !hasSnowball && (
+                  <div className="battle-chip battle-pulse inline-flex items-center gap-2 px-3 py-2 text-sm font-black text-slate-700">
+                    <Snowflake className="h-4 w-4 text-cyan-600" />
+                    눈뭉치 장전 중
+                  </div>
+                )}
+
+                {hasSnowball && (
+                  <motion.div
+                    animate={{ scale: [1, 1.04, 1] }}
+                    transition={{ duration: 1.1, repeat: Infinity }}
+                    className="battle-status-ready inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-black text-white"
+                  >
+                    <Crosshair className="h-4 w-4" />
+                    눈뭉치 준비 완료
+                  </motion.div>
+                )}
+
+                {currentItem && (
+                  <motion.button
+                    type="button"
+                    animate={{ y: [0, -2, 0] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-violet-50 px-3 py-2 text-sm font-black text-violet-800 shadow-sm"
+                    onClick={handleUseItem}
+                  >
+                    <span>{currentItem.icon}</span>
+                    {currentItem.name}
+                  </motion.button>
+                )}
+
+                {zoneLevel > 1 && (
+                  <div className="battle-status-warn inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-black text-white">
+                    <AlertTriangle className="h-4 w-4" />
+                    폭설 주의보 Lv.{zoneLevel}
+                  </div>
+                )}
+              </div>
+            </header>
           </div>
 
-          {/* 메인 컨텐츠 */}
-          <div className="max-w-6xl mx-auto">
-            {/* 카운트다운 */}
+          <div className="mx-auto max-w-7xl">
             {showCountdown && (
               <Countdown onComplete={handleCountdownComplete} />
             )}
 
-            {/* 로비 */}
             {currentView === 'lobby' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-white/90 backdrop-blur-sm rounded-xl p-8 shadow-lg text-center"
+              <motion.section
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="battle-frost-panel grid gap-6 p-5 sm:p-7 lg:grid-cols-[0.85fr_1.15fr]"
               >
-                <h2 className="text-3xl font-bold mb-4">❄️ 눈싸움 준비 중...</h2>
-                <p className="text-gray-600">선생님이 게임을 시작할 때까지 기다려주세요.</p>
-                <div className="mt-6">
-                  <BattleArena
-                    players={players as Player[]}
-                    currentPlayerId={playerId}
-                    canAttack={false}
-                  />
+                <div className="flex flex-col justify-center">
+                  <div className="battle-chip mb-4 inline-flex w-fit items-center gap-2 px-3 py-1.5 text-xs font-black text-slate-600">
+                    <BadgeCheck className="h-3.5 w-3.5 text-teal-600" />
+                    READY ROOM
+                  </div>
+                  <h2 className="text-3xl font-black text-slate-950 sm:text-4xl">
+                    경기장 준비 중
+                  </h2>
+                  <p className="mt-3 max-w-md text-base font-semibold leading-relaxed text-slate-500">
+                    선생님이 게임을 시작하면 장비 선택 후 바로 아레나에 입장합니다.
+                  </p>
                 </div>
-              </motion.div>
+                <BattleArena
+                  players={players as Player[]}
+                  currentPlayerId={playerId}
+                  canAttack={false}
+                />
+              </motion.section>
             )}
 
-            {/* 직업 선택 */}
             {currentView === 'classSelect' && (
               <ClassSelector
                 onSelect={handleClassSelect}
@@ -485,31 +601,22 @@ export default function BattlePage() {
               />
             )}
 
-            {/* 탈락 화면 (눈사람 변신) */}
             {currentPlayer && (currentPlayer.health || 100) <= 0 && currentView !== 'result' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
+              <motion.section
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-blue-900 to-cyan-900 rounded-xl p-12 shadow-2xl text-center border-4 border-blue-400"
+                className="battle-ink-panel p-5 text-center text-white sm:p-8"
               >
                 <motion.div
-                  animate={{
-                    scale: [1, 1.2, 1],
-                    rotate: [0, 10, -10, 0]
-                  }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="text-9xl mb-6"
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 1.2, repeat: Infinity }}
+                  className="mb-5 text-7xl"
                 >
                   ⛄
                 </motion.div>
-                <h2 className="text-5xl font-bold text-white mb-4">
-                  눈사람이 되었습니다!
-                </h2>
-                <p className="text-blue-200 text-xl mb-6">
-                  체온이 0도까지 떨어져 꽁꽁 얼어버렸습니다...
-                </p>
-                <p className="text-white/80 mb-6">
-                  다른 플레이어들이 게임하는 것을 관전할 수 있습니다.
+                <h2 className="text-4xl font-black">눈사람이 되었습니다</h2>
+                <p className="mx-auto mt-3 max-w-lg text-base font-semibold text-cyan-100/80">
+                  체온이 0도까지 떨어졌습니다. 남은 플레이어들의 경기를 관전할 수 있습니다.
                 </p>
                 <div className="mt-6">
                   <BattleArena
@@ -518,21 +625,30 @@ export default function BattlePage() {
                     canAttack={false}
                   />
                 </div>
-              </motion.div>
+              </motion.section>
             )}
 
-            {/* 퀴즈 */}
             {currentView === 'quiz' && !showCountdown && currentPlayer && (currentPlayer.health || 100) > 0 && (
               <div className="space-y-4">
-                {hasSnowball && (
+                {hasSnowball ? (
                   <motion.div
-                    initial={{ opacity: 0, y: -20 }}
+                    initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-green-500 text-white p-4 rounded-xl text-center font-bold text-lg border-2 border-green-300"
+                    className="battle-status-ready flex items-center justify-center gap-2 rounded-[8px] px-4 py-3 text-center text-base font-black text-white"
                   >
-                    ❄️ 눈뭉치 장전 완료! 아래 플레이어를 클릭하여 공격하세요!
+                    <Crosshair className="h-5 w-5" />
+                    타깃을 선택할 수 있습니다
                   </motion.div>
-                )}
+                ) : isReloading ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="battle-frost-panel flex items-center justify-center gap-2 px-4 py-3 text-center text-base font-black text-slate-700"
+                  >
+                    <Snowflake className="h-5 w-5 text-cyan-600" />
+                    눈뭉치 장전 중
+                  </motion.div>
+                ) : null}
 
                 {currentQuestion ? (
                   <QuizView
@@ -540,14 +656,15 @@ export default function BattlePage() {
                     onAnswer={handleAnswerSubmit}
                     onCorrectClick={goToNextQuiz}
                     timeLimit={30}
+                    variant="battle"
+                    className="battle-frost-panel mx-auto max-w-3xl p-5 sm:p-7"
                   />
                 ) : (
-                  <div className="bg-white/50 backdrop-blur-sm rounded-xl p-8 text-center">
-                    <p className="text-gray-800">문제를 불러오는 중...</p>
+                  <div className="battle-frost-panel p-8 text-center">
+                    <p className="font-bold text-slate-700">문제를 불러오는 중...</p>
                   </div>
                 )}
 
-                {/* 배틀 아레나 */}
                 <BattleArena
                   players={players as Player[]}
                   currentPlayerId={playerId}
@@ -558,51 +675,54 @@ export default function BattlePage() {
               </div>
             )}
 
-            {/* 공격 화면 */}
             {currentView === 'attack' && attackResult && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
+              <motion.section
+                initial={{ opacity: 0, scale: 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-gradient-to-br from-blue-900 to-cyan-900 rounded-xl p-8 shadow-2xl text-center border-4 border-blue-400"
+                className="battle-ink-panel mx-auto max-w-3xl p-8 text-center text-white"
               >
                 <motion.div
-                  animate={{ scale: [1, 1.2, 1], rotate: [0, 10, -10, 0] }}
+                  animate={{ scale: [1, 1.08, 1] }}
                   transition={{ duration: 0.5 }}
-                  className="text-6xl mb-4"
+                  className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[8px] bg-white text-slate-950"
                 >
-                  {attackResult.isCritical ? '💥' : '❄️'}
+                  {attackResult.isCritical ? (
+                    <Flame className="h-9 w-9 text-orange-500" />
+                  ) : (
+                    <Snowflake className="h-9 w-9 text-cyan-600" />
+                  )}
                 </motion.div>
-                <h2 className="text-4xl font-bold text-white mb-2">
-                  {attackResult.isCritical ? '크리티컬 히트!' : '눈뭉치 명중!'}
+                <h2 className="text-4xl font-black">
+                  {attackResult.isCritical ? '크리티컬 히트' : '눈뭉치 명중'}
                 </h2>
-                <p className="text-2xl text-blue-200 mb-4">
-                  {attackResult.damage}°C 감소!
+                <p className="mt-3 text-2xl font-black text-cyan-100">
+                  {attackResult.damage}° 감소
                 </p>
                 {attackResult.itemType === 'giant_ball' && (
-                  <p className="text-xl text-yellow-300 mb-2">
-                    🎯 왕눈덩이 효과!
+                  <p className="mt-3 text-base font-black text-amber-200">
+                    왕눈덩이 보너스 적용
                   </p>
                 )}
-                <p className="text-white/80">
+                <p className="mt-5 text-sm font-semibold text-cyan-100/70">
                   다음 문제로 이동합니다...
                 </p>
-              </motion.div>
+              </motion.section>
             )}
 
-            {/* 오답 화면 */}
             {currentView === 'wrong' && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-blue-900 rounded-xl p-8 shadow-lg text-center border-4 border-blue-600"
+              <motion.section
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="battle-frost-panel mx-auto max-w-2xl p-8 text-center"
               >
-                <div className="text-6xl mb-4">❌</div>
-                <h2 className="text-3xl font-bold text-white mb-2">틀렸습니다!</h2>
-                <p className="text-blue-200">눈뭉치를 던질 수 없습니다.</p>
-              </motion.div>
+                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[8px] bg-rose-50 text-rose-600">
+                  <AlertTriangle className="h-8 w-8" />
+                </div>
+                <h2 className="text-3xl font-black text-slate-950">틀렸습니다</h2>
+                <p className="mt-2 font-semibold text-slate-500">눈뭉치가 녹아버렸습니다.</p>
+              </motion.section>
             )}
 
-            {/* 결과 화면 */}
             {currentView === 'result' && (
               <GameResult
                 players={players}

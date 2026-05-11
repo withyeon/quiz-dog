@@ -3,19 +3,17 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
+import { Anchor, CheckCircle2, Coins, Radio, ShieldCheck, Trophy, XCircle } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
-import AnimatedBackground from '@/components/AnimatedBackground'
 import { useGameBase } from '@/hooks/useGameBase'
-import { generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
+import { BOX_EVENT_IMAGE, generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
 import PlayerSelector from '@/components/PlayerSelector'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
-
-type GameView = 'lobby' | 'countdown' | 'quiz' | 'chest' | 'playerSelect' | 'wrong' | 'result'
 
 export default function GamePage() {
   const {
@@ -24,16 +22,12 @@ export default function GamePage() {
     currentView,
     setCurrentView,
     currentQuestionIndex,
-    setCurrentQuestionIndex,
-    selectedAnswer,
-    isCorrect,
     showCountdown,
     setShowCountdown,
     consecutiveCorrect,
     answerHistory,
     questions,
     players,
-    room,
     roomLoading,
     playersLoading,
     currentPlayer,
@@ -54,10 +48,16 @@ export default function GamePage() {
   const [hasShield, setHasShield] = useState(false) // 방어권 보유 여부
   const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
 
-  // 뺏기(엘프/마법사)인데 뺏을 상대가 없으면 2초 후 다음 문제로
+  // 가져오기(엘프/마법사)인데 대상이 없으면 2초 후 다음 문제로
   const selectableForSteal = pendingEvent && (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD')
     ? players.filter((p) => p.id !== playerId && (p.gold ?? 0) > 0)
     : []
+  const rankedPlayers = [...players].sort((a, b) => {
+    const goldDiff = (b.gold ?? 0) - (a.gold ?? 0)
+    if (goldDiff !== 0) return goldDiff
+    return (b.score ?? 0) - (a.score ?? 0)
+  })
+  const leaderGold = Math.max(1, ...rankedPlayers.map((player) => player.gold ?? 0))
   useEffect(() => {
     if (currentView !== 'playerSelect' || !pendingEvent || pendingEvent.type === 'KING') return
     if (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD') {
@@ -137,10 +137,7 @@ export default function GamePage() {
 
       // 방어권이 있고 부정 효과인 경우 방어권 사용
       const isNegativeEvent = event.type === 'SLIME_MONSTER' ||
-        event.type === 'DRAGON' ||
-        event.type === 'ELF' ||
-        event.type === 'WIZARD' ||
-        event.type === 'KING'
+        event.type === 'DRAGON'
 
       if (hasShield && isNegativeEvent) {
         setHasShield(false)
@@ -148,7 +145,7 @@ export default function GamePage() {
         // 방어권으로 막힌 이벤트는 NOTHING으로 변경
         const blockedEvent: BoxEvent = {
           type: 'FAIRY',
-          message: '방어권이 보호했다! 🛡️',
+          message: '방어권이 손실 효과를 막았다.',
           itemName: '방어권',
           icon: '🛡️',
         }
@@ -217,12 +214,12 @@ export default function GamePage() {
       // Elf와 Wizard의 경우 훔칠 골드 양 계산
       if (pendingEvent.type === 'ELF' && targetPlayer.gold > 0) {
         event.value = Math.floor(targetPlayer.gold * 0.1)
-        event.message = `엘프가 ${targetPlayer.nickname}님의 골드 10%를 훔쳤다! +${event.value} 골드 🧝`
+        event.message = `${targetPlayer.nickname}님의 골드 10%를 가져왔다. +${event.value} 골드`
       } else if (pendingEvent.type === 'WIZARD' && targetPlayer.gold > 0) {
         event.value = Math.floor(targetPlayer.gold * 0.25)
-        event.message = `마법사가 ${targetPlayer.nickname}님의 골드 25%를 훔쳤다! +${event.value} 골드 🧙`
+        event.message = `${targetPlayer.nickname}님의 골드 25%를 가져왔다. +${event.value} 골드`
       } else if (pendingEvent.type === 'KING') {
-        event.message = `왕이 ${targetPlayer.nickname}님과 골드를 교환했다! 👑`
+        event.message = `${targetPlayer.nickname}님과 골드를 교환했다.`
       }
 
       await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetId, patch) =>
@@ -249,9 +246,9 @@ export default function GamePage() {
 
   if (!roomCode || !playerId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <p className="text-gray-800">방 코드와 플레이어 ID가 필요합니다.</p>
+      <div className="gold-quest-ambient min-h-screen flex items-center justify-center p-6">
+        <div className="gold-quest-panel p-6">
+          <p className="font-bold text-[#17262a]">방 코드와 플레이어 ID가 필요합니다.</p>
         </div>
       </div>
     )
@@ -259,81 +256,78 @@ export default function GamePage() {
 
   if (roomLoading || playersLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-gray-800">로딩 중...</div>
+      <div className="gold-quest-ambient min-h-screen flex items-center justify-center p-6">
+        <div className="gold-quest-panel p-8 text-center">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
+          <div className="text-xl font-black text-[#17262a]">로딩 중</div>
         </div>
       </div>
     )
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8 relative overflow-hidden">
-      <AnimatedBackground />
-
+    <main className="gold-quest-ambient min-h-screen p-4 sm:p-6 lg:p-8 relative overflow-hidden">
       <div className="max-w-6xl mx-auto relative z-10">
-        {/* 헤더 - Gold Quest 테마 */}
-        <motion.div
+        <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-yellow-600 via-amber-500 to-yellow-600 rounded-xl shadow-2xl p-4 mb-6 border-4 border-yellow-400 relative overflow-hidden"
+          className="gold-quest-ink-panel mb-6 p-4 sm:p-5 text-white"
         >
-          {/* 골드 배경 패턴 */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="h-full w-full" style={{
-              backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.1) 10px, rgba(255,255,255,0.1) 20px)'
-            }} />
-          </div>
-
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="flex items-center justify-center"
-              >
-                <Image src="/gold-quest/gold-stack.svg" alt="골드" width={36} height={36} className="w-9 h-9" />
-              </motion.div>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-amber-200/25 bg-white/10">
+                <Anchor className="h-6 w-6 text-amber-200" />
+              </div>
               <div>
-                <Image
-                  src="/gold-quest.png"
-                  alt="Gold Quest"
-                  width={200}
-                  height={40}
-                  className="h-8 w-auto"
-                />
-                <p className="text-sm text-yellow-100">
-                  방 코드: {roomCode} · 실시간 {roomChannelStatus === 'subscribed' ? '연결됨' : '연결 중'}
+                <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-normal text-amber-200/90">
+                  Treasure Run
+                  <span className="h-1 w-1 rounded-full bg-amber-200/70" />
+                  Room {roomCode}
+                </div>
+                <h1 className="gold-quest-title text-2xl sm:text-3xl font-black leading-none">
+                  해적왕의 보물찾기
+                </h1>
+                <p className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-teal-50/80">
+                  <Radio className="h-4 w-4" />
+                  실시간 {roomChannelStatus === 'subscribed' ? '연결됨' : '연결 중'}
                 </p>
               </div>
             </div>
             {currentPlayer && (
-              <motion.div
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="text-right bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2"
-              >
-                <div className="flex items-center gap-2 justify-end mb-1">
-                  <div className="text-lg font-bold text-white">{currentPlayer.nickname}</div>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-stretch">
+                <div className="rounded-lg border border-white/[0.12] bg-white/10 px-4 py-3">
+                  <div className="text-xs font-bold text-teal-50/70">플레이어</div>
+                  <div className="max-w-[180px] truncate text-lg font-black">{currentPlayer.nickname}</div>
+                </div>
+                <div className="rounded-lg border border-white/[0.12] bg-white/10 px-4 py-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-teal-50/70">
+                    <Coins className="h-4 w-4 text-amber-200" />
+                    골드
+                  </div>
+                  <div className="text-lg font-black text-amber-100 tabular-nums">{currentPlayer.gold}</div>
+                </div>
+                <div className="rounded-lg border border-white/[0.12] bg-white/10 px-4 py-3">
+                  <div className="text-xs font-bold text-teal-50/70">점수</div>
+                  <div className="text-lg font-black tabular-nums">{currentPlayer.score}</div>
+                </div>
+                <div className={`rounded-lg border px-4 py-3 ${
+                  hasShield
+                    ? 'border-emerald-200/35 bg-emerald-300/15 text-emerald-50'
+                    : 'border-white/[0.12] bg-white/[0.08] text-teal-50/70'
+                }`}>
+                  <div className="flex items-center gap-2 text-xs font-bold">
+                    <ShieldCheck className="h-4 w-4" />
+                    방어권
+                  </div>
                   {hasShield && (
-                    <motion.span
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="text-xl"
-                      title="방어권 보유 중"
-                    >
-                      🛡️
-                    </motion.span>
+                    <div className="text-lg font-black">보유</div>
                   )}
+                  {!hasShield && <div className="text-lg font-black">없음</div>}
                 </div>
-                <div className="text-sm text-yellow-300 font-semibold flex items-center gap-1.5">
-                  <Image src="/gold-quest/gold-stack.svg" alt="골드" width={18} height={18} className="w-[18px] h-[18px]" />
-                  {currentPlayer.gold} Gold | {currentPlayer.score}점
-                </div>
-              </motion.div>
+              </div>
             )}
           </div>
-        </motion.div>
+        </motion.header>
 
         {/* 카운트다운 */}
         {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
@@ -344,24 +338,24 @@ export default function GamePage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="bg-white rounded-xl shadow-2xl p-12 text-center border-2 border-gray-200"
+              className="gold-quest-panel p-8 sm:p-12 text-center"
             >
               <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-                className="inline-block mb-6"
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 2.2, repeat: Infinity }}
+                className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-amber-300/70 bg-amber-100/70"
               >
-                <div className="text-6xl">🎮</div>
+                <Anchor className="h-8 w-8 text-[#0c3b42]" />
               </motion.div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                게임 대기 중...
+              <h2 className="gold-quest-title text-4xl font-black text-[#17262a] mb-4">
+                게임 대기 중
               </h2>
               <p className="text-gray-600 text-lg mb-6">선생님이 게임을 시작할 때까지 기다려주세요.</p>
               <div className="flex items-center justify-center gap-2">
                 {[0, 1, 2].map((i) => (
                   <motion.div
                     key={i}
-                    className="w-3 h-3 bg-primary-500 rounded-full"
+                    className="w-3 h-3 bg-[#0c3b42] rounded-full"
                     animate={{
                       scale: [1, 1.5, 1],
                       opacity: [0.5, 1, 0.5],
@@ -383,6 +377,7 @@ export default function GamePage() {
               onAnswer={handleAnswerSubmit}
               onCorrectClick={goToChestView}
               timeLimit={30}
+              variant="goldQuest"
             />
           )}
 
@@ -398,11 +393,14 @@ export default function GamePage() {
 
           {currentView === 'playerSelect' && pendingEvent && (
             <>
-              {/* 선택 완료 후 결과 메시지 (뺏기/교환 적용됨) */}
+              {/* 선택 완료 후 결과 메시지 (가져오기/교환 적용됨) */}
               {boxEvent?.targetPlayerId ? (
-                <div className="bg-gradient-to-br from-amber-50 to-orange-100 rounded-xl shadow-2xl p-8 max-w-3xl mx-auto border-4 border-amber-400 text-center">
-                  <p className="text-xl font-bold text-gray-900 mb-2">{boxEvent.message}</p>
-                  <p className="text-sm text-gray-600">잠시 후 다음 문제로 넘어갑니다.</p>
+                <div className="gold-quest-panel p-8 max-w-3xl mx-auto text-center">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-emerald-300/70 bg-emerald-50">
+                    <CheckCircle2 className="h-8 w-8 text-emerald-700" />
+                  </div>
+                  <p className="text-xl font-black text-[#17262a] mb-2">{boxEvent.message}</p>
+                  <p className="text-sm font-semibold text-slate-500">잠시 후 다음 문제로 넘어갑니다.</p>
                 </div>
               ) : (
                 <PlayerSelector
@@ -417,17 +415,18 @@ export default function GamePage() {
                     pendingEvent.type === 'KING'
                       ? '골드 교환'
                       : pendingEvent.type === 'ELF'
-                        ? '엘프: 골드 10% 뺏기'
-                        : '마법사: 골드 25% 뺏기'
+                        ? '엘프의 밀서'
+                        : '마법사의 계약서'
                   }
                   description={
                     pendingEvent.type === 'KING'
-                      ? '누구와 골드를 교환할까요?'
+                      ? '교환할 상대를 선택하세요.'
                       : pendingEvent.type === 'ELF'
-                        ? '뺏을 상대를 골라주세요!'
-                        : '뺏을 상대를 골라주세요!'
+                        ? '골드 10%를 가져올 상대를 선택하세요.'
+                        : '골드 25%를 가져올 상대를 선택하세요.'
                   }
                   icon={pendingEvent.icon || '⚔️'}
+                  iconImage={BOX_EVENT_IMAGE[pendingEvent.type]}
                   emptyMessage={
                     pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD'
                       ? '골드가 있는 상대가 없어요.'
@@ -443,17 +442,17 @@ export default function GamePage() {
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.8, opacity: 0 }}
-              className="bg-red-50 rounded-xl shadow-2xl p-12 text-center border-2 border-red-300"
+              className="gold-quest-panel p-8 sm:p-12 text-center border-red-200"
             >
               <motion.div
                 animate={{ rotate: [0, -10, 10, -10, 0] }}
                 transition={{ duration: 0.5 }}
-                className="text-8xl mb-6"
+                className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-lg border border-red-200 bg-red-50"
               >
-                ❌
+                <XCircle className="h-12 w-12 text-red-600" />
               </motion.div>
-              <h2 className="text-5xl font-bold text-red-600 mb-4 neon-glow">틀렸습니다!</h2>
-              <p className="text-gray-700 text-lg">3초 후 다음 문제로 이동합니다...</p>
+              <h2 className="gold-quest-title text-4xl sm:text-5xl font-black text-red-700 mb-4">틀렸습니다</h2>
+              <p className="text-gray-700 text-lg font-semibold">3초 후 다음 문제로 이동합니다.</p>
               <div className="mt-6 flex justify-center gap-2">
                 {[0, 1, 2].map((i) => (
                   <motion.div
@@ -487,60 +486,73 @@ export default function GamePage() {
 
         {/* 플레이어 순위 (결과 화면이 아닐 때만 표시) */}
         {currentView !== 'result' && (
-          <div className="bg-gradient-to-br from-yellow-50 to-amber-100 rounded-lg shadow-lg p-6 border-2 border-yellow-300">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 flex items-center gap-2">
-              <Image src="/gold-quest/gold-stack.svg" alt="골드" width={28} height={28} className="w-7 h-7" />
-              골드 순위
-            </h2>
-            <div className="space-y-2">
-              {players
-                .sort((a, b) => b.score - a.score)
-                .map((player, index) => {
-                  const isTopPlayer = index === 0
-                  return (
-                    <div
-                      key={player.id}
-                      className={`flex items-center justify-between p-3 rounded-lg border-2 ${player.id === playerId
-                        ? 'bg-indigo-50 border-indigo-500'
+          <section className="gold-quest-ink-panel p-4 sm:p-5 text-white">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="gold-quest-title flex items-center gap-2 text-xl font-black">
+                <Trophy className="h-5 w-5 text-amber-200" />
+                골드 순위
+              </h2>
+              <div className="text-xs font-bold text-teal-50/70">{rankedPlayers.length}명 참가</div>
+            </div>
+            <div className="grid gap-2">
+              {rankedPlayers.map((player, index) => {
+                const isTopPlayer = index === 0
+                const isCurrent = player.id === playerId
+                const gold = player.gold ?? 0
+                const fill = Math.max(6, Math.round((gold / leaderGold) * 100))
+                return (
+                  <div
+                    key={player.id}
+                    className={`relative overflow-hidden rounded-lg border p-3 ${
+                      isCurrent
+                        ? 'border-amber-200/70 bg-amber-100/[0.16]'
                         : isTopPlayer
-                          ? 'bg-red-100 border-red-500'
-                          : 'bg-white border-amber-200'
-                        }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-gray-600">#{index + 1}</span>
-                        <span className="text-2xl">{player.avatar || '🏴‍☠️'}</span>
-                        <div>
+                          ? 'border-red-200/40 bg-red-100/[0.12]'
+                          : 'border-white/10 bg-white/[0.08]'
+                    }`}
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-300/[0.22] to-transparent"
+                      style={{ width: `${fill}%` }}
+                    />
+                    <div className="relative flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-sm font-black ${
+                          isTopPlayer ? 'bg-red-500 text-white' : 'bg-white/[0.12] text-amber-100'
+                        }`}>
+                          #{index + 1}
+                        </div>
+                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-2xl">
+                          {player.avatar || 'P'}
+                        </div>
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-800">{player.nickname}</span>
-                            {isTopPlayer && (
-                              <motion.span
-                                animate={{ scale: [1, 1.2, 1] }}
-                                transition={{ duration: 1, repeat: Infinity }}
-                                className="text-lg"
-                                title="현상수배!"
-                              >
-                                🎯
-                              </motion.span>
+                            <span className="truncate font-black">{player.nickname}</span>
+                            {isCurrent && (
+                              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-black text-[#163238]">
+                                나
+                              </span>
                             )}
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {player.is_online ? '🟢' : '🔴'}
+                          <div className="mt-1 flex items-center gap-2 text-xs font-bold text-teal-50/[0.65]">
+                            <span className={`h-2 w-2 rounded-full ${player.is_online ? 'bg-emerald-300' : 'bg-slate-400'}`} />
+                            {player.is_online ? '온라인' : '오프라인'}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-bold text-gray-800">{player.score}점</div>
-                        <div className="text-sm text-yellow-600 flex items-center gap-1.5">
-                          <Image src="/gold-quest/gold-stack.svg" alt="골드" width={16} height={16} className="w-4 h-4" />
-                          {player.gold} Gold
+                        <div className="flex items-center justify-end gap-1.5 text-lg font-black text-amber-100 tabular-nums">
+                          <Image src="/gold-quest/gold-stack.svg" alt="" width={18} height={18} className="h-[18px] w-[18px]" />
+                          {gold}
                         </div>
+                        <div className="text-xs font-bold text-teal-50/[0.65]">{player.score}점</div>
                       </div>
                     </div>
-                  )
-                })}
+                  </div>
+                )
+              })}
             </div>
-          </div>
+          </section>
         )}
       </div>
     </main>

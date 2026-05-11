@@ -23,7 +23,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     shortLabel: '골드 퀘스트',
     emoji: '🏴‍☠️',
     image: '/gold-quest.png',
-    fontFamily: 'DNFBitBitv2, sans-serif',
+    fontFamily: 'var(--font-noto-sans-kr), system-ui, sans-serif',
     description: '황금빛 보물이 잠든 섬, 지도를 따라 모험을 떠나는 해적 어드벤처',
     leaderboardSort: 'gold',
     requiresQuestionSet: true,

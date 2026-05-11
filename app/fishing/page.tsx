@@ -2,11 +2,10 @@
 
 import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Award, Clock, Flame, Star, Trophy, Zap } from 'lucide-react'
+import { Award, Clock, Coins, Gamepad2, Gift, PackageCheck, Settings, ShieldCheck, Star, Target, Ticket, Trophy, XCircle, Zap } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
-import AnimatedBackground from '@/components/AnimatedBackground'
 import FishingMachine from '@/components/FishingMachine'
 import { useGameBase } from '@/hooks/useGameBase'
 import { useFishingGame } from '@/hooks/useFishingGame'
@@ -16,9 +15,8 @@ import {
   getAnswerSpeedLabel,
   getMachineRankName,
   getMachineRankProgress,
-  getTierBorderColor,
-  getTierColor,
   type Doll,
+  type SpecialItemType,
 } from '@/lib/game/fishing'
 import type { Database } from '@/types/database.types'
 
@@ -27,15 +25,7 @@ type Player = Database['public']['Tables']['players']['Row'] & {
   claw_points?: number
 }
 
-const ITEM_ICONS: Record<string, string> = {
-  DOUBLE_SCORE: '⚡',
-  LUCKY_BOOST: '⭐',
-  COIN_RAIN: '🪙',
-  EXTRA_PULL: '🎰',
-  SHIELD: '🍀',
-}
-
-const ITEM_LABELS: Record<string, string> = {
+const ITEM_LABELS: Record<SpecialItemType, string> = {
   DOUBLE_SCORE: '2배 점수',
   LUCKY_BOOST: '행운 부스트',
   COIN_RAIN: '보너스 코인',
@@ -43,15 +33,32 @@ const ITEM_LABELS: Record<string, string> = {
   SHIELD: '꽝 방지',
 }
 
+const COLLECTION_TIER_STYLE: Record<string, string> = {
+  일반: 'border-slate-200 bg-white',
+  희귀: 'border-sky-200 bg-sky-50',
+  영웅: 'border-violet-200 bg-violet-50',
+  전설: 'border-amber-200 bg-amber-50',
+  꽝: 'border-slate-200 bg-slate-50',
+}
+
 function getPlayerDolls(player: Player) {
   return Array.isArray(player.caught_dolls) ? (player.caught_dolls as Doll[]) : []
+}
+
+function SpecialItemIcon({ type, size = 14, className = '' }: { type: SpecialItemType; size?: number; className?: string }) {
+  if (type === 'DOUBLE_SCORE') return <Zap size={size} className={className} />
+  if (type === 'LUCKY_BOOST') return <Star size={size} className={className} />
+  if (type === 'COIN_RAIN') return <Coins size={size} className={className} />
+  if (type === 'EXTRA_PULL') return <Ticket size={size} className={className} />
+  if (type === 'SHIELD') return <ShieldCheck size={size} className={className} />
+  return <Gift size={size} className={className} />
 }
 
 function CollectionGrid({ dolls }: { dolls: Doll[] }) {
   return (
     <div className="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-9 gap-1.5 max-h-[220px] overflow-y-auto pr-1">
       {dolls.length === 0 ? (
-        <div className="col-span-5 sm:col-span-7 lg:col-span-9 rounded-lg border border-dashed border-slate-600 py-8 text-center text-sm text-slate-500">
+        <div className="col-span-5 sm:col-span-7 lg:col-span-9 rounded-lg border border-dashed border-sky-200 bg-white/70 py-8 text-center text-sm text-slate-500">
           아직 획득한 인형이 없어요.
         </div>
       ) : (
@@ -59,16 +66,16 @@ function CollectionGrid({ dolls }: { dolls: Doll[] }) {
           <div
             key={`${item.id}-${index}`}
             title={`${item.name} (+${item.score}점)`}
-            className={`group relative flex aspect-square items-center justify-center rounded-lg border-2 ${getTierColor(item.tier)} ${getTierBorderColor(item.tier)} shadow-md cursor-default`}
+            className={`group relative flex aspect-square cursor-default items-center justify-center rounded-lg border ${COLLECTION_TIER_STYLE[item.tier] ?? COLLECTION_TIER_STYLE['일반']} shadow-sm`}
           >
             {item.image ? (
               <Image src={item.image} alt={item.name} width={36} height={36} unoptimized className="h-9 w-9 object-contain drop-shadow" />
             ) : (
-              <span className="text-2xl">{item.emoji}</span>
+              <Gift size={24} className="text-slate-400" />
             )}
-            <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-950 px-2 py-1 text-xs font-bold text-white shadow-xl group-hover:block">
+            <div className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-md border border-sky-100 bg-white px-2 py-1 text-xs font-bold text-slate-800 shadow-xl group-hover:block">
               {item.name}
-              <span className="block text-center text-amber-300">+{item.score}점</span>
+              <span className="block text-center text-amber-500">+{item.score}점</span>
             </div>
           </div>
         ))
@@ -80,8 +87,8 @@ function CollectionGrid({ dolls }: { dolls: Doll[] }) {
 function LeaderboardPanel({ players, playerId }: { players: Player[]; playerId: string }) {
   const sorted = [...players].sort((a, b) => ((b as Player).claw_points || 0) - ((a as Player).claw_points || 0))
   return (
-    <div className="rounded-lg border-2 border-slate-700 bg-slate-900 p-4">
-      <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-200">
+    <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-200/50">
+      <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-slate-800">
         <Trophy size={16} /> 순위
       </h3>
       <div className="space-y-2">
@@ -90,18 +97,20 @@ function LeaderboardPanel({ players, playerId }: { players: Player[]; playerId: 
           const isMe = player.id === playerId
           const pts = typedPlayer.claw_points || 0
           const dolls = getPlayerDolls(typedPlayer)
-          const rankColors = ['text-yellow-400', 'text-slate-300', 'text-amber-600']
+          const rankColors = ['text-amber-500', 'text-slate-500', 'text-orange-500']
           return (
-            <div key={player.id} className={`rounded-lg border p-2.5 ${isMe ? 'border-yellow-400 bg-yellow-400/10' : 'border-slate-700 bg-slate-800'}`}>
+            <div key={player.id} className={`rounded-lg border p-2.5 ${isMe ? 'border-amber-300 bg-amber-50 shadow-sm' : 'border-slate-200 bg-white/80'}`}>
               <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className={`w-6 text-sm font-black ${rankColors[index] ?? 'text-slate-400'}`}>#{index + 1}</span>
-                  <span className="text-xl">{player.avatar || '🎮'}</span>
-                  <span className="truncate text-sm font-bold text-white">{player.nickname}</span>
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-black text-slate-600">
+                    {player.avatar || player.nickname?.slice(0, 1) || 'P'}
+                  </span>
+                  <span className="truncate text-sm font-bold text-slate-800">{player.nickname}</span>
                 </div>
                 <div className="shrink-0 text-right">
-                  <div className="text-sm font-black text-white">{pts.toLocaleString()}점</div>
-                  <div className="text-xs text-slate-400">{dolls.length}개</div>
+                  <div className="text-sm font-black text-slate-900">{pts.toLocaleString()}점</div>
+                  <div className="text-xs text-slate-500">{dolls.length}개</div>
                 </div>
               </div>
             </div>
@@ -124,17 +133,17 @@ function ResultCard({
   if (!doll) return null
 
   const tierLabel: Record<string, string> = {
-    일반: 'Nice!',
-    희귀: 'Rare!',
-    영웅: 'Epic!!',
-    전설: 'LEGENDARY!!!',
+    일반: '획득 완료',
+    희귀: '희귀 인형',
+    영웅: '영웅 인형',
+    전설: '전설 인형',
   }
 
   const tierCardStyle: Record<string, string> = {
-    일반: 'from-amber-700 via-amber-600 to-amber-700 border-amber-400',
-    희귀: 'from-sky-700 via-sky-600 to-sky-700 border-sky-400',
-    영웅: 'from-violet-700 via-violet-600 to-violet-700 border-violet-400',
-    전설: 'from-yellow-600 via-amber-500 to-yellow-600 border-yellow-300',
+    일반: 'from-amber-100 via-white to-orange-100 border-amber-300',
+    희귀: 'from-sky-100 via-white to-cyan-100 border-sky-300',
+    영웅: 'from-violet-100 via-white to-fuchsia-100 border-violet-300',
+    전설: 'from-yellow-100 via-white to-amber-200 border-yellow-300',
   }
 
   const cardStyle = tierCardStyle[doll.tier] ?? tierCardStyle['일반']
@@ -144,7 +153,7 @@ function ResultCard({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-sky-100/70 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
       <motion.div
@@ -152,60 +161,60 @@ function ResultCard({
         animate={{ scale: 1, rotate: 0, y: 0 }}
         exit={{ scale: 0.8, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 240, damping: 20 }}
-        className={`relative w-full max-w-sm overflow-hidden rounded-2xl border-4 bg-gradient-to-b ${cardStyle} p-7 text-left shadow-2xl`}
+        className={`relative w-full max-w-sm overflow-hidden rounded-xl border bg-gradient-to-b ${cardStyle} p-6 text-left shadow-xl shadow-slate-200/60`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 반짝이 효과 */}
         <motion.div
-          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent"
+          className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/70 to-transparent"
           animate={{ x: ['-120%', '120%'] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
         />
 
         {/* 등급 레이블 */}
-        <p className="mb-1 text-center text-lg font-black text-white/80">
-          {tierLabel[doll.tier] ?? 'Nice!'}
+        <p className="mb-1 text-center text-sm font-extrabold text-slate-500">
+          {tierLabel[doll.tier] ?? '획득 완료'}
         </p>
 
         {/* 인형 이름 */}
-        <h2 className="mb-4 text-center text-3xl font-black text-white drop-shadow-lg">{doll.name}</h2>
+        <h2 className="mb-4 text-center text-2xl font-extrabold text-slate-900">{doll.name}</h2>
 
         {/* 인형 이미지 */}
         <div className="mb-5 flex justify-center">
           <motion.div
             animate={{ y: [0, -10, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-            className="flex h-36 w-36 items-center justify-center rounded-2xl border-2 border-white/30 bg-black/20"
+            className="flex h-36 w-36 items-center justify-center rounded-xl border border-white bg-white/70 shadow-inner"
           >
             {doll.image ? (
               <Image src={doll.image} alt={doll.name} width={120} height={120} unoptimized className="h-28 w-28 object-contain drop-shadow-2xl" />
             ) : (
-              <span className="text-8xl">{doll.emoji}</span>
+              <Gift size={76} className="text-slate-400" />
             )}
           </motion.div>
         </div>
 
         {/* 점수 분석 */}
         <div className="mb-4 grid grid-cols-3 gap-2 text-center">
-          <div className="rounded-xl bg-black/30 px-2 py-3">
-            <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-white/70">
+          <div className="rounded-lg border border-white bg-white/70 px-2 py-3">
+            <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-slate-500">
               <Star size={10} /> 점수
             </div>
-            <div className="text-xl font-black text-white">{doll.score.toLocaleString()}</div>
+            <div className="text-xl font-black text-slate-900">{doll.score.toLocaleString()}</div>
           </div>
-          <div className="rounded-xl bg-black/30 px-2 py-3">
-            <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-white/70">
+          <div className="rounded-lg border border-white bg-white/70 px-2 py-3">
+            <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-slate-500">
               <Clock size={10} /> 속도
             </div>
-            <div className="text-sm font-black text-white leading-tight">
+            <div className="text-sm font-black text-slate-900 leading-tight">
               {getAnswerSpeedLabel(fishingResult.speedGrade)}
             </div>
           </div>
-          <div className="rounded-xl bg-black/30 px-2 py-3">
-            <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-white/70">
-              🎯 조준
+          <div className="rounded-lg border border-white bg-white/70 px-2 py-3">
+            <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-slate-500">
+              <Target size={10} /> 조준
             </div>
-            <div className="text-sm font-black text-white leading-tight">
+            <div className="text-sm font-black text-slate-900 leading-tight">
               {getAimGradeLabel(fishingResult.aimGrade)}
             </div>
           </div>
@@ -213,17 +222,17 @@ function ResultCard({
 
         {/* 보너스 점수 */}
         {fishingResult.bonusPoints > 0 && (
-          <div className="mb-4 rounded-xl border border-yellow-300/50 bg-yellow-400/20 px-3 py-2 text-center text-sm font-black text-yellow-100">
-            보너스 +{fishingResult.bonusPoints.toLocaleString()}점 추가!
+          <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-100 px-3 py-2 text-center text-sm font-extrabold text-yellow-800">
+            보너스 +{fishingResult.bonusPoints.toLocaleString()}점
           </div>
         )}
 
         <button
           type="button"
           onClick={onClose}
-          className="mt-1 w-full rounded-xl bg-white/20 py-3.5 text-center text-lg font-black text-white hover:bg-white/30 active:scale-95 transition-transform"
+          className="mt-1 w-full rounded-lg bg-sky-500 py-3.5 text-center text-base font-extrabold text-white transition-transform hover:bg-sky-400 active:scale-95"
         >
-          계속하기 →
+          계속하기
         </button>
       </motion.div>
     </motion.div>
@@ -281,19 +290,19 @@ export default function FishingPage() {
 
   return (
     <main
-      className={`relative min-h-screen overflow-hidden bg-slate-950 transition-colors duration-700 ${isFrenzyEvent ? 'bg-gradient-to-b from-[#39154f] via-[#46205d] to-[#042f3d]' : ''}`}
-      style={{ fontFamily: 'OkDanDan, sans-serif' }}
+      className={`relative min-h-screen overflow-hidden font-sans text-slate-900 transition-colors duration-700 ${isFrenzyEvent ? 'bg-[#fffaf2]' : 'bg-[#f8fbff]'}`}
     >
-      <AnimatedBackground />
+      <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(180deg,rgba(240,249,255,0.92)_0%,rgba(255,255,255,0.98)_44%,rgba(248,250,252,1)_100%)]" />
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-80 bg-[linear-gradient(135deg,rgba(224,242,254,0.78),rgba(255,255,255,0.68)_48%,rgba(254,249,195,0.42))]" />
 
       {/* 프렌지 오버레이 */}
       {isFrenzyEvent && (
         <motion.div
           initial={{ opacity: 0 }}
-          animate={{ opacity: 0.22 }}
+          animate={{ opacity: 0.18 }}
           className="pointer-events-none absolute inset-0 z-20"
           style={{
-            background: 'linear-gradient(45deg, #facc15, #ec4899, #22d3ee, #a78bfa)',
+            backgroundImage: 'linear-gradient(45deg, #fde68a, #f9a8d4, #67e8f9, #c4b5fd)',
             backgroundSize: '400% 400%',
             animation: 'fishingGradient 3s ease infinite',
           }}
@@ -303,24 +312,26 @@ export default function FishingPage() {
       <div className="relative z-30 p-3 sm:p-4">
         {/* ── 상단 헤더 ── */}
         <div className="mx-auto mb-4 max-w-7xl">
-          <div className="rounded-xl border-b-4 border-pink-500 bg-slate-900 px-4 py-3 shadow-2xl">
+          <div className="rounded-xl border border-white/80 bg-white/90 px-4 py-3 shadow-lg shadow-slate-200/60 backdrop-blur">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* 타이틀 */}
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-pink-500 text-3xl">🕹️</div>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-lg shadow-slate-200">
+                  <Gamepad2 size={24} />
+                </div>
                 <div className="min-w-0">
-                  <h1 className="truncate text-2xl font-black text-white sm:text-3xl">두근두근 인형뽑기</h1>
-                  <p className="text-xs text-cyan-200">방 코드: {roomCode}</p>
+                  <h1 className="truncate text-2xl font-extrabold tracking-normal text-slate-900 sm:text-3xl">두근두근 인형뽑기</h1>
+                  <p className="text-xs font-bold text-slate-500">방 코드: {roomCode}</p>
                 </div>
               </div>
 
               {/* 스탯 패널 */}
               <div className="flex flex-wrap gap-2">
                 {/* 기계 랭크 */}
-                <div className="rounded-xl border-2 border-cyan-600 bg-black/40 px-3 py-2 min-w-[110px]">
-                  <div className="text-[10px] font-bold text-cyan-300 mb-0.5">기계 등급</div>
-                  <div className="text-sm font-black text-white truncate">{getMachineRankName(machineRank)}</div>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-700">
+                <div className="min-w-[110px] rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
+                  <div className="mb-0.5 text-[10px] font-bold text-slate-500">기계 등급</div>
+                  <div className="truncate text-sm font-extrabold text-slate-900">{getMachineRankName(machineRank)}</div>
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
                     <motion.div
                       className="h-full rounded-full bg-cyan-400"
                       animate={{ width: `${rankProgress.progress}%` }}
@@ -330,17 +341,17 @@ export default function FishingPage() {
                 </div>
 
                 {/* 내 점수 */}
-                <div className="rounded-xl border-2 border-pink-600 bg-black/40 px-3 py-2">
-                  <div className="text-[10px] font-bold text-pink-300 mb-0.5">
+                <div className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
+                  <div className="mb-0.5 text-[10px] font-bold text-slate-500">
                     {(currentPlayer as Player)?.nickname || '플레이어'}
                   </div>
-                  <div className="text-xl font-black text-white">{totalPoints.toLocaleString()}점</div>
+                  <div className="text-xl font-extrabold text-slate-900">{totalPoints.toLocaleString()}점</div>
                 </div>
 
                 {/* 컬렉션 */}
-                <div className="rounded-xl border-2 border-amber-600 bg-black/40 px-3 py-2">
-                  <div className="text-[10px] font-bold text-amber-300 mb-0.5">컬렉션</div>
-                  <div className="text-xl font-black text-white">{caughtDolls.length}개</div>
+                <div className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
+                  <div className="mb-0.5 text-[10px] font-bold text-slate-500">컬렉션</div>
+                  <div className="text-xl font-extrabold text-slate-900">{caughtDolls.length}개</div>
                 </div>
 
                 {/* 콤보 */}
@@ -349,23 +360,23 @@ export default function FishingPage() {
                     key={consecutiveCorrect}
                     initial={{ scale: 0.5, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    className="rounded-xl border-2 border-orange-400 bg-orange-500/25 px-3 py-2"
+                    className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2"
                   >
-                    <div className="text-[10px] font-bold text-orange-300 mb-0.5 flex items-center gap-1">
-                      <Flame size={10} /> 콤보
+                    <div className="mb-0.5 text-[10px] font-bold text-orange-600">
+                      콤보
                     </div>
-                    <div className="text-xl font-black text-orange-200">{consecutiveCorrect}연속</div>
+                    <div className="text-xl font-extrabold text-orange-700">{consecutiveCorrect}연속</div>
                   </motion.div>
                 )}
 
                 {/* 정답 보상 상태 */}
-                <div className={`rounded-xl border-2 px-3 py-2 transition-colors ${pendingPull ? 'border-green-400 bg-green-500/20' : 'border-slate-700 bg-black/40'}`}>
-                  <div className="text-[10px] font-bold text-slate-300 mb-0.5">뽑기 전력</div>
-                  <div className={`text-xl font-black ${pendingPull ? 'text-green-300' : 'text-slate-500'} flex items-center gap-1`}>
+                <div className={`rounded-lg border px-3 py-2 transition-colors ${pendingPull ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-white/80'}`}>
+                  <div className="mb-0.5 text-[10px] font-bold text-slate-500">뽑기 전력</div>
+                  <div className={`flex items-center gap-1 text-xl font-extrabold ${pendingPull ? 'text-green-600' : 'text-slate-400'}`}>
                     {pendingPull ? (
-                      <>충전 <Zap size={16} className="text-green-300" /></>
+                      <>충전 <Zap size={16} className="text-green-500" /></>
                     ) : '대기'}
-                    {isFrenzyEvent && <Zap size={14} className="text-yellow-300 ml-1" />}
+                    {isFrenzyEvent && <Zap size={14} className="text-yellow-500 ml-1" />}
                   </div>
                 </div>
               </div>
@@ -380,8 +391,9 @@ export default function FishingPage() {
                   </div>
                 )}
                 {activeItems.map((type, i) => (
-                  <div key={`${type}-${i}`} className="rounded-lg border border-indigo-300/50 bg-indigo-500/20 px-2 py-1 text-xs font-black text-indigo-100">
-                    {ITEM_ICONS[type] ?? '🎁'} {ITEM_LABELS[type] ?? type}
+                  <div key={`${type}-${i}`} className="flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs font-black text-indigo-700">
+                    <SpecialItemIcon type={type} size={12} />
+                    {ITEM_LABELS[type] ?? type}
                   </div>
                 ))}
               </div>
@@ -398,11 +410,13 @@ export default function FishingPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="rounded-xl border-4 border-pink-500 bg-slate-900 p-10 text-center shadow-2xl"
+              className="rounded-xl border-4 border-pink-200 bg-white/90 p-10 text-center shadow-2xl shadow-pink-100/60 backdrop-blur"
             >
-              <div className="mb-4 text-6xl">🕹️</div>
-              <h2 className="mb-3 text-4xl font-black text-white">인형뽑기 준비 중...</h2>
-              <p className="text-lg text-slate-300">선생님이 게임을 시작할 때까지 기다려주세요.</p>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-200">
+                <Gamepad2 size={34} />
+              </div>
+              <h2 className="mb-3 text-4xl font-black text-slate-900">인형뽑기 준비 중...</h2>
+              <p className="text-lg text-slate-600">선생님이 게임을 시작할 때까지 기다려주세요.</p>
             </motion.div>
           )}
 
@@ -416,7 +430,7 @@ export default function FishingPage() {
                   onAnswer={handleAnswerSubmit}
                   timeLimit={30}
                   onCorrectClick={handleOpenClaw}
-                  className="mx-auto max-w-3xl rounded-xl border-2 border-cyan-100 bg-white p-6 shadow-2xl"
+                  className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60"
                 />
 
                 {/* 콤보 배지 */}
@@ -427,11 +441,11 @@ export default function FishingPage() {
                       initial={{ opacity: 0, scale: 0.7, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="mx-auto max-w-3xl rounded-xl border-2 border-orange-400 bg-orange-500/15 px-4 py-3 text-center"
+                      className="mx-auto max-w-3xl rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-center"
                     >
-                      <span className="text-xl font-black text-orange-200">{comboState.label}</span>
+                      <span className="text-xl font-extrabold text-orange-700">{comboState.label}</span>
                       {comboState.multiplier > 1 && (
-                        <span className="ml-2 text-sm font-bold text-orange-300">
+                        <span className="ml-2 text-sm font-bold text-orange-600">
                           점수 {comboState.multiplier}×
                         </span>
                       )}
@@ -440,30 +454,30 @@ export default function FishingPage() {
                 </AnimatePresence>
 
                 {/* 학습 보상 패널 */}
-                <div className="mx-auto max-w-3xl rounded-xl border-2 border-slate-700 bg-slate-900 p-4">
-                  <h3 className="mb-3 flex items-center gap-2 text-base font-bold text-slate-200">
+                <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-200/50">
+                  <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-slate-800">
                     <Award size={16} /> 이번 뽑기 예상 보상
                   </h3>
                   <div className="grid grid-cols-3 gap-2 text-center">
-                    <div className="rounded-lg bg-slate-800 p-3">
-                      <div className="mb-1 flex items-center justify-center gap-1 text-xs text-slate-400">
+                    <div className="rounded-lg border border-sky-100 bg-sky-50/80 p-3">
+                      <div className="mb-1 flex items-center justify-center gap-1 text-xs text-slate-500">
                         <Clock size={12} /> 정답 속도
                       </div>
-                      <div className="text-base font-black text-cyan-200">{getAnswerSpeedLabel(speedGrade)}</div>
+                      <div className="text-base font-black text-sky-700">{getAnswerSpeedLabel(speedGrade)}</div>
                     </div>
-                    <div className="rounded-lg bg-slate-800 p-3">
-                      <div className="mb-1 flex items-center justify-center gap-1 text-xs text-slate-400">
+                    <div className="rounded-lg border border-green-100 bg-green-50/80 p-3">
+                      <div className="mb-1 flex items-center justify-center gap-1 text-xs text-slate-500">
                         <Zap size={12} /> 뽑기 전력
                       </div>
-                      <div className={`text-base font-black ${pendingPull ? 'text-green-300' : 'text-slate-500'}`}>
-                        {pendingPull ? '준비됨 ✓' : '없음'}
+                      <div className={`text-base font-black ${pendingPull ? 'text-green-600' : 'text-slate-400'}`}>
+                        {pendingPull ? '준비됨' : '없음'}
                       </div>
                     </div>
-                    <div className="rounded-lg bg-slate-800 p-3">
-                      <div className="mb-1 flex items-center justify-center gap-1 text-xs text-slate-400">
+                    <div className="rounded-lg border border-amber-100 bg-amber-50/80 p-3">
+                      <div className="mb-1 flex items-center justify-center gap-1 text-xs text-slate-500">
                         <Star size={12} /> 다음 랭크
                       </div>
-                      <div className="text-base font-black text-amber-200">
+                      <div className="text-base font-black text-amber-700">
                         {rankProgress.next === null ? '최고' : `${rankProgress.remaining}문제`}
                       </div>
                     </div>
@@ -472,8 +486,10 @@ export default function FishingPage() {
 
                 {/* 컬렉션 */}
                 {caughtDolls.length > 0 && (
-                  <div className="mx-auto max-w-3xl rounded-xl border-2 border-slate-700 bg-slate-900 p-4">
-                    <h3 className="mb-3 text-base font-bold text-slate-200">🧸 획득한 인형 ({caughtDolls.length}개)</h3>
+                  <div className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-200/50">
+                    <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-slate-800">
+                      <PackageCheck size={16} /> 획득한 인형 ({caughtDolls.length}개)
+                    </h3>
                     <CollectionGrid dolls={caughtDolls} />
                   </div>
                 )}
@@ -484,24 +500,26 @@ export default function FishingPage() {
                 <LeaderboardPanel players={players as Player[]} playerId={playerId} />
 
                 {/* 기계 랭크 상세 */}
-                <div className="rounded-xl border-2 border-slate-700 bg-slate-900 p-4 text-white">
-                  <h3 className="mb-3 text-base font-bold text-slate-200">⚙️ 기계 정보</h3>
+                <div className="rounded-xl border border-slate-200 bg-white/90 p-4 text-slate-800 shadow-lg shadow-slate-200/50">
+                  <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-slate-800">
+                    <Settings size={16} /> 기계 정보
+                  </h3>
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between rounded-lg bg-slate-800 px-3 py-2">
-                      <span className="text-slate-400">현재 등급</span>
-                      <span className="font-black text-cyan-200">Rank {machineRank} — {getMachineRankName(machineRank)}</span>
+                    <div className="flex items-center justify-between rounded-lg border border-sky-100 bg-sky-50/80 px-3 py-2">
+                      <span className="text-slate-500">현재 등급</span>
+                      <span className="font-black text-sky-700">Rank {machineRank} — {getMachineRankName(machineRank)}</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-lg bg-slate-800 px-3 py-2">
-                      <span className="text-slate-400">정답 수</span>
-                      <span className="font-black text-white">{correctAnswers}문제</span>
+                    <div className="flex items-center justify-between rounded-lg border border-pink-100 bg-pink-50/80 px-3 py-2">
+                      <span className="text-slate-500">정답 수</span>
+                      <span className="font-black text-slate-900">{correctAnswers}문제</span>
                     </div>
                     {rankProgress.next !== null && (
-                      <div className="rounded-lg bg-slate-800 px-3 py-2">
+                      <div className="rounded-lg border border-amber-100 bg-amber-50/80 px-3 py-2">
                         <div className="mb-1 flex items-center justify-between text-xs">
-                          <span className="text-slate-400">다음 등급까지</span>
-                          <span className="font-bold text-amber-300">{rankProgress.remaining}문제</span>
+                          <span className="text-slate-500">다음 등급까지</span>
+                          <span className="font-bold text-amber-700">{rankProgress.remaining}문제</span>
                         </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-slate-700">
+                        <div className="h-2 overflow-hidden rounded-full bg-amber-100">
                           <motion.div
                             className="h-full rounded-full bg-amber-400"
                             animate={{ width: `${rankProgress.progress}%` }}
@@ -511,7 +529,7 @@ export default function FishingPage() {
                       </div>
                     )}
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      💡 등급이 높을수록 희귀 인형이 더 많이 나와요. 빠르게 정답을 맞추면 점수 보너스!
+                      등급이 높을수록 희귀 인형 확률이 올라가고, 빠른 정답에는 점수 보너스가 붙습니다.
                     </p>
                   </div>
                 </div>
@@ -528,18 +546,18 @@ export default function FishingPage() {
                 fishingResult={fishingResult}
                 message={
                   fishingState === 'aim'
-                    ? '🎯 조준 중! SPACE 또는 내리기 버튼을 누르세요'
+                    ? '조준 중입니다. SPACE 또는 내리기 버튼을 누르세요'
                     : fishingState === 'down'
-                    ? '⬇️ 집게가 내려갑니다...'
+                    ? '집게가 내려갑니다'
                     : fishingState === 'grab'
-                    ? '✊ 잡았다!'
+                    ? '그립을 닫는 중입니다'
                     : fishingState === 'up'
-                    ? '⬆️ 끌어올리는 중...'
+                    ? '천천히 끌어올리는 중입니다'
                     : fishingState === 'return'
-                    ? '🏠 기계로 복귀 중...'
+                    ? '배출구로 이동 중입니다'
                     : fishingState === 'release'
-                    ? '🎉 획득!'
-                    : '대기 중...'
+                    ? '획득했습니다'
+                    : '대기 중입니다'
                 }
                 onDropClaw={handleDropClaw}
                 canDrop={fishingState === 'aim'}
@@ -554,28 +572,30 @@ export default function FishingPage() {
               {/* 오른쪽 사이드바 */}
               <aside className="flex flex-col gap-4">
                 {/* 조준 가이드 */}
-                <div className="rounded-xl border-2 border-slate-700 bg-slate-900 p-4 text-white">
-                  <h3 className="mb-3 text-sm font-bold text-slate-300">🎯 조준 가이드</h3>
+                <div className="rounded-xl border border-slate-200 bg-white/90 p-4 text-slate-800 shadow-lg shadow-slate-200/50">
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-slate-800">
+                    <Target size={14} /> 조준 가이드
+                  </h3>
                   <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 rounded-lg bg-yellow-500/15 px-3 py-2">
-                      <span className="text-yellow-400 font-black">PERFECT</span>
-                      <span className="text-slate-300 text-xs">정중앙 → 전설 확률 ↑↑</span>
+                    <div className="flex items-center gap-2 rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2">
+                      <span className="text-yellow-700 font-black">PERFECT</span>
+                      <span className="text-slate-600 text-xs">전설 확률 증가</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-lg bg-purple-500/15 px-3 py-2">
-                      <span className="text-purple-300 font-black">GREAT</span>
-                      <span className="text-slate-300 text-xs">좋은 조준 → 영웅 확률 ↑</span>
+                    <div className="flex items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
+                      <span className="text-violet-700 font-black">GREAT</span>
+                      <span className="text-slate-600 text-xs">영웅 확률 증가</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-lg bg-sky-500/15 px-3 py-2">
-                      <span className="text-sky-300 font-black">GOOD</span>
-                      <span className="text-slate-300 text-xs">안정 조준 → 희귀 확률 ↑</span>
+                    <div className="flex items-center gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
+                      <span className="text-sky-700 font-black">GOOD</span>
+                      <span className="text-slate-600 text-xs">희귀 확률 증가</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-lg bg-slate-700 px-3 py-2">
-                      <span className="text-green-400 font-black">SAFE</span>
-                      <span className="text-slate-300 text-xs">아슬아슬 → 일반 인형</span>
+                    <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
+                      <span className="text-green-700 font-black">SAFE</span>
+                      <span className="text-slate-600 text-xs">일반 인형 위주</span>
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
-                    💡 Rank {machineRank}에서는 집게가 {machineRank >= 4 ? '빠르게' : machineRank >= 3 ? '적당히' : '천천히'} 움직여요!
+                    Rank {machineRank}에서는 집게가 {machineRank >= 4 ? '빠르게' : machineRank >= 3 ? '적당히' : '천천히'} 움직입니다.
                   </p>
                 </div>
 
@@ -584,25 +604,27 @@ export default function FishingPage() {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="rounded-xl border-2 border-orange-500 bg-orange-500/15 p-4 text-center"
+                    className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center shadow-lg shadow-orange-100/50"
                   >
-                    <div className="mb-1 flex items-center justify-center gap-2 text-orange-300">
-                      <Flame size={16} /> <span className="text-sm font-bold">콤보 보너스</span>
+                    <div className="mb-1 text-sm font-bold text-orange-600">
+                      콤보 보너스
                     </div>
-                    <div className="text-3xl font-black text-orange-200">{consecutiveCorrect}연속</div>
-                    <div className="text-sm font-bold text-orange-300">점수 {comboState.multiplier}×</div>
+                    <div className="text-3xl font-black text-orange-700">{consecutiveCorrect}연속</div>
+                    <div className="text-sm font-bold text-orange-600">점수 {comboState.multiplier}×</div>
                   </motion.div>
                 )}
 
                 {/* 기계 정보 */}
-                <div className="rounded-xl border-2 border-slate-700 bg-slate-900 p-4 text-white">
-                  <div className="mb-2 text-sm font-bold text-slate-300">⚙️ 기계 등급</div>
-                  <div className="text-base font-black text-cyan-200">{getMachineRankName(machineRank)}</div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-slate-700">
+                <div className="rounded-xl border border-slate-200 bg-white/90 p-4 text-slate-800 shadow-lg shadow-slate-200/50">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-extrabold text-slate-700">
+                    <Settings size={14} /> 기계 등급
+                  </div>
+                  <div className="text-base font-extrabold text-sky-700">{getMachineRankName(machineRank)}</div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-sky-100">
                     <div className="h-full rounded-full bg-cyan-400" style={{ width: `${rankProgress.progress}%` }} />
                   </div>
                   {rankProgress.next !== null && (
-                    <p className="mt-1.5 text-xs text-slate-500">{rankProgress.remaining}문제 더 맞추면 업그레이드!</p>
+                    <p className="mt-1.5 text-xs text-slate-500">{rankProgress.remaining}문제 더 맞추면 업그레이드</p>
                   )}
                 </div>
 
@@ -616,17 +638,17 @@ export default function FishingPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-xl border-4 border-red-500 bg-slate-900 p-10 text-center shadow-2xl"
+              className="rounded-xl border border-red-200 bg-white/90 p-10 text-center shadow-xl shadow-red-100/60 backdrop-blur"
             >
               <motion.div
                 animate={{ rotate: [0, -10, 10, -10, 0] }}
                 transition={{ duration: 0.5 }}
-                className="mb-4 text-7xl"
+                className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-xl bg-red-50 text-red-500 ring-1 ring-red-100"
               >
-                ❌
+                <XCircle size={48} />
               </motion.div>
-              <h2 className="mb-2 text-4xl font-black text-white">틀렸습니다!</h2>
-              <p className="text-xl text-slate-300">콤보가 끊겼어요. 다음 문제에서 다시 도전!</p>
+              <h2 className="mb-2 text-4xl font-extrabold text-red-600">틀렸습니다</h2>
+              <p className="text-xl text-slate-600">콤보가 끊겼어요. 다음 문제에서 다시 도전</p>
             </motion.div>
           )}
 
@@ -651,7 +673,7 @@ export default function FishingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-sky-100/70 p-4 backdrop-blur-sm"
             onClick={handleItemModalClose}
           >
             <motion.div
@@ -659,31 +681,31 @@ export default function FishingPage() {
               animate={{ scale: 1, rotate: 0 }}
               exit={{ scale: 0, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-              className="w-full max-w-sm rounded-2xl border-4 border-purple-300 bg-gradient-to-br from-indigo-950 via-purple-950 to-pink-950 p-8 text-center shadow-2xl shadow-purple-500/40"
+              className="w-full max-w-sm rounded-xl border border-violet-200 bg-white p-8 text-center shadow-xl shadow-violet-100/60"
               onClick={(e) => e.stopPropagation()}
             >
               <div className={`mb-4 inline-block rounded-full px-3 py-1 text-sm font-bold ${
                 pendingItem.rarity === '전설' ? 'bg-yellow-400 text-yellow-950'
-                  : pendingItem.rarity === '희귀' ? 'bg-blue-500 text-white'
-                  : 'bg-slate-500 text-white'
+                  : pendingItem.rarity === '희귀' ? 'bg-sky-400 text-white'
+                  : 'bg-slate-200 text-slate-700'
               }`}>
-                {pendingItem.rarity} 보너스 획득!
+                {pendingItem.rarity} 보너스 획득
               </div>
               <motion.div
                 animate={{ y: [0, -10, 0], scale: [1, 1.08, 1] }}
                 transition={{ duration: 1.4, repeat: Infinity }}
-                className="mb-4 text-8xl"
+                className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-xl border border-violet-100 bg-violet-50 text-violet-700 shadow-inner"
               >
-                {pendingItem.emoji}
+                <SpecialItemIcon type={pendingItem.type} size={46} />
               </motion.div>
-              <h2 className="mb-2 text-3xl font-black text-white">{pendingItem.name}</h2>
-              <p className="mb-6 text-base text-purple-100">{pendingItem.description}</p>
+              <h2 className="mb-2 text-3xl font-extrabold text-slate-900">{pendingItem.name}</h2>
+              <p className="mb-6 text-base text-violet-700">{pendingItem.description}</p>
               <button
                 type="button"
                 onClick={handleItemModalClose}
-                className="w-full rounded-xl border-2 border-white/30 bg-pink-500 py-4 text-xl font-black text-white shadow-xl hover:bg-pink-400 active:scale-95 transition-transform"
+                className="w-full rounded-lg bg-pink-500 py-4 text-lg font-extrabold text-white shadow-lg shadow-pink-100 hover:bg-pink-400 active:scale-95 transition-transform"
               >
-                좋아! 뽑으러 가자
+                확인하고 진행
               </button>
             </motion.div>
           </motion.div>

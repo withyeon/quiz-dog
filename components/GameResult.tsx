@@ -62,7 +62,12 @@ export default function GameResult({
       const healthB = (b as any).health || 0
       return healthB - healthA // 체력 높은 순
     })
-    : [...players].sort((a, b) => b.score - a.score)
+    : gameMode === 'gold_quest'
+      ? [...players].sort((a, b) =>
+        ((b.gold ?? 0) - (a.gold ?? 0)) || ((b.score ?? 0) - (a.score ?? 0))
+      )
+      : [...players].sort((a, b) => b.score - a.score)
+  const isGoldQuest = gameMode === 'gold_quest'
   const top3 = sortedPlayers.slice(0, 3)
   const currentPlayer = players.find((p) => p.id === currentPlayerId)
   const currentPlayerRank = sortedPlayers.findIndex((p) => p.id === currentPlayerId) + 1
@@ -88,23 +93,23 @@ export default function GameResult({
   const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8 relative overflow-hidden">
-      <AnimatedBackground />
+    <div className={`min-h-screen p-4 sm:p-8 relative overflow-hidden ${isGoldQuest ? 'gold-quest-ambient' : 'bg-gray-50'}`}>
+      {!isGoldQuest && <AnimatedBackground />}
       <div className="max-w-6xl mx-auto relative z-10">
         {/* 헤더 */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          className={`text-center mb-8 ${isGoldQuest ? 'text-white' : ''}`}
         >
           <motion.h1
             animate={{ scale: [1, 1.05, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
-            className="text-6xl font-bold text-gray-900 mb-2"
+            className={`gold-quest-title text-4xl sm:text-6xl font-black mb-2 ${isGoldQuest ? 'text-white' : 'text-gray-900'}`}
           >
             {gameMode === 'battle_royale' ? '⚔️ 배틀 종료!' : '게임 종료!'}
           </motion.h1>
-          <p className="text-xl text-gray-700 font-semibold">
+          <p className={`text-xl font-semibold ${isGoldQuest ? 'text-amber-100' : 'text-gray-700'}`}>
             {gameMode === 'battle_royale' ? '최종 생존자를 확인하세요' : '최종 결과를 확인하세요'}
           </p>
         </motion.div>

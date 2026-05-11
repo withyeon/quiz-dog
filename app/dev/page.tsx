@@ -138,26 +138,17 @@ export default function DevPage() {
           </div>
         )}
         {/* 헤더 */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-5xl font-bold text-gray-900 mb-4" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>
+        <div className="text-center mb-8">
+          <h1 className="text-5xl font-bold text-gray-900 mb-4 font-bitbit">
             🛠️ 개발 모드
           </h1>
           <p className="text-xl text-gray-600">
             게임을 빠르게 테스트할 수 있는 개발자 전용 페이지입니다
           </p>
-        </motion.div>
+        </div>
 
         {/* 닉네임 입력 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200"
-        >
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             닉네임 (선택사항)
           </label>
@@ -169,15 +160,10 @@ export default function DevPage() {
             placeholder="개발자"
             maxLength={20}
           />
-        </motion.div>
+        </div>
 
         {/* 문제집 선택 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200"
-        >
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
           <label className="block text-sm font-semibold text-gray-700 mb-2">
             문제집 선택
           </label>
@@ -196,16 +182,11 @@ export default function DevPage() {
               ))}
             </select>
           )}
-        </motion.div>
+        </div>
 
         {/* 게임 모드 선택 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-white rounded-xl shadow-lg p-6 border-2 border-gray-200"
-        >
-          <h2 className="text-2xl font-bold text-gray-900 mb-6" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>
+        <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6 font-bitbit">
             게임 모드 선택
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -233,10 +214,10 @@ export default function DevPage() {
                     {game.emoji}
                   </div>
                 )}
-                <div className="font-bold text-lg text-gray-900 mb-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>
+                <div className="font-bold text-lg text-gray-900 mb-2 font-bitbit">
                   {game.emoji} {game.label}
                 </div>
-                <div className="text-sm text-gray-600 text-center px-2" style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}>
+                <div className="text-sm text-gray-600 text-center px-2 font-bitbit">
                   {game.description}
                 </div>
                 {selectedMode === game.id && (
@@ -251,15 +232,10 @@ export default function DevPage() {
               </motion.button>
             ))}
           </div>
-        </motion.div>
+        </div>
 
         {/* 시작 버튼 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="mt-8 text-center"
-        >
+        <div className="mt-8 text-center">
           <motion.button
             onClick={handleStartGame}
             disabled={!selectedMode || loading}
@@ -268,8 +244,7 @@ export default function DevPage() {
             className={`px-12 py-6 rounded-xl font-bold text-xl shadow-lg transition-all ${selectedMode && !loading
               ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 cursor-pointer'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              }`}
-            style={{ fontFamily: 'DNFBitBitv2, sans-serif' }}
+              } font-bitbit`}
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -292,15 +267,10 @@ export default function DevPage() {
               게임 모드를 선택해주세요
             </p>
           )}
-        </motion.div>
+        </div>
 
         {/* 안내 메시지 */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.4 }}
-          className="mt-8 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6"
-        >
+        <div className="mt-8 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6">
           <h3 className="text-lg font-bold text-yellow-900 mb-2">💡 안내사항</h3>
           <ul className="text-sm text-yellow-800 space-y-1">
             <li>• 이 페이지는 개발/테스트 전용입니다</li>
@@ -308,7 +278,7 @@ export default function DevPage() {
             <li>• 게임은 바로 시작 상태(playing)로 설정됩니다</li>
             <li>• 선택한 문제집의 실제 문제를 사용합니다</li>
           </ul>
-        </motion.div>
+        </div>
       </div>
     </main>
   )

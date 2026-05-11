@@ -74,7 +74,7 @@ function PixelButton({
       whileTap={{ y: 2, scale: 0.98 }}
       className={`relative font-black text-white rounded-lg px-6 py-3 transition-colors ${className}`}
       style={{
-        background: c.bg,
+        backgroundColor: c.bg,
         border: `3px solid ${c.border}`,
         boxShadow: `0 5px 0 ${c.shadow}, 0 8px 20px rgba(0,0,0,0.25)`,
         fontFamily: "'BMJUA', sans-serif",
@@ -107,7 +107,7 @@ function PixelPanel({
         <div
           className="absolute -top-4 left-4 px-4 py-1 rounded-lg font-black text-sm text-white z-10"
           style={{
-            background: labelColor,
+            backgroundColor: labelColor,
             border: `3px solid rgba(0,0,0,0.2)`,
             fontFamily: "'BMJUA', sans-serif",
             boxShadow: '0 3px 0 rgba(0,0,0,0.2)',
@@ -119,7 +119,7 @@ function PixelPanel({
       <div
         className="rounded-2xl overflow-hidden"
         style={{
-          background: 'rgba(255,248,235,0.92)',
+          backgroundColor: 'rgba(255,248,235,0.92)',
           border: '3px solid rgba(193,123,58,0.35)',
           boxShadow:
             '0 6px 0 rgba(91,58,26,0.2), 0 12px 32px rgba(91,58,26,0.12), inset 0 1px 0 rgba(255,255,255,0.8)',
@@ -228,8 +228,10 @@ const testimonialsData = [
 export default function LandingPage() {
   const [chalkDust, setChalkDust] = useState<{ left: string; top: string; size: number; color: string }[]>([])
   const [activeFeature, setActiveFeature] = useState(0)
+  const [animationsReady, setAnimationsReady] = useState(false)
 
   useEffect(() => {
+    setAnimationsReady(true)
     setChalkDust(
       Array.from({ length: 24 }, (_, i) => ({
         left: `${Math.random() * 100}%`,
@@ -243,7 +245,7 @@ export default function LandingPage() {
   return (
     <div
       className="min-h-screen relative overflow-hidden"
-      style={{ background: 'linear-gradient(160deg, #FFF3DC 0%, #FFE8C0 40%, #FFF0D0 70%, #FDEBC8 100%)' }}
+      style={{ backgroundImage: 'linear-gradient(160deg, #FFF3DC 0%, #FFE8C0 40%, #FFF0D0 70%, #FDEBC8 100%)' }}
     >
       {/* 분필 먼지 (Hero 섹션 안에서만 보임 — 아래 섹션에 영향 없게 absolute) */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 1, height: '100vh' }}>
@@ -251,7 +253,7 @@ export default function LandingPage() {
           <motion.div
             key={i}
             className="absolute rounded-full"
-            style={{ left: p.left, top: p.top, width: p.size, height: p.size, background: p.color }}
+            style={{ left: p.left, top: p.top, width: p.size, height: p.size, backgroundColor: p.color }}
             animate={{ opacity: [0, 0.9, 0], y: [0, -50, -100], x: [0, (i % 2 ? 1 : -1) * 15] }}
             transition={{ duration: 6 + (i % 4), repeat: Infinity, delay: i * 0.35 }}
           />
@@ -264,12 +266,12 @@ export default function LandingPage() {
       {/* ══ 배지 ══════════════════════════════════════════════ */}
       <section className="relative pt-28 pb-2 px-4 flex justify-center z-10">
         <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
+          initial={animationsReady ? { scale: 0.8, opacity: 0 } : false}
+          animate={animationsReady ? { scale: 1, opacity: 1 } : undefined}
           transition={{ delay: 0.2 }}
           className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full"
           style={{
-            background: 'rgba(255,255,255,0.88)',
+            backgroundColor: 'rgba(255,255,255,0.88)',
             border: '3px solid rgba(193,123,58,0.3)',
             boxShadow: '0 4px 0 rgba(91,58,26,0.15), 0 8px 20px rgba(91,58,26,0.1)',
             fontFamily: "'BMJUA', sans-serif",
@@ -293,26 +295,26 @@ export default function LandingPage() {
         {/* 교실 배경 - Hero 섹션 내부에만 */}
         <div className="absolute inset-0" style={{ zIndex: 0 }}>
           <ClassroomBg />
-          <div className="absolute inset-0" style={{ background: 'rgba(255,248,230,0.5)' }} />
+          <div className="absolute inset-0" style={{ backgroundColor: 'rgba(255,248,230,0.5)' }} />
         </div>
 
         <div className="relative max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-8 items-center min-h-[480px]">
             {/* 왼쪽: 텍스트 + 버튼 */}
             <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={animationsReady ? { opacity: 0, x: -30 } : false}
+              animate={animationsReady ? { opacity: 1, x: 0 } : undefined}
               transition={{ duration: 0.8, delay: 0.2 }}
               className="relative z-10"
             >
               {/* 골드 타이틀 박스 */}
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={animationsReady ? { opacity: 0, y: 20 } : false}
+                animate={animationsReady ? { opacity: 1, y: 0 } : undefined}
                 transition={{ delay: 0.3 }}
                 className="inline-block mb-6 px-6 py-4 rounded-2xl"
                 style={{
-                  background: 'linear-gradient(135deg, #8B4513 0%, #C17B3A 40%, #8B4513 100%)',
+                  backgroundImage: 'linear-gradient(135deg, #8B4513 0%, #C17B3A 40%, #8B4513 100%)',
                   border: '4px solid #5B2D0A',
                   boxShadow: '0 6px 0 #3B1A05, 0 12px 30px rgba(91,45,10,0.4), inset 0 1px 0 rgba(255,200,80,0.4)',
                 }}
@@ -346,8 +348,8 @@ export default function LandingPage() {
                   fontFamily: "'BMJUA', sans-serif",
                   textShadow: '0 1px 0 rgba(255,255,255,0.6)',
                 }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={animationsReady ? { opacity: 0, y: 20 } : false}
+                animate={animationsReady ? { opacity: 1, y: 0 } : undefined}
                 transition={{ delay: 0.4 }}
               >
                 AI가 문제를 만들고,<br />
@@ -356,8 +358,8 @@ export default function LandingPage() {
 
               <motion.div
                 className="flex flex-col sm:flex-row gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={animationsReady ? { opacity: 0, y: 20 } : false}
+                animate={animationsReady ? { opacity: 1, y: 0 } : undefined}
                 transition={{ delay: 0.5 }}
               >
                 <Link href="/teacher">
@@ -379,15 +381,15 @@ export default function LandingPage() {
             {/* 오른쪽: 강아지 3마리 */}
             <motion.div
               className="flex flex-col items-center justify-end relative"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={animationsReady ? { opacity: 0, scale: 0.8 } : false}
+              animate={animationsReady ? { opacity: 1, scale: 1 } : undefined}
               transition={{ duration: 0.8, delay: 0.4, type: 'spring', bounce: 0.3 }}
             >
               {/* 말풍선 */}
               <motion.div
                 className="mb-4 px-5 py-3 rounded-2xl rounded-bl-none relative"
                 style={{
-                  background: '#FFFBF2',
+                  backgroundColor: '#FFFBF2',
                   border: '3px solid #C17B3A',
                   boxShadow: '0 4px 0 rgba(91,58,26,0.2), 0 8px 20px rgba(91,58,26,0.15)',
                   fontFamily: "'BMJUA', sans-serif",
@@ -438,7 +440,7 @@ export default function LandingPage() {
                   width: 320,
                   height: 20,
                   borderRadius: '50%',
-                  background: 'rgba(91,58,26,0.18)',
+                  backgroundColor: 'rgba(91,58,26,0.18)',
                   filter: 'blur(12px)',
                   marginTop: 4,
                 }}
@@ -449,15 +451,15 @@ export default function LandingPage() {
           {/* 로고 */}
           <motion.div
             className="mt-12 flex justify-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={animationsReady ? { opacity: 0, y: 20 } : false}
+            animate={animationsReady ? { opacity: 1, y: 0 } : undefined}
             transition={{ delay: 0.7 }}
           >
             <div className="relative inline-block">
               <div
                 className="absolute inset-0 rounded-full"
                 style={{
-                  background: 'radial-gradient(ellipse, rgba(193,123,58,0.3) 0%, transparent 70%)',
+                  backgroundImage: 'radial-gradient(ellipse, rgba(193,123,58,0.3) 0%, transparent 70%)',
                   filter: 'blur(40px)',
                   transform: 'scale(1.5)',
                 }}
@@ -486,7 +488,7 @@ export default function LandingPage() {
             ].map((stat, index) => (
               <motion.div
                 key={stat.label}
-                initial={{ opacity: 0, y: 24 }}
+                initial={animationsReady ? { opacity: 0, y: 24 } : false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.12 }}
@@ -516,7 +518,7 @@ export default function LandingPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 2 }}>
         <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={animationsReady ? { opacity: 0, y: 20 } : false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-16"
@@ -557,7 +559,7 @@ export default function LandingPage() {
             ].map((feature, index) => (
               <motion.div
                 key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
+                initial={animationsReady ? { opacity: 0, y: 30 } : false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.15 }}
@@ -593,7 +595,7 @@ export default function LandingPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 2 }}>
         <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={animationsReady ? { opacity: 0, y: 20 } : false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-16"
@@ -612,7 +614,7 @@ export default function LandingPage() {
             {gameModesData.map((game, index) => (
               <motion.div
                 key={game.name}
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={animationsReady ? { opacity: 0, scale: 0.9 } : false}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.06 }}
@@ -622,7 +624,7 @@ export default function LandingPage() {
                 <div
                   className="rounded-2xl p-5 transition-all duration-300"
                   style={{
-                    background: game.bg,
+                    backgroundColor: game.bg,
                     border: `3px solid ${game.color}40`,
                     boxShadow: `0 5px 0 ${game.color}30, 0 8px 20px rgba(0,0,0,0.08)`,
                   }}
@@ -648,7 +650,7 @@ export default function LandingPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 2 }}>
         <div className="max-w-7xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={animationsReady ? { opacity: 0, y: 20 } : false}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-center mb-16"
@@ -668,7 +670,7 @@ export default function LandingPage() {
             {testimonialsData.map((t, index) => (
               <motion.div
                 key={t.name}
-                initial={{ opacity: 0, y: 20 }}
+                initial={animationsReady ? { opacity: 0, y: 20 } : false}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.12 }}
@@ -688,7 +690,7 @@ export default function LandingPage() {
                       <div
                         className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
                         style={{
-                          background: 'rgba(193,123,58,0.15)',
+                          backgroundColor: 'rgba(193,123,58,0.15)',
                           border: '3px solid rgba(193,123,58,0.3)',
                         }}
                       >
@@ -715,7 +717,7 @@ export default function LandingPage() {
       <section className="py-24 px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 2 }}>
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={animationsReady ? { opacity: 0, scale: 0.95 } : false}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
           >

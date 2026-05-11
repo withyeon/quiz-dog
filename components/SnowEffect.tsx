@@ -9,7 +9,15 @@ interface SnowEffectProps {
 }
 
 export default function SnowEffect({ isActive, duration = 2000 }: SnowEffectProps) {
-  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number }>>([])
+  const [particles, setParticles] = useState<Array<{
+    id: number
+    x: number
+    y: number
+    size: number
+    drift: number
+    fall: number
+    motionDuration: number
+  }>>([])
 
   useEffect(() => {
     if (!isActive) {
@@ -17,11 +25,14 @@ export default function SnowEffect({ isActive, duration = 2000 }: SnowEffectProp
       return
     }
 
-    // 눈가루 파티클 생성
-    const newParticles = Array.from({ length: 30 }, (_, i) => ({
+    const newParticles = Array.from({ length: 42 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
+      size: 6 + Math.random() * 14,
+      drift: (Math.random() - 0.5) * 120,
+      fall: 120 + Math.random() * 180,
+      motionDuration: 0.55 + Math.random() * 0.45,
     }))
     setParticles(newParticles)
 
@@ -37,21 +48,25 @@ export default function SnowEffect({ isActive, duration = 2000 }: SnowEffectProp
       {isActive && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
           {particles.map((particle) => (
-            <motion.div
+            <motion.span
               key={particle.id}
-              initial={{ opacity: 1, scale: 0, x: `${particle.x}%`, y: `${particle.y}%` }}
+              className="battle-snow-particle"
+              style={{
+                left: `${particle.x}%`,
+                top: `${particle.y}%`,
+                width: particle.size,
+                height: particle.size,
+              }}
+              initial={{ opacity: 0, scale: 0.6 }}
               animate={{
-                opacity: [1, 0.8, 0],
-                scale: [0, 1, 1.5],
-                y: `${particle.y + 100}%`,
-                x: `${particle.x + (Math.random() - 0.5) * 20}%`,
+                opacity: [0, 1, 0],
+                scale: [0.6, 1, 1.7],
+                y: [0, particle.fall],
+                x: [0, particle.drift],
               }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.5 + Math.random() * 0.5 }}
-              className="absolute text-4xl"
-            >
-              ❄️
-            </motion.div>
+              transition={{ duration: particle.motionDuration, ease: 'easeOut' }}
+            />
           ))}
         </div>
       )}

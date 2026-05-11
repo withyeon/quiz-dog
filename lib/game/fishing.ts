@@ -10,10 +10,10 @@ export interface ComboState {
 }
 
 export function getComboState(consecutiveCorrect: number): ComboState {
-  if (consecutiveCorrect >= 5) return { count: consecutiveCorrect, multiplier: 2.0, label: 'MAX 콤보! 🔥🔥🔥' }
-  if (consecutiveCorrect >= 4) return { count: consecutiveCorrect, multiplier: 1.7, label: '4 콤보! 🔥🔥' }
-  if (consecutiveCorrect >= 3) return { count: consecutiveCorrect, multiplier: 1.4, label: '3 콤보! 🔥' }
-  if (consecutiveCorrect >= 2) return { count: consecutiveCorrect, multiplier: 1.2, label: '2 콤보!' }
+  if (consecutiveCorrect >= 5) return { count: consecutiveCorrect, multiplier: 2.0, label: 'MAX 콤보' }
+  if (consecutiveCorrect >= 4) return { count: consecutiveCorrect, multiplier: 1.7, label: '4 콤보' }
+  if (consecutiveCorrect >= 3) return { count: consecutiveCorrect, multiplier: 1.4, label: '3 콤보' }
+  if (consecutiveCorrect >= 2) return { count: consecutiveCorrect, multiplier: 1.2, label: '2 콤보' }
   return { count: consecutiveCorrect, multiplier: 1.0, label: '' }
 }
 
@@ -62,7 +62,7 @@ export const DOLL_TYPES: Omit<Doll, 'id' | 'score'>[] = [
   { name: '해적 복어 인형', emoji: '🐡', image: '/fishing/14.svg', tier: '전설', minScore: 720, maxScore: 1200, color: 'text-yellow-500', catchChance: 0.8 },
   { name: '진홍 문어 인형', emoji: '🐙', image: '/fishing/13.svg', tier: '전설', minScore: 850, maxScore: 1450, color: 'text-yellow-500', catchChance: 0.6 },
   { name: '무지개 일각 인형', emoji: '🦄', image: '/fishing/16.svg', tier: '전설', minScore: 1200, maxScore: 2200, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.7)]', catchChance: 0.35 },
-  { name: 'UFO 스페셜 인형', emoji: '🛸', tier: '전설', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
+  { name: 'UFO 스페셜 인형', emoji: '🛸', image: '/fishing/15.svg', tier: '전설', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
 ]
 
 // 인형뽑기 상태
@@ -119,7 +119,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
   {
     type: 'DOUBLE_SCORE',
     name: '2배 부스터',
-    description: '다음 인형 점수가 2배!',
+    description: '다음 인형 점수가 2배로 적용됩니다',
     emoji: '⚡',
     rarity: '희귀',
     catchChance: 2.5,
@@ -127,7 +127,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
   {
     type: 'LUCKY_BOOST',
     name: '행운의 별',
-    description: '다음 뽑기에서 희귀 인형 확률 대폭 상승!',
+    description: '다음 뽑기에서 희귀 인형 확률이 상승합니다',
     emoji: '⭐',
     rarity: '희귀',
     catchChance: 1.5,
@@ -143,7 +143,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
   {
     type: 'SHIELD',
     name: '행운의 부적',
-    description: '다음 뽑기에서 절대 꽝이 없어요!',
+    description: '다음 뽑기에서 꽝이 나오지 않아요',
     emoji: '🍀',
     rarity: '전설',
     catchChance: 0.3,
@@ -319,7 +319,7 @@ export function tryFishing(
     doll: newDoll,
     item: null,
     points: finalScore,
-    message: `${newDoll.name} 획득! (+${finalScore}점)`,
+    message: `${newDoll.name} 획득 (+${finalScore}점)`,
     willFail: false,
     accuracy: safeAccuracy,
     aimGrade,

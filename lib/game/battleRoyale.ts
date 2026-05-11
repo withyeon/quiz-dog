@@ -20,9 +20,9 @@ export interface PlayerClassInfo {
 export const PLAYER_CLASSES: Record<PlayerClass, PlayerClassInfo> = {
   ice_fist: {
     id: 'ice_fist',
-    name: '얼음 주먹',
+    name: '아이스 브레이커',
     icon: '🧊',
-    description: '데미지가 세지만 장전 속도가 느림',
+    description: '한 번 맞추면 크게 흔들지만 장전 템포가 묵직합니다.',
     damageMultiplier: 1.5,
     attackSpeed: 0.7,
     defense: 1.0,
@@ -30,9 +30,9 @@ export const PLAYER_CLASSES: Record<PlayerClass, PlayerClassInfo> = {
   },
   rapid_fire: {
     id: 'rapid_fire',
-    name: '속사포 장갑',
-    icon: '💨',
-    description: '작은 눈뭉치를 빠르게 던짐',
+    name: '스노우 런처',
+    icon: '⚡',
+    description: '데미지는 낮아도 빠르게 다음 눈뭉치를 준비합니다.',
     damageMultiplier: 0.8,
     attackSpeed: 1.5,
     defense: 1.0,
@@ -40,9 +40,9 @@ export const PLAYER_CLASSES: Record<PlayerClass, PlayerClassInfo> = {
   },
   shield: {
     id: 'shield',
-    name: '방패 패딩',
+    name: '윈터 가드',
     icon: '🛡️',
-    description: '체력이 높고 데미지를 덜 받음',
+    description: '체온이 높고 받은 피해를 안정적으로 줄입니다.',
     damageMultiplier: 1.0,
     attackSpeed: 1.0,
     defense: 0.7,
@@ -50,9 +50,9 @@ export const PLAYER_CLASSES: Record<PlayerClass, PlayerClassInfo> = {
   },
   hot_choco: {
     id: 'hot_choco',
-    name: '핫초코',
-    icon: '💊',
-    description: '정답 시 체온을 회복',
+    name: '핫초코 키트',
+    icon: '☕',
+    description: '정답을 맞힐 때마다 체온을 조금씩 되찾습니다.',
     damageMultiplier: 0.9,
     attackSpeed: 1.0,
     defense: 1.0,
@@ -221,48 +221,43 @@ export function applyHeater(currentHealth: number, maxHealth: number): number {
 
 /**
  * 랜덤 아이템 획득
+ * 호출 자체가 아이템 획득 판정 이후에 일어나므로 여기서는 종류만 고릅니다.
  */
-export function generateItem(): SnowballItem | null {
+export function generateItem(): SnowballItem {
   const random = Math.random()
   
-  if (random < 0.1) {
-    // 10% 확률: 왕눈덩이
+  if (random < 0.34) {
     return {
       type: 'giant_ball',
       name: '왕눈덩이',
       icon: '❄️',
       description: '다음 공격은 3배 데미지!',
     }
-  } else if (random < 0.2) {
-    // 10% 확률: 눈보라
+  } else if (random < 0.67) {
     return {
       type: 'blizzard',
       name: '눈보라',
       icon: '🌨️',
       description: '1등 플레이어 화면을 가린다!',
     }
-  } else if (random < 0.3) {
-    // 10% 확률: 난로
-    return {
-      type: 'heater',
-      name: '난로',
-      icon: '🔥',
-      description: '체온을 30 회복한다!',
-    }
   }
-  
-  return null
+
+  return {
+    type: 'heater',
+    name: '휴대 난로',
+    icon: '🔥',
+    description: '체온을 30 회복한다!',
+  }
 }
 
 /**
  * 자기장(폭설 주의보) 데미지 계산
- * @param gameTime 게임 진행 시간 (초)
+ * @param gameTime 게임 진행 시간 (ms)
  * @param zoneLevel 자기장 레벨
  */
 export function calculateZoneDamage(gameTime: number, zoneLevel: number): number {
-  // 게임 시작 후 2분마다 자기장 레벨 증가
-  const baseDamage = 5
-  return baseDamage * zoneLevel
+  const lateGameBonus = Math.floor(gameTime / 300000)
+  return Math.min(18, 3 + zoneLevel * 2 + lateGameBonus)
 }
 
 /**

@@ -7,7 +7,7 @@
 BEGIN;
 
 -- ============================================
--- 1. 개발자용 문제집 메타데이터
+-- 1. 교사용 문제집 메타데이터
 -- ============================================
 
 INSERT INTO public.question_sets (
@@ -20,11 +20,11 @@ INSERT INTO public.question_sets (
 )
 VALUES (
   'set-integrated-dev-dummy-20260505',
-  '개발자 상식 더미 문제집',
-  'QuizDog 기능 점검용 개발자 테마 더미 데이터입니다. 객관식, OX, 주관식, 빈칸 문제를 함께 저장합니다.',
+  '교사 상식 퀴즈',
+  'QuizDog 기능 점검용 쉬운 교사 상식 문제집입니다. 객관식, OX, 주관식, 빈칸 문제를 함께 저장합니다.',
   '기타',
   '기타',
-  '["개발자", "테스트", "더미데이터", "혼합유형"]'::jsonb
+  '["교사", "상식", "테스트", "쉬움", "혼합유형"]'::jsonb
 )
 ON CONFLICT (id) DO UPDATE
 SET
@@ -40,7 +40,7 @@ DELETE FROM public.questions
 WHERE set_id = 'set-integrated-dev-dummy-20260505';
 
 -- ============================================
--- 2. 개발자용 문제 데이터
+-- 2. 교사용 문제 데이터
 -- ============================================
 
 INSERT INTO public.questions (
@@ -54,86 +54,86 @@ VALUES
   (
     'set-integrated-dev-dummy-20260505',
     'CHOICE',
-    'HTTP 상태 코드 404가 의미하는 것은?',
-    '["Bad Request", "Unauthorized", "Not Found", "Internal Server Error"]'::jsonb,
-    'Not Found'
+    '수업 시작 전에 가장 먼저 확인하면 좋은 것은?',
+    '["출석과 수업 준비", "급식 메뉴", "운동장 모래", "학교 종"]'::jsonb,
+    '출석과 수업 준비'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'CHOICE',
-    'Git에서 원격 저장소의 최신 변경을 가져오고 현재 브랜치에 병합하는 명령은?',
-    '["git push", "git pull", "git reset", "git stash"]'::jsonb,
-    'git pull'
+    '학생이 다쳤을 때 가장 먼저 해야 할 일은?',
+    '["안전 상태 확인", "숙제 검사", "자리 바꾸기", "칠판 지우기"]'::jsonb,
+    '안전 상태 확인'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'CHOICE',
-    'SQL에서 여러 행을 조건으로 걸러낼 때 주로 사용하는 절은?',
-    '["ORDER BY", "GROUP BY", "WHERE", "LIMIT"]'::jsonb,
-    'WHERE'
+    '학생 이름과 출결을 기록하는 데 주로 쓰는 것은?',
+    '["출석부", "운동화", "우산", "물통"]'::jsonb,
+    '출석부'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'CHOICE',
-    'React에서 리스트 렌더링 시 각 항목에 안정적으로 넣어야 하는 prop은?',
-    '["ref", "name", "key", "value"]'::jsonb,
-    'key'
+    '학부모에게 학교 안내 내용을 전달할 때 많이 사용하는 것은?',
+    '["가정통신문", "체육복", "분필 상자", "교실 시계"]'::jsonb,
+    '가정통신문'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'OX',
-    'TypeScript는 JavaScript의 상위 호환 언어다.',
+    '교사는 학생의 질문을 끝까지 듣고 답해 주는 것이 좋다.',
     '["O", "X"]'::jsonb,
     'O'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'OX',
-    'const로 선언한 객체는 내부 속성도 절대 수정할 수 없다.',
+    '복도에서 뛰는 학생을 보면 안전을 위해 천천히 걷도록 안내하는 것이 좋다.',
+    '["O", "X"]'::jsonb,
+    'O'
+  ),
+  (
+    'set-integrated-dev-dummy-20260505',
+    'OX',
+    '시험지를 나눠 줄 때 정답지도 함께 나눠 주는 것이 좋다.',
     '["O", "X"]'::jsonb,
     'X'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'SHORT',
-    '분산 버전 관리 시스템으로 가장 널리 쓰이는 도구 이름은?',
+    '학생이 아프다고 할 때 도움을 받을 수 있는 학교 장소는?',
     '[]'::jsonb,
-    'Git'
+    '보건실'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'SHORT',
-    '웹 브라우저가 HTML, CSS, JavaScript를 해석해 화면을 그리는 과정을 보통 무엇이라고 부르나요?',
+    '수업 시간에 선생님이 설명을 적는 큰 판은?',
     '[]'::jsonb,
-    '렌더링'
+    '칠판'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'BLANK',
-    'REST API에서 서버 내부 오류를 뜻하는 대표 상태 코드는 {{blank}}입니다.',
+    '수업을 시작할 때 학생이 왔는지 확인하는 일을 {{blank}} 확인이라고 합니다.',
     '[]'::jsonb,
-    '500'
+    '출석'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'BLANK',
-    'SQL에서 모든 컬럼을 조회할 때는 SELECT {{blank}} FROM 테이블; 형태를 사용합니다.',
+    '학생이 잘한 일을 발견하면 {{blank}}해 주면 좋습니다.',
     '[]'::jsonb,
-    '*'
+    '칭찬'
   ),
   (
     'set-integrated-dev-dummy-20260505',
     'CHOICE',
-    'JSON에서 배열을 나타내는 기호는?',
-    '["{ }", "( )", "[ ]", "< >"]'::jsonb,
-    '[ ]'
-  ),
-  (
-    'set-integrated-dev-dummy-20260505',
-    'BLANK',
-    'Unix 계열 터미널에서 현재 작업 디렉터리를 출력하는 명령은 {{blank}} 입니다.',
-    '[]'::jsonb,
-    'pwd'
+    '교실에서 불이 났을 때 가장 알맞은 행동은?',
+    '["선생님 안내에 따라 대피하기", "혼자 숨어 있기", "창문만 닫기", "책상 정리하기"]'::jsonb,
+    '선생님 안내에 따라 대피하기'
   );
 
 -- ============================================

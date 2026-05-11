@@ -18,9 +18,9 @@ export interface TowerType {
 export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     BASIC: {
         id: 'BASIC',
-        name: '기본 타워',
+        name: '애로우 포스트',
         emoji: '🏹',
-        description: '저렴하고 안정적인 단일 대상 공격',
+        description: '저렴하고 안정적인 단일 표적 공격',
         cost: 100,
         damage: 10,
         range: 80,
@@ -28,9 +28,9 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     MAGIC: {
         id: 'MAGIC',
-        name: '마법 타워',
+        name: '아크 메이지',
         emoji: '🔮',
-        description: '범위 내 모든 적에게 데미지',
+        description: '타격 지점 주변에 마력 피해',
         cost: 200,
         damage: 8,
         range: 100,
@@ -39,9 +39,9 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     BOMB: {
         id: 'BOMB',
-        name: '폭발 타워',
+        name: '블래스트 캐논',
         emoji: '💣',
-        description: '강력한 광역 폭발 데미지',
+        description: '느리지만 강력한 광역 폭발',
         cost: 300,
         damage: 25,
         range: 90,
@@ -50,9 +50,9 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     LASER: {
         id: 'LASER',
-        name: '레이저 타워',
+        name: '펄스 레이저',
         emoji: '⚡',
-        description: '빠른 연사와 관통 공격',
+        description: '빠른 연사로 라인을 관통 공격',
         cost: 350,
         damage: 5,
         range: 120,
@@ -61,9 +61,9 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     SLOW: {
         id: 'SLOW',
-        name: '둔화 타워',
+        name: '프로스트 코어',
         emoji: '❄️',
-        description: '적을 느리게 만듦',
+        description: '적을 잠시 둔화시키는 보조 화력',
         cost: 150,
         damage: 5,
         range: 100,
@@ -82,6 +82,9 @@ export interface EnemyType {
     hp: number
     speed: number // pixels per second
     goldReward: number
+    leakDamage: number
+    armor?: number
+    slowFactor?: number
     description: string
 }
 
@@ -93,33 +96,40 @@ export const ENEMY_TYPES: Record<EnemyTypeId, EnemyType> = {
         hp: 50,
         speed: 50,
         goldReward: 10,
+        leakDamage: 8,
         description: '기본적인 적',
     },
     FAST: {
         id: 'FAST',
         name: '빠른 적',
         emoji: '🏃',
-        hp: 30,
-        speed: 100,
-        goldReward: 15,
+        hp: 34,
+        speed: 108,
+        goldReward: 12,
+        leakDamage: 8,
         description: '빠르지만 약한 적',
     },
     STRONG: {
         id: 'STRONG',
         name: '강한 적',
         emoji: '🛡️',
-        hp: 150,
+        hp: 170,
         speed: 30,
-        goldReward: 30,
+        goldReward: 24,
+        leakDamage: 14,
+        armor: 2,
         description: '느리지만 강한 적',
     },
     BOSS: {
         id: 'BOSS',
         name: '보스',
         emoji: '👹',
-        hp: 500,
-        speed: 40,
-        goldReward: 100,
+        hp: 620,
+        speed: 42,
+        goldReward: 80,
+        leakDamage: 28,
+        armor: 4,
+        slowFactor: 0.78,
         description: '강력한 보스 적',
     },
 }
@@ -129,6 +139,8 @@ export const MAP_WIDTH = 800
 export const MAP_HEIGHT = 600
 export const PLAYER_START_HP = 100
 export const PLAYER_START_GOLD = 300
+export const MAX_TOWER_LEVEL = 4
+export const QUIZ_HP_PENALTY = 5
 
 // 적이 이동할 경로 (시작점 -> 끝점)
 export const PATH_POINTS: { x: number; y: number }[] = [
@@ -144,6 +156,25 @@ export const PATH_POINTS: { x: number; y: number }[] = [
     { x: MAP_WIDTH, y: 500 },
 ]
 
+// 원본 맵 위에만 표시되는 고정 건설 슬롯입니다. 배경 이미지는 변경하지 않습니다.
+export interface BuildSlot {
+    id: string
+    x: number
+    y: number
+    radius: number
+}
+
+export const BUILD_SLOTS: BuildSlot[] = [
+    { id: 'slot-1', x: 90, y: 120, radius: 36 },
+    { id: 'slot-2', x: 235, y: 275, radius: 36 },
+    { id: 'slot-3', x: 245, y: 500, radius: 36 },
+    { id: 'slot-4', x: 425, y: 300, radius: 36 },
+    { id: 'slot-5', x: 460, y: 70, radius: 36 },
+    { id: 'slot-6', x: 640, y: 235, radius: 36 },
+    { id: 'slot-7', x: 610, y: 450, radius: 36 },
+    { id: 'slot-8', x: 745, y: 270, radius: 36 },
+]
+
 // ==================== 웨이브 시스템 ====================
 export interface Wave {
     wave: number
@@ -151,90 +182,80 @@ export interface Wave {
 }
 
 export const WAVES: Wave[] = [
-    // Wave 1: Easy start
     {
         wave: 1,
-        enemies: [{ type: 'NORMAL', count: 10, spawnDelay: 1000 }],
+        enemies: [{ type: 'NORMAL', count: 9, spawnDelay: 900 }],
     },
-    // Wave 2: Introduce fast enemies
     {
         wave: 2,
         enemies: [
-            { type: 'NORMAL', count: 8, spawnDelay: 1000 },
-            { type: 'FAST', count: 5, spawnDelay: 800 },
+            { type: 'NORMAL', count: 10, spawnDelay: 850 },
+            { type: 'FAST', count: 4, spawnDelay: 700 },
         ],
     },
-    // Wave 3: More variety
     {
         wave: 3,
         enemies: [
-            { type: 'NORMAL', count: 10, spawnDelay: 800 },
-            { type: 'FAST', count: 8, spawnDelay: 600 },
+            { type: 'NORMAL', count: 12, spawnDelay: 700 },
+            { type: 'FAST', count: 7, spawnDelay: 520 },
         ],
     },
-    // Wave 4: Introduce strong enemies
     {
         wave: 4,
         enemies: [
-            { type: 'NORMAL', count: 12, spawnDelay: 700 },
-            { type: 'FAST', count: 6, spawnDelay: 500 },
-            { type: 'STRONG', count: 3, spawnDelay: 1500 },
+            { type: 'NORMAL', count: 12, spawnDelay: 620 },
+            { type: 'FAST', count: 8, spawnDelay: 480 },
+            { type: 'STRONG', count: 3, spawnDelay: 1300 },
         ],
     },
-    // Wave 5: First boss
     {
         wave: 5,
         enemies: [
-            { type: 'NORMAL', count: 10, spawnDelay: 600 },
-            { type: 'FAST', count: 8, spawnDelay: 500 },
-            { type: 'BOSS', count: 1, spawnDelay: 3000 },
+            { type: 'NORMAL', count: 12, spawnDelay: 560 },
+            { type: 'FAST', count: 8, spawnDelay: 430 },
+            { type: 'BOSS', count: 1, spawnDelay: 2600 },
         ],
     },
-    // Wave 6: Difficulty ramp
     {
         wave: 6,
         enemies: [
-            { type: 'NORMAL', count: 15, spawnDelay: 600 },
-            { type: 'FAST', count: 12, spawnDelay: 400 },
-            { type: 'STRONG', count: 5, spawnDelay: 1200 },
+            { type: 'NORMAL', count: 14, spawnDelay: 520 },
+            { type: 'FAST', count: 10, spawnDelay: 380 },
+            { type: 'STRONG', count: 6, spawnDelay: 1100 },
         ],
     },
-    // Wave 7: Mixed
     {
         wave: 7,
         enemies: [
-            { type: 'NORMAL', count: 18, spawnDelay: 500 },
-            { type: 'FAST', count: 15, spawnDelay: 400 },
-            { type: 'STRONG', count: 6, spawnDelay: 1000 },
+            { type: 'NORMAL', count: 14, spawnDelay: 450 },
+            { type: 'FAST', count: 16, spawnDelay: 300 },
+            { type: 'STRONG', count: 6, spawnDelay: 920 },
         ],
     },
-    // Wave 8: Lots of strong
     {
         wave: 8,
         enemies: [
-            { type: 'NORMAL', count: 15, spawnDelay: 500 },
-            { type: 'FAST', count: 10, spawnDelay: 400 },
-            { type: 'STRONG', count: 10, spawnDelay: 800 },
+            { type: 'NORMAL', count: 16, spawnDelay: 420 },
+            { type: 'FAST', count: 14, spawnDelay: 310 },
+            { type: 'STRONG', count: 9, spawnDelay: 780 },
         ],
     },
-    // Wave 9: Pre-final
     {
         wave: 9,
         enemies: [
-            { type: 'NORMAL', count: 20, spawnDelay: 400 },
-            { type: 'FAST', count: 15, spawnDelay: 300 },
-            { type: 'STRONG', count: 12, spawnDelay: 700 },
-            { type: 'BOSS', count: 1, spawnDelay: 2000 },
+            { type: 'NORMAL', count: 18, spawnDelay: 360 },
+            { type: 'FAST', count: 18, spawnDelay: 260 },
+            { type: 'STRONG', count: 10, spawnDelay: 680 },
+            { type: 'BOSS', count: 1, spawnDelay: 1900 },
         ],
     },
-    // Wave 10: Final wave
     {
         wave: 10,
         enemies: [
-            { type: 'NORMAL', count: 25, spawnDelay: 400 },
-            { type: 'FAST', count: 20, spawnDelay: 300 },
-            { type: 'STRONG', count: 15, spawnDelay: 600 },
-            { type: 'BOSS', count: 2, spawnDelay: 1500 },
+            { type: 'NORMAL', count: 24, spawnDelay: 330 },
+            { type: 'FAST', count: 20, spawnDelay: 230 },
+            { type: 'STRONG', count: 13, spawnDelay: 560 },
+            { type: 'BOSS', count: 2, spawnDelay: 1400 },
         ],
     },
 ]
@@ -243,6 +264,7 @@ export const WAVES: Wave[] = [
 export interface Tower {
     id: string
     type: TowerTypeId
+    slotId?: string
     x: number
     y: number
     level: number
@@ -280,27 +302,32 @@ export interface Projectile {
  * 퀴즈 정답 시 골드 보상 계산
  * @param answerTime 답변 시간 (초)
  * @param timeLimit 제한 시간 (초)
- * @param consecutiveCorrect 연속 정답 수
  * @returns 획득 골드
  */
-export function calculateGoldReward(
+export function calculateQuizGoldReward(
     answerTime: number,
-    timeLimit: number,
-    consecutiveCorrect: number
+    timeLimit: number
 ): number {
-    // 기본 골드: 빠를수록 많이
-    const timeRatio = Math.max(0, (timeLimit - answerTime) / timeLimit)
-    let baseGold = Math.floor(50 + timeRatio * 100) // 50~150 골드
+    const timeRatio = Math.max(0, Math.min(1, (timeLimit - answerTime) / timeLimit))
+    return Math.floor(60 + timeRatio * 60)
+}
 
-    // 연속 정답 보너스
-    let multiplier = 1
-    if (consecutiveCorrect >= 5) {
-        multiplier = 3 // 5연속: 3배
-    } else if (consecutiveCorrect >= 3) {
-        multiplier = 2 // 3연속: 2배
-    }
+/**
+ * 클릭 위치의 건설 슬롯 찾기
+ */
+export function getBuildSlotAtPoint(
+    x: number,
+    y: number,
+    slots: BuildSlot[] = BUILD_SLOTS
+): BuildSlot | null {
+    return slots.find(slot => getDistance(x, y, slot.x, slot.y) <= slot.radius) ?? null
+}
 
-    return Math.floor(baseGold * multiplier)
+/**
+ * 슬롯 배치 가능 여부 확인
+ */
+export function canPlaceTowerOnSlot(slotId: string, towers: Tower[]): boolean {
+    return !towers.some(tower => tower.slotId === slotId)
 }
 
 /**
@@ -309,63 +336,10 @@ export function calculateGoldReward(
 export function canPlaceTower(
     x: number,
     y: number,
-    towers: Tower[],
-    minDistance: number = 60
+    towers: Tower[]
 ): boolean {
-    // 경로와 너무 가까운지 확인
-    for (let i = 0; i < PATH_POINTS.length - 1; i++) {
-        const p1 = PATH_POINTS[i]
-        const p2 = PATH_POINTS[i + 1]
-
-        // 선분과 점 사이의 거리 계산
-        const distance = pointToSegmentDistance(x, y, p1.x, p1.y, p2.x, p2.y)
-        if (distance < 40) {
-            return false // 경로에 너무 가까움
-        }
-    }
-
-    // 다른 타워와 너무 가까운지 확인
-    for (const tower of towers) {
-        const distance = Math.sqrt((x - tower.x) ** 2 + (y - tower.y) ** 2)
-        if (distance < minDistance) {
-            return false
-        }
-    }
-
-    // 맵 경계 확인
-    if (x < 30 || x > MAP_WIDTH - 30 || y < 30 || y > MAP_HEIGHT - 30) {
-        return false
-    }
-
-    return true
-}
-
-/**
- * 점과 선분 사이의 최단 거리 계산
- */
-function pointToSegmentDistance(
-    px: number,
-    py: number,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number
-): number {
-    const dx = x2 - x1
-    const dy = y2 - y1
-    const lengthSquared = dx * dx + dy * dy
-
-    if (lengthSquared === 0) {
-        return Math.sqrt((px - x1) ** 2 + (py - y1) ** 2)
-    }
-
-    let t = ((px - x1) * dx + (py - y1) * dy) / lengthSquared
-    t = Math.max(0, Math.min(1, t))
-
-    const projX = x1 + t * dx
-    const projY = y1 + t * dy
-
-    return Math.sqrt((px - projX) ** 2 + (py - projY) ** 2)
+    const slot = getBuildSlotAtPoint(x, y)
+    return Boolean(slot && canPlaceTowerOnSlot(slot.id, towers))
 }
 
 /**
@@ -373,7 +347,7 @@ function pointToSegmentDistance(
  */
 export function getTowerUpgradeCost(towerType: TowerTypeId, currentLevel: number): number {
     const baseCost = TOWER_TYPES[towerType].cost
-    return Math.floor(baseCost * 0.5 * currentLevel)
+    return Math.floor(baseCost * (0.65 + (currentLevel - 1) * 0.3))
 }
 
 /**
@@ -400,13 +374,28 @@ export function getDistance(x1: number, y1: number, x2: number, y2: number): num
 }
 
 /**
+ * 방어력이 있는 적에게 적용되는 실제 피해량
+ */
+export function getEffectiveDamage(enemyType: EnemyTypeId, rawDamage: number): number {
+    const armor = ENEMY_TYPES[enemyType].armor ?? 0
+    return Math.max(1, rawDamage - armor)
+}
+
+export function getEnemyLeakDamage(enemyType: EnemyTypeId): number {
+    return ENEMY_TYPES[enemyType].leakDamage
+}
+
+export function getLaserPierceCount(level: number): number {
+    return Math.max(2, level + 1)
+}
+
+/**
  * 경로상의 다음 위치 계산
  */
 export function getNextPosition(
     enemy: Enemy,
     deltaTime: number
 ): { x: number; y: number; pathIndex: number } {
-    const currentPoint = PATH_POINTS[enemy.currentPathIndex]
     const nextPoint = PATH_POINTS[enemy.currentPathIndex + 1]
 
     if (!nextPoint) {
@@ -414,12 +403,12 @@ export function getNextPosition(
         return { x: enemy.x, y: enemy.y, pathIndex: enemy.currentPathIndex }
     }
 
-    const dx = nextPoint.x - currentPoint.x
-    const dy = nextPoint.y - currentPoint.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-
     // 이동 거리 계산
-    const moveDistance = enemy.speed * deltaTime
+    const slowFactor = ENEMY_TYPES[enemy.type].slowFactor ?? 0.55
+    const effectiveSpeed = enemy.slowedUntil && enemy.slowedUntil > Date.now()
+        ? enemy.speed * slowFactor
+        : enemy.speed
+    const moveDistance = effectiveSpeed * deltaTime
 
     // 현재 위치에서 다음 포인트까지의 거리
     const currentDx = nextPoint.x - enemy.x

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -120,7 +120,12 @@ const slideVariants = {
 export default function GameShowcase() {
     const [current, setCurrent] = useState(0)
     const [direction, setDirection] = useState(0)
+    const [animationsReady, setAnimationsReady] = useState(false)
     const dragStartX = useRef(0)
+
+    useEffect(() => {
+        setAnimationsReady(true)
+    }, [])
 
     const go = useCallback(
         (delta: number) => {
@@ -137,7 +142,7 @@ export default function GameShowcase() {
             <div className="max-w-7xl mx-auto">
                 {/* Section header */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={animationsReady ? { opacity: 0, y: 20 } : false}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     className="text-center mb-14"
@@ -160,8 +165,8 @@ export default function GameShowcase() {
                             key={current}
                             custom={direction}
                             variants={slideVariants}
-                            initial="enter"
-                            animate="center"
+                            initial={animationsReady ? 'enter' : false}
+                            animate={animationsReady ? 'center' : undefined}
                             exit="exit"
                             transition={{ duration: 0.38, ease: [0.32, 0.72, 0, 1] }}
                             className="grid md:grid-cols-[1.35fr_1fr] gap-6 items-center"
@@ -178,7 +183,7 @@ export default function GameShowcase() {
                             <div
                                 className="toss-card texture-grain relative rounded-3xl overflow-hidden aspect-video min-h-[220px] md:min-h-[280px] select-none transition-shadow duration-300"
                                 style={{
-                                    background: 'rgba(255,255,255,0.55)',
+                                    backgroundColor: 'rgba(255,255,255,0.55)',
                                     backdropFilter: 'blur(20px)',
                                     WebkitBackdropFilter: 'blur(20px)',
                                     border: '1px solid rgba(255,255,255,0.9)',
@@ -189,13 +194,13 @@ export default function GameShowcase() {
                                 {/* Gloss top line */}
                                 <div
                                     className="absolute inset-x-0 top-0 h-px"
-                                    style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent)' }}
+                                    style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent)' }}
                                 />
                                 {/* Game name badge */}
                                 <div
                                     className="toss-depth-plastic absolute bottom-4 left-4 flex items-center gap-2 px-4 py-2 rounded-full"
                                     style={{
-                                        background: 'rgba(255,255,255,0.75)',
+                                        backgroundColor: 'rgba(255,255,255,0.75)',
                                         backdropFilter: 'blur(12px)',
                                         WebkitBackdropFilter: 'blur(12px)',
                                         border: '1px solid rgba(255,255,255,0.95)',
@@ -226,12 +231,12 @@ export default function GameShowcase() {
                                     {game.keywords.map((kw) => (
                                         <motion.div
                                             key={kw}
-                                            initial={{ opacity: 0, scale: 0.85 }}
-                                            animate={{ opacity: 1, scale: 1 }}
+                                            initial={animationsReady ? { opacity: 0, scale: 0.85 } : false}
+                                            animate={animationsReady ? { opacity: 1, scale: 1 } : undefined}
                                             transition={{ duration: 0.3 }}
                                             className="toss-depth-plastic texture-grain relative px-4 py-2 rounded-2xl text-sm font-bold"
                                             style={{
-                                                background: game.tagColor,
+                                                backgroundColor: game.tagColor,
                                                 border: `1px solid ${game.accentColor}30`,
                                                 color: game.accentColor,
                                                 backdropFilter: 'blur(8px)',
@@ -253,7 +258,7 @@ export default function GameShowcase() {
                                             style={{
                                                 width: i === current ? 24 : 8,
                                                 height: 8,
-                                                background: i === current ? game.accentColor : 'rgba(14,165,233,0.25)',
+                                                backgroundColor: i === current ? game.accentColor : 'rgba(14,165,233,0.25)',
                                             }}
                                         />
                                     ))}
@@ -267,7 +272,7 @@ export default function GameShowcase() {
                         onClick={() => go(-1)}
                         className="toss-depth-plastic absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 md:-translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
                         style={{
-                            background: 'rgba(255,255,255,0.8)',
+                            backgroundColor: 'rgba(255,255,255,0.8)',
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
                             border: '1px solid rgba(255,255,255,0.95)',
@@ -279,7 +284,7 @@ export default function GameShowcase() {
                         onClick={() => go(1)}
                         className="toss-depth-plastic absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 md:translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110 active:scale-95"
                         style={{
-                            background: 'rgba(255,255,255,0.8)',
+                            backgroundColor: 'rgba(255,255,255,0.8)',
                             backdropFilter: 'blur(12px)',
                             WebkitBackdropFilter: 'blur(12px)',
                             border: '1px solid rgba(255,255,255,0.95)',

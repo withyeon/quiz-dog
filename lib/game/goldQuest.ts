@@ -58,49 +58,51 @@ export function generateBoxEvent(
   const canSteal = !isMannerMode && otherPlayersWithGold.length > 0
   const canSwap = !isMannerMode && otherPlayers.length > 0
 
-  if (random < 0.05) return { type: 'GOLD_STACK', value: 10, message: '골드 스택 발견! +10 골드', itemName: '골드 스택', icon: '💰' }
-  if (random < 0.175) return { type: 'GOLD_STACK', value: 20, message: '골드 스택 발견! +20 골드', itemName: '골드 스택', icon: '💰' }
-  if (random < 0.35) return { type: 'GOLD_STACK', value: 30, message: '골드 스택 발견! +30 골드', itemName: '골드 스택', icon: '💰' }
-  if (random < 0.50) return { type: 'GOLD_STACK', value: 40, message: '골드 스택 발견! +40 골드', itemName: '골드 스택', icon: '💰' }
-  if (random < 0.635) return { type: 'GOLD_STACK', value: 50, message: '골드 스택 발견! +50 골드', itemName: '골드 스택', icon: '💰' }
-  if (random < 0.71) return { type: 'GOLD_STACK', value: 100, message: '골드 스택 발견! +100 골드', itemName: '골드 스택', icon: '💰' }
+  if (random < 0.05) return { type: 'GOLD_STACK', value: 10, message: '낡은 금화 자루 발견. +10 골드', itemName: '금화 자루', icon: '💰' }
+  if (random < 0.175) return { type: 'GOLD_STACK', value: 20, message: '작은 보물 더미 발견. +20 골드', itemName: '작은 보물 더미', icon: '💰' }
+  if (random < 0.35) return { type: 'GOLD_STACK', value: 30, message: '숨겨진 보급 상자 발견. +30 골드', itemName: '보급 상자', icon: '💰' }
+  if (random < 0.50) return { type: 'GOLD_STACK', value: 40, message: '빛나는 금화 더미 발견. +40 골드', itemName: '금화 더미', icon: '💰' }
+  if (random < 0.635) return { type: 'GOLD_STACK', value: 50, message: '묵직한 보물 상자 발견. +50 골드', itemName: '보물 상자', icon: '💰' }
+  if (random < 0.71) return { type: 'GOLD_STACK', value: 100, message: '전설의 왕관 보물 발견. +100 골드', itemName: '왕관 보물', icon: '💰' }
 
   if (random < 0.80) {
     const bonus = Math.max(currentGold, 50)
-    return { type: 'JESTER', value: bonus, message: `광대가 나타났다! 골드가 2배가 되었다! 🃏`, itemName: '광대', icon: '🃏' }
+    return { type: 'JESTER', value: bonus, message: `광대의 거래 성공. +${bonus} 골드`, itemName: '광대', icon: '🃏' }
   }
 
   if (random < 0.84) {
     const bonus = Math.max(currentGold * 2, 100)
-    return { type: 'UNICORN', value: bonus, message: `유니콘이 나타났다! 골드가 3배가 되었다! 🦄`, itemName: '유니콘', icon: '🦄' }
+    return { type: 'UNICORN', value: bonus, message: `유니콘의 항로 발견. +${bonus} 골드`, itemName: '유니콘', icon: '🦄' }
   }
 
   if (random < 0.87) {
+    if (currentGold <= 0) return { type: 'FAIRY', message: '빈 함정을 발견했지만 잃을 골드는 없었다.', itemName: '빈 함정', icon: '✨' }
     const lossAmount = Math.floor(currentGold * 0.25)
-    return { type: 'SLIME_MONSTER', value: lossAmount, message: `슬라임 몬스터가 나타났다! 골드의 25%를 잃었다! 😱`, itemName: '슬라임 몬스터', icon: '👾' }
+    return { type: 'SLIME_MONSTER', value: lossAmount, message: `슬라임 함정 발동. ${lossAmount} 골드를 잃었다.`, itemName: '슬라임 함정', icon: '👾' }
   }
 
   if (random < 0.88) {
+    if (currentGold <= 0) return { type: 'FAIRY', message: '용의 그림자를 피했다. 잃을 골드는 없었다.', itemName: '빈 함정', icon: '✨' }
     const lossAmount = Math.floor(currentGold * 0.5)
-    return { type: 'DRAGON', value: lossAmount, message: `드래곤이 나타났다! 골드의 50%를 잃었다! 🐉`, itemName: '드래곤', icon: '🐉' }
+    return { type: 'DRAGON', value: lossAmount, message: `드래곤 급습. ${lossAmount} 골드를 잃었다.`, itemName: '드래곤', icon: '🐉' }
   }
 
   if (random < 0.90) {
-    if (canSwap) return { type: 'KING', message: `왕이 나타났다! 다른 플레이어와 골드를 교환할 수 있다! 👑`, itemName: '왕', icon: '👑' }
-    return { type: 'GOLD_STACK', value: 50, message: '골드 스택 발견! +50 골드', itemName: '골드 스택', icon: '💰' }
+    if (canSwap) return { type: 'KING', message: '왕의 명령서 획득. 교환할 상대를 선택하라.', itemName: '왕의 명령서', icon: '👑' }
+    return { type: 'GOLD_STACK', value: 50, message: '묵직한 보물 상자 발견. +50 골드', itemName: '보물 상자', icon: '💰' }
   }
 
   if (random < 0.94) {
-    if (canSteal) return { type: 'ELF', message: `엘프가 나타났다! 다른 플레이어의 골드 10%를 훔칠 수 있다! 🧝`, itemName: '엘프', icon: '🧝' }
-    return { type: 'GOLD_STACK', value: 30, message: '골드 스택 발견! +30 골드', itemName: '골드 스택', icon: '💰' }
+    if (canSteal) return { type: 'ELF', message: '엘프의 밀서 획득. 골드 10%를 가져올 상대를 선택하라.', itemName: '엘프의 밀서', icon: '🧝' }
+    return { type: 'GOLD_STACK', value: 30, message: '숨겨진 보급 상자 발견. +30 골드', itemName: '보급 상자', icon: '💰' }
   }
 
   if (random < 0.98) {
-    if (canSteal) return { type: 'WIZARD', message: `마법사가 나타났다! 다른 플레이어의 골드 25%를 훔칠 수 있다! 🧙`, itemName: '마법사', icon: '🧙' }
-    return { type: 'GOLD_STACK', value: 40, message: '골드 스택 발견! +40 골드', itemName: '골드 스택', icon: '💰' }
+    if (canSteal) return { type: 'WIZARD', message: '마법사의 계약서 획득. 골드 25%를 가져올 상대를 선택하라.', itemName: '마법사의 계약서', icon: '🧙' }
+    return { type: 'GOLD_STACK', value: 40, message: '빛나는 금화 더미 발견. +40 골드', itemName: '금화 더미', icon: '💰' }
   }
 
-  return { type: 'FAIRY', message: `요정이 나타났지만 아무 일도 일어나지 않았다... ✨`, itemName: '요정', icon: '✨' }
+  return { type: 'FAIRY', message: '요정의 바람이 지나갔다. 이번 항로는 조용하다.', itemName: '요정', icon: '✨' }
 }
 
 
