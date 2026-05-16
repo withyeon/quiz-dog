@@ -7,6 +7,8 @@ import FactoryView from '@/components/FactoryView'
 import BattleRoyaleDashboard from './BattleRoyaleDashboard'
 import Link from 'next/link'
 import { getGameModeConfig } from '@/lib/game/modes'
+import PuppyChaosTeacherBoard from '@/components/강아지대소동/강아지대소동TeacherBoard'
+import { usePuppyChaosEvents } from '@/hooks/use강아지대소동Events'
 
 type Player = Database['public']['Tables']['players']['Row']
 type Room = Database['public']['Tables']['rooms']['Row']
@@ -17,6 +19,8 @@ interface LiveDashboardRendererProps {
 }
 
 export default function LiveDashboardRenderer({ room, players }: LiveDashboardRendererProps) {
+    const { events } = usePuppyChaosEvents(room.room_code, room.game_mode === 'poop_dodge')
+
     if (room.status === 'finished') {
         return (
             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl shadow-sm p-12 text-center border-2 border-green-200 mb-6">
@@ -38,6 +42,8 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
 
     if (mode === 'battle_royale') {
         return <BattleRoyaleDashboard players={players} />
+    } else if (mode === 'poop_dodge') {
+        return <PuppyChaosTeacherBoard room={room} players={players} events={events} />
     } else if (mode === 'fishing') {
         return (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">

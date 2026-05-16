@@ -10,6 +10,7 @@ interface GameData {
     emoji: string
     videoSrc?: string   // /videos/gold-quest.mp4 등 넣으면 자동 재생
     imageSrc: string    // 동영상 없을 때 폴백 이미지
+    titleImageSrc?: string
     keywords: string[]
     description: string
     accentColor: string
@@ -21,7 +22,8 @@ const games: GameData[] = [
         name: '타워 디펜스',
         emoji: '🏰',
         videoSrc: '/main/mp4/tower-defense.mov',
-        imageSrc: '/tower-defense.svg',
+        imageSrc: '/title/tower-defense.svg',
+        titleImageSrc: '/title/tower-defense.svg',
         keywords: ['🏰 타워 설치', '⚔️ 적 격파', '🧠 전략 배치', '🛡️ 라운드 방어'],
         description: '퀴즈를 맞추고 타워를 세워 적을 막아내세요! 전략적으로 배치해 최후까지 버티세요.',
         accentColor: '#6366f1',
@@ -31,7 +33,8 @@ const games: GameData[] = [
         name: '해적왕의 보물찾기',
         emoji: '🏴‍☠️',
         videoSrc: '/main/mp4/gold-quest.mov',
-        imageSrc: '/gold-quest.png',
+        imageSrc: '/title/gold-quest.svg',
+        titleImageSrc: '/title/gold-quest.svg',
         keywords: ['💰 골드 수집', '⚔️ 실시간 대결', '🗺️ 맵 탐험', '🏆 최고 부자 우승'],
         description: '퀴즈를 맞추면 골드를 획득! 해적이 되어 보물을 차지하세요.',
         accentColor: '#f59e0b',
@@ -41,7 +44,8 @@ const games: GameData[] = [
         name: '눈싸움 대작전',
         emoji: '❄️',
         videoSrc: '/videos/battle-royale.mp4',
-        imageSrc: '/battle-royale.png',
+        imageSrc: '/title/battle-royale.svg',
+        titleImageSrc: '/title/battle-royale.svg',
         keywords: ['❄️ 눈덩이 공격', '🛡️ 배틀로얄', '💎 클래스 선택', '📉 안전 구역'],
         description: '마지막까지 살아남아라! 퀴즈로 눈덩이를 모아 상대를 맞추세요.',
         accentColor: '#38bdf8',
@@ -61,7 +65,8 @@ const games: GameData[] = [
         name: '전설의 편의점',
         emoji: '🏪',
         videoSrc: '/videos/factory.mp4',
-        imageSrc: '/factory.png',
+        imageSrc: '/title/factory.svg',
+        titleImageSrc: '/title/factory.svg',
         keywords: ['🏭 상품 진열', '📈 매출 경쟁', '🔗 시너지 효과', '💸 부자 되기'],
         description: '퀴즈로 상품을 획득하고 편의점을 경영하며 최고 부자가 되세요!',
         accentColor: '#10b981',
@@ -71,7 +76,8 @@ const games: GameData[] = [
         name: '달콤 바삭 카페',
         emoji: '☕',
         videoSrc: '/videos/cafe.mp4',
-        imageSrc: '/cafe.png',
+        imageSrc: '/title/cafe.svg',
+        titleImageSrc: '/title/cafe.svg',
         keywords: ['☕ 메뉴 경영', '👥 손님 응대', '⭐ 별점 관리', '🍰 레시피 업그레이드'],
         description: '카페를 운영하며 퀴즈로 메뉴를 추가하고 최고의 카페를 만들어요!',
         accentColor: '#f97316',
@@ -81,7 +87,8 @@ const games: GameData[] = [
         name: '쉿! 마피아',
         emoji: '🕴️',
         videoSrc: '/videos/mafia.mp4',
-        imageSrc: '/mafia.png',
+        imageSrc: '/title/mafia.svg',
+        titleImageSrc: '/title/mafia.svg',
         keywords: ['🔍 추리 대결', '🗳️ 투표 제거', '🤫 정체 숨기기', '🧠 심리전'],
         description: '마피아를 찾아라! 퀴즈 실력과 눈치로 마지막까지 살아남으세요.',
         accentColor: '#6b7280',
@@ -206,22 +213,31 @@ export default function GameShowcase() {
                                         border: '1px solid rgba(255,255,255,0.95)',
                                     }}
                                 >
-                                    <span className="text-xl">{game.emoji}</span>
-                                    <span className="text-sm font-bold text-sky-800">{game.name}</span>
+                                    {game.titleImageSrc && (
+                                        <Image
+                                            src={game.titleImageSrc}
+                                            alt={game.name}
+                                            width={360}
+                                            height={108}
+                                            className="h-20 w-auto max-w-[300px] object-contain"
+                                        />
+                                    )}
                                 </div>
                             </div>
 
                             {/* RIGHT: Keywords & Description */}
                             <div className="flex flex-col gap-6 px-2">
                                 <div>
-                                    <div className="flex items-center gap-3 mb-3">
-                                        <span className="text-5xl">{game.emoji}</span>
-                                        <h3
-                                            className="text-3xl font-black leading-tight"
-                                            style={{ color: '#0369a1' }}
-                                        >
-                                            {game.name}
-                                        </h3>
+                                    <div className="mb-4">
+                                        {game.titleImageSrc && (
+                                            <Image
+                                                src={game.titleImageSrc}
+                                                alt={game.name}
+                                                width={780}
+                                                height={264}
+                                                className="h-32 w-auto max-w-full object-contain sm:h-44 lg:h-56"
+                                            />
+                                        )}
                                     </div>
                                     <p className="text-sky-700/70 text-base leading-relaxed">{game.description}</p>
                                 </div>

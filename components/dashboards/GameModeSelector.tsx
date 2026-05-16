@@ -20,7 +20,7 @@ export default function GameModeSelector({ selectedMode, onSelectMode }: GameMod
               key={mode.id}
               type="button"
               onClick={() => onSelectMode(mode.id)}
-              className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center min-h-[360px] ${
+              className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center min-h-[420px] ${
                 isSelected
                   ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
@@ -32,17 +32,11 @@ export default function GameModeSelector({ selectedMode, onSelectMode }: GameMod
                   alt={mode.label}
                   width={500}
                   height={500}
-                  className="w-64 h-64 object-contain mb-4"
+                  className="w-80 h-80 max-w-full object-contain mb-5"
                 />
               ) : (
-                <div className="text-8xl mb-4">{mode.emoji}</div>
+                <div className="text-9xl mb-5">{mode.emoji}</div>
               )}
-              <div
-                className="font-bold text-xl text-gray-900 mb-2"
-                style={{ fontFamily: mode.fontFamily ?? 'DNFBitBitv2, sans-serif' }}
-              >
-                {mode.emoji} {mode.label}
-              </div>
               <div
                 className="text-base text-gray-600 text-center px-2"
                 style={{ fontFamily: mode.fontFamily ?? 'DNFBitBitv2, sans-serif' }}

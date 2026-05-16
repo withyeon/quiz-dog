@@ -18,6 +18,11 @@ export interface Database {
           gold: number
           avatar: string | null
           is_online: boolean
+          current_question_index?: number
+          combo_count?: number
+          has_umbrella?: boolean
+          pending_attacks?: Json | null
+          is_kicked?: boolean
           position?: number
           active_item?: Json | null
           item_effects?: Json | null
@@ -49,6 +54,11 @@ export interface Database {
           gold?: number
           avatar?: string | null
           is_online?: boolean
+          current_question_index?: number
+          combo_count?: number
+          has_umbrella?: boolean
+          pending_attacks?: Json | null
+          is_kicked?: boolean
           position?: number
           active_item?: Json | null
           item_effects?: Json | null
@@ -80,6 +90,11 @@ export interface Database {
           gold?: number
           avatar?: string | null
           is_online?: boolean
+          current_question_index?: number
+          combo_count?: number
+          has_umbrella?: boolean
+          pending_attacks?: Json | null
+          is_kicked?: boolean
           position?: number
           active_item?: Json | null
           item_effects?: Json | null
@@ -139,9 +154,9 @@ export interface Database {
       rooms: {
         Row: {
           room_code: string
-          status: 'waiting' | 'playing' | 'finished'
+          status: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -150,9 +165,9 @@ export interface Database {
         }
         Insert: {
           room_code: string
-          status?: 'waiting' | 'playing' | 'finished'
+          status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -161,9 +176,9 @@ export interface Database {
         }
         Update: {
           room_code?: string
-          status?: 'waiting' | 'playing' | 'finished'
+          status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -226,6 +241,35 @@ export interface Database {
           game_mode?: string | null
           player_count?: number
           players_data?: Json
+          created_at?: string
+        }
+      }
+      events: {
+        Row: {
+          id: string
+          session_id: string
+          type: 'attack_poop' | 'attack_steal' | 'legendary' | 'combo' | 'rank_change'
+          actor_nickname: string
+          target_nickname: string | null
+          payload: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          session_id: string
+          type: 'attack_poop' | 'attack_steal' | 'legendary' | 'combo' | 'rank_change'
+          actor_nickname: string
+          target_nickname?: string | null
+          payload?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          session_id?: string
+          type?: 'attack_poop' | 'attack_steal' | 'legendary' | 'combo' | 'rank_change'
+          actor_nickname?: string
+          target_nickname?: string | null
+          payload?: Json
           created_at?: string
         }
       }

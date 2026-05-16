@@ -205,13 +205,13 @@ function ClassroomBg() {
    데이터
 ───────────────────────────────────────────────────────────── */
 const gameModesData = [
-  { name: '해적왕의 보물찾기', emoji: '🏴‍☠️', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', description: '황금을 모으며 보물을 찾는 모험' },
-  { name: '눈싸움 대작전', emoji: '❄️', color: '#38BDF8', bg: 'rgba(56,189,248,0.15)', description: '눈덩이로 상대를 맞추는 배틀' },
+  { name: '해적왕의 보물찾기', titleImage: '/title/gold-quest.svg', emoji: '🏴‍☠️', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', description: '황금을 모으며 보물을 찾는 모험' },
+  { name: '눈싸움 대작전', titleImage: '/title/battle-royale.svg', emoji: '❄️', color: '#38BDF8', bg: 'rgba(56,189,248,0.15)', description: '눈덩이로 상대를 맞추는 배틀' },
   { name: '인형뽑기', emoji: '🕹️', color: '#EC4899', bg: 'rgba(236,72,153,0.15)', description: '희귀 아이템을 노려라!' },
-  { name: '전설의 편의점', emoji: '🏪', color: '#10B981', bg: 'rgba(16,185,129,0.15)', description: '편의점 경영 부자 되기' },
-  { name: '달콤 바삭 카페', emoji: '☕', color: '#F97316', bg: 'rgba(249,115,22,0.15)', description: '카페 운영 최고 점수 달성' },
-  { name: '쉿! 마피아', emoji: '🕴️', color: '#6B7280', bg: 'rgba(107,114,128,0.15)', description: '배신과 추리의 심리전' },
-  { name: '타워 디펜스', emoji: '🏰', color: '#6366F1', bg: 'rgba(99,102,241,0.15)', description: '타워로 적을 막아내기' },
+  { name: '전설의 편의점', titleImage: '/title/factory.svg', emoji: '🏪', color: '#10B981', bg: 'rgba(16,185,129,0.15)', description: '편의점 경영 부자 되기' },
+  { name: '달콤 바삭 카페', titleImage: '/title/cafe.svg', emoji: '☕', color: '#F97316', bg: 'rgba(249,115,22,0.15)', description: '카페 운영 최고 점수 달성' },
+  { name: '쉿! 마피아', titleImage: '/title/mafia.svg', emoji: '🕴️', color: '#6B7280', bg: 'rgba(107,114,128,0.15)', description: '배신과 추리의 심리전' },
+  { name: '타워 디펜스', titleImage: '/title/tower-defense.svg', emoji: '🏰', color: '#6366F1', bg: 'rgba(99,102,241,0.15)', description: '타워로 적을 막아내기' },
   { name: "Don't Look Down", emoji: '⛰️', color: '#14B8A6', bg: 'rgba(20,184,166,0.15)', description: '떨어지지 않고 정상 등반' },
 ]
 const visibleGameModeCount = gameModesData.length
@@ -629,13 +629,15 @@ export default function LandingPage() {
                     boxShadow: `0 5px 0 ${game.color}30, 0 8px 20px rgba(0,0,0,0.08)`,
                   }}
                 >
-                  <div className="text-4xl mb-3">{game.emoji}</div>
-                  <h3
-                    className="text-sm font-black mb-1.5 leading-snug"
-                    style={{ color: '#3B1F0A', fontFamily: "'BMJUA', sans-serif" }}
-                  >
-                    {game.name}
-                  </h3>
+                  {game.titleImage && (
+                    <Image
+                      src={game.titleImage}
+                      alt={game.name}
+                      width={540}
+                      height={180}
+                      className="mb-4 h-32 w-full object-contain md:h-36"
+                    />
+                  )}
                   <p className="text-xs leading-relaxed" style={{ color: '#7B4B1A', opacity: 0.8 }}>
                     {game.description}
                   </p>

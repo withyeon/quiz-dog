@@ -23,11 +23,21 @@ export interface Product {
 // 상품 카테고리 (시너지용)
 export type ProductCategory = '음료' | '식품' | '간식' | '프리미엄'
 
+export const MONEY_UNIT = 10
+
+export function roundMoney(value: number): number {
+  return Math.max(0, Math.round(value / MONEY_UNIT) * MONEY_UNIT)
+}
+
+export function formatMoney(value: number): string {
+  return `${roundMoney(value).toLocaleString()}원`
+}
+
 export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
   // 일반 (Common) - 50%  — 수익 30~50원/초
   { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.svg', tier: '일반', income: 30, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
   { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.svg', tier: '일반', income: 40, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
-  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.svg', tier: '일반', income: 35, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
+  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.svg', tier: '일반', income: 40, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
   { baseId: 'p4', name: '초코바', emoji: '🍫', image: '/store/chocolate.svg', tier: '일반', income: 50, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
 
   // 희귀 (Rare) - 30%  — 수익 80~120원/초
@@ -46,7 +56,7 @@ export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
   { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.svg', tier: '전설', income: 1200, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
 ]
 
-export const GRID_SIZE = 9 // 9칸 진열대 (3x3)
+export const GRID_SIZE = 10 // Factory 스타일: 10칸 생산/진열 슬롯
 
 // 고객 타입
 export type CustomerType = 'normal' | 'vip' | 'bulk'
@@ -117,7 +127,10 @@ export const STORE_EVENTS: StoreEvent[] = [
  * 가챠 시스템 (랜덤 뽑기)
  * @param answerSpeed - 정답 속도 ('fast' | 'normal' | 'slow'), 빠를수록 좋은 등급 확률 증가
  */
-export function generateProductOptions(answerSpeed?: 'fast' | 'normal' | 'slow'): Product[] {
+export function generateProductOptions(
+  answerSpeed?: 'fast' | 'normal' | 'slow',
+  shelfIsFull: boolean = false
+): Product[] {
   const options: Product[] = []
 
   // 정답 속도에 따른 확률 보정
@@ -137,6 +150,13 @@ export function generateProductOptions(answerSpeed?: 'fast' | 'normal' | 'slow')
     // 일반 = 100 - 2 - 8 - 30 = 60%
   }
 
+  // 10칸을 모두 채운 뒤에는 Blooket Factory처럼 교체 전략이 시작되도록 고등급 비중 증가
+  if (shelfIsFull) {
+    legendChance += 6
+    epicChance += 10
+    rareChance += 4
+  }
+
   for (let i = 0; i < 3; i++) {
     const rand = Math.random() * 100
     let tier: ProductTier = '일반'
@@ -154,7 +174,7 @@ export function generateProductOptions(answerSpeed?: 'fast' | 'normal' | 'slow')
     const product: Product = {
       ...picked,
       id: `${picked.baseId}-${Date.now()}-${i}`,
-      sellPrice: picked.income * 10, // 판매 시 수익의 10배
+      sellPrice: roundMoney(picked.income * 10), // 판매 시 수익의 10배
     }
 
     options.push(product)
@@ -184,34 +204,22 @@ export function getSpeedBonus(answerTimeMs: number, timeLimitSeconds: number = 3
   const remainingMs = (timeLimitSeconds * 1000) - answerTimeMs
   if (remainingMs <= 0) return 0
   // 남은 시간 1초당 50원 보너스
-  return Math.floor((remainingMs / 1000) * 50)
+  return roundMoney((remainingMs / 1000) * 50)
+}
+
+export function calculateProductIncome(product: Product, products: Product[]): number {
+  const level = product.level || 1
+  const baseIncome = product.income * level
+  const categoryMultiplier = getCategorySynergy(product.category, products)
+  return roundMoney(baseIncome * categoryMultiplier)
 }
 
 /**
  * 총 초당 수익 계산 (시너지 포함)
  */
 export function calculateTotalCPS(products: Product[]): number {
-  // 카테고리별 개수 계산
-  const categoryCount: Record<ProductCategory, number> = {
-    '음료': 0,
-    '식품': 0,
-    '간식': 0,
-    '프리미엄': 0,
-  }
-
-  products.forEach(product => {
-    categoryCount[product.category]++
-  })
-
-  // 각 상품의 수익에 시너지 배율 적용
   return products.reduce((total, product) => {
-    const level = product.level || 1
-    const baseIncome = product.income * level // 레벨에 따라 income 증가
-
-    // 시너지 배율 계산: 같은 카테고리 개수에 따라 1.5배씩 증가
-    const categoryMultiplier = 1 + (categoryCount[product.category] - 1) * 0.5
-
-    return total + Math.floor(baseIncome * categoryMultiplier)
+    return total + calculateProductIncome(product, products)
   }, 0)
 }
 
@@ -229,7 +237,7 @@ export function sellProduct(
   }
 
   const newProducts = products.filter(p => p.id !== product.id)
-  const sellPrice = product.sellPrice || product.income * 10
+  const sellPrice = product.sellPrice || roundMoney(product.income * 10)
 
   return {
     success: true,
@@ -262,7 +270,7 @@ export function calculateCustomerBonus(
   baseIncome: number,
   customer: Customer
 ): number {
-  return Math.floor(baseIncome * customer.bonusMultiplier)
+  return roundMoney(baseIncome * customer.bonusMultiplier)
 }
 
 /**
@@ -307,8 +315,8 @@ export function getUpgradeCost(product: Product): number {
   const level = product.level || 1
   if (level >= 5) return Infinity // 최대 레벨
 
-  const baseCost = product.income * 20
-  return Math.floor(baseCost * Math.pow(2, level - 1))
+  const baseCost = product.income * 18
+  return roundMoney(baseCost * Math.pow(1.85, level - 1))
 }
 
 /**
@@ -343,7 +351,7 @@ export function upgradeProduct(
  */
 export function getCategorySynergy(category: ProductCategory, products: Product[]): number {
   const count = products.filter(p => p.category === category).length
-  return 1 + (count - 1) * 0.5 // 1.0x, 1.5x, 2.0x, 2.5x, ...
+  return Math.min(5.5, 1 + (count - 1) * 0.5) // 1.0x부터 최대 5.5x
 }
 
 /**
@@ -361,5 +369,3 @@ export function getCategoryEmoji(category: ProductCategory): string {
       return '⭐'
   }
 }
-
-

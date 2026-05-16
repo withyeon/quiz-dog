@@ -3,20 +3,22 @@
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ShoppingCart, Coins, Zap, Store, Sparkles, PackagePlus, X } from 'lucide-react'
-import type { Product, ProductTier, Customer, StoreEvent, ProductCategory } from '@/lib/game/convenienceStore'
+import { Coins, Zap, Store, Sparkles, PackagePlus, Replace, TrendingUp } from 'lucide-react'
+import type { Product, Customer, StoreEvent, ProductCategory } from '@/lib/game/convenienceStore'
 import {
   generateProductOptions,
   calculateTotalCPS,
   sellProduct,
   generateCustomer,
-  calculateCustomerBonus,
   checkEvent,
   getTierColor,
   getUpgradeCost,
   upgradeProduct,
+  calculateProductIncome,
   getCategorySynergy,
   getCategoryEmoji,
+  formatMoney,
+  roundMoney,
   GRID_SIZE,
 } from '@/lib/game/convenienceStore'
 
@@ -53,6 +55,7 @@ export default function ConvenienceStore({
   const [currentEvent, setCurrentEvent] = useState<StoreEvent | null>(null)
   const [eventTimeLeft, setEventTimeLeft] = useState(0)
   const [selectedProductToSell, setSelectedProductToSell] = useState<Product | null>(null)
+  const [pendingProductToPlace, setPendingProductToPlace] = useState<Product | null>(null)
 
   // CPS 계산
   useEffect(() => {
@@ -69,14 +72,14 @@ export default function ConvenienceStore({
       multiplier *= currentCustomer.bonusMultiplier
     }
 
-    setCps(Math.floor(totalCPS * multiplier))
+    setCps(roundMoney(totalCPS * multiplier))
   }, [products, currentEvent, currentCustomer])
 
   // 자동 수익 루프
   useEffect(() => {
     if (cps === 0) return
     const interval = setInterval(() => {
-      onMoneyChange(money + cps)
+      onMoneyChange(roundMoney(money + cps))
       setLastTick(Date.now())
     }, 1000)
     return () => clearInterval(interval)
@@ -129,19 +132,19 @@ export default function ConvenienceStore({
   // 퀴즈 정답 시 상품 선택 모달 표시 (기존: 발주 버튼 → 퀴즈 → 정답 시)
   useEffect(() => {
     if (quizCorrect && gameState === 'quiz') {
-      const options = generateProductOptions(answerSpeed)
+      const options = generateProductOptions(answerSpeed, products.length >= GRID_SIZE)
       setSelectionOptions(options)
       setGameState('selection')
     }
-  }, [quizCorrect, gameState, answerSpeed])
+  }, [quizCorrect, gameState, answerSpeed, products.length])
 
   // 부모에서 정답 3개마다 열어주는 발주 모달
   useEffect(() => {
     if (showOrderModal) {
-      setSelectionOptions(generateProductOptions(answerSpeed))
+      setSelectionOptions(generateProductOptions(answerSpeed, products.length >= GRID_SIZE))
       setGameState('selection')
     }
-  }, [showOrderModal, answerSpeed])
+  }, [showOrderModal, answerSpeed, products.length])
 
   useEffect(() => {
     if (!showOrderModal && gameState === 'selection') {
@@ -152,9 +155,8 @@ export default function ConvenienceStore({
   // 상품 배치
   const handlePlaceProduct = (product: Product) => {
     if (products.length >= GRID_SIZE) {
-      alert('진열대가 꽉 찼습니다! 상품을 판매하거나 교체하세요.')
+      setPendingProductToPlace(product)
       setGameState('idle')
-      if (onProductSelected) onProductSelected()
       return
     }
 
@@ -164,20 +166,35 @@ export default function ConvenienceStore({
     if (onProductSelected) onProductSelected()
   }
 
+  const handleReplaceProduct = (slotIndex: number) => {
+    if (!pendingProductToPlace) return
+
+    const newProducts = [...products]
+    newProducts[slotIndex] = pendingProductToPlace
+    onProductsChange(newProducts)
+    setPendingProductToPlace(null)
+    if (onProductSelected) onProductSelected()
+  }
+
+  const handleSkipPendingProduct = () => {
+    setPendingProductToPlace(null)
+    if (onProductSelected) onProductSelected()
+  }
+
   // 상품 판매
   const handleSellProduct = (product: Product) => {
     const result = sellProduct(product, products)
     if (result.success) {
-      onMoneyChange(money + result.money)
+      onMoneyChange(roundMoney(money + result.money))
       onProductsChange(result.newProducts)
       setSelectedProductToSell(null)
     }
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 min-h-screen bg-slate-100 font-sans text-slate-800" style={{ fontFamily: 'BMJUA, sans-serif' }}>
+    <div className="w-full max-w-5xl mx-auto p-4 rounded-[28px] bg-gradient-to-br from-emerald-50 via-white to-amber-50 font-sans text-slate-800 border border-white/80 shadow-2xl" style={{ fontFamily: 'BMJUA, sans-serif' }}>
       {/* HUD (정보창) */}
-      <header className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-md border-b-4 border-slate-200 mb-6 sticky top-4 z-10">
+      <header className="flex flex-wrap justify-between items-center gap-3 bg-white/90 p-4 rounded-2xl shadow-md border-b-4 border-emerald-200 mb-4 sticky top-4 z-10">
         <div className="flex items-center gap-2">
           <div className="bg-yellow-100 p-2 rounded-full">
             <Coins className="text-yellow-600" />
@@ -190,7 +207,7 @@ export default function ConvenienceStore({
               animate={{ scale: 1, color: '#1e293b' }}
               className="text-2xl font-black"
             >
-              {money.toLocaleString()}원
+              {formatMoney(money)}
             </motion.p>
           </div>
         </div>
@@ -202,7 +219,7 @@ export default function ConvenienceStore({
           <div>
             <p className="text-xs text-slate-500 font-bold">초당 수익 (CPS)</p>
             <p className="text-xl font-bold text-slate-800">
-              +{cps.toLocaleString()} /초
+              +{formatMoney(cps)} /초
             </p>
           </div>
         </div>
@@ -242,8 +259,37 @@ export default function ConvenienceStore({
         )}
       </header>
 
+      {pendingProductToPlace && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-4 rounded-2xl border-2 border-amber-400 bg-amber-50 p-3 shadow-md"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Replace className="text-amber-600" />
+              <div>
+                <p className="font-black text-amber-900">
+                  매대가 꽉 찼습니다. 교체할 상품을 고르세요.
+                </p>
+                <p className="text-xs text-amber-700">
+                  새 상품: {pendingProductToPlace.name} · +{formatMoney(pendingProductToPlace.income)}/초
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleSkipPendingProduct}
+              className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-amber-700 shadow-sm hover:bg-amber-100"
+            >
+              건너뛰기
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* 메인 게임 영역 */}
-      <div className="flex flex-col md:flex-row gap-6 h-[600px]">
+      <div className="flex flex-col md:flex-row gap-5 min-h-[600px]">
         {/* 왼쪽: 컨트롤 패널 */}
         <div className="md:w-1/3 flex flex-col gap-4">
           <motion.button
@@ -251,9 +297,9 @@ export default function ConvenienceStore({
             whileTap={{ scale: 0.98 }}
             onClick={handleQuizStart}
             disabled={!canInteract || gameState !== 'idle'}
-            className={`flex-1 rounded-3xl shadow-lg border-b-8 flex flex-col items-center justify-center gap-3 transition-colors text-white font-black text-2xl
+            className={`flex-1 min-h-36 rounded-3xl shadow-lg border-b-8 flex flex-col items-center justify-center gap-3 transition-colors text-white font-black text-2xl
               ${canInteract && gameState === 'idle'
-                ? 'bg-blue-500 border-blue-700 hover:bg-blue-400'
+                ? 'bg-emerald-500 border-emerald-700 hover:bg-emerald-400'
                 : 'bg-slate-400 border-slate-500 cursor-not-allowed'
               }
             `}
@@ -263,7 +309,7 @@ export default function ConvenienceStore({
             <span className="text-sm font-normal opacity-80">(퀴즈 풀고 상품 받기)</span>
           </motion.button>
 
-          <div className="bg-white p-4 rounded-2xl border-2 border-slate-200 flex-1">
+          <div className="bg-white/95 p-4 rounded-2xl border-2 border-emerald-100 flex-1 shadow-sm">
             <h3 className="font-bold text-slate-500 mb-2 flex items-center gap-2">
               <Store size={18} /> 편의점 현황
             </h3>
@@ -288,6 +334,15 @@ export default function ConvenienceStore({
               </li>
             </ul>
 
+            <div className="mt-3 rounded-xl bg-emerald-50 border border-emerald-100 p-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-700">
+                <TrendingUp size={14} /> 운영 팁
+              </div>
+              <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+                먼저 10칸을 채운 뒤, 낮은 수익 상품을 높은 등급 상품으로 교체하면 매출이 크게 뜁니다.
+              </p>
+            </div>
+
             {/* 시너지 표시 */}
             <div className="mt-3 pt-3 border-t border-slate-200">
               <h4 className="text-xs font-bold text-slate-500 mb-2">📊 카테고리 시너지</h4>
@@ -311,12 +366,12 @@ export default function ConvenienceStore({
         </div>
 
         {/* 오른쪽: 진열대 (Grid) */}
-        <div className="md:w-2/3 bg-white rounded-3xl border-4 border-slate-300 p-6 shadow-inner relative">
+        <div className="md:w-2/3 bg-gradient-to-b from-white to-slate-50 rounded-3xl border-4 border-emerald-200 p-5 shadow-inner relative">
           <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2">
-            🏪 나의 편의점 진열대
+            🏪 나의 편의점 생산 라인
           </h2>
 
-          <div className="grid grid-cols-3 grid-rows-3 gap-3 h-[calc(100%-3rem)]">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {Array(GRID_SIZE)
               .fill(null)
               .map((_, idx) => {
@@ -324,7 +379,12 @@ export default function ConvenienceStore({
                 return (
                   <div
                     key={idx}
-                    className="relative aspect-square bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center overflow-hidden"
+                    onClick={() => handleReplaceProduct(idx)}
+                    className={`relative aspect-square rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition
+                      ${pendingProductToPlace
+                        ? 'cursor-pointer border-amber-400 bg-amber-50 ring-2 ring-amber-200 hover:scale-[1.02]'
+                        : 'border-slate-300 bg-slate-100'
+                      }`}
                   >
                     {slot ? (
                       <motion.div
@@ -356,7 +416,7 @@ export default function ConvenienceStore({
                               width={64}
                               height={64}
                               unoptimized
-                              className="w-16 h-16 object-contain"
+                              className="pixelated w-16 h-16 object-contain"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement
                                 target.style.display = 'none'
@@ -375,7 +435,7 @@ export default function ConvenienceStore({
                             {slot.name}
                           </p>
                           <p className="text-xs font-bold">
-                            +{Math.floor(slot.income * (slot.level || 1) * getCategorySynergy(slot.category, products))}/s
+                            +{formatMoney(calculateProductIncome(slot, products))}/s
                           </p>
                         </div>
 
@@ -387,7 +447,7 @@ export default function ConvenienceStore({
                           transition={{ duration: 0.8 }}
                           className="absolute top-0 right-0 text-green-600 font-bold text-xs pointer-events-none"
                         >
-                          +{Math.floor(slot.income * (slot.level || 1) * getCategorySynergy(slot.category, products))}원
+                          +{formatMoney(calculateProductIncome(slot, products))}
                         </motion.div>
 
                         {/* 업그레이드/판매 버튼 (호버 시) */}
@@ -401,7 +461,7 @@ export default function ConvenienceStore({
                                   const result = upgradeProduct(slot, products)
                                   if (result.success) {
                                     onProductsChange(result.newProducts)
-                                    onMoneyChange(money - result.cost)
+                                    onMoneyChange(roundMoney(money - result.cost))
                                   }
                                 }
                               }}
@@ -410,7 +470,7 @@ export default function ConvenienceStore({
                                 : 'bg-gray-500 cursor-not-allowed'
                                 }`}
                             >
-                              ⬆ {getUpgradeCost(slot).toLocaleString()}원
+                              ⬆ {formatMoney(getUpgradeCost(slot))}
                             </button>
                           )}
                           <button
@@ -420,12 +480,14 @@ export default function ConvenienceStore({
                             }}
                             className="text-white text-[10px] font-bold bg-red-500 hover:bg-red-600 px-2 py-1 rounded w-full"
                           >
-                            판매: {(slot.sellPrice || slot.income * 10).toLocaleString()}원
+                            판매: {formatMoney(slot.sellPrice || slot.income * 10)}
                           </button>
                         </div>
                       </motion.div>
                     ) : (
-                      <span className="text-slate-300 text-xs">빈 매대</span>
+                      <span className="text-slate-300 text-xs">
+                        {pendingProductToPlace ? '여기로 교체' : '빈 매대'}
+                      </span>
                     )}
                   </div>
                 )
@@ -454,7 +516,9 @@ export default function ConvenienceStore({
                   <Sparkles className="text-yellow-500" /> 상품 도착! 하나를 고르세요
                 </h2>
                 <p className="text-slate-500">
-                  높은 등급일수록 더 많은 돈을 법니다. 같은 카테고리끼리 시너지 효과!
+                  {products.length >= GRID_SIZE
+                    ? '10칸이 꽉 찼습니다. 좋은 상품을 고른 뒤 교체할 매대를 선택하세요.'
+                    : '높은 등급일수록 더 많은 돈을 법니다. 같은 카테고리끼리 시너지 효과!'}
                 </p>
               </div>
 
@@ -496,7 +560,7 @@ export default function ConvenienceStore({
                           width={96}
                           height={96}
                           unoptimized
-                          className="w-24 h-24 object-contain"
+                          className="pixelated w-24 h-24 object-contain"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
                             target.style.display = 'none'
@@ -511,7 +575,7 @@ export default function ConvenienceStore({
                     </div>
                     <div className="text-xl font-bold text-slate-800">{item.name}</div>
                     <div className="font-mono text-lg font-bold text-slate-600 bg-white/60 px-4 py-1 rounded-lg">
-                      +{item.income}원/초
+                      +{formatMoney(item.income)}/초
                     </div>
                   </motion.button>
                 ))}
@@ -544,7 +608,7 @@ export default function ConvenienceStore({
                       width={96}
                       height={96}
                       unoptimized
-                      className="w-24 h-24 object-contain"
+                      className="pixelated w-24 h-24 object-contain"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement
                         target.style.display = 'none'
@@ -559,7 +623,7 @@ export default function ConvenienceStore({
                 </div>
                 <h3 className="text-2xl font-bold mb-2">{selectedProductToSell.name}</h3>
                 <p className="text-gray-600">
-                  판매 가격: {selectedProductToSell.sellPrice?.toLocaleString()}원
+                  판매 가격: {formatMoney(selectedProductToSell.sellPrice || selectedProductToSell.income * 10)}
                 </p>
               </div>
               <div className="flex gap-2">

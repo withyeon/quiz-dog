@@ -62,6 +62,11 @@
 }
 
 @layer utilities {
+  .pixelated {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
@@ -70,7 +75,7 @@
     isolation: isolate;
     background:
       linear-gradient(180deg, rgba(7, 31, 42, 0.58), rgba(10, 42, 48, 0.52) 44%, rgba(34, 30, 24, 0.48)),
-      url('/gold-quest.png');
+      url('/title/gold-quest.svg');
     background-size: cover;
     background-position: center top;
     background-attachment: fixed;

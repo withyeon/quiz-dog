@@ -28,18 +28,23 @@ function loadEnv() {
 
 loadEnv()
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    process.env.SUPABASE_SECRET_KEY ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY
+function requireSupabaseEnv() {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseKey =
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+        process.env.SUPABASE_SECRET_KEY ||
+        process.env.SUPABASE_SERVICE_ROLE_KEY
 
-if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase credentials')
-    process.exit(1)
+    if (!supabaseUrl || !supabaseKey) {
+        console.error('Missing Supabase credentials')
+        process.exit(1)
+    }
+
+    return { supabaseUrl, supabaseKey }
 }
 
+const { supabaseUrl, supabaseKey } = requireSupabaseEnv()
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function checkData() {

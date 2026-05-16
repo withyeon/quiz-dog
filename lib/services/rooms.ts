@@ -109,6 +109,24 @@ export async function finishRoom(roomCode: string): Promise<void> {
   if (error) throw error
 }
 
+export async function pauseRoom(roomCode: string): Promise<void> {
+  const { error } = await (supabase
+    .from('rooms') as any)
+    .update({ status: 'paused' })
+    .eq('room_code', roomCode)
+
+  if (error) throw error
+}
+
+export async function endRoom(roomCode: string): Promise<void> {
+  const { error } = await (supabase
+    .from('rooms') as any)
+    .update({ status: 'ended' })
+    .eq('room_code', roomCode)
+
+  if (error) throw error
+}
+
 export async function resetRoom(roomCode: string): Promise<void> {
   const { error } = await (supabase
     .from('rooms') as any)
@@ -143,6 +161,11 @@ export async function resetRoom(roomCode: string): Promise<void> {
       cafe_customers_served: 0,
       mafia_cash: 0,
       mafia_diamonds: 0,
+      current_question_index: 0,
+      combo_count: 0,
+      has_umbrella: false,
+      pending_attacks: [],
+      is_kicked: false,
       answer_history: null,
     })
     .eq('room_code', roomCode)
