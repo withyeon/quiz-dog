@@ -142,9 +142,9 @@ export default function DontLookDownPage() {
             }, 10000)
         }
 
-        // 장애물 업데이트 타이머
+        // 장애물 업데이트 타이머 (16ms 간격, dt는 초 단위)
         obstacleUpdateRef.current = setInterval(() => {
-            setObstacles(prev => updateObstacles(prev, 1))
+            setObstacles(prev => updateObstacles(prev, 0.016))
         }, 16)
 
         // 플랫폼 업데이트 타이머

@@ -104,16 +104,26 @@ export interface DLDGameState {
 // 게임 상수
 // ============================================
 
+// 모든 단위는 초(seconds) 기준.
+// 속도: px/s, 가속도: px/s², 시간: s
+// 마찰/공기저항: 60fps 기준 프레임당 곱셈값. 실제 적용 시 Math.pow(value, dt * 60) 사용.
 export const PHYSICS = {
-    GRAVITY: 0.65,             // 중력 (Gimkit: 부드러운 점프)
-    JUMP_POWER: -15,           // 점프 힘
-    DOUBLE_JUMP_POWER: -16,    // 더블 점프 힘 (더 높이)
-    MOVE_SPEED: 10,            // 이동 속도 (Gimkit: 빠른 반응)
-    RUN_MULTIPLIER: 1.35,      // 달리기 배수
-    MAX_FALL_SPEED: 20,        // 최대 낙하 속도
-    FRICTION: 0.92,            // 바닥 마찰 (덜 미끄럽게)
-    AIR_RESISTANCE: 0.88,      // 공기 저항 (공중 좌우 컨트롤 강화)
-    WIND_FORCE: 2,             // 바람 힘
+    GRAVITY: 2340,                  // px/s² (base gravity, 가변 중력 배수로 보정)
+    GRAVITY_UP_MULTIPLIER: 0.7,     // 올라갈 때 (vy < 0): 더 가벼운 중력
+    GRAVITY_DOWN_MULTIPLIER: 1.3,   // 떨어질 때 (vy > 0): 더 빠른 하강
+    JUMP_POWER: -900,               // px/s
+    DOUBLE_JUMP_POWER: -960,        // px/s
+    MOVE_SPEED: 600,                // px/s (목표 속도)
+    MOVE_ACCEL: 2880,               // px/s² (가속도)
+    RUN_MULTIPLIER: 1.35,
+    MAX_FALL_SPEED: 1200,           // px/s
+    FRICTION: 0.92,                 // 60fps 프레임당 곱셈값
+    AIR_RESISTANCE: 0.88,           // 60fps 프레임당 곱셈값
+    STOP_DECEL: 0.35,               // 입력 없을 때 빠른 감속 (60fps 기준 프레임당)
+    WIND_FORCE: 7200,               // px/s² (바람 가속도)
+    COYOTE_TIME: 0.1,               // s
+    JUMP_BUFFER_TIME: 0.1,          // s
+    CAMERA_LERP: 0.08,              // 60fps 프레임당 카메라 추격 비율
 } as const
 
 export const ENERGY = {
@@ -394,92 +404,90 @@ export function spawnPowerUp(platforms: Platform[]): PowerUp | null {
 // 물리 및 충돌 감지
 // ============================================
 
+/**
+ * 플레이어 물리 업데이트.
+ * @param dt 경과 시간 (초). 60fps에서 약 0.0167.
+ */
 export function updatePlayerPhysics(
     player: DLDPlayer,
     platforms: Platform[],
     obstacles: Obstacle[],
-    deltaTime: number = 1
+    dt: number = 1 / 60
 ): DLDPlayer {
     const updated = { ...player }
 
-    // 중력 적용
-    updated.vy += PHYSICS.GRAVITY * deltaTime
+    // 가변 중력: 올라갈 땐 가볍게, 떨어질 땐 무겁게 (점프 느낌 강화)
+    const gravityMult = updated.vy < 0 ? PHYSICS.GRAVITY_UP_MULTIPLIER : PHYSICS.GRAVITY_DOWN_MULTIPLIER
+    updated.vy += PHYSICS.GRAVITY * gravityMult * dt
 
-    // 최대 낙하 속도 제한
     if (updated.vy > PHYSICS.MAX_FALL_SPEED) {
         updated.vy = PHYSICS.MAX_FALL_SPEED
     }
 
-    // 바람 효과 적용 (Ghost 모드가 아닐 때만)
+    // 바람 효과 (Ghost 모드가 아닐 때만)
     if (!updated.activePowerUps.has('ghost')) {
-        obstacles.forEach(obstacle => {
-            if (obstacle.type === 'wind' && obstacle.active) {
-                if (checkObstacleCollision(updated, obstacle)) {
-                    const windForce = obstacle.direction === 'left' ? -PHYSICS.WIND_FORCE : PHYSICS.WIND_FORCE
-                    updated.vx += windForce * deltaTime
-                }
+        for (const obstacle of obstacles) {
+            if (obstacle.type === 'wind' && obstacle.active && checkObstacleCollision(updated, obstacle)) {
+                const windForce = obstacle.direction === 'left' ? -PHYSICS.WIND_FORCE : PHYSICS.WIND_FORCE
+                updated.vx += windForce * dt
             }
-        })
+        }
     }
 
-    // 위치 업데이트
-    updated.x += updated.vx * deltaTime
-    updated.y += updated.vy * deltaTime
+    // 적분 전 이전 위치 보관 (tunneling 방지용)
+    const prevY = player.y
+    const prevBottom = prevY + PLAYER_SIZE.HEIGHT
 
-    // 화면 경계 체크 (넓은 월드)
+    updated.x += updated.vx * dt
+    updated.y += updated.vy * dt
+
     if (updated.x < 0) updated.x = 0
     if (updated.x > WORLD.WIDTH - PLAYER_SIZE.WIDTH) updated.x = WORLD.WIDTH - PLAYER_SIZE.WIDTH
 
-    // 플랫폼 충돌 감지
     updated.isOnGround = false
 
     for (const platform of platforms) {
         if (!platform.isVisible) continue
 
-        if (checkPlatformCollision(updated, platform)) {
-            // 위에서 떨어지는 경우: 플랫폼 위에 착지
-            if (player.vy > 0 && player.y + PLAYER_SIZE.HEIGHT <= platform.y + 5) {
-                updated.y = platform.y - PLAYER_SIZE.HEIGHT
+        // X축 겹침 체크
+        const xOverlap =
+            updated.x + PLAYER_SIZE.WIDTH > platform.x &&
+            updated.x < platform.x + platform.width
+        if (!xOverlap) continue
+
+        const newBottom = updated.y + PLAYER_SIZE.HEIGHT
+        const platformBottom = platform.y + platform.height
+
+        // 위에서 착지: 이전 프레임 발끝이 플랫폼 윗면 위였고, 이번 프레임에 통과/접촉한 경우 (sweep)
+        if (player.vy >= 0 && prevBottom <= platform.y + 1 && newBottom >= platform.y) {
+            updated.y = platform.y - PLAYER_SIZE.HEIGHT
+            updated.vy = 0
+            updated.isOnGround = true
+            updated.canDoubleJump = true
+
+            // 바닥 마찰력 (60fps 기준 프레임당 FRICTION을 dt에 맞춰 적용)
+            updated.vx *= Math.pow(PHYSICS.FRICTION, dt * 60)
+
+            if (platform.type === 'checkpoint') {
+                updated.lastCheckpointY = platform.y
+            }
+            if (platform.type === 'spike' && !updated.hasShield) {
+                updated.energy = Math.max(0, updated.energy - ENERGY.SPIKE_DAMAGE)
+            }
+            if (platform.type === 'disappearing' && !platform.disappearTime) {
+                platform.disappearTime = Date.now() + 2000
+            }
+        } else if (player.vy < 0 && prevY >= platformBottom && updated.y < platformBottom) {
+            // 천장 박치기: 이전엔 아래였는데 이번에 박스 안으로 들어옴
+            if (updated.y + PLAYER_SIZE.HEIGHT > platform.y) {
+                updated.y = platformBottom
                 updated.vy = 0
-                updated.isOnGround = true
-                updated.canDoubleJump = true
-
-                // 바닥 마찰력
-                updated.vx *= PHYSICS.FRICTION
-
-                // 체크포인트 업데이트
-                if (platform.type === 'checkpoint') {
-                    updated.lastCheckpointY = platform.y
-                }
-
-                // 가시 플랫폼 데미지
-                if (platform.type === 'spike' && !updated.hasShield) {
-                    updated.energy = Math.max(0, updated.energy - ENERGY.SPIKE_DAMAGE)
-                }
-
-                // 사라지는 플랫폼
-                if (platform.type === 'disappearing' && !platform.disappearTime) {
-                    platform.disappearTime = Date.now() + 2000 // 2초 후 사라짐
-                }
-            } else if (player.vy < 0) {
-                // 아래에서 점프해서 박스 윗면(천장)에 머리가 부딪히는 경우
-                // 이전 프레임에는 플랫폼 아래에 있었고, 이번 프레임에 플랫폼 안으로 들어온 경우만 처리
-                const platformBottom = platform.y + platform.height
-                const prevTop = player.y
-                const newTop = updated.y
-
-                if (prevTop >= platformBottom && newTop < platformBottom) {
-                    // 머리가 플랫폼 아랫면에 걸리도록 위치 보정
-                    updated.y = platformBottom
-                    updated.vy = 0
-                }
             }
         }
     }
 
-    // 공기 저항 (공중에 있을 때만 - 바닥은 마찰로 처리)
     if (!updated.isOnGround) {
-        updated.vx *= PHYSICS.AIR_RESISTANCE
+        updated.vx *= Math.pow(PHYSICS.AIR_RESISTANCE, dt * 60)
     }
 
     // 레이저 충돌 체크 (Ghost 모드가 아닐 때만)
@@ -577,28 +585,30 @@ export function handlePlayerFall(player: DLDPlayer, platforms: Platform[]): DLDP
 // 플레이어 액션
 // ============================================
 
-// 가속 기반 이동 (살짝 누르면 조금만, 꾹 누르면 빨리)
-const MOVE_ACCEL = 0.8
-const MAX_MOVE_SPEED = 10
-
+/**
+ * 가속 기반 이동. dt를 통해 프레임레이트에 독립적인 가속을 적용.
+ * @param dt 경과 시간 (초)
+ */
 export function movePlayer(
     player: DLDPlayer,
     direction: 'left' | 'right',
-    isRunning: boolean = false
+    isRunning: boolean = false,
+    dt: number = 1 / 60
 ): DLDPlayer {
     if (player.energy < ENERGY.MOVE_COST) return player
 
-    const accel = (isRunning ? MOVE_ACCEL * 1.4 : MOVE_ACCEL)
-    const maxSpeed = isRunning ? MAX_MOVE_SPEED * PHYSICS.RUN_MULTIPLIER : MAX_MOVE_SPEED
+    const accel = isRunning ? PHYSICS.MOVE_ACCEL * 1.4 : PHYSICS.MOVE_ACCEL
+    const maxSpeed = isRunning ? PHYSICS.MOVE_SPEED * PHYSICS.RUN_MULTIPLIER : PHYSICS.MOVE_SPEED
 
-    let newVx = player.vx + (direction === 'left' ? -accel : accel)
+    let newVx = player.vx + (direction === 'left' ? -accel * dt : accel * dt)
     newVx = Math.max(-maxSpeed, Math.min(maxSpeed, newVx))
 
+    // 에너지는 시간 비례 소모 (60fps 기준 프레임당 ENERGY.MOVE_COST)
     return {
         ...player,
         vx: newVx,
         facingRight: direction === 'right',
-        energy: player.energy - ENERGY.MOVE_COST,
+        energy: player.energy - ENERGY.MOVE_COST * (dt * 60),
     }
 }
 
@@ -660,35 +670,28 @@ export function applyPowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer
         return player
     }
 
-    const updated = { ...player }
+    const updated = { ...player, activePowerUps: new Map(player.activePowerUps) }
     const powerUp = updated.powerUps[powerUpIndex]
 
-    // 파워업 효과 적용
     switch (powerUp.type) {
         case 'shield':
             updated.hasShield = true
             break
-
         case 'rocket':
-            // 3개 플랫폼 위로 (약 200픽셀)
             updated.y -= 200
             updated.vy = 0
             break
-
         case 'energy':
             updated.energy += 50
             break
-
         case 'double_points':
-            updated.activePowerUps.set('double_points', 30)  // 30초
+            updated.activePowerUps.set('double_points', 30)
             break
-
         case 'ghost':
-            updated.activePowerUps.set('ghost', 5)  // 5초
+            updated.activePowerUps.set('ghost', 5)
             break
     }
 
-    // 파워업 제거 (shield는 사용 후 남음)
     if (powerUp.type !== 'shield') {
         updated.powerUps = updated.powerUps.filter((_, i) => i !== powerUpIndex)
     }
@@ -696,13 +699,15 @@ export function applyPowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer
     return updated
 }
 
-export function updateActivePowerUps(player: DLDPlayer, deltaTime: number): DLDPlayer {
+/**
+ * @param dt 경과 시간 (초)
+ */
+export function updateActivePowerUps(player: DLDPlayer, dt: number): DLDPlayer {
     const updated = { ...player }
     const newActivePowerUps = new Map(updated.activePowerUps)
 
-    // 시간 경과 처리
     newActivePowerUps.forEach((timeLeft, type) => {
-        const newTime = timeLeft - deltaTime
+        const newTime = timeLeft - dt
         if (newTime <= 0) {
             newActivePowerUps.delete(type)
             // double_points 종료 시 인벤토리에서도 제거
@@ -723,11 +728,13 @@ export function updateActivePowerUps(player: DLDPlayer, deltaTime: number): DLDP
 // 장애물 업데이트
 // ============================================
 
-export function updateObstacles(obstacles: Obstacle[], deltaTime: number): Obstacle[] {
+/**
+ * @param dt 경과 시간 (초). 레이저 속도는 px/s.
+ */
+export function updateObstacles(obstacles: Obstacle[], dt: number): Obstacle[] {
     return obstacles.map(obstacle => {
         if (obstacle.type === 'laser' && obstacle.direction) {
-            // 레이저 이동
-            const newX = obstacle.x + (obstacle.direction === 'left' ? -obstacle.speed! : obstacle.speed!) * deltaTime
+            const newX = obstacle.x + (obstacle.direction === 'left' ? -obstacle.speed! : obstacle.speed!) * dt
 
             // 범위 제한 (100 ~ 700)
             if (newX < 100 || newX > 700) {
