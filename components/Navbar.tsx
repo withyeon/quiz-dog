@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Menu, X, HelpCircle } from 'lucide-react'
+import { gameAssets } from '@/assets/game-assets'
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -44,7 +45,7 @@ export default function Navbar() {
             <motion.div
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
-              className="relative"
+              className="relative flex items-center gap-2"
             >
               <Image
                 src="/header-logo.svg"
@@ -54,41 +55,54 @@ export default function Navbar() {
                 className="h-32 w-auto object-contain"
                 priority
               />
+              <Image
+                src={gameAssets['mascot-pome'].tight}
+                alt="포메 마스코트"
+                width={64}
+                height={64}
+                unoptimized
+                className="hidden h-16 w-16 object-contain pixelated sm:block"
+              />
+              <Image
+                src={gameAssets.mascot_sigol.tight}
+                alt="시골 마스코트"
+                width={64}
+                height={64}
+                unoptimized
+                className="hidden h-16 w-16 object-contain pixelated sm:block"
+              />
             </motion.div>
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-6">
+          <div className="hidden lg:flex items-center gap-6">
             <Link
               href="/teacher/library"
               className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
-              <span>📚</span>
-              <span>자료실</span>
+              자료실
             </Link>
             <Link
               href="/#features"
               className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
-              <span>⚡</span>
               기능 소개
             </Link>
             <Link
               href="/pricing"
               className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
-              <span>💰</span>
               요금제
             </Link>
             <div className="flex items-center gap-3">
               <Link href="/lobby">
-                <Button variant="outline" size="lg" className="text-lg relative z-10 bg-white/90 hover:bg-white text-sky-600 hover:text-sky-700 border-2 border-sky-300 font-bold btn-sky-outlined">
-                  🎮 코드로 입장
+                <Button variant="outline" size="lg" className="text-lg relative z-10 bg-white/90 hover:bg-white text-white hover:text-white border-2 border-sky-300 font-bold btn-sky-outlined">
+                  코드로 입장
                 </Button>
               </Link>
               <Link href="/teacher">
                 <Button variant="outline" size="lg" className="sparkle-button text-lg relative z-10">
-                  ✨ 시작하기 ✨
+                  시작하기
                 </Button>
               </Link>
             </div>
@@ -96,7 +110,7 @@ export default function Navbar() {
 
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2"
+            className="lg:hidden p-2"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
@@ -110,15 +124,14 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden bg-sky-50/95 backdrop-blur-md border-t border-sky-200">
+        <div className="lg:hidden bg-sky-50/95 backdrop-blur-md border-t border-sky-200">
           <div className="px-4 py-4 space-y-3">
             <Link
               href="/teacher/library"
               className="flex items-center gap-2 py-2 font-bold text-xl nav-outlined-text"
               onClick={() => setIsMobileMenuOpen(false)}
             >
-              <span>📚</span>
-              <span>자료실</span>
+              자료실
             </Link>
             
             <div className="border-t pt-3 mt-3 space-y-3">
@@ -127,7 +140,6 @@ export default function Navbar() {
                 className="flex items-center gap-2 font-bold text-xl nav-outlined-text"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <span>⚡</span>
                 기능 소개
               </Link>
               <Link
@@ -135,17 +147,16 @@ export default function Navbar() {
                 className="flex items-center gap-2 font-bold text-xl nav-outlined-text"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <span>💰</span>
                 요금제
               </Link>
               <Link href="/lobby" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="outline" size="lg" className="w-full text-lg relative z-10 bg-white/90 hover:bg-white text-sky-600 hover:text-sky-700 border-2 border-sky-300 font-bold mb-3 btn-sky-outlined">
-                  🎮 코드로 입장
+                <Button variant="outline" size="lg" className="w-full text-lg relative z-10 bg-white/90 hover:bg-white text-white hover:text-white border-2 border-sky-300 font-bold mb-3 btn-sky-outlined">
+                  코드로 입장
                 </Button>
               </Link>
               <Link href="/teacher" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="outline" size="lg" className="sparkle-button w-full text-lg relative z-10">
-                  ✨ 시작하기 ✨
+                  시작하기
                 </Button>
               </Link>
             </div>

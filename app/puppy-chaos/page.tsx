@@ -55,6 +55,16 @@ function sortByScore(players: Player[]) {
   })
 }
 
+function PomeMascot({ className = 'h-20 w-20' }: { className?: string }) {
+  return (
+    <img
+      src="/mascot_pome.png"
+      alt="퀴즈독 마스코트"
+      className={`inline-block object-contain drop-shadow-md ${className}`}
+    />
+  )
+}
+
 function PuppyChaosPageContent() {
   const searchParams = useSearchParams()
   const roomCode = searchParams?.get('room') ?? ''
@@ -387,7 +397,10 @@ function PuppyChaosPageContent() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-black text-sky-700">강아지 대소동</div>
-              <div className="text-2xl font-black">{currentPlayer.avatar ?? '🐶'} {currentPlayer.nickname}</div>
+              <div className="flex items-center gap-2 text-2xl font-black">
+                <PomeMascot className="h-9 w-9" />
+                {currentPlayer.nickname}
+              </div>
             </div>
             <div className="text-right">
               <div className="text-sm font-black text-slate-500">내 점수</div>
@@ -405,7 +418,9 @@ function PuppyChaosPageContent() {
             <motion.section key="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="flex flex-1 items-center justify-center rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center shadow-[5px_5px_0_#0f172a]">
               <div>
-                <div className="mb-4 text-7xl">🐕</div>
+                <div className="mb-4 flex justify-center">
+                  <PomeMascot className="h-24 w-24" />
+                </div>
                 <h1 className="text-4xl font-black">선생님이 시작하면 출발!</h1>
                 <p className="mt-3 text-lg font-bold text-slate-500">TV 화면을 보고 잠깐만 기다려요.</p>
               </div>
@@ -474,7 +489,16 @@ function PuppyChaosPageContent() {
             <motion.section key="round-result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
               className="flex flex-1 items-center justify-center rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center shadow-[5px_5px_0_#0f172a]">
               <div>
-                <div className="mb-3 text-7xl">{roundSummary.hits === 0 ? '🏆' : '🐶'}</div>
+                <div className="mb-3 flex justify-center">
+                  {roundSummary.hits === 0 ? (
+                    <div className="relative">
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-4xl">🏆</div>
+                      <PomeMascot className="h-24 w-24" />
+                    </div>
+                  ) : (
+                    <PomeMascot className="h-24 w-24" />
+                  )}
+                </div>
                 <h2 className="text-4xl font-black">{roundSummary.title}</h2>
                 <div className="mt-5 rounded-[24px] bg-amber-100 px-6 py-4 text-4xl font-black text-amber-700">
                   +{roundSummary.scoreDelta}

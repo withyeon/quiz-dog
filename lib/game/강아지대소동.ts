@@ -99,7 +99,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     id: 'golden_dog',
     rarity: 'legendary',
     label: '황금 강아지',
-    emoji: '👑🐕',
+    emoji: '👑',
     description: '이번 판은 무적! +500!',
   },
 }

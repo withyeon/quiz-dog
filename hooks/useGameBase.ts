@@ -221,12 +221,16 @@ export function useGameBase(options: UseGameBaseOptions) {
                 setShowCountdown(false)
             }
         } else if (roomStatus === 'finished') {
+            if (roomCode && playerId) {
+                router.replace(`/student/game/${roomCode}/result?playerId=${playerId}`)
+                return
+            }
             if (currentView !== 'result') {
                 setCurrentView('result')
                 playBGM('result')
             }
         }
-    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room])
+    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room, playerId, router])
 
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {

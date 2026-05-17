@@ -21,6 +21,16 @@ type PuppyChaosTeacherBoardProps = {
   onKick?: (playerId: string) => void
 }
 
+function PomeMascot({ className = 'h-10 w-10' }: { className?: string }) {
+  return (
+    <img
+      src="/mascot_pome.png"
+      alt="퀴즈독 마스코트"
+      className={`inline-block object-contain drop-shadow-sm ${className}`}
+    />
+  )
+}
+
 export default function PuppyChaosTeacherBoard({
   room,
   players,
@@ -74,13 +84,13 @@ export default function PuppyChaosTeacherBoard({
   }, [room.room_code, room.status, sortedPlayers])
 
   return (
-    <div className="relative min-h-[720px] overflow-hidden rounded-[28px] border-4 border-slate-950 bg-[#F8FAFC] p-6 shadow-[8px_8px_0_#0f172a]">
+    <div className="relative min-h-[720px] overflow-hidden rounded-[28px] border-4 border-slate-950 bg-[#F8FAFC] p-4 shadow-[8px_8px_0_#0f172a] sm:p-6">
       <EventOverlay event={overlayEvent} />
 
-      <div className="mb-6 flex items-start justify-between gap-6">
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
         <div>
           <div className="text-lg font-black text-sky-700">강아지 대소동</div>
-          <h2 className="text-5xl font-black text-slate-950">대소동을 버텨라!</h2>
+          <h2 className="text-4xl font-black text-slate-950 sm:text-5xl">대소동을 버텨라!</h2>
           <div className="mt-3 flex gap-3 text-sm font-bold text-slate-600">
             <span>방 코드 {room.room_code}</span>
             <span>참가 {activePlayers.length}명</span>
@@ -88,7 +98,7 @@ export default function PuppyChaosTeacherBoard({
           </div>
         </div>
 
-        <div className="rounded-3xl border-4 border-slate-950 bg-white p-3 shadow-[4px_4px_0_#0f172a]">
+        <div className="w-fit rounded-3xl border-4 border-slate-950 bg-white p-3 shadow-[4px_4px_0_#0f172a]">
           <QRCodeSVG value={inviteUrl} size={110} level="M" />
         </div>
       </div>
@@ -115,21 +125,22 @@ export default function PuppyChaosTeacherBoard({
                 <motion.div
                   layout
                   key={player.id}
-                  className={`grid grid-cols-[64px_minmax(0,1fr)_120px_96px] items-center gap-3 rounded-2xl border-4 px-4 py-3 ${rankTone}`}
+                  className={`grid grid-cols-[44px_minmax(0,1fr)] gap-3 rounded-2xl border-4 px-3 py-3 sm:grid-cols-[64px_minmax(0,1fr)_120px_96px] sm:items-center sm:px-4 ${rankTone}`}
                 >
                   <div className="text-3xl font-black text-slate-950">{index + 1}</div>
                   <div className="min-w-0">
-                    <div className="truncate text-2xl font-black text-slate-950">
-                      {player.avatar ?? '🐶'} {player.nickname}
+                    <div className="flex min-w-0 items-center gap-2 truncate text-2xl font-black text-slate-950">
+                      <PomeMascot className="h-9 w-9 flex-shrink-0" />
+                      <span className="truncate">{player.nickname}</span>
                     </div>
                     <div className="text-sm font-bold text-slate-500">
                       {player.combo_count ?? 0}콤보
                     </div>
                   </div>
-                  <div className="text-right text-3xl font-black text-slate-950">
+                  <div className="col-start-2 text-left text-2xl font-black text-slate-950 sm:col-start-auto sm:text-right sm:text-3xl">
                     {(player.score ?? 0).toLocaleString()}
                   </div>
-                  <div className="text-right text-sm font-black text-slate-600">
+                  <div className="col-start-2 text-left text-sm font-black text-slate-600 sm:col-start-auto sm:text-right">
                     {Math.min((player.current_question_index ?? 0) + 1, DUMMY_QUESTIONS.length)}/{DUMMY_QUESTIONS.length}
                   </div>
                 </motion.div>

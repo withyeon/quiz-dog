@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -22,6 +23,7 @@ import {
 import { saveGameReportSnapshot } from '@/lib/services/reports'
 
 export default function TeacherDashboard() {
+  const router = useRouter()
   const [roomCode, setRoomCode] = useState('')
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
@@ -185,7 +187,7 @@ export default function TeacherDashboard() {
       }
 
       setIsGameStarted(false)
-      alert('게임이 종료되었습니다.')
+      router.push(`/teacher/game/${roomCode}/end`)
     } catch (error) {
       console.error('Error ending game:', error)
       alert('게임 종료에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))

@@ -31,6 +31,65 @@ function formatSize(metadata) {
   return `${width}x${height}`
 }
 
+function isLikelyEdgeBackgroundPixel(data, offset) {
+  const alpha = data[offset + 3]
+  if (alpha === 0) return true
+  if (alpha < 16) return true
+
+  const red = data[offset]
+  const green = data[offset + 1]
+  const blue = data[offset + 2]
+  const max = Math.max(red, green, blue)
+  const min = Math.min(red, green, blue)
+
+  return red >= 220 && green >= 220 && blue >= 220 && max - min <= 20
+}
+
+async function removeEdgeBackground(inputPath) {
+  const { data, info } = await sharp(inputPath)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const { width, height, channels } = info
+  const visited = new Uint8Array(width * height)
+  const queue = []
+
+  function enqueue(x, y) {
+    const pixelIndex = y * width + x
+    if (visited[pixelIndex]) return
+
+    const offset = pixelIndex * channels
+    if (!isLikelyEdgeBackgroundPixel(data, offset)) return
+
+    visited[pixelIndex] = 1
+    queue.push(pixelIndex)
+  }
+
+  for (let x = 0; x < width; x += 1) {
+    enqueue(x, 0)
+    enqueue(x, height - 1)
+  }
+
+  for (let y = 0; y < height; y += 1) {
+    enqueue(0, y)
+    enqueue(width - 1, y)
+  }
+
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const pixelIndex = queue[cursor]
+    const x = pixelIndex % width
+    const y = Math.floor(pixelIndex / width)
+    data[pixelIndex * channels + 3] = 0
+
+    if (x > 0) enqueue(x - 1, y)
+    if (x < width - 1) enqueue(x + 1, y)
+    if (y > 0) enqueue(x, y - 1)
+    if (y < height - 1) enqueue(x, y + 1)
+  }
+
+  return sharp(data, { raw: { width, height, channels } }).png().toBuffer()
+}
+
 function createManifestSource(assets) {
   const entries = assets
     .map(({ key, tightPath, iconPaths }) => {
@@ -91,7 +150,8 @@ async function processAsset(relativeFilePath) {
   )
 
   const originalMetadata = await sharp(inputPath).metadata()
-  const tightBuffer = await sharp(inputPath).ensureAlpha().trim().png().toBuffer()
+  const backgroundRemovedBuffer = await removeEdgeBackground(inputPath)
+  const tightBuffer = await sharp(backgroundRemovedBuffer).trim().png().toBuffer()
   const tightMetadata = await sharp(tightBuffer).metadata()
 
   await Promise.all([

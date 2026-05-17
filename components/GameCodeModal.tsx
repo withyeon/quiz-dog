@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import Image from 'next/image'
 import { X, Copy, Check } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { Button } from '@/components/ui/button'
 import { generateRoomCode } from '@/lib/utils/gameCode'
+import { gameAssets } from '@/assets/game-assets'
 
 interface GameCodeModalProps {
   roomCode: string
@@ -92,7 +94,7 @@ export default function GameCodeModal({
                 <motion.div
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
-                  className="text-6xl font-bold text-white tracking-wider mb-2 neon-glow"
+                  className="text-6xl font-bold text-white tracking-wider mb-2"
                 >
                   {roomCode}
                 </motion.div>
@@ -159,8 +161,8 @@ export default function GameCodeModal({
             {/* 안내 문구 */}
             <div className="bg-primary-50 rounded-lg p-4 border border-primary-200">
               <p className="text-sm text-primary-700">
-                📱 학생들은 <strong>퀴즈독</strong> 앱이나 웹사이트에서<br />
-                위 코드를 입력하거나 QR 코드를 스캔하세요 🐕
+                학생들은 <strong>퀴즈독</strong> 앱이나 웹사이트에서<br />
+                위 코드를 입력하거나 QR 코드를 스캔하세요
               </p>
             </div>
 
@@ -173,9 +175,18 @@ export default function GameCodeModal({
                     onClose()
                   }}
                   size="lg"
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg"
+                  className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg"
                 >
-                  🎮 게임 시작하기
+                  <Image
+                    src={gameAssets.joystick.icon64}
+                    alt=""
+                    width={64}
+                    height={64}
+                    unoptimized
+                    className="h-6 w-6 object-contain pixelated"
+                    aria-hidden
+                  />
+                  게임 시작하기
                 </Button>
               </div>
             )}

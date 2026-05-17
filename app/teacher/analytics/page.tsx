@@ -4,9 +4,23 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { BarChart3, Users, Clock, ChevronRight, Play, ArrowLeft } from 'lucide-react'
-import TeacherAnalytics from '@/components/TeacherAnalytics'
+import {
+  ArrowLeft,
+  BarChart3,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  FileQuestion,
+  HelpCircle,
+  ListChecks,
+  Play,
+  Target,
+  Trophy,
+  Users,
+  XCircle,
+} from 'lucide-react'
 import { getGameModeConfig, isGameModeId } from '@/lib/game/modes'
+import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import {
   getGameReportById,
   listRecentGameReports,
@@ -14,6 +28,15 @@ import {
   type GameReportRow,
 } from '@/lib/services/reports'
 import { formatServiceError } from '@/lib/services/errors'
+import {
+  buildResultAnalytics,
+  formatResponseTime,
+  type PlayerAnalysis,
+  type QuestionAnalysis,
+} from '@/components/results/resultAnalytics'
+import type { Database } from '@/types/database.types'
+
+type ReportRoom = Database['public']['Tables']['rooms']['Row']
 
 const LEGACY_REPORT_MODE_CONFIG: Record<string, { label: string; emoji: string }> = {
   racing: { label: '미션: 등교 임파서블', emoji: '🏃' },
@@ -40,6 +63,7 @@ function AnalyticsPageContent() {
 
   const [reports, setReports] = useState<GameReportRow[]>([])
   const [selectedReport, setSelectedReport] = useState<GameReportRow | null>(null)
+  const [selectedQuestions, setSelectedQuestions] = useState<AnalyticsQuestion[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
@@ -50,17 +74,22 @@ function AnalyticsPageContent() {
       setLoading(true)
       setErrorMessage(null)
       setSelectedReport(null)
+      setSelectedQuestions([])
 
       try {
         const [recentReports, detailReport] = await Promise.all([
           listRecentGameReports(50),
           selectedReportId ? getGameReportById(selectedReportId) : Promise.resolve(null),
         ])
+        const detailQuestions = detailReport?.set_id
+          ? await listQuestionsForAnalytics(detailReport.set_id)
+          : []
 
         if (cancelled) return
 
         setReports(recentReports)
         setSelectedReport(detailReport)
+        setSelectedQuestions(detailQuestions)
       } catch (error) {
         if (cancelled) return
         console.error('Error fetching game reports:', error)
@@ -102,6 +131,18 @@ function AnalyticsPageContent() {
 
     const players = parseReportPlayers(report.players_data)
     const modeCfg = getReportModeConfig(report.game_mode)
+    const roomForReport: ReportRoom = {
+      room_code: report.room_code,
+      status: 'finished',
+      current_q_index: 0,
+      game_mode: isGameModeId(report.game_mode) ? report.game_mode : undefined,
+      set_id: report.set_id,
+      duration_seconds: null,
+      started_at: null,
+      created_at: report.created_at,
+      updated_at: report.created_at,
+    }
+    const analytics = buildResultAnalytics(players, selectedQuestions, roomForReport)
 
     return (
       <div className="p-6">
@@ -124,9 +165,13 @@ function AnalyticsPageContent() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <TeacherAnalytics setId={report.set_id || null} players={players} />
-        </div>
+        <HistoryReportDetail
+          questions={analytics.questions}
+          students={analytics.players}
+          averageAccuracy={analytics.averageAccuracy}
+          averageScore={analytics.averageScore}
+          completionRate={analytics.completionRate}
+        />
 
         {/* 이 문제집으로 다시 게임 시작 */}
         {report.set_id && (
@@ -216,6 +261,195 @@ function AnalyticsPageContent() {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+function HistoryReportDetail({
+  questions,
+  students,
+  averageAccuracy,
+  averageScore,
+  completionRate,
+}: {
+  questions: QuestionAnalysis[]
+  students: PlayerAnalysis[]
+  averageAccuracy: number
+  averageScore: number
+  completionRate: number
+}) {
+  return (
+    <div className="space-y-6">
+      <section className="grid gap-3 md:grid-cols-3">
+        {[
+          { label: '평균 정답률', value: `${averageAccuracy}%`, icon: Target },
+          { label: '평균 점수', value: averageScore.toLocaleString(), icon: Trophy },
+          { label: '완주율', value: `${completionRate}%`, icon: CheckCircle2 },
+        ].map((item) => (
+          <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-500">{item.label}</span>
+              <item.icon className="h-5 w-5 text-slate-400" />
+            </div>
+            <div className="mt-4 text-3xl font-black text-slate-950">{item.value}</div>
+          </div>
+        ))}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-slate-100 p-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-black text-slate-500">
+              <ListChecks className="h-4 w-4" />
+              그때 플레이했던 문제
+            </div>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">{questions.length}개 문항</h2>
+          </div>
+          <p className="text-sm font-medium text-slate-500">정답과 당시 학생들의 정답률을 함께 봅니다.</p>
+        </div>
+
+        {questions.length === 0 ? (
+          <div className="p-10 text-center text-sm font-bold text-slate-500">
+            연결된 문제 데이터를 찾지 못했습니다.
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {questions.map((question) => (
+              <div key={question.id} className="p-6">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
+                        Q{question.index + 1}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
+                        {question.type}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-black leading-relaxed text-slate-950">{question.text}</h3>
+                    {question.options.length > 0 && (
+                      <div className="mt-4 grid gap-2 md:grid-cols-2">
+                        {question.options.map((option, index) => {
+                          const isAnswer = option === question.answer || String(index + 1) === question.answer
+                          return (
+                            <div
+                              key={`${question.id}-${option}-${index}`}
+                              className={`rounded-lg border px-3 py-2 text-sm font-bold ${
+                                isAnswer
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                  : 'border-slate-200 bg-slate-50 text-slate-600'
+                              }`}
+                            >
+                              {index + 1}. {option}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid min-w-44 grid-cols-2 gap-2 lg:grid-cols-1">
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <div className="text-xs font-bold text-slate-400">정답</div>
+                      <div className="mt-1 text-sm font-black text-slate-950">{question.answer}</div>
+                    </div>
+                    <div className="rounded-lg bg-slate-50 p-3">
+                      <div className="text-xs font-bold text-slate-400">정답률</div>
+                      <div className="mt-1 text-sm font-black text-slate-950">
+                        {question.accuracy}% · {question.correctCount}/{question.totalCount}명
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-2 border-b border-slate-100 p-6 md:flex-row md:items-end md:justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm font-black text-slate-500">
+              <Users className="h-4 w-4" />
+              그때 아이들 결과
+            </div>
+            <h2 className="mt-2 text-2xl font-black text-slate-950">{students.length}명 결과</h2>
+          </div>
+          <p className="text-sm font-medium text-slate-500">점수 순위와 문항별 답안을 같이 확인합니다.</p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-slate-500">
+              <tr>
+                <th className="px-4 py-3 text-left font-black">순위</th>
+                <th className="px-4 py-3 text-left font-black">학생</th>
+                <th className="px-4 py-3 text-right font-black">점수</th>
+                <th className="px-4 py-3 text-right font-black">정답</th>
+                <th className="px-4 py-3 text-right font-black">정답률</th>
+                <th className="px-4 py-3 text-right font-black">평균 응답시간</th>
+                <th className="px-4 py-3 text-left font-black">문항별 결과</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {students.map((student) => (
+                <tr key={student.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-4 font-black text-slate-500">{student.rankByScore}</td>
+                  <td className="px-4 py-4 font-black text-slate-950">{student.nickname}</td>
+                  <td className="px-4 py-4 text-right font-black text-slate-950">{student.score.toLocaleString()}</td>
+                  <td className="px-4 py-4 text-right font-bold text-slate-700">
+                    {student.correctCount}/{student.totalCount}
+                  </td>
+                  <td className="px-4 py-4 text-right">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-black ${
+                      student.accuracy >= 80
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : student.accuracy >= 60
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-red-50 text-red-700'
+                    }`}>
+                      {student.accuracy}%
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-right font-bold text-slate-500">
+                    {formatResponseTime(student.avgResponseTimeMs)}
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex min-w-max gap-1.5">
+                      {questions.map((question) => {
+                        const answer = student.history.find((item) => item.questionIndex === question.index)
+                        const Icon = answer?.isCorrect ? CheckCircle2 : answer ? XCircle : HelpCircle
+                        return (
+                          <div
+                            key={`${student.id}-${question.id}`}
+                            title={`Q${question.index + 1}: ${answer?.isCorrect ? '정답' : answer ? `오답 (${answer.selectedAnswer || '미응답'})` : '미응답'}`}
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg ${
+                              answer?.isCorrect
+                                ? 'bg-emerald-50 text-emerald-600'
+                                : answer
+                                  ? 'bg-red-50 text-red-600'
+                                  : 'bg-slate-100 text-slate-400'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {students.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-10 text-center font-bold text-slate-500">
+                    저장된 학생 결과가 없습니다.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   )
 }

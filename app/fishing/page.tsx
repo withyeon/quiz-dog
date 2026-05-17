@@ -320,7 +320,14 @@ export default function FishingPage() {
                   <Gamepad2 size={24} />
                 </div>
                 <div className="min-w-0">
-                  <h1 className="truncate text-2xl font-extrabold tracking-normal text-slate-900 sm:text-3xl">두근두근 인형뽑기</h1>
+                  <Image
+                    src="/title/fishing.svg"
+                    alt="인형뽑기"
+                    width={360}
+                    height={96}
+                    className="h-10 w-auto max-w-full object-contain sm:h-12"
+                    priority
+                  />
                   <p className="text-xs font-bold text-slate-500">방 코드: {roomCode}</p>
                 </div>
               </div>

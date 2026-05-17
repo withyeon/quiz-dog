@@ -11,6 +11,16 @@ import { checkSupabaseConfig } from '@/lib/supabase/client'
 import { createRoom, endRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
 import { updatePlayer } from '@/lib/services/players'
 
+function PomeMascot({ className = 'h-20 w-20' }: { className?: string }) {
+  return (
+    <img
+      src="/mascot_pome.png"
+      alt="퀴즈독 마스코트"
+      className={`inline-block object-contain drop-shadow-md ${className}`}
+    />
+  )
+}
+
 export default function PuppyChaosTeacherPage() {
   const [roomCode, setRoomCode] = useState('')
   const [isBusy, setIsBusy] = useState(false)
@@ -113,11 +123,16 @@ export default function PuppyChaosTeacherPage() {
       <div className="mx-auto max-w-7xl">
         {!roomCode || !room ? (
           <section className="grid min-h-[calc(100vh-40px)] place-items-center">
-            <div className="w-full max-w-2xl rounded-[32px] border-4 border-slate-950 bg-white p-8 text-center shadow-[8px_8px_0_#0f172a]">
-              <div className="mb-4 text-7xl">☂️🐕</div>
+            <div className="w-full max-w-2xl rounded-[32px] border-4 border-slate-950 bg-white p-5 text-center shadow-[8px_8px_0_#0f172a] sm:p-8">
+              <div className="mb-4 flex justify-center">
+                <div className="relative">
+                  <div className="absolute -left-6 -top-3 text-4xl">☂️</div>
+                  <PomeMascot className="h-24 w-24" />
+                </div>
+              </div>
               <div className="text-lg font-black text-sky-700">새 게임 모드 MVP</div>
-              <h1 className="mt-2 text-5xl font-black text-slate-950">강아지 대소동</h1>
-              <p className="mt-3 text-2xl font-black text-rose-600">대소동을 버텨라!</p>
+              <h1 className="mt-2 text-4xl font-black text-slate-950 sm:text-5xl">강아지 대소동</h1>
+              <p className="mt-3 text-xl font-black text-rose-600 sm:text-2xl">대소동을 버텨라!</p>
               <p className="mx-auto mt-5 max-w-xl text-base font-bold leading-7 text-slate-500">
                 세션을 만들면 TV용 대기실이 열리고, 학생들은 QR로 들어와 자기 속도로 퀴즈와 미니게임을 진행합니다.
               </p>
@@ -125,7 +140,7 @@ export default function PuppyChaosTeacherPage() {
                 type="button"
                 disabled={isBusy}
                 onClick={() => void handleCreateRoom()}
-                className="mt-8 rounded-[24px] border-4 border-slate-950 bg-sky-400 px-10 py-5 text-3xl font-black shadow-[5px_5px_0_#0f172a] disabled:opacity-60"
+                className="mt-8 rounded-[24px] border-4 border-slate-950 bg-sky-400 px-8 py-4 text-2xl font-black shadow-[5px_5px_0_#0f172a] disabled:opacity-60 sm:px-10 sm:py-5 sm:text-3xl"
               >
                 세션 만들기
               </button>
@@ -133,12 +148,12 @@ export default function PuppyChaosTeacherPage() {
           </section>
         ) : room.status === 'waiting' ? (
           <section className="grid min-h-[calc(100vh-40px)] place-items-center">
-            <div className="w-full max-w-5xl rounded-[32px] border-4 border-slate-950 bg-white p-8 shadow-[8px_8px_0_#0f172a]">
+            <div className="w-full max-w-5xl rounded-[32px] border-4 border-slate-950 bg-white p-5 shadow-[8px_8px_0_#0f172a] sm:p-8">
               <div className="grid gap-8 md:grid-cols-[1fr_320px]">
                 <div>
                   <div className="text-lg font-black text-sky-700">대기실</div>
-                  <h1 className="mt-2 text-6xl font-black">강아지 대소동</h1>
-                  <div className="mt-6 inline-block rounded-[28px] border-4 border-slate-950 bg-sky-500 px-10 py-5 text-7xl font-black tracking-widest text-white shadow-[5px_5px_0_#0f172a]">
+                  <h1 className="mt-2 text-4xl font-black sm:text-6xl">강아지 대소동</h1>
+                  <div className="mt-6 inline-block rounded-[28px] border-4 border-slate-950 bg-sky-500 px-6 py-4 text-5xl font-black tracking-widest text-white shadow-[5px_5px_0_#0f172a] sm:px-10 sm:py-5 sm:text-7xl">
                     {roomCode}
                   </div>
                   <div className="mt-5 flex flex-wrap gap-3 text-lg font-black text-slate-600">
@@ -151,7 +166,10 @@ export default function PuppyChaosTeacherPage() {
                     <div className="grid gap-2 sm:grid-cols-2">
                       {players.filter((player) => !player.is_kicked).map((player) => (
                         <div key={player.id} className="rounded-2xl border-4 border-slate-200 bg-slate-50 px-4 py-3 text-xl font-black">
-                          {player.avatar ?? '🐶'} {player.nickname}
+                          <span className="inline-flex items-center gap-2">
+                            <PomeMascot className="h-8 w-8" />
+                            {player.nickname}
+                          </span>
                         </div>
                       ))}
                     </div>

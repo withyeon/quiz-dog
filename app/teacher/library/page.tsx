@@ -2,18 +2,18 @@
 
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
 import {
-  Search,
-  ChevronUp,
-  ChevronDown,
-  Share2,
+  ArrowRight,
+  BookOpen,
+  CheckCircle2,
   Copy,
-  Eye,
-  Bookmark,
+  FileQuestion,
+  GraduationCap,
+  Library,
   Play,
-  Copy as CopyIcon,
+  Plus,
+  Search,
+  SlidersHorizontal,
 } from 'lucide-react'
 import GameTypeSelector, { type GameType } from '@/components/GameTypeSelector'
 import { DEFAULT_GAME_MODE, type GameModeId } from '@/lib/game/modes'
@@ -27,58 +27,41 @@ type QuestionSet = {
   name: string
   question_count: number
   created_at: string
-  subject?: string
-  grade?: string
-  creator?: string
-  view_count?: number
-  save_count?: number
-  tags?: string[]
-  is_public?: boolean
+  subject: string
+  grade: string
+  creator: string
+  tags: string[]
 }
 
 const SUBJECTS = [
-  { id: 'integrated', name: '통합교과', icon: '📚' },
-  { id: 'creative', name: '창의적 체험활동', icon: '🎨' },
-  { id: 'korean', name: '국어', icon: '📖' },
-  { id: 'math', name: '수학', icon: '🔢' },
-  { id: 'social', name: '사회', icon: '🌍' },
-  { id: 'science', name: '과학', icon: '🔬' },
-  { id: 'english', name: '영어', icon: '🔤' },
-  { id: 'ethics', name: '도덕', icon: '💭' },
+  { id: 'integrated', name: '통합교과' },
+  { id: 'creative', name: '창체' },
+  { id: 'korean', name: '국어' },
+  { id: 'math', name: '수학' },
+  { id: 'social', name: '사회' },
+  { id: 'science', name: '과학' },
+  { id: 'english', name: '영어' },
+  { id: 'ethics', name: '도덕' },
 ]
 
-const GRADES = [
+const SCHOOL_LEVELS = [
   { id: 'all', name: '전체' },
-  { id: 'elementary', name: '초등학교' },
-  { id: 'middle', name: '중학교' },
-  { id: 'high', name: '고등학교' },
+  { id: 'elementary', name: '초등' },
+  { id: 'middle', name: '중등' },
+  { id: 'high', name: '고등' },
 ]
 
-const ELEMENTARY_GRADES = [
-  { id: '1', name: '1학년' },
-  { id: '2', name: '2학년' },
-  { id: '3', name: '3학년' },
-  { id: '4', name: '4학년' },
-  { id: '5', name: '5학년' },
-  { id: '6', name: '6학년' },
-]
+const GRADE_GROUPS = {
+  elementary: ['1', '2', '3', '4', '5', '6'],
+  middle: ['1', '2', '3'],
+  high: ['1', '2', '3'],
+} as const
 
-const MIDDLE_GRADES = [
-  { id: '1', name: '1학년' },
-  { id: '2', name: '2학년' },
-  { id: '3', name: '3학년' },
-]
-
-const HIGH_GRADES = [
-  { id: '1', name: '1학년' },
-  { id: '2', name: '2학년' },
-  { id: '3', name: '3학년' },
-]
-
-type SortType = 'popular_weekly' | 'popular_daily' | 'popular_monthly' | 'recent' | 'name'
+type SchoolLevel = keyof typeof GRADE_GROUPS
+type SortType = 'recommended' | 'recent' | 'name' | 'question_count'
 
 const extractSubject = (setId: string): string => {
-  const subject = SUBJECTS.find(s => setId.includes(s.id))
+  const subject = SUBJECTS.find((item) => setId.includes(item.id))
   return subject?.id || 'integrated'
 }
 
@@ -91,35 +74,32 @@ const extractGrade = (setId: string): string => {
   return 'elementary-3'
 }
 
+const getSubjectName = (subjectId: string) => (
+  SUBJECTS.find((item) => item.id === subjectId)?.name ?? '통합교과'
+)
+
+const getGradeLabel = (grade: string) => {
+  const [level, number] = grade.split('-')
+  const levelLabel = level === 'elementary' ? '초등' : level === 'middle' ? '중등' : '고등'
+  return `${levelLabel} ${number}학년`
+}
+
 const generateTags = (setId: string): string[] => {
-  const tags: string[] = []
   const grade = extractGrade(setId)
-  if (grade.startsWith('elementary')) {
-    tags.push(`초등 ${grade.split('-')[1]}`)
-  } else if (grade.startsWith('middle')) {
-    tags.push(`중등 ${grade.split('-')[1]}`)
-  } else if (grade.startsWith('high')) {
-    tags.push(`고등 ${grade.split('-')[1]}`)
-  }
-  return tags
+  return [getGradeLabel(grade), getSubjectName(extractSubject(setId))]
 }
 
 function LibraryPageContent() {
   const router = useRouter()
-  
-  const [questionSets, setQuestionSets] = useState<QuestionSet[]>([])
+
   const [allQuestionSets, setAllQuestionSets] = useState<QuestionSet[]>([])
   const [loading, setLoading] = useState(true)
-  
-  // 필터 상태
-  const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
-  const [selectedGradeCategory, setSelectedGradeCategory] = useState<string>('all')
-  const [selectedGrade, setSelectedGrade] = useState<string | null>(null)
-  const [showOfficialOnly, setShowOfficialOnly] = useState(false)
+  const [selectedSubject, setSelectedSubject] = useState<string>('all')
+  const [selectedSchoolLevel, setSelectedSchoolLevel] = useState<string>('all')
+  const [selectedGrade, setSelectedGrade] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortType, setSortType] = useState<SortType>('popular_weekly')
-  const [expandedSubjects, setExpandedSubjects] = useState(true)
-  const [expandedGrades, setExpandedGrades] = useState(true)
+  const [sortType, setSortType] = useState<SortType>('recommended')
+  const [previewSetId, setPreviewSetId] = useState<string | null>(null)
   const [showGameTypeSelector, setShowGameTypeSelector] = useState(false)
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
 
@@ -132,15 +112,12 @@ function LibraryPageContent() {
         name: item.set_id.replace('set-', '문제집 '),
         subject: extractSubject(item.set_id),
         grade: extractGrade(item.set_id),
-        creator: '선생님',
-        view_count: Math.floor(Math.random() * 10000) + 100,
-        save_count: Math.floor(Math.random() * 500) + 10,
+        creator: '퀴즈독 자료실',
         tags: generateTags(item.set_id),
-        is_public: true,
       }))
 
       setAllQuestionSets(sets)
-      setQuestionSets(sets)
+      setPreviewSetId(sets[0]?.set_id ?? null)
     } catch (error) {
       console.error('Error loading question sets:', error)
     } finally {
@@ -152,67 +129,68 @@ function LibraryPageContent() {
     loadQuestionSets()
   }, [loadQuestionSets])
 
-  const getSubjectCount = (subjectId: string) => {
-    return allQuestionSets.filter(set => set.subject === subjectId).length
+  const filteredSets = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    const filtered = allQuestionSets.filter((set) => {
+      const matchesSubject = selectedSubject === 'all' || set.subject === selectedSubject
+      const matchesLevel = selectedSchoolLevel === 'all' || set.grade.startsWith(selectedSchoolLevel)
+      const matchesGrade = selectedGrade === 'all' || set.grade === selectedGrade
+      const matchesQuery = !query
+        || set.name.toLowerCase().includes(query)
+        || getSubjectName(set.subject).toLowerCase().includes(query)
+        || getGradeLabel(set.grade).toLowerCase().includes(query)
+
+      return matchesSubject && matchesLevel && matchesGrade && matchesQuery
+    })
+
+    if (sortType === 'recent') {
+      return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    }
+
+    if (sortType === 'name') {
+      return filtered.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'))
+    }
+
+    if (sortType === 'question_count') {
+      return filtered.sort((a, b) => b.question_count - a.question_count)
+    }
+
+    return filtered.sort((a, b) => {
+      const questionDelta = b.question_count - a.question_count
+      if (questionDelta !== 0) return questionDelta
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }, [allQuestionSets, searchQuery, selectedGrade, selectedSchoolLevel, selectedSubject, sortType])
+
+  const selectedSet = useMemo(() => {
+    return filteredSets.find((set) => set.set_id === previewSetId) ?? filteredSets[0] ?? null
+  }, [filteredSets, previewSetId])
+
+  const activeFilterCount = [
+    selectedSubject !== 'all',
+    selectedSchoolLevel !== 'all',
+    selectedGrade !== 'all',
+    searchQuery.trim().length > 0,
+  ].filter(Boolean).length
+
+  const resetFilters = () => {
+    setSelectedSubject('all')
+    setSelectedSchoolLevel('all')
+    setSelectedGrade('all')
+    setSearchQuery('')
+    setSortType('recommended')
   }
 
-  // 문제집 복사
   const handleCopySet = async (setId: string) => {
     try {
       await copyQuestionSetFromQuestionsOnly(setId)
-      alert('문제집이 복사되었습니다! 내 문제집에서 확인하세요.')
+      alert('내 문제집에 담았습니다.')
       router.push('/teacher')
     } catch (error) {
       console.error('Error copying set:', error)
-      alert('문제집 복사에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      alert('문제집을 담지 못했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
     }
   }
-
-  // 필터링된 문제집
-  const filteredSets = useMemo(() => {
-    let filtered = [...allQuestionSets]
-
-    if (selectedSubject) {
-      filtered = filtered.filter(set => set.subject === selectedSubject)
-    }
-
-    if (selectedGradeCategory !== 'all') {
-      filtered = filtered.filter(set => {
-        const grade = set.grade || 'elementary-3'
-        return grade.startsWith(selectedGradeCategory)
-      })
-    }
-
-    if (selectedGrade) {
-      filtered = filtered.filter(set => {
-        const grade = set.grade || 'elementary-3'
-        return grade === selectedGrade
-      })
-    }
-
-    if (searchQuery) {
-      filtered = filtered.filter(set =>
-        set.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        set.creator?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
-
-    switch (sortType) {
-      case 'popular_weekly':
-      case 'popular_daily':
-      case 'popular_monthly':
-        filtered.sort((a, b) => (b.view_count || 0) - (a.view_count || 0))
-        break
-      case 'recent':
-        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        break
-      case 'name':
-        filtered.sort((a, b) => a.name.localeCompare(b.name))
-        break
-    }
-
-    return filtered
-  }, [allQuestionSets, selectedSubject, selectedGradeCategory, selectedGrade, searchQuery, sortType])
 
   const handleStartGame = (setId: string) => {
     setSelectedSetId(setId)
@@ -233,320 +211,235 @@ function LibraryPageContent() {
     router.push(`/teacher/dashboard?set=${selectedSetId}&gameType=${gameType}&gameMode=${gameMode}`)
   }
 
-  const handleCopy = async (setId: string) => {
-    const url = `${window.location.origin}/teacher/library?set=${setId}`
-    try {
-      await navigator.clipboard.writeText(url)
-      alert('링크가 복사되었습니다!')
-    } catch (error) {
-      console.error('복사 실패:', error)
-    }
-  }
-
   return (
-    <div className="flex gap-6">
-      {/* Left Sidebar - 필터 */}
-      <aside className="w-64 flex-shrink-0">
-        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
-          <div className="mb-6">
-            <h3 className="font-bold text-gray-900 mb-3">필터</h3>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showOfficialOnly}
-                onChange={(e) => setShowOfficialOnly(e.target.checked)}
-                className="w-4 h-4 text-purple-600 rounded"
-              />
-              <span className="text-sm text-gray-700">공식 퀴즈만 보기</span>
-            </label>
-          </div>
-
-          <div className="mb-6">
-            <button
-              onClick={() => setExpandedSubjects(!expandedSubjects)}
-              className="w-full flex items-center justify-between font-bold text-gray-900 mb-3"
-            >
-              <span>과목</span>
-              {expandedSubjects ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </button>
-            {expandedSubjects && (
-              <div className="space-y-2">
-                {SUBJECTS.map((subject) => {
-                  const count = getSubjectCount(subject.id)
-                  return (
-                    <button
-                      key={subject.id}
-                      onClick={() => setSelectedSubject(selectedSubject === subject.id ? null : subject.id)}
-                      className={`w-full flex items-center justify-between p-2 rounded hover:bg-gray-100 transition-colors ${
-                        selectedSubject === subject.id ? 'bg-purple-50 text-purple-600 font-semibold' : 'text-gray-700'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{subject.icon}</span>
-                        <span className="text-sm">{subject.name}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">{count}</span>
-                        <span className="text-purple-600">+</span>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-
+    <div className="mx-auto max-w-7xl space-y-6">
+      <section className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <button
-              onClick={() => setExpandedGrades(!expandedGrades)}
-              className="w-full flex items-center justify-between font-bold text-gray-900 mb-3"
-            >
-              <span>학년</span>
-              {expandedGrades ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </button>
-            {expandedGrades && (
-              <div className="space-y-2">
-                {GRADES.map((grade) => (
-                  <button
-                    key={grade.id}
-                    onClick={() => {
-                      setSelectedGradeCategory(grade.id)
-                      setSelectedGrade(null)
-                    }}
-                    className={`w-full text-left p-2 rounded hover:bg-gray-100 transition-colors ${
-                      selectedGradeCategory === grade.id ? 'bg-purple-50 text-purple-600 font-semibold' : 'text-gray-700'
-                    }`}
-                  >
-                    <span className="text-sm">{grade.name}</span>
-                  </button>
-                ))}
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">
+              <Library className="h-4 w-4" />
+              수업 준비 라이브러리
+            </div>
+            <h1 className="text-3xl font-black tracking-normal text-slate-950 sm:text-4xl">
+              바로 수업에 쓸 퀴즈 세트를 찾아보세요
+            </h1>
+            <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500">
+              필요한 자료를 고른 뒤 내 문제집에 담아 수정하거나, 바로 게임을 시작할 수 있습니다.
+            </p>
+          </div>
 
-                {selectedGradeCategory === 'elementary' && (
-                  <div className="ml-4 space-y-1 mt-2">
-                    {ELEMENTARY_GRADES.map((grade) => (
-                      <button
-                        key={grade.id}
-                        onClick={() => setSelectedGrade(`elementary-${grade.id}`)}
-                        className={`w-full text-left p-2 rounded hover:bg-gray-100 transition-colors text-sm ${
-                          selectedGrade === `elementary-${grade.id}` ? 'bg-purple-50 text-purple-600 font-semibold' : 'text-gray-600'
-                        }`}
-                      >
-                        {grade.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {selectedGradeCategory === 'middle' && (
-                  <div className="ml-4 space-y-1 mt-2">
-                    {MIDDLE_GRADES.map((grade) => (
-                      <button
-                        key={grade.id}
-                        onClick={() => setSelectedGrade(`middle-${grade.id}`)}
-                        className={`w-full text-left p-2 rounded hover:bg-gray-100 transition-colors text-sm ${
-                          selectedGrade === `middle-${grade.id}` ? 'bg-purple-50 text-purple-600 font-semibold' : 'text-gray-600'
-                        }`}
-                      >
-                        {grade.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {selectedGradeCategory === 'high' && (
-                  <div className="ml-4 space-y-1 mt-2">
-                    {HIGH_GRADES.map((grade) => (
-                      <button
-                        key={grade.id}
-                        onClick={() => setSelectedGrade(`high-${grade.id}`)}
-                        className={`w-full text-left p-2 rounded hover:bg-gray-100 transition-colors text-sm ${
-                          selectedGrade === `high-${grade.id}` ? 'bg-purple-50 text-purple-600 font-semibold' : 'text-gray-600'
-                        }`}
-                      >
-                        {grade.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
+          <div className="grid gap-3 sm:grid-cols-3 xl:w-[520px]">
+            {[
+              { label: '전체 자료', value: allQuestionSets.length.toLocaleString(), icon: Library },
+              { label: '검색 결과', value: filteredSets.length.toLocaleString(), icon: Search },
+              { label: '총 문항', value: filteredSets.reduce((sum, set) => sum + set.question_count, 0).toLocaleString(), icon: FileQuestion },
+            ].map((item) => (
+              <div key={item.label} className="rounded-lg bg-slate-50 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500">{item.label}</span>
+                  <item.icon className="h-4 w-4 text-slate-400" />
+                </div>
+                <div className="mt-3 text-2xl font-black text-slate-950">{item.value}</div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+          <label className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="단원명, 과목, 학년으로 검색"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-12 pr-4 text-base font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+            />
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              value={sortType}
+              onChange={(event) => setSortType(event.target.value as SortType)}
+              className="h-12 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-slate-400"
+            >
+              <option value="recommended">추천순</option>
+              <option value="recent">최근 추가순</option>
+              <option value="question_count">문항 많은순</option>
+              <option value="name">이름순</option>
+            </select>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={resetFilters}
+                className="h-12 rounded-lg px-4 text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+              >
+                초기화
+              </button>
             )}
           </div>
         </div>
-      </aside>
 
-      {/* Main Content Area */}
-      <div className="flex-1">
-        <div className="bg-white rounded-lg shadow-md p-4 mb-6 border border-gray-200">
-          <div className="flex items-center gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="퀴즈 제목 또는 크리에이터를 검색하세요"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-gray-600">
-                {filteredSets.length.toLocaleString()}개
-              </span>
-              <select
-                value={sortType}
-                onChange={(e) => setSortType(e.target.value as SortType)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              >
-                <option value="popular_weekly">↑↓ 인기순 주간</option>
-                <option value="popular_daily">↑↓ 인기순 일간</option>
-                <option value="popular_monthly">↑↓ 인기순 월간</option>
-                <option value="recent">최신순</option>
-                <option value="name">이름순</option>
-              </select>
-            </div>
-          </div>
+        <div className="mt-5 space-y-4">
+          <FilterRow
+            label="학교급"
+            items={SCHOOL_LEVELS}
+            value={selectedSchoolLevel}
+            onChange={(value) => {
+              setSelectedSchoolLevel(value)
+              setSelectedGrade('all')
+            }}
+          />
+
+          {selectedSchoolLevel !== 'all' && (
+            <FilterRow
+              label="학년"
+              items={[
+                { id: 'all', name: '전체' },
+                ...GRADE_GROUPS[selectedSchoolLevel as SchoolLevel].map((grade) => ({
+                  id: `${selectedSchoolLevel}-${grade}`,
+                  name: `${grade}학년`,
+                })),
+              ]}
+              value={selectedGrade}
+              onChange={setSelectedGrade}
+            />
+          )}
+
+          <FilterRow
+            label="과목"
+            items={[{ id: 'all', name: '전체' }, ...SUBJECTS]}
+            value={selectedSubject}
+            onChange={setSelectedSubject}
+          />
         </div>
+      </section>
 
-        {loading ? (
-          <div className="text-center py-12 text-gray-500">로딩 중...</div>
-        ) : filteredSets.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center border border-gray-200">
-            <p className="text-gray-600">검색 결과가 없습니다.</p>
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
+              <SlidersHorizontal className="h-4 w-4" />
+              {filteredSets.length.toLocaleString()}개 자료
+            </div>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredSets.map((set, index) => {
-              const subject = SUBJECTS.find(s => s.id === set.subject) || SUBJECTS[0]
-              return (
-                <motion.div
-                  key={set.set_id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  className="bg-white rounded-lg shadow-md p-4 border border-gray-200 hover:shadow-lg transition-shadow"
-                >
-                  <div className="flex gap-4">
-                    <div className="w-32 h-32 bg-gradient-to-br from-purple-100 to-purple-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <span className="text-5xl">{subject.icon}</span>
-                    </div>
-                    <div className="flex-1">
-                      {set.tags && set.tags.length > 0 && (
-                        <div className="flex gap-2 mb-2">
-                          {set.tags.map((tag, i) => (
-                            <span
-                              key={i}
-                              className="px-2 py-1 bg-purple-100 text-purple-700 text-xs rounded"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <h3 className="text-lg font-bold text-gray-900 mb-1 hover:text-purple-600 cursor-pointer">
-                        {set.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-2">{set.creator}</p>
-                      <div className="flex items-center gap-4 text-sm text-gray-500 mb-3">
-                        <span>{set.question_count}문제</span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-4 w-4" />
-                          {((set.view_count || 0) / 1000).toFixed(1)}K
-                        </span>
-                        <span className="flex items-center gap-1">
-                          <Bookmark className="h-4 w-4" />
-                          {set.save_count}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          className="bg-purple-600 hover:bg-purple-700 text-white"
-                          onClick={() => handleStartGame(set.set_id)}
-                        >
-                          <Play className="h-4 w-4 mr-1" />
-                          게임 시작
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopySet(set.set_id)}
-                        >
-                          <CopyIcon className="h-4 w-4 mr-1" />
-                          복사
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleCopy(set.set_id)}
-                        >
-                          <Copy className="h-4 w-4 mr-1" />
-                          링크 복사
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                        >
-                          <Share2 className="h-4 w-4 mr-1" />
-                          공유
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        )}
-      </div>
 
-      {/* Right Sidebar - 인기 퀴즈 */}
-      <aside className="w-64 flex-shrink-0">
-        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 sticky top-4">
-          <h3 className="font-bold text-gray-900 mb-4">전체 인기 퀴즈</h3>
-          <div className="flex gap-2 mb-4 border-b border-gray-200">
-            {['일간', '주간', '월간'].map((tab, index) => (
+          {loading ? (
+            <div className="flex min-h-80 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950" />
+            </div>
+          ) : filteredSets.length === 0 ? (
+            <div className="rounded-lg bg-white p-12 text-center ring-1 ring-slate-200">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+                <Search className="h-6 w-6 text-slate-400" />
+              </div>
+              <h2 className="mt-4 text-lg font-black text-slate-950">맞는 자료가 없습니다</h2>
+              <p className="mt-2 text-sm font-medium text-slate-500">검색어나 필터를 조금 넓혀보세요.</p>
               <button
-                key={tab}
-                onClick={() => setSortType(index === 0 ? 'popular_daily' : index === 1 ? 'popular_weekly' : 'popular_monthly')}
-                className={`px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  (index === 0 && sortType === 'popular_daily') ||
-                  (index === 1 && sortType === 'popular_weekly') ||
-                  (index === 2 && sortType === 'popular_monthly')
-                    ? 'border-purple-600 text-purple-600'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                onClick={resetFilters}
+                className="mt-5 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800"
+              >
+                필터 초기화
+              </button>
+            </div>
+          ) : (
+            filteredSets.map((set) => (
+              <button
+                key={set.set_id}
+                onClick={() => setPreviewSetId(set.set_id)}
+                className={`w-full rounded-lg bg-white p-5 text-left shadow-sm ring-1 transition ${
+                  selectedSet?.set_id === set.set_id
+                    ? 'ring-slate-950'
+                    : 'ring-slate-200 hover:bg-slate-50'
                 }`}
               >
-                {tab}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                    <BookOpen className="h-6 w-6" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      {set.tags.map((tag) => (
+                        <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <h3 className="truncate text-lg font-black text-slate-950">{set.name}</h3>
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500">
+                      <span>{set.creator}</span>
+                      <span>·</span>
+                      <span>{set.question_count}문제</span>
+                      <span>·</span>
+                      <span>{new Date(set.created_at).toLocaleDateString('ko-KR')}</span>
+                    </div>
+                  </div>
+                  <ArrowRight className="hidden h-5 w-5 text-slate-300 sm:block" />
+                </div>
               </button>
-            ))}
-          </div>
-          <div className="space-y-3">
-            {filteredSets.slice(0, 5).map((set, index) => (
-              <div key={set.set_id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
-                <span className="text-lg font-bold text-gray-400 w-6">{index + 1}</span>
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-purple-200 rounded flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">
-                    {SUBJECTS.find(s => s.id === set.subject)?.icon || '📚'}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{set.name}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+            ))
+          )}
         </div>
-      </aside>
 
-      {/* Game Type Selector Modal */}
+        <aside className="xl:sticky xl:top-24 xl:self-start">
+          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+            {selectedSet ? (
+              <>
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                    <CheckCircle2 className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-black text-slate-500">선택한 자료</div>
+                    <div className="mt-0.5 text-xs font-bold text-slate-400">수업 준비 패널</div>
+                  </div>
+                </div>
+
+                <h2 className="mt-5 text-xl font-black leading-snug text-slate-950">{selectedSet.name}</h2>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <InfoTile label="문항 수" value={`${selectedSet.question_count}개`} icon={FileQuestion} />
+                  <InfoTile label="대상" value={getGradeLabel(selectedSet.grade)} icon={GraduationCap} />
+                  <InfoTile label="과목" value={getSubjectName(selectedSet.subject)} icon={BookOpen} />
+                  <InfoTile label="출처" value="자료실" icon={Library} />
+                </div>
+
+                <div className="mt-5 space-y-2">
+                  <button
+                    onClick={() => handleCopySet(selectedSet.set_id)}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 text-sm font-black text-white transition hover:bg-slate-800"
+                  >
+                    <Plus className="h-4 w-4" />
+                    내 문제집에 담기
+                  </button>
+                  <button
+                    onClick={() => handleStartGame(selectedSet.set_id)}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-white text-sm font-black text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                  >
+                    <Play className="h-4 w-4 fill-current" />
+                    바로 게임 시작
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await navigator.clipboard.writeText(`${window.location.origin}/teacher/library?set=${selectedSet.set_id}`)
+                      alert('링크가 복사되었습니다.')
+                    }}
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                  >
+                    <Copy className="h-4 w-4" />
+                    링크 복사
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="py-10 text-center">
+                <BookOpen className="mx-auto h-10 w-10 text-slate-300" />
+                <p className="mt-3 text-sm font-bold text-slate-500">자료를 선택하면 수업 준비 패널이 열립니다.</p>
+              </div>
+            )}
+          </div>
+        </aside>
+      </section>
+
       <GameTypeSelector
         isOpen={showGameTypeSelector}
         onClose={() => {
@@ -554,8 +447,59 @@ function LibraryPageContent() {
           setSelectedSetId(null)
         }}
         onSelect={handleGameTypeSelect}
-        questionSetName={selectedSetId ? questionSets.find(s => s.set_id === selectedSetId)?.name : undefined}
+        questionSetName={selectedSetId ? allQuestionSets.find((set) => set.set_id === selectedSetId)?.name : undefined}
       />
+    </div>
+  )
+}
+
+function FilterRow({
+  label,
+  items,
+  value,
+  onChange,
+}: {
+  label: string
+  items: Array<{ id: string; name: string }>
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      <div className="w-16 flex-shrink-0 text-sm font-black text-slate-500">{label}</div>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => onChange(item.id)}
+            className={`rounded-full px-3 py-1.5 text-sm font-black transition ${
+              value === item.id
+                ? 'bg-slate-950 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {item.name}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function InfoTile({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string
+  value: string
+  icon: typeof BookOpen
+}) {
+  return (
+    <div className="rounded-lg bg-slate-50 p-3">
+      <Icon className="h-4 w-4 text-slate-400" />
+      <div className="mt-2 text-xs font-bold text-slate-400">{label}</div>
+      <div className="mt-1 truncate text-sm font-black text-slate-900">{value}</div>
     </div>
   )
 }
