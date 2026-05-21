@@ -6,16 +6,17 @@ import {
     Enemy,
     Projectile,
     BuildSlot,
-    BUILD_SLOTS,
     MAP_WIDTH,
     MAP_HEIGHT,
     TOWER_TYPES,
     ENEMY_TYPES,
     TowerTypeId,
     getTowerRange,
-    getBuildSlotAtPoint,
-    canPlaceTowerOnSlot,
+    canPlaceTowerAtPoint,
     getDistance,
+    PATH_POINTS,
+    PATH_BUILD_BLOCK_RADIUS,
+    TOWER_COLLISION_RADIUS,
 } from '@/lib/game/tower'
 import type { Particle } from '@/lib/game/particles'
 
@@ -109,17 +110,18 @@ export default function TowerDefenseMap({
         const { x, y } = getCanvasPoint(canvas, event)
 
         if (selectedTowerType) {
-            const slot = getBuildSlotAtPoint(x, y)
-            if (slot && canPlaceTowerOnSlot(slot.id, towers)) {
-                onPlaceTower(slot)
+            if (canPlaceTowerAtPoint(x, y, towers)) {
+                onPlaceTower({
+                    id: `free-${Math.round(x)}-${Math.round(y)}`,
+                    x,
+                    y,
+                    radius: TOWER_COLLISION_RADIUS,
+                })
             }
             return
         }
 
-        const clickedSlot = getBuildSlotAtPoint(x, y)
-        const clickedTower = clickedSlot
-            ? towers.find((tower) => tower.slotId === clickedSlot.id)
-            : towers.find((tower) => getDistance(x, y, tower.x, tower.y) < 40)
+        const clickedTower = towers.find((tower) => getDistance(x, y, tower.x, tower.y) < 40)
         onSelectTower(clickedTower || null)
     }
 
@@ -199,39 +201,20 @@ export default function TowerDefenseMap({
                 ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT)
             }
 
-            const hoveredSlot = hoveredPosition ? getBuildSlotAtPoint(hoveredPosition.x, hoveredPosition.y) : null
-            const occupiedSlotIds = new Set(towers.map((tower) => tower.slotId).filter(Boolean))
-
-            BUILD_SLOTS.forEach((slot) => {
-                const isOccupied = occupiedSlotIds.has(slot.id)
-                const isHovered = hoveredSlot?.id === slot.id
-                const canBuildHere = Boolean(selectedTowerType && !isOccupied)
-
+            if (selectedTowerType) {
                 ctx.save()
-                ctx.fillStyle = isOccupied
-                    ? 'rgba(15, 23, 42, 0.16)'
-                    : canBuildHere
-                        ? 'rgba(16, 185, 129, 0.18)'
-                        : 'rgba(255, 255, 255, 0.24)'
-                ctx.strokeStyle = isHovered && selectedTowerType
-                    ? canBuildHere
-                        ? 'rgba(34, 197, 94, 0.95)'
-                        : 'rgba(239, 68, 68, 0.95)'
-                    : isOccupied
-                        ? 'rgba(15, 23, 42, 0.38)'
-                        : 'rgba(16, 185, 129, 0.58)'
-                ctx.lineWidth = isHovered ? 4 : 2
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.2)'
+                ctx.lineWidth = PATH_BUILD_BLOCK_RADIUS * 2
+                ctx.lineCap = 'round'
+                ctx.lineJoin = 'round'
                 ctx.beginPath()
-                ctx.arc(slot.x, slot.y, slot.radius, 0, Math.PI * 2)
-                ctx.fill()
+                PATH_POINTS.forEach((point, index) => {
+                    if (index === 0) ctx.moveTo(point.x, point.y)
+                    else ctx.lineTo(point.x, point.y)
+                })
                 ctx.stroke()
-
-                ctx.fillStyle = isOccupied ? 'rgba(15, 23, 42, 0.72)' : 'rgba(255, 255, 255, 0.82)'
-                ctx.beginPath()
-                ctx.arc(slot.x, slot.y, 7, 0, Math.PI * 2)
-                ctx.fill()
                 ctx.restore()
-            })
+            }
 
             if (selectedTower) {
                 const range = getTowerRange(selectedTower.type, selectedTower.level)
@@ -457,12 +440,11 @@ export default function TowerDefenseMap({
             })
 
             if (hoveredPosition && selectedTowerType) {
-                const hoveredSlot = getBuildSlotAtPoint(hoveredPosition.x, hoveredPosition.y)
-                const canPlace = Boolean(hoveredSlot && canPlaceTowerOnSlot(hoveredSlot.id, towers))
+                const canPlace = canPlaceTowerAtPoint(hoveredPosition.x, hoveredPosition.y, towers)
                 const towerType = TOWER_TYPES[selectedTowerType]
                 const range = getTowerRange(selectedTowerType, 1)
-                const previewX = hoveredSlot?.x ?? hoveredPosition.x
-                const previewY = hoveredSlot?.y ?? hoveredPosition.y
+                const previewX = hoveredPosition.x
+                const previewY = hoveredPosition.y
 
                 ctx.fillStyle = canPlace ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'
                 ctx.strokeStyle = canPlace ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
@@ -524,17 +506,17 @@ export default function TowerDefenseMap({
 
             <div className="absolute right-4 top-4 rounded-lg border border-slate-200 bg-white/90 p-3 shadow-lg backdrop-blur-sm">
                 <div className="mb-2 flex items-center justify-between gap-4 text-xs font-black text-slate-700">
-                    <span>건설 슬롯</span>
-                    <span>{towers.length}/{BUILD_SLOTS.length}</span>
+                    <span>자유 배치</span>
+                    <span>{towers.length}개 설치</span>
                 </div>
                 <div className="space-y-1 text-xs">
                     <div className="flex items-center gap-2">
                         <div className="h-4 w-4 rounded-full border-2 border-emerald-500 bg-emerald-100" />
-                        <span className="font-semibold text-slate-600">빈 슬롯</span>
+                        <span className="font-semibold text-slate-600">설치 가능</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="h-4 w-4 rounded-full border-2 border-slate-500 bg-slate-200" />
-                        <span className="font-semibold text-slate-600">점유됨</span>
+                        <div className="h-4 w-4 rounded-full border-2 border-red-500 bg-red-100" />
+                        <span className="font-semibold text-slate-600">길 위는 불가</span>
                     </div>
                 </div>
             </div>

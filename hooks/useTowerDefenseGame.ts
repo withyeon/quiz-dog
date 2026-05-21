@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-    BUILD_SLOTS,
     TOWER_TYPES,
     ENEMY_TYPES,
     WAVES,
@@ -12,7 +11,7 @@ import {
     QUIZ_HP_PENALTY,
     PATH_POINTS,
     calculateQuizGoldReward,
-    canPlaceTowerOnSlot,
+    canPlaceTowerAtPoint,
     getEffectiveDamage,
     getEnemyLeakDamage,
     getLaserPierceCount,
@@ -80,6 +79,11 @@ export function useTowerDefenseGame({
     const [totalTowersPlaced, setTotalTowersPlaced] = useState(0)
 
     const gameLoopRef = useRef<NodeJS.Timeout>()
+    const enemiesRef = useRef<Enemy[]>([])
+    const towersRef = useRef<Tower[]>([])
+    const projectilesRef = useRef<Projectile[]>([])
+    const isWaveActiveRef = useRef(false)
+    const currentWaveRef = useRef(0)
     const enemySpawnQueueRef = useRef<{ type: EnemyTypeId; spawnTime: number }[]>([])
     const lastUpdateRef = useRef<number>(Date.now())
     const nextEnemyIdRef = useRef(0)
@@ -151,6 +155,26 @@ export function useTowerDefenseGame({
         overclockUntilRef.current = overclockUntil
     }, [overclockUntil])
 
+    useEffect(() => {
+        enemiesRef.current = enemies
+    }, [enemies])
+
+    useEffect(() => {
+        towersRef.current = towers
+    }, [towers])
+
+    useEffect(() => {
+        projectilesRef.current = projectiles
+    }, [projectiles])
+
+    useEffect(() => {
+        isWaveActiveRef.current = isWaveActive
+    }, [isWaveActive])
+
+    useEffect(() => {
+        currentWaveRef.current = currentWave
+    }, [currentWave])
+
     const markQuizUsed = useCallback((wave: number) => {
         setQuizUsedWaves(prev => {
             if (prev.includes(wave)) return prev
@@ -210,7 +234,8 @@ export function useTowerDefenseGame({
             return
         }
 
-        if (!canPlaceTowerOnSlot(slot.id, towers)) {
+        const latestTowers = towersRef.current
+        if (!canPlaceTowerAtPoint(slot.x, slot.y, latestTowers)) {
             playSFX('incorrect')
             return
         }
@@ -225,7 +250,8 @@ export function useTowerDefenseGame({
             lastAttackTime: 0,
         }
 
-        setTowers(prev => [...prev, newTower])
+        towersRef.current = [...latestTowers, newTower]
+        setTowers(towersRef.current)
         setGold(prev => prev - towerType.cost)
         setTotalTowersPlaced(prev => prev + 1)
         setSelectedTowerType(null)
@@ -309,10 +335,11 @@ export function useTowerDefenseGame({
             lastUpdateRef.current = now
             setParticles(prev => updateParticles(prev, deltaTime).slice(-240))
 
-            if (isWaveActive && enemySpawnQueueRef.current.length > 0) {
+            if (isWaveActiveRef.current && enemySpawnQueueRef.current.length > 0) {
                 const toSpawn = enemySpawnQueueRef.current.filter(enemy => enemy.spawnTime <= now)
                 if (toSpawn.length > 0) {
-                    setEnemies(prev => [
+                    setEnemies(prev => {
+                        const next = [
                         ...prev,
                         ...toSpawn.map(enemy => {
                             const enemyType = ENEMY_TYPES[enemy.type]
@@ -327,7 +354,10 @@ export function useTowerDefenseGame({
                                 y: PATH_POINTS[0].y,
                             }
                         })
-                    ])
+                        ]
+                        enemiesRef.current = next
+                        return next
+                    })
                     enemySpawnQueueRef.current = enemySpawnQueueRef.current.filter(enemy => enemy.spawnTime > now)
                     setWaveEnemiesRemaining(enemySpawnQueueRef.current.length)
                 }
@@ -357,7 +387,9 @@ export function useTowerDefenseGame({
                     triggerShake(6, 300)
                 }
 
-                return updated.filter(enemy => !hasReachedEnd(enemy))
+                const nextEnemies = updated.filter(enemy => !hasReachedEnd(enemy))
+                enemiesRef.current = nextEnemies
+                return nextEnemies
             })
 
             setTowers(prevTowers => {
@@ -369,7 +401,7 @@ export function useTowerDefenseGame({
                         const range = getTowerRange(tower.type, tower.level)
                         const damage = getTowerDamage(tower.type, tower.level)
 
-                        const enemiesInRange = enemies
+                        const enemiesInRange = enemiesRef.current
                             .filter(enemy => getDistance(tower.x, tower.y, enemy.x, enemy.y) <= range)
                             .sort((a, b) => b.currentPathIndex - a.currentPathIndex)
 
@@ -395,7 +427,9 @@ export function useTowerDefenseGame({
                                     applyEnemyRewards(deadEnemies)
                                     applyDeadEnemyEffects(deadEnemies)
 
-                                    return updated.filter(enemy => enemy.hp > 0)
+                                    const nextEnemies = updated.filter(enemy => enemy.hp > 0)
+                                    enemiesRef.current = nextEnemies
+                                    return nextEnemies
                                 })
                             } else {
                                 const projectile: Projectile = {
@@ -410,7 +444,11 @@ export function useTowerDefenseGame({
                                     speed: 400,
                                     damage,
                                 }
-                                setProjectiles(prev => [...prev, projectile])
+                                setProjectiles(prev => {
+                                    const nextProjectiles = [...prev, projectile]
+                                    projectilesRef.current = nextProjectiles
+                                    return nextProjectiles
+                                })
                             }
 
                             return { ...tower, lastAttackTime: now }
@@ -421,11 +459,12 @@ export function useTowerDefenseGame({
             })
 
             setProjectiles(prevProjectiles => {
+                const currentEnemies = enemiesRef.current
                 const updatedProjectiles: Projectile[] = []
                 const projectilesToRemove: string[] = []
 
                 prevProjectiles.forEach(projectile => {
-                    const targetEnemy = enemies.find(enemy => enemy.id === projectile.targetEnemyId)
+                    const targetEnemy = currentEnemies.find(enemy => enemy.id === projectile.targetEnemyId)
 
                     if (!targetEnemy) {
                         projectilesToRemove.push(projectile.id)
@@ -497,7 +536,9 @@ export function useTowerDefenseGame({
                             applyEnemyRewards(deadEnemies)
                             applyDeadEnemyEffects(deadEnemies)
 
-                            return updated.filter(enemy => enemy.hp > 0)
+                            const nextEnemies = updated.filter(enemy => enemy.hp > 0)
+                            enemiesRef.current = nextEnemies
+                            return nextEnemies
                         })
 
                         projectilesToRemove.push(projectile.id)
@@ -510,14 +551,21 @@ export function useTowerDefenseGame({
                     }
                 })
 
-                return updatedProjectiles.filter(projectile => !projectilesToRemove.includes(projectile.id))
+                const nextProjectiles = updatedProjectiles.filter(projectile => !projectilesToRemove.includes(projectile.id))
+                projectilesRef.current = nextProjectiles
+                return nextProjectiles
             })
 
-            if (isWaveActive && enemySpawnQueueRef.current.length === 0 && enemies.length === 0) {
-                const clearedWaveNumber = currentWave + 1
+            if (isWaveActiveRef.current && enemySpawnQueueRef.current.length === 0 && enemiesRef.current.length === 0) {
+                const clearedWaveNumber = currentWaveRef.current + 1
                 setIsWaveActive(false)
+                isWaveActiveRef.current = false
                 setWaveEnemiesRemaining(0)
-                setCurrentWave(prev => prev + 1)
+                setCurrentWave(prev => {
+                    const nextWave = prev + 1
+                    currentWaveRef.current = nextWave
+                    return nextWave
+                })
                 setWaveClearToast(clearedWaveNumber)
                 playSFX('correct')
                 window.setTimeout(() => setWaveClearToast(null), 2500)
@@ -535,7 +583,7 @@ export function useTowerDefenseGame({
                 clearInterval(gameLoopRef.current)
             }
         }
-    }, [applyDeadEnemyEffects, applyEnemyRewards, currentView, currentWave, enemies, isWaveActive, playSFX, setCurrentView, triggerShake])
+    }, [applyDeadEnemyEffects, applyEnemyRewards, currentView, playSFX, setCurrentView, triggerShake])
 
     useEffect(() => {
         if (hp <= 0 && currentView === 'playing') {
@@ -559,8 +607,8 @@ export function useTowerDefenseGame({
         ? nextWave.enemies.map(enemy => `${ENEMY_TYPES[enemy.type].name} ${enemy.count}`).join(' · ')
         : '모든 웨이브 완료'
     const waveProgress = Math.min(100, Math.round((currentWave / WAVES.length) * 100))
-    const occupiedSlotCount = towers.filter(tower => tower.slotId).length
-    const remainingSlots = Math.max(0, BUILD_SLOTS.length - occupiedSlotCount)
+    const occupiedSlotCount = towers.length
+    const remainingSlots = 999
     const quizHudValue = isWaveActive ? '전투중' : isQuizAvailable ? '가능' : isCurrentWaveQuizUsed ? '사용됨' : '대기'
     const quizButtonLabel = !currentQuestionAvailable
         ? '문항 없음'

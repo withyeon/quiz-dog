@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import HudMetric from '@/components/game/HudMetric'
 import {
-    BUILD_SLOTS,
     TOWER_TYPES,
     TowerTypeId,
     WAVES,
@@ -29,7 +28,6 @@ interface TowerBattleHeaderProps {
     waveEnemiesRemaining: number
     waveProgress: number
     occupiedSlotCount: number
-    remainingSlots: number
     quizHudValue: string
     quizButtonLabel: string
     consecutiveCorrect: number
@@ -49,7 +47,6 @@ export default function TowerBattleHeader({
     waveEnemiesRemaining,
     waveProgress,
     occupiedSlotCount,
-    remainingSlots,
     quizHudValue,
     quizButtonLabel,
     consecutiveCorrect,
@@ -94,7 +91,7 @@ export default function TowerBattleHeader({
                     <HudMetric icon={HeartPulse} label="Core" value={hp} detail="HP" tone="text-red-500" />
                     <HudMetric icon={Coins} label="Gold" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
                     <HudMetric icon={Target} label="Wave" value={`${Math.min(currentWave + 1, WAVES.length)} / ${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining} 대기` : `${waveProgress}% 클리어`} tone="text-indigo-500" />
-                    <HudMetric icon={Crosshair} label="Slot" value={`${remainingSlots} / ${BUILD_SLOTS.length}`} detail={`${occupiedSlotCount} 배치`} tone="text-emerald-500" />
+                    <HudMetric icon={Crosshair} label="Build" value="자유" detail={`${occupiedSlotCount} 배치`} tone="text-emerald-500" />
                     <HudMetric icon={BrainCircuit} label="Quiz" value={quizHudValue} detail="웨이브당 1회" tone="text-sky-500" />
                 </div>
 

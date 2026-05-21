@@ -5,6 +5,7 @@ import {
   type PlayerPatchPayload,
 } from '@/lib/realtime/roomChannel'
 import { sortPlayersByScore } from '@/lib/utils/playerSorting'
+import { normalizePlayerDisplayFields } from '@/lib/utils/playerDisplay'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -20,6 +21,10 @@ interface UsePlayersRealtimeOptions {
 
 type RefreshOptions = {
   silent?: boolean
+}
+
+function normalizePlayer(player: Player): Player {
+  return normalizePlayerDisplayFields(player)
 }
 
 function getLoadErrorMessage(error: unknown): string {
@@ -69,7 +74,7 @@ export function usePlayersRealtime({
       const next = prev.map((player) => {
         if (player.id !== playerId) return player
         didPatch = true
-        return { ...player, ...patch, id: player.id } as Player
+        return normalizePlayer({ ...player, ...patch, id: player.id } as Player)
       })
       return didPatch ? sortPlayersByScore(next) : prev
     })
@@ -111,7 +116,7 @@ export function usePlayersRealtime({
       if (fetchError) throw fetchError
 
       if (seq === loadSeqRef.current) {
-        setPlayers(sortPlayersByScore((data ?? []) as Player[]))
+        setPlayers(sortPlayersByScore(((data ?? []) as Player[]).map(normalizePlayer)))
       }
     } catch (err) {
       if (seq === loadSeqRef.current) {
@@ -162,7 +167,7 @@ export function usePlayersRealtime({
         },
         (payload) => {
           if (payload.eventType === 'INSERT' && payload.new) {
-            const newPlayer = payload.new as Player
+            const newPlayer = normalizePlayer(payload.new as Player)
             setPlayers((prev) => {
               const exists = prev.some((player) => player.id === newPlayer.id)
               if (exists) return prev
@@ -170,7 +175,7 @@ export function usePlayersRealtime({
             })
             onPlayerInsertRef.current?.(newPlayer)
           } else if (payload.eventType === 'UPDATE' && payload.new) {
-            const updatedPlayer = payload.new as Player
+            const updatedPlayer = normalizePlayer(payload.new as Player)
             setPlayers((prev) =>
               sortPlayersByScore(prev.map((player) => (
                 player.id === updatedPlayer.id ? updatedPlayer : player

@@ -141,6 +141,8 @@ export const PLAYER_START_HP = 100
 export const PLAYER_START_GOLD = 300
 export const MAX_TOWER_LEVEL = 4
 export const QUIZ_HP_PENALTY = 5
+export const TOWER_COLLISION_RADIUS = 42
+export const PATH_BUILD_BLOCK_RADIUS = 46
 
 // 적이 이동할 경로 (시작점 -> 끝점)
 export const PATH_POINTS: { x: number; y: number }[] = [
@@ -333,6 +335,45 @@ export function canPlaceTowerOnSlot(slotId: string, towers: Tower[]): boolean {
     return !towers.some(tower => tower.slotId === slotId)
 }
 
+export function getDistanceToPath(x: number, y: number): number {
+    let minDistance = Number.POSITIVE_INFINITY
+
+    for (let index = 0; index < PATH_POINTS.length - 1; index += 1) {
+        const start = PATH_POINTS[index]
+        const end = PATH_POINTS[index + 1]
+        const dx = end.x - start.x
+        const dy = end.y - start.y
+        const lengthSquared = dx * dx + dy * dy
+        const t = lengthSquared === 0
+            ? 0
+            : Math.max(0, Math.min(1, ((x - start.x) * dx + (y - start.y) * dy) / lengthSquared))
+        const closestX = start.x + t * dx
+        const closestY = start.y + t * dy
+        minDistance = Math.min(minDistance, getDistance(x, y, closestX, closestY))
+    }
+
+    return minDistance
+}
+
+export function isPointOnMonsterPath(x: number, y: number): boolean {
+    return getDistanceToPath(x, y) < PATH_BUILD_BLOCK_RADIUS
+}
+
+export function canPlaceTowerAtPoint(x: number, y: number, towers: Tower[]): boolean {
+    if (
+        x < TOWER_COLLISION_RADIUS
+        || x > MAP_WIDTH - TOWER_COLLISION_RADIUS
+        || y < TOWER_COLLISION_RADIUS
+        || y > MAP_HEIGHT - TOWER_COLLISION_RADIUS
+    ) {
+        return false
+    }
+
+    if (isPointOnMonsterPath(x, y)) return false
+
+    return !towers.some(tower => getDistance(x, y, tower.x, tower.y) < TOWER_COLLISION_RADIUS * 1.45)
+}
+
 /**
  * 타워 배치 가능 여부 확인
  */
@@ -341,8 +382,7 @@ export function canPlaceTower(
     y: number,
     towers: Tower[]
 ): boolean {
-    const slot = getBuildSlotAtPoint(x, y)
-    return Boolean(slot && canPlaceTowerOnSlot(slot.id, towers))
+    return canPlaceTowerAtPoint(x, y, towers)
 }
 
 /**

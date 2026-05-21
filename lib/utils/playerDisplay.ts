@@ -23,3 +23,22 @@ export function getPlayerDisplayNickname(
 
   return fallback
 }
+
+export function normalizePlayerDisplayFields<
+  T extends { nickname: string; avatar: string | null },
+>(player: T): T {
+  const nickname = String(player.nickname || '').trim()
+  const avatar = String(player.avatar || '').trim()
+
+  if (!isAvatarPath(nickname)) return player
+
+  const recoveredNickname = avatar && !isAvatarPath(avatar)
+    ? avatar
+    : '학생'
+
+  return {
+    ...player,
+    nickname: recoveredNickname,
+    avatar: nickname.startsWith('/') ? nickname : `/${nickname}`,
+  }
+}

@@ -105,7 +105,6 @@ export default function TowerPage() {
         nextWaveRoster,
         waveProgress,
         occupiedSlotCount,
-        remainingSlots,
         quizHudValue,
         quizButtonLabel,
     } = useTowerDefenseGame({
@@ -357,7 +356,6 @@ export default function TowerPage() {
                             waveEnemiesRemaining={waveEnemiesRemaining}
                             waveProgress={waveProgress}
                             occupiedSlotCount={occupiedSlotCount}
-                            remainingSlots={remainingSlots}
                             quizHudValue={quizHudValue}
                             quizButtonLabel={quizButtonLabel}
                             consecutiveCorrect={consecutiveCorrect}
@@ -427,7 +425,6 @@ export default function TowerPage() {
                             <aside className="space-y-4">
                                 <TowerPlacementPanel
                                     gold={gold}
-                                    remainingSlots={remainingSlots}
                                     selectedTowerType={selectedTowerType}
                                     onSelectTowerType={(towerType) => {
                                         setSelectedTower(null)
