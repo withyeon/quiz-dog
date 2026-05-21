@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateQuestions, parseExamVisionResponse, type QuestionInput, type SourceType } from '@/lib/ai/questionGenerator'
+
+export const maxDuration = 60
+export const runtime = 'nodejs'
 import { getYouTubeTranscript } from '@/lib/utils/youtube'
 import { extractTextFromPDF } from '@/lib/utils/pdf'
 import { extractTextFromDOCX } from '@/lib/extractors/docx'
