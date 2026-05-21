@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
 import { useAudioContext } from '@/components/AudioProvider'
+import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
+import { getOptionLabel } from '@/lib/quiz/optionLabels'
+import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 
 interface QuizViewProps {
   question: {
@@ -49,7 +52,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
       }
 
       if (typeof question.answer === 'string') {
-        setAnswerResult(answer === question.answer)
+        setAnswerResult(isQuizAnswerMatch(answer, question.answer))
       }
     } finally {
       setIsSubmitting(false)
@@ -103,10 +106,10 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={className ?? (isGoldQuest
-        ? "gold-quest-panel p-5 sm:p-7 max-w-3xl mx-auto"
+        ? "gold-quest-panel font-bitbit p-5 sm:p-7 max-w-3xl mx-auto"
         : isBattle
-          ? "battle-frost-panel p-5 sm:p-7 max-w-3xl mx-auto"
-        : "bg-white rounded-xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-gray-200")}
+          ? "battle-frost-panel font-bitbit p-5 sm:p-7 max-w-3xl mx-auto"
+        : "font-bitbit bg-white rounded-xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-gray-200")}
     >
       <div className="mb-6">
         {timeLimit && (
@@ -124,7 +127,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         <h2 className={`gold-quest-title text-2xl sm:text-3xl font-black leading-tight mb-4 ${
           isGoldQuest ? 'text-[#17262a]' : isBattle ? 'text-[#13202b]' : 'text-gray-900'
         }`}>
-          {question.question_text.replace(/\{\{blank\}\}/g, ' ▢ ')}
+          {displayBlankText(question.question_text)}
         </h2>
       </div>
 
@@ -179,32 +182,36 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                 : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200'
             }`}>
               <p className="text-xl text-gray-800 whitespace-pre-wrap leading-relaxed">
-                {question.question_text.split('{{blank}}').map((part, i, arr) => (
+                {splitBlankText(question.question_text).map((part, i, arr) => (
                   <span key={i}>
                     {part}
                     {i < arr.length - 1 && (
-                      <input
-                        type="text"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && inputValue.trim()) {
-                            e.preventDefault()
-                            void handleAnswerSelect(inputValue.trim())
-                          }
-                        }}
-                        disabled={!!submittedAnswer || isSubmitting}
-                        className={`inline-block mx-2 px-4 py-2 border bg-white min-w-[150px] text-center font-semibold rounded-md shadow-sm focus:outline-none focus:bg-white ${
-                          isGoldQuest
-                            ? 'border-amber-400 text-[#7a4b14] focus:border-amber-600'
-                            : isBattle
-                              ? 'border-teal-300 text-[#13202b] focus:border-teal-500'
-                            : 'border-2 border-blue-400 text-blue-700 focus:border-blue-600'
-                        }`}
-                        placeholder=""
-                        aria-label="빈칸 정답 입력"
-                        autoFocus
-                      />
+                      <span className="mx-2 inline-flex items-center gap-1">
+                        <span>[</span>
+                        <input
+                          type="text"
+                          value={inputValue}
+                          onChange={(e) => setInputValue(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter' && inputValue.trim()) {
+                              e.preventDefault()
+                              void handleAnswerSelect(inputValue.trim())
+                            }
+                          }}
+                          disabled={!!submittedAnswer || isSubmitting}
+                          className={`inline-block px-4 py-2 border bg-white min-w-[150px] text-center font-semibold rounded-md shadow-sm focus:outline-none focus:bg-white ${
+                            isGoldQuest
+                              ? 'border-amber-400 text-[#7a4b14] focus:border-amber-600'
+                              : isBattle
+                                ? 'border-teal-300 text-[#13202b] focus:border-teal-500'
+                              : 'border-2 border-blue-400 text-blue-700 focus:border-blue-600'
+                          }`}
+                          placeholder=""
+                          aria-label="빈칸 정답 입력"
+                          autoFocus
+                        />
+                        <span>]</span>
+                      </span>
                     )}
                   </span>
                 ))}
@@ -283,7 +290,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                       : 'bg-gray-200 text-gray-500'
                     }`}
                 >
-                  {String.fromCharCode(65 + index)}
+                  {getOptionLabel(index)}
                 </div>
                 <span className={`text-lg font-medium flex-1 ${isBattle ? 'text-slate-800' : 'text-gray-800'}`}>{option}</span>
                 {showResult && isSelected && (

@@ -266,7 +266,7 @@ export default function GamePage() {
   }
 
   return (
-    <main className="gold-quest-ambient min-h-screen p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+    <main className="gold-quest-ambient min-h-screen p-4 sm:p-6 lg:p-8 relative overflow-hidden font-bitbit">
       <div className="max-w-6xl mx-auto relative z-10">
         <motion.header
           initial={{ opacity: 0, y: -20 }}

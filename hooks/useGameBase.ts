@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
+import { useRoomResync } from '@/hooks/useRoomResync'
 import { useAudioContext } from '@/components/AudioProvider'
 import { getGameModeUrl } from '@/lib/game/modes'
 import { isRoomHostPlayer } from '@/lib/realtime/roomChannel'
@@ -105,13 +106,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         loading: roomLoading,
         refreshRoom,
     } = useRoomRealtime({ roomCode })
-    const resyncRoomSnapshot = useCallback(async (reason?: string) => {
-        if (reason === 'broadcast_hint') return
-        await Promise.all([
-            refreshRoom({ silent: true }),
-            refreshPlayers({ silent: true }),
-        ])
-    }, [refreshPlayers, refreshRoom])
+    const resyncRoomSnapshot = useRoomResync(refreshRoom, refreshPlayers)
     const roomChannel = useRoomChannel({
         roomCode,
         playerId,

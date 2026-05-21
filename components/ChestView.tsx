@@ -84,7 +84,7 @@ export default function ChestView({
             Treasure Pick
           </div>
           <h2 className="gold-quest-title text-3xl sm:text-4xl font-black text-[#17262a]">
-            보물 항로 선택
+            보물 상자 선택
           </h2>
         </div>
         <p className="text-sm font-semibold text-slate-600">
@@ -115,8 +115,8 @@ export default function ChestView({
           >
             <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0c5961] via-[#d29b2d] to-[#9e3b32]" />
             <div className="mb-5 flex items-center justify-between">
-              <span className="text-xs font-black uppercase tracking-normal text-slate-500">
-                Chest {index + 1}
+              <span className="text-xs font-black tracking-normal text-slate-500">
+                {index + 1}
               </span>
               <span className={`h-2.5 w-2.5 rounded-full ${
                 revealedChests[index] ? 'bg-emerald-500' : 'bg-amber-500'

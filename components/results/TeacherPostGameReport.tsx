@@ -150,7 +150,7 @@ export default function TeacherPostGameReport({
   }
 
   return (
-    <div className={`space-y-6 text-slate-900 ${className}`}>
+    <div className={`space-y-6 font-bitbit text-slate-900 ${className}`}>
       <header className="flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-500">

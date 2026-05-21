@@ -64,7 +64,7 @@ export default function TeacherEndSequence({
   }
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#102a43] text-white">
+    <main className="min-h-screen overflow-hidden font-bitbit bg-[#102a43] text-white">
       {(stage === 0 || stage === 3 || stage === 4 || stage === 6) && (
         <Confetti recycle={stage !== 6} numberOfPieces={stage === 6 ? 120 : 260} />
       )}

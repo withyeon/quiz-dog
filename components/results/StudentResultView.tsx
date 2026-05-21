@@ -61,7 +61,7 @@ export default function StudentResultView({
   const isTopThree = student.rankByScore <= 3
 
   return (
-    <main className="min-h-screen bg-[#f7fbff] px-4 py-6 text-slate-900 sm:px-6">
+    <main className="min-h-screen bg-[#f7fbff] px-4 py-6 font-bitbit text-slate-900 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-5">
         <section className={`overflow-hidden rounded-lg border p-6 shadow-sm ${
           isTopThree

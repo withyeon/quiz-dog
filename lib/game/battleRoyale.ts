@@ -297,3 +297,13 @@ export function isGameOver(
   if (survivors.length === 1 && players.length >= 2) return true
   return false
 }
+
+/**
+ * 연속 정답에 따른 눈뭉치 데미지 배율
+ */
+export function getComboDamageMultiplier(consecutiveCorrect: number): number {
+  if (consecutiveCorrect >= 5) return 2
+  if (consecutiveCorrect >= 3) return 1.5
+  if (consecutiveCorrect >= 2) return 1.2
+  return 1
+}

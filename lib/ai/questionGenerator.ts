@@ -25,8 +25,8 @@ function truncateText(text: string): string {
 }
 
 function buildGenerationPrompt(input: QuestionInput, questionCount: number): string {
-  const typeRules = `주의사항:
-- BLANK 타입의 경우 question_text에 {{blank}} 플레이스홀더를 사용하세요.
+const typeRules = `주의사항:
+- BLANK 타입의 경우 question_text에 [            ] 플레이스홀더를 사용하세요.
 - CHOICE 타입은 반드시 4개의 보기를 제공하세요.
 - OX 타입은 options에 ["O", "X"]만 포함하세요.
 - SHORT 타입은 options를 빈 배열로 하세요.

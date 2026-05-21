@@ -11,13 +11,13 @@ import QuizView from '@/components/QuizView'
 import ConvenienceStore from '@/components/ConvenienceStore'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
-import AnimatedBackground from '@/components/AnimatedBackground'
 import ScreenFlash from '@/components/ScreenFlash'
 import type { Database } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
 import { formatMoney, getAnswerSpeed, getSpeedBonus, roundMoney } from '@/lib/game/convenienceStore'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 import { isRoomHostPlayer } from '@/lib/realtime/roomChannel'
+import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
 import { finishRoom } from '@/lib/services/rooms'
 import {
@@ -101,12 +101,7 @@ export default function FactoryPage() {
         const loadedQuestions = await listQuestionsForGame(setId, { shuffle: true })
         setQuestions(loadedQuestions)
       } catch (error) {
-        const msg =
-          error instanceof Error
-            ? error.message
-            : error && typeof error === 'object' && 'message' in error
-              ? String((error as { message?: string }).message)
-              : JSON.stringify(error)
+        const msg = formatServiceError(error)
         console.error('Error fetching questions:', msg, error)
       }
     }
@@ -338,8 +333,7 @@ export default function FactoryPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative overflow-hidden">
-      <AnimatedBackground />
+    <main className="factory-ambient relative min-h-screen overflow-hidden font-bitbit">
       <ScreenFlash show={showFlash} color="rgba(34, 197, 94, 0.3)" />
 
       {/* 속도 보너스 플로팅 표시 */}
@@ -356,56 +350,56 @@ export default function FactoryPage() {
         </motion.div>
       )}
 
-      <div className="relative z-10 p-4" style={{ fontFamily: 'BMJUA, sans-serif' }}>
+      <div className="relative z-10 p-4">
         {/* 헤더 */}
         <div className="max-w-6xl mx-auto mb-4">
-          <div className="bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 rounded-xl p-4 shadow-2xl border-4 border-yellow-500">
+          <div className="rounded-xl border-2 border-emerald-200/90 bg-white/92 p-4 shadow-xl shadow-emerald-900/10 backdrop-blur-md">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="relative w-16 h-16 flex-shrink-0">
                   <Image src="/store/store.svg" alt="편의점" fill className="object-contain" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold text-white">전설의 편의점</h1>
-                  <p className="text-xs text-yellow-300">방 코드: {roomCode}</p>
+                  <h1 className="text-2xl font-bold text-emerald-950">전설의 편의점</h1>
+                  <p className="text-xs font-bold text-emerald-700">방 코드: {roomCode}</p>
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
                 {/* 남은 시간 (선생님이 설정한 제한 시간) */}
                 {remainingSeconds != null && (
-                  <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-amber-500">
-                    <div className="text-xs text-amber-300 font-semibold mb-1">남은 시간</div>
-                    <div className="text-2xl font-bold text-white text-center tabular-nums">
+                  <div className="rounded-lg border-2 border-amber-300 bg-amber-50 px-4 py-2">
+                    <div className="mb-1 text-xs font-semibold text-amber-800">남은 시간</div>
+                    <div className="text-center text-2xl font-bold tabular-nums text-amber-950">
                       {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
                     </div>
                   </div>
                 )}
                 {/* 정답 카운터 */}
-                <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-blue-500">
-                  <div className="text-xs text-blue-300 font-semibold mb-1">
+                <div className="rounded-lg border-2 border-sky-300 bg-sky-50 px-4 py-2">
+                  <div className="mb-1 text-xs font-semibold text-sky-800">
                     다음 상품까지
                   </div>
                   <motion.div
                     key={correctAnswersCount}
-                    initial={{ scale: 1.2, color: '#10b981' }}
-                    animate={{ scale: 1, color: '#ffffff' }}
-                    className="text-2xl font-bold text-white text-center"
+                    initial={{ scale: 1.2 }}
+                    animate={{ scale: 1 }}
+                    className="text-center text-2xl font-bold text-sky-950"
                   >
                     {3 - (correctAnswersCount % 3)} 문제
                   </motion.div>
                 </div>
 
                 {currentPlayer && (
-                  <div className="bg-black/50 rounded-lg px-4 py-2 border-2 border-yellow-500">
-                    <div className="text-sm text-yellow-300 font-semibold mb-1">
+                  <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-4 py-2">
+                    <div className="mb-1 text-sm font-semibold text-emerald-800">
                       {currentPlayer.nickname}
                     </div>
                     <motion.div
                       key={money}
-                      initial={{ scale: 1.2, color: '#10b981' }}
-                      animate={{ scale: 1, color: '#ffffff' }}
-                      className="text-2xl font-bold text-white"
+                      initial={{ scale: 1.2 }}
+                      animate={{ scale: 1 }}
+                      className="text-2xl font-bold text-emerald-950"
                     >
                       {formatMoney(money)}
                     </motion.div>

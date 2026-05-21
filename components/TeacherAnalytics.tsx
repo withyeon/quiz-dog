@@ -11,6 +11,7 @@ import { Button } from './ui/button'
 import StudentDetailModal from './StudentDetailModal'
 import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import { formatServiceError } from '@/lib/services/errors'
+import { displayBlankText } from '@/lib/quiz/blankText'
 
 type Player = Database['public']['Tables']['players']['Row']
 type AnswerRecord = { questionIndex: number, isCorrect: boolean, selectedAnswer?: string }
@@ -71,7 +72,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
         // 문제별 통계
         const questionStats = questions.map((q, idx) => ({
             index: idx,
-            text: q.question_text,
+            text: displayBlankText(q.question_text),
             answer: (q as any).answer || '',
             type: (q as any).type || '',
             correctCount: 0,

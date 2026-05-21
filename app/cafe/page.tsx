@@ -1,17 +1,20 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCafeStore } from '@/store/cafeStore'
-import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import CafeView from '@/components/CafeView'
+import AttackAlert from '@/components/cafe/AttackAlert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import { Trophy, Clock, DollarSign, Users } from 'lucide-react'
 import { formatTime, MENU_ITEMS } from '@/lib/game/cafe'
 import { useGameBase } from '@/hooks/useGameBase'
+import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
+import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import { updatePlayer } from '@/lib/services/players'
 
 type CafeViewType = 'lobby' | 'playing' | 'result'
 
@@ -25,11 +28,24 @@ export default function CafePage() {
     room,
     roomLoading,
     playersLoading,
+    players,
+    currentPlayer,
+    currentQuestion,
+    checkAnswer,
+    goToNextQuestion,
+    consecutiveCorrect,
+    sendRoomEvent,
     playBGM,
     playSFX,
   } = useGameBase({ expectedGameMode: 'cafe' })
 
   const [selectedDuration, setSelectedDuration] = useState(420) // 7분 기본값
+  const [incomingAttack, setIncomingAttack] = useState<{
+    attackerNickname: string
+    itemName: string
+    itemEmoji: string
+  } | null>(null)
+  const scoreSyncTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const {
     status,
@@ -38,6 +54,8 @@ export default function CafePage() {
     stats,
     startGame,
     resetGame,
+    applyBuff,
+    removeHalfCustomers,
   } = useCafeStore()
 
   // room 상태가 'playing'이 되면 자동으로 게임 시작
@@ -60,6 +78,69 @@ export default function CafePage() {
     }
   }, [status, currentView, setCurrentView])
 
+  useEffect(() => {
+    return () => {
+      if (scoreSyncTimerRef.current) clearTimeout(scoreSyncTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.type !== 'cafe:item_attack') return
+
+      const payload = event.payload as {
+        attackerNickname?: string
+        targetId?: string
+        itemId?: ItemId
+        duration?: number
+      } | undefined
+
+      if (!payload?.itemId || payload.targetId !== playerId) return
+
+      const item = CAFE_ITEMS[payload.itemId]
+      setIncomingAttack({
+        attackerNickname: payload.attackerNickname || '상대',
+        itemName: item.name,
+        itemEmoji: item.emoji,
+      })
+      setTimeout(() => setIncomingAttack(null), 3000)
+
+      switch (payload.itemId) {
+        case 'BAD_REVIEW':
+        case 'PRICE_CRASH':
+          applyBuff(payload.itemId, payload.duration ?? item.duration)
+          break
+        case 'ROACH_ALERT':
+          removeHalfCustomers()
+          break
+      }
+    })
+  }, [applyBuff, playerId, removeHalfCustomers])
+
+  const handleAnswer = useCallback(async (answer: string) => {
+    return checkAnswer(answer)
+  }, [checkAnswer])
+
+  const handleSendCafeEvent = useCallback(async (type: 'cafe:item_attack', payload: unknown) => {
+    const eventPayload = payload as Record<string, unknown>
+    await sendRoomEvent(type, {
+      ...eventPayload,
+      attackerNickname: currentPlayer?.nickname,
+    })
+  }, [currentPlayer?.nickname, sendRoomEvent])
+
+  const syncScore = useCallback((totalCash: number) => {
+    if (!playerId) return
+
+    if (scoreSyncTimerRef.current) {
+      clearTimeout(scoreSyncTimerRef.current)
+    }
+
+    scoreSyncTimerRef.current = setTimeout(() => {
+      void updatePlayer(playerId, { score: totalCash })
+    }, 500)
+  }, [playerId])
+
   const handleStartGame = () => {
     startGame(selectedDuration)
     setCurrentView('playing')
@@ -78,8 +159,9 @@ export default function CafePage() {
   const topMenuCount = topMenuEntry ? topMenuEntry[1] : 0
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-amber-50 to-orange-100">
+    <div className="min-h-screen relative overflow-hidden font-bitbit bg-gradient-to-b from-amber-50 to-orange-100">
       <AnimatedBackground />
+      <AttackAlert attack={incomingAttack} />
 
       <AnimatePresence mode="wait">
         {currentView === 'lobby' && (
@@ -161,7 +243,18 @@ export default function CafePage() {
             exit={{ opacity: 0 }}
             className="w-full h-screen"
           >
-            <CafeView onGameEnd={() => setCurrentView('result')} roomCode={roomCode} />
+            <CafeView
+              onGameEnd={() => setCurrentView('result')}
+              roomCode={roomCode}
+              currentQuestion={currentQuestion}
+              onAnswer={handleAnswer}
+              onNextQuestion={goToNextQuestion}
+              players={players}
+              currentPlayerId={playerId}
+              consecutiveCorrect={consecutiveCorrect}
+              onSendEvent={handleSendCafeEvent}
+              onScoreChange={syncScore}
+            />
           </motion.div>
         )}
 

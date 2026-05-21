@@ -5,6 +5,7 @@ import Leaderboard from '@/components/Leaderboard'
 import FishingPond from '@/components/FishingPond'
 import FactoryView from '@/components/FactoryView'
 import BattleRoyaleDashboard from './BattleRoyaleDashboard'
+import CafeDashboard from './CafeDashboard'
 import Link from 'next/link'
 import { getGameModeConfig } from '@/lib/game/modes'
 import PuppyChaosTeacherBoard from '@/components/강아지대소동/강아지대소동TeacherBoard'
@@ -42,6 +43,8 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
 
     if (mode === 'battle_royale') {
         return <BattleRoyaleDashboard players={players} />
+    } else if (mode === 'cafe') {
+        return <CafeDashboard players={players} roomCode={room.room_code} gameStartTime={room.started_at ? new Date(room.started_at).getTime() : undefined} />
     } else if (mode === 'poop_dodge') {
         return <PuppyChaosTeacherBoard room={room} players={players} events={events} />
     } else if (mode === 'fishing') {

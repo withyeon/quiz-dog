@@ -109,8 +109,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/85 backdrop-blur">
           <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             <div className="flex items-center gap-3">
-              <Link href="/" className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-950 text-xs font-black text-white lg:hidden">
-                QD
+              <Link href="/" className="flex items-center lg:hidden">
+                <Image
+                  src="/header-logo.svg"
+                  alt="퀴즈독"
+                  width={180}
+                  height={60}
+                  className="h-[54px] w-auto"
+                  priority
+                />
               </Link>
               <div>
                 <div className="text-sm font-medium text-slate-400">Teacher</div>

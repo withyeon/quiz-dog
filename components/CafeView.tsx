@@ -1,68 +1,58 @@
 'use client'
 
 import Image from 'next/image'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import CafeShop from '@/components/cafe/CafeShop'
+import ItemChoiceModal from '@/components/cafe/ItemChoiceModal'
 import { useCafeStore } from '@/store/cafeStore'
 import {
   MENU_ITEMS,
-  UPGRADES,
   Customer,
   formatTime,
-  canBuyMenu,
-  canBuyUpgrade,
-  hasStock,
 } from '@/lib/game/cafe'
-import { X, ShoppingCart, TrendingUp } from 'lucide-react'
+import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
+import { CAFE_ITEMS, getRandomItemChoices, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
+import { X, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import QuizView from '@/components/QuizView'
 import { useAudioContext } from '@/components/AudioProvider'
+import type { Database } from '@/types/database.types'
+
+type Player = Database['public']['Tables']['players']['Row']
+
+type Question = {
+  id: string
+  type?: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
+  question_text: string
+  options: string[]
+  answer?: string
+}
 
 interface CafeViewProps {
   onGameEnd?: () => void
   roomCode?: string
+  currentQuestion: Question | null
+  onAnswer: (answer: string) => Promise<boolean>
+  onNextQuestion: () => void
+  players: Player[]
+  currentPlayerId: string | null
+  consecutiveCorrect: number
+  onSendEvent: (type: 'cafe:item_attack', payload: unknown) => Promise<unknown> | void
+  onScoreChange?: (totalCash: number) => void
 }
 
-const MAX_CUSTOMERS_IN_LINE = 3 // 카운터 앞 최대 손님 수
-
-// 더미 문제 데이터
-const DUMMY_QUESTIONS = [
-  {
-    id: '1',
-    question_text: '한국의 수도는?',
-    options: ['서울', '부산', '대구', '인천'],
-    answer: '서울',
-  },
-  {
-    id: '2',
-    question_text: '태양계에서 가장 큰 행성은?',
-    options: ['지구', '목성', '토성', '화성'],
-    answer: '목성',
-  },
-  {
-    id: '3',
-    question_text: '2 + 2는?',
-    options: ['3', '4', '5', '6'],
-    answer: '4',
-  },
-  {
-    id: '4',
-    question_text: '한국의 독립기념일은?',
-    options: ['3월 1일', '8월 15일', '10월 3일', '12월 25일'],
-    answer: '8월 15일',
-  },
-  {
-    id: '5',
-    question_text: '지구의 위성은?',
-    options: ['화성', '금성', '달', '태양'],
-    answer: '달',
-  },
-]
-
-type CafeViewState = 'quiz' | 'cafe' | 'wrong'
-
-export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
+export default function CafeView({
+  onGameEnd,
+  currentQuestion,
+  onAnswer,
+  onNextQuestion,
+  players,
+  currentPlayerId,
+  consecutiveCorrect,
+  onSendEvent,
+  onScoreChange,
+}: CafeViewProps) {
   const {
     status,
     timeRemaining,
@@ -73,33 +63,36 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
     menuStock,
     upgrades,
     customers,
-    stats,
+    activeBuffs,
+    goldenSpatulaActive,
     tickTimer,
     serveMenu,
+    earnCash,
     addCustomer,
-    removeExpiredCustomer,
     updateCustomers,
     restockMenu,
+    applyBuff,
+    activateGoldenSpatula,
+    consumeGoldenSpatula,
+    purchaseMenuFree,
   } = useCafeStore()
 
-  const [currentView, setCurrentView] = useState<CafeViewState>('quiz')
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('')
-  const [isCorrect, setIsCorrect] = useState(false)
+  const [showQuiz, setShowQuiz] = useState(false)
+  const [showWrong, setShowWrong] = useState(false)
   const [showShop, setShowShop] = useState(false)
   const [servingAnimations, setServingAnimations] = useState<
-    Array<{ id: string; x: number; y: number; amount: number }>
+    Array<{ id: string; x: number; y: number; amount: number; isGolden?: boolean }>
   >([])
+  const [itemChoices, setItemChoices] = useState<CafeItem[]>([])
+  const [showItemModal, setShowItemModal] = useState(false)
+  const [restockedMenuName, setRestockedMenuName] = useState('')
+  const [showGoldenEffect, setShowGoldenEffect] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
-  const [showParticles, setShowParticles] = useState(false)
   const customerUpdateInterval = useRef<NodeJS.Timeout | null>(null)
   const timerInterval = useRef<NodeJS.Timeout | null>(null)
   const patienceUpdateInterval = useRef<NodeJS.Timeout | null>(null)
-  const questionStartTime = useRef<number>(0)
 
   const { playSFX } = useAudioContext()
-
-  const currentQuestion = DUMMY_QUESTIONS[currentQuestionIndex % DUMMY_QUESTIONS.length]
 
   // 타이머
   useEffect(() => {
@@ -120,9 +113,13 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
     }
   }, [status, tickTimer])
 
+  const hasActiveBuff = useCallback((itemId: ItemId) => (
+    activeBuffs.some(buff => buff.itemId === itemId && buff.expiresAt > Date.now())
+  ), [activeBuffs])
+
   // 손님 업데이트 (인내심 체크)
   useEffect(() => {
-    if (status === 'playing' && currentView === 'cafe') {
+    if (status === 'playing') {
       customerUpdateInterval.current = setInterval(() => {
         updateCustomers(Date.now())
       }, 1000)
@@ -133,11 +130,11 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
         }
       }
     }
-  }, [status, currentView, updateCustomers])
+  }, [status, updateCustomers])
 
   // 인내심 게이지 실시간 업데이트
   useEffect(() => {
-    if (status === 'playing' && currentView === 'cafe') {
+    if (status === 'playing') {
       patienceUpdateInterval.current = setInterval(() => {
         setCurrentTime(Date.now())
       }, 100) // 0.1초마다 업데이트
@@ -148,7 +145,7 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
         }
       }
     }
-  }, [status, currentView])
+  }, [status])
 
   // 게임 종료 처리
   useEffect(() => {
@@ -159,71 +156,120 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
 
   // 손님을 항상 3명 유지
   useEffect(() => {
-    if (status === 'playing' && currentView === 'cafe') {
+    if (status === 'playing') {
       const interval = setInterval(() => {
+        if (hasActiveBuff('BAD_REVIEW')) return
         // 손님이 3명 미만이면 계속 추가
         if (customers.length < MAX_CUSTOMERS_IN_LINE) {
           addCustomer()
         }
-      }, 2000) // 2초마다 체크
+      }, hasActiveBuff('RUSH_HOUR') ? 800 : 2000)
 
       return () => clearInterval(interval)
     }
-  }, [status, currentView, customers.length, addCustomer])
+  }, [status, customers.length, addCustomer, hasActiveBuff])
 
-  // 정답 후 카페 화면으로 (클릭 시 즉시 이동)
-  const goToCafeView = () => {
-    setCurrentView('cafe')
-    setSelectedAnswer('')
-    setIsCorrect(false)
-    questionStartTime.current = Date.now()
-  }
+  const closeQuizAndAdvance = useCallback(() => {
+    setShowQuiz(false)
+    setShowItemModal(false)
+    setItemChoices([])
+    onNextQuestion()
+  }, [onNextQuestion])
+
+  const handleItemSelect = useCallback(async (itemId: ItemId, targetPlayerId?: string) => {
+    setShowItemModal(false)
+    setShowQuiz(false)
+    setItemChoices([])
+
+    const item = CAFE_ITEMS[itemId]
+
+    if (item.type === 'buff') {
+      switch (itemId) {
+        case 'GOLDEN_SPATULA':
+          activateGoldenSpatula()
+          break
+        case 'EXPRESS_LANE':
+        case 'RUSH_HOUR':
+        case 'SUPER_AD':
+          applyBuff(itemId, item.duration)
+          break
+        case 'SECRET_RECIPE':
+          unlockedMenus.forEach(menuId => {
+            restockMenu(menuId)
+            restockMenu(menuId)
+          })
+          break
+        case 'COPY_CAT': {
+          const topPlayer = players
+            .filter(player => player.id !== currentPlayerId)
+            .sort((a, b) => (b.score || 0) - (a.score || 0))[0]
+          if (topPlayer) {
+            const newMenu = MENU_ITEMS.find(menu => !unlockedMenus.includes(menu.id))
+            if (newMenu) purchaseMenuFree(newMenu.id)
+          }
+          break
+        }
+      }
+    }
+
+    if (item.type === 'debuff' && targetPlayerId) {
+      await onSendEvent('cafe:item_attack', {
+        attackerId: currentPlayerId,
+        targetId: targetPlayerId,
+        itemId,
+        duration: item.duration,
+      })
+    }
+
+    onNextQuestion()
+  }, [
+    activateGoldenSpatula,
+    applyBuff,
+    currentPlayerId,
+    onNextQuestion,
+    onSendEvent,
+    players,
+    purchaseMenuFree,
+    restockMenu,
+    unlockedMenus,
+  ])
 
   // 퀴즈 정답 제출
-  const handleAnswerSubmit = (answer: string) => {
+  const handleAnswerSubmit = async (answer: string) => {
     if (!answer) {
       // 시간 초과
       playSFX('incorrect')
-      setCurrentView('wrong')
+      setShowWrong(true)
+      setShowQuiz(false)
       setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
+        setShowWrong(false)
+        onNextQuestion()
       }, 2000)
       return false
     }
 
-    setSelectedAnswer(answer)
-    const normalizedAnswer = String(answer).trim()
-    const normalizedCorrect = String(currentQuestion.answer).trim()
-    const correct = normalizedAnswer === normalizedCorrect
-    setIsCorrect(correct)
+    const correct = await onAnswer(answer)
 
     if (correct) {
       playSFX('correct')
-      setShowParticles(true)
-      setTimeout(() => setShowParticles(false), 2000)
 
       // 정답 시 랜덤 메뉴 재고충전
       const availableMenus = unlockedMenus
       if (availableMenus.length > 0) {
         const randomMenu = availableMenus[Math.floor(Math.random() * availableMenus.length)]
         restockMenu(randomMenu)
+        setRestockedMenuName(MENU_ITEMS.find(menu => menu.id === randomMenu)?.name || randomMenu)
       }
 
-      // 카페 화면으로 1.5초 후 자동 또는 정답 클릭 시 즉시
-      setTimeout(goToCafeView, 1500)
+      setItemChoices(getRandomItemChoices(consecutiveCorrect + 1))
+      setShowItemModal(true)
     } else {
       playSFX('incorrect')
-      setCurrentView('wrong')
+      setShowWrong(true)
+      setShowQuiz(false)
       setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
+        setShowWrong(false)
+        onNextQuestion()
       }, 2000)
     }
     return correct
@@ -232,22 +278,51 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
   // Space 키로 Restock 버튼 클릭
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && status === 'playing' && currentView === 'cafe') {
+      if (e.code === 'Space' && status === 'playing' && !showQuiz && !showItemModal) {
         e.preventDefault()
-        setCurrentView('quiz')
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
+        setShowQuiz(true)
       }
     }
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [status, currentView])
+  }, [status, showQuiz, showItemModal])
 
   // 손님 클릭으로 서빙 (Blooket 스타일)
   const handleCustomerClick = (customer: Customer, event: React.MouseEvent) => {
     const result = serveMenu(customer.id, customer.order)
     if (result.success) {
+      let finalEarned = result.earned
+      let adjustment = 0
+      const wasGolden = goldenSpatulaActive
+
+      if (hasActiveBuff('PRICE_CRASH')) {
+        const crashed = Math.floor(finalEarned * 0.5)
+        adjustment += crashed - finalEarned
+        finalEarned = crashed
+      }
+
+      if (wasGolden) {
+        const bonus = result.earned * 2
+        adjustment += bonus
+        finalEarned += bonus
+        consumeGoldenSpatula()
+        setShowGoldenEffect(true)
+        setTimeout(() => setShowGoldenEffect(false), 1000)
+      }
+
+      if (hasActiveBuff('SUPER_AD')) {
+        const bonus = Math.floor(finalEarned * 0.5)
+        adjustment += bonus
+        finalEarned += bonus
+      }
+
+      if (adjustment !== 0) {
+        earnCash(adjustment)
+      }
+
+      onScoreChange?.(totalCashEarned + finalEarned)
+
       // 돈 애니메이션 추가
       const rect = event.currentTarget.getBoundingClientRect()
       setServingAnimations((prev) => [
@@ -256,7 +331,8 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
           id: `anim-${Date.now()}`,
           x: rect.left + rect.width / 2,
           y: rect.top + rect.height / 2,
-          amount: result.earned,
+          amount: finalEarned,
+          isGolden: wasGolden,
         },
       ])
 
@@ -270,12 +346,10 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
   // 손님의 인내심 계산
   const getCustomerPatience = (customer: Customer) => {
     const elapsed = (currentTime - customer.spawnTime) / 1000
-    const remaining = Math.max(0, customer.patience - elapsed)
-    return Math.min(1, remaining / customer.patience)
+    const effectivePatience = hasActiveBuff('EXPRESS_LANE') ? customer.patience * 2 : customer.patience
+    const remaining = Math.max(0, effectivePatience - elapsed)
+    return Math.min(1, remaining / effectivePatience)
   }
-
-  // 해금된 메뉴만 필터링
-  const availableMenus = MENU_ITEMS.filter((menu) => unlockedMenus.includes(menu.id))
 
   const isUrgent = timeRemaining <= 10 && status === 'playing'
 
@@ -315,6 +389,39 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
               <span className="text-2xl">👥</span>
               <span className="text-xl font-bold text-white">{customersServed}명</span>
             </div>
+            <div className="flex items-center gap-2">
+              <AnimatePresence>
+                {activeBuffs.map(buff => {
+                  const item = CAFE_ITEMS[buff.itemId]
+                  const remaining = Math.max(0, Math.ceil((buff.expiresAt - currentTime) / 1000))
+                  return (
+                    <motion.div
+                      key={buff.itemId}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className={`flex items-center gap-1 rounded-lg px-2 py-1 text-sm font-black ${
+                        item.type === 'buff' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+                      }`}
+                    >
+                      <span>{item.emoji}</span>
+                      <span>{remaining}s</span>
+                    </motion.div>
+                  )
+                })}
+                {goldenSpatulaActive && (
+                  <motion.div
+                    key="golden-spatula"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    className="flex items-center gap-1 rounded-lg bg-amber-400 px-2 py-1 text-sm font-black text-amber-950"
+                  >
+                    🥄 3x
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
           <Button
             onClick={() => setShowShop(true)}
@@ -326,22 +433,8 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
         </div>
       </div>
 
-      {/* 퀴즈 화면 */}
-      {currentView === 'quiz' && (
-        <div className="absolute top-24 left-0 right-0 bottom-0 z-30 flex items-center justify-center p-4">
-          <div className="w-full max-w-3xl">
-            <QuizView
-              question={currentQuestion}
-              onAnswer={handleAnswerSubmit}
-              onCorrectClick={goToCafeView}
-              timeLimit={30}
-            />
-          </div>
-        </div>
-      )}
-
       {/* 오답 화면 */}
-      {currentView === 'wrong' && (
+      {showWrong && (
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -356,8 +449,7 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
       )}
 
       {/* 카페 화면 */}
-      {currentView === 'cafe' && (
-        <>
+      <>
           {/* 손님 영역 - 카운터 앞에 줄지어 배치 */}
           <div className="absolute bottom-48 left-0 right-0 z-10">
             <div className="max-w-6xl mx-auto px-8">
@@ -564,11 +656,7 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
               <div className="flex items-center justify-center gap-4">
                 {/* Restock 버튼 */}
                 <Button
-                  onClick={() => {
-                    setCurrentView('quiz')
-                    setCurrentQuestionIndex((prev) => prev + 1)
-                    questionStartTime.current = Date.now()
-                  }}
+                  onClick={() => setShowQuiz(true)}
                   className="bg-teal-500 hover:bg-teal-600 text-white font-bold text-lg px-8 py-4 shadow-xl border-4 border-teal-700 min-w-[200px]"
                 >
                   🍽️ Restock Food
@@ -581,7 +669,50 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
             </div>
           </div>
         </>
-      )}
+
+      <AnimatePresence>
+        {showQuiz && currentQuestion && (
+          <motion.div
+            initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
+            animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-40 flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.45)' }}
+          >
+            {consecutiveCorrect >= 2 && (
+              <motion.div
+                key={consecutiveCorrect}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg"
+              >
+                🔥 {consecutiveCorrect}연속 정답! 희귀 아이템 확률 UP
+              </motion.div>
+            )}
+
+            <div className="w-full max-w-3xl">
+              {showItemModal ? (
+                <ItemChoiceModal
+                  items={itemChoices}
+                  restockedMenuName={restockedMenuName}
+                  consecutiveCorrect={consecutiveCorrect + 1}
+                  players={players}
+                  currentPlayerId={currentPlayerId}
+                  onSelect={handleItemSelect}
+                  onSkip={closeQuizAndAdvance}
+                />
+              ) : (
+                <QuizView
+                  question={currentQuestion}
+                  onAnswer={handleAnswerSubmit}
+                  onCorrectClick={() => undefined}
+                  timeLimit={30}
+                />
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 돈 획득 애니메이션 */}
       <AnimatePresence>
@@ -597,13 +728,28 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="text-4xl font-bold text-green-400 drop-shadow-2xl"
-              style={{ textShadow: '0 0 10px rgba(34, 197, 94, 0.8)' }}
+              className={`text-4xl font-bold drop-shadow-2xl ${anim.isGolden ? 'text-amber-300' : 'text-green-400'}`}
+              style={{ textShadow: anim.isGolden ? '0 0 14px rgba(251, 191, 36, 0.9)' : '0 0 10px rgba(34, 197, 94, 0.8)' }}
             >
               +${anim.amount}
             </motion.div>
           </motion.div>
         ))}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showGoldenEffect && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+            className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-amber-300/15"
+          >
+            <div className="rounded-lg bg-amber-400 px-8 py-5 text-3xl font-black text-amber-950 shadow-2xl">
+              🥄 황금 주걱 3배 수익!
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
       {/* 상점 모달 */}
@@ -636,121 +782,11 @@ export default function CafeView({ onGameEnd, roomCode }: CafeViewProps) {
                 </button>
               </div>
 
-              <ShopContent onClose={() => setShowShop(false)} />
+              <CafeShop />
             </motion.div>
           </>
         )}
       </AnimatePresence>
-    </div>
-  )
-}
-
-// 상점 내용 컴포넌트
-function ShopContent({ onClose }: { onClose: () => void }) {
-  const store = useCafeStore()
-  const { cash, unlockedMenus, upgrades, purchaseMenu, purchaseUpgrade } = store
-
-  const lockedMenus = MENU_ITEMS.filter((menu) => !unlockedMenus.includes(menu.id))
-
-  return (
-    <div className="space-y-6">
-      {/* 메뉴 해금 */}
-      <div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>🍽️</span> 메뉴 해금
-        </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {lockedMenus.map((menu) => {
-            const canBuy = canBuyMenu(store, menu.id)
-            return (
-              <Card
-                key={menu.id}
-                className={`border-4 ${canBuy ? 'border-green-500 bg-green-50' : 'border-gray-300 bg-gray-50'
-                  }`}
-              >
-                <CardHeader>
-                  <div className="flex justify-center mb-2">
-                    <Image
-                      src={menu.image}
-                      alt={menu.name}
-                      width={64}
-                      height={64}
-                      unoptimized
-                      className="w-16 h-16 object-contain"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.style.display = 'none'
-                        if (target.parentElement) {
-                          target.parentElement.innerHTML = `<div class="text-4xl text-center">${menu.emoji}</div>`
-                        }
-                      }}
-                    />
-                  </div>
-                  <CardTitle className="text-center text-lg">{menu.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center space-y-2">
-                    <div className="text-sm text-gray-600">{menu.description}</div>
-                    <div className="text-xl font-bold text-amber-600">${menu.cost}</div>
-                    <Button
-                      onClick={() => {
-                        purchaseMenu(menu.id)
-                      }}
-                      disabled={!canBuy}
-                      className={`w-full ${canBuy
-                          ? 'bg-green-500 hover:bg-green-600'
-                          : 'bg-gray-300 cursor-not-allowed'
-                        }`}
-                    >
-                      {canBuy ? '구매' : '돈 부족'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* 업그레이드 */}
-      <div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <TrendingUp className="h-6 w-6 text-blue-600" />
-          업그레이드
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {UPGRADES.map((upgrade) => {
-            const canBuy = canBuyUpgrade(store, upgrade.id)
-            return (
-              <Card
-                key={upgrade.id}
-                className={`border-4 ${canBuy ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-gray-50'
-                  }`}
-              >
-                <CardHeader>
-                  <CardTitle>{upgrade.name}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="text-sm text-gray-600">{upgrade.description}</div>
-                    <div className="text-xl font-bold text-blue-600">${upgrade.cost}</div>
-                    <Button
-                      onClick={() => {
-                        purchaseUpgrade(upgrade.id)
-                      }}
-                      disabled={!canBuy}
-                      className={`w-full ${canBuy ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-300 cursor-not-allowed'
-                        }`}
-                    >
-                      {canBuy ? '구매' : '돈 부족'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      </div>
     </div>
   )
 }

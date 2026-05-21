@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { PAW2_SRC, PAW_SRC, PAW_PRINTS } from '@/components/pawBackgroundConfig'
 
 export default function PawBackgroundDecor() {
@@ -13,10 +14,13 @@ export default function PawBackgroundDecor() {
         const src = paw.variant === 'paw' ? PAW_SRC : PAW2_SRC
 
         return (
-          <img
+          <Image
             key={`${paw.variant}-${index}`}
             src={src}
             alt=""
+            width={160}
+            height={160}
+            sizes={`${paw.size}px`}
             draggable={false}
             className={`absolute object-contain select-none ${paw.visibility ?? ''}`}
             style={{

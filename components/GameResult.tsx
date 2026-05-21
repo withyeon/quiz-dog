@@ -20,6 +20,7 @@ import {
 } from 'recharts'
 import type { Database } from '@/types/database.types'
 import type { GameModeId } from '@/lib/game/modes'
+import { displayBlankText } from '@/lib/quiz/blankText'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -362,7 +363,7 @@ export default function GameResult({
                         <span className="text-lg">{record.isCorrect ? '✅' : '❌'}</span>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium text-gray-800 truncate">
-                            {record.questionIndex + 1}. {q.question_text}
+                            {record.questionIndex + 1}. {displayBlankText(q.question_text)}
                           </div>
                           {!record.isCorrect && (
                             <div className="text-xs text-gray-500 mt-1">

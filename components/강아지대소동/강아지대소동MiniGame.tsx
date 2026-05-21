@@ -50,6 +50,7 @@ type DodgeMiniGameProps = {
 const PLAYER_SIZE = 52
 const OBJECT_SIZE = 34
 const MASCOT_SRC = '/mascot_pome.png'
+const BACKGROUND_SRC = '/background/puppy-chaos.png'
 
 function rectsOverlap(a: DOMRectLike, b: DOMRectLike) {
   return a.x < b.x + b.width
@@ -82,6 +83,7 @@ export default function DodgeMiniGame({
   const objectsRef = useRef<FallingObject[]>([])
   const particlesRef = useRef<SplatParticle[]>([])
   const mascotImageRef = useRef<HTMLImageElement | null>(null)
+  const backgroundImageRef = useRef<HTMLImageElement | null>(null)
   const playerXRef = useRef(0.5)
   const playerVelocityRef = useRef(0)
   const keysRef = useRef({ left: false, right: false })
@@ -111,6 +113,14 @@ export default function DodgeMiniGame({
     image.src = MASCOT_SRC
     image.onload = () => {
       mascotImageRef.current = image
+    }
+  }, [])
+
+  useEffect(() => {
+    const image = new Image()
+    image.src = BACKGROUND_SRC
+    image.onload = () => {
+      backgroundImageRef.current = image
     }
   }, [])
 
@@ -338,22 +348,25 @@ export default function DodgeMiniGame({
         const intensity = shakeRef.current / 260
         ctx.translate((Math.random() - 0.5) * 12 * intensity, (Math.random() - 0.5) * 8 * intensity)
       }
-      const sky = ctx.createLinearGradient(0, 0, 0, height)
-      sky.addColorStop(0, '#7dd3fc')
-      sky.addColorStop(0.58, '#dbeafe')
-      sky.addColorStop(1, '#bbf7d0')
-      ctx.fillStyle = sky
-      ctx.fillRect(0, 0, width, height)
-
-      drawCloud(ctx, width * 0.18, 74, 1)
-      drawCloud(ctx, width * 0.78, 112, 0.75)
-      drawSpeedLines(ctx, width, height, Math.min(1, elapsedRef.current / 2000))
-
-      ctx.fillStyle = '#BBF7D0'
-      ctx.fillRect(0, height - 56, width, 56)
-      ctx.fillStyle = '#86efac'
-      for (let x = 0; x < width; x += 18) {
-        ctx.fillRect(x, height - 58, 8, 5)
+      if (backgroundImageRef.current) {
+        drawCoverImage(ctx, backgroundImageRef.current, width, height)
+      } else {
+        const sky = ctx.createLinearGradient(0, 0, 0, height)
+        sky.addColorStop(0, '#7dd3fc')
+        sky.addColorStop(0.58, '#dbeafe')
+        sky.addColorStop(1, '#bbf7d0')
+        ctx.fillStyle = sky
+        ctx.fillRect(0, 0, width, height)
+        drawCloud(ctx, width * 0.18, 74, 1)
+        drawCloud(ctx, width * 0.78, 112, 0.75)
+      }
+      if (!backgroundImageRef.current) {
+        ctx.fillStyle = '#BBF7D0'
+        ctx.fillRect(0, height - 56, width, 56)
+        ctx.fillStyle = '#86efac'
+        for (let x = 0; x < width; x += 18) {
+          ctx.fillRect(x, height - 58, 8, 5)
+        }
       }
 
       ctx.textAlign = 'center'
@@ -388,7 +401,7 @@ export default function DodgeMiniGame({
         ctx.fillStyle = 'rgba(15, 23, 42, 0.58)'
         ctx.fillRect(0, 0, width, height)
         ctx.fillStyle = '#FFFFFF'
-        ctx.font = '700 30px sans-serif'
+        ctx.font = '700 30px DNFBitBitv2, sans-serif'
         ctx.fillText('잠깐 멈춤', width / 2, height / 2)
       }
       ctx.restore()
@@ -442,7 +455,7 @@ export default function DodgeMiniGame({
   }
 
   return (
-    <div className="relative h-[min(72vh,620px)] min-h-[420px] w-full overflow-hidden rounded-[28px] border-4 border-slate-900 bg-sky-100 shadow-[6px_6px_0_#0f172a]">
+    <div className="relative h-[min(72vh,620px)] min-h-[420px] w-full overflow-hidden rounded-[28px] border-4 border-slate-900 bg-sky-100 font-bitbit shadow-[6px_6px_0_#0f172a]">
       <div ref={wrapRef} className="h-full w-full touch-none">
         <canvas ref={canvasRef} className="h-full w-full" />
       </div>
@@ -492,6 +505,21 @@ export default function DodgeMiniGame({
   )
 }
 
+function drawCoverImage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  width: number,
+  height: number,
+) {
+  const imageRatio = image.width / image.height
+  const canvasRatio = width / height
+  const sourceWidth = imageRatio > canvasRatio ? image.height * canvasRatio : image.width
+  const sourceHeight = imageRatio > canvasRatio ? image.height : image.width / canvasRatio
+  const sourceX = (image.width - sourceWidth) / 2
+  const sourceY = (image.height - sourceHeight) / 2
+  ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, width, height)
+}
+
 function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number) {
   ctx.save()
   ctx.globalAlpha = 0.72
@@ -504,21 +532,6 @@ function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, scale: n
   ctx.restore()
 }
 
-function drawSpeedLines(ctx: CanvasRenderingContext2D, width: number, height: number, alpha: number) {
-  ctx.save()
-  ctx.globalAlpha = 0.08 * alpha
-  ctx.strokeStyle = '#0f172a'
-  ctx.lineWidth = 3
-  for (let index = 0; index < 10; index += 1) {
-    const x = (index / 10) * width + 20
-    ctx.beginPath()
-    ctx.moveTo(x, height * 0.2)
-    ctx.lineTo(x - 36, height * 0.68)
-    ctx.stroke()
-  }
-  ctx.restore()
-}
-
 function drawPoop(ctx: CanvasRenderingContext2D, object: FallingObject) {
   ctx.save()
   ctx.translate(object.x, object.y)
@@ -527,12 +540,12 @@ function drawPoop(ctx: CanvasRenderingContext2D, object: FallingObject) {
   ctx.shadowColor = 'rgba(69, 26, 3, 0.28)'
   ctx.shadowBlur = 8
   ctx.shadowOffsetY = 4
-  ctx.font = `${object.variant === 'heavy' ? 42 * scale : 34 * scale}px sans-serif`
+  ctx.font = `${object.variant === 'heavy' ? 42 * scale : 34 * scale}px DNFBitBitv2, sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(object.variant === 'fast' ? '💨' : '💩', 0, object.variant === 'fast' ? -2 : 0)
   if (object.variant === 'fast') {
-    ctx.font = `${26 * scale}px sans-serif`
+    ctx.font = `${26 * scale}px DNFBitBitv2, sans-serif`
     ctx.fillText('💩', 9 * scale, 5 * scale)
   }
   ctx.restore()
@@ -556,7 +569,7 @@ function drawPlayer(
   ctx.fill()
   if (invincible) {
     ctx.fillStyle = '#fbbf24'
-    ctx.font = '32px sans-serif'
+    ctx.font = '32px DNFBitBitv2, sans-serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText('👑', 0, -44)

@@ -6,9 +6,10 @@ import { useEffect, useState } from 'react'
 interface SnowEffectProps {
   isActive: boolean
   duration?: number
+  intensity?: 'normal' | 'blizzard'
 }
 
-export default function SnowEffect({ isActive, duration = 2000 }: SnowEffectProps) {
+export default function SnowEffect({ isActive, duration, intensity = 'normal' }: SnowEffectProps) {
   const [particles, setParticles] = useState<Array<{
     id: number
     x: number
@@ -25,23 +26,26 @@ export default function SnowEffect({ isActive, duration = 2000 }: SnowEffectProp
       return
     }
 
-    const newParticles = Array.from({ length: 42 }, (_, i) => ({
+    const isBlizzard = intensity === 'blizzard'
+    const particleCount = isBlizzard ? 120 : 42
+    const effectDuration = duration ?? (isBlizzard ? 3000 : 2000)
+    const newParticles = Array.from({ length: particleCount }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      size: 6 + Math.random() * 14,
-      drift: (Math.random() - 0.5) * 120,
-      fall: 120 + Math.random() * 180,
-      motionDuration: 0.55 + Math.random() * 0.45,
+      size: isBlizzard ? 10 + Math.random() * 20 : 6 + Math.random() * 14,
+      drift: (Math.random() - 0.5) * (isBlizzard ? 220 : 120),
+      fall: (isBlizzard ? 180 : 120) + Math.random() * (isBlizzard ? 260 : 180),
+      motionDuration: (isBlizzard ? 1.15 : 0.55) + Math.random() * (isBlizzard ? 0.85 : 0.45),
     }))
     setParticles(newParticles)
 
     const timer = setTimeout(() => {
       setParticles([])
-    }, duration)
+    }, effectDuration)
 
     return () => clearTimeout(timer)
-  }, [isActive, duration])
+  }, [isActive, duration, intensity])
 
   return (
     <AnimatePresence>

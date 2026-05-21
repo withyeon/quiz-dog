@@ -16,6 +16,7 @@ export interface RenderState {
   shakeDuration: number;
   cameraPunchFrames: number;
   cameraPunchMax: number;
+  ghostTrails: { x: number; y: number; alpha: number }[];
 }
 
 export function createRenderState(): RenderState {
@@ -28,6 +29,7 @@ export function createRenderState(): RenderState {
     shakeDuration: 0,
     cameraPunchFrames: 0,
     cameraPunchMax: 1,
+    ghostTrails: [],
   };
 }
 
@@ -209,21 +211,35 @@ export function drawSideTrees(ctx: CanvasRenderingContext2D, w: number, h: numbe
 // ── 강아지 캐릭터 그리기 ──
 export function drawDog(
   ctx: CanvasRenderingContext2D, x: number, y: number, size: number,
-  frame: number, isBig: boolean, hasShield: boolean, isDrone: boolean, invincible: number
+  frame: number, isBig: boolean, hasShield: boolean, isDrone: boolean, invincible: number,
+  jumpProgress = 0, slideProgress = 0,
 ) {
   const s = size * (isBig ? 1.4 : 1);
   ctx.save();
   ctx.translate(x, y);
+
+  // 점프 오프셋 (포물선)
+  const jumpHeight = Math.sin(jumpProgress * Math.PI) * size * 1.2;
+  if (jumpProgress > 0) ctx.translate(0, -jumpHeight);
+
+  // 슬라이드 (납작하게)
+  if (slideProgress > 0) {
+    const squash = 0.4 + 0.6 * (1 - Math.sin(slideProgress * Math.PI));
+    ctx.scale(1.3, squash);
+    ctx.translate(0, size * 0.2);
+  }
 
   // 무적 깜빡임
   if (invincible > 0) {
     ctx.globalAlpha = 0.5 + Math.sin(frame * 0.3) * 0.3;
   }
 
-  // 그림자
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  // 그림자 (점프 시 작아지고 투명해짐)
+  const shadowScale = jumpProgress > 0 ? 1 - Math.sin(jumpProgress * Math.PI) * 0.5 : 1;
+  const shadowAlpha = jumpProgress > 0 ? 0.15 + 0.15 * (1 - Math.sin(jumpProgress * Math.PI)) : 0.3;
+  ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
   ctx.beginPath();
-  ctx.ellipse(0, s * 0.35, s * 0.35, s * 0.1, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, s * 0.35 + (jumpProgress > 0 ? jumpHeight : 0), s * 0.35 * shadowScale, s * 0.1 * shadowScale, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // 드론 프로펠러
@@ -363,6 +379,72 @@ export function drawObstacle(ctx: CanvasRenderingContext2D, x: number, y: number
   ctx.restore();
 }
 
+// ── 바닥 장애물 그리기 (점프로 회피) ──
+export function drawObstacleLow(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, frame: number) {
+  const s = 20 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+
+  // 가시 함정
+  ctx.fillStyle = '#6b4423';
+  ctx.fillRect(-s * 0.9, -s * 0.15, s * 1.8, s * 0.3);
+  // 가시들
+  ctx.fillStyle = '#8B4513';
+  for (let i = -3; i <= 3; i++) {
+    const sx = i * s * 0.25;
+    ctx.beginPath();
+    ctx.moveTo(sx - s * 0.08, -s * 0.15);
+    ctx.lineTo(sx, -s * 0.55);
+    ctx.lineTo(sx + s * 0.08, -s * 0.15);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // 경고 표시
+  const pulse = 0.6 + Math.sin(frame * 0.15) * 0.4;
+  ctx.fillStyle = `rgba(239,68,68,${0.3 * pulse})`;
+  ctx.font = `bold ${s * 0.5}px DNFBitBitv2, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⬆', 0, -s * 0.85);
+  ctx.restore();
+}
+
+// ── 공중 장애물 그리기 (슬라이드로 회피) ──
+export function drawObstacleHigh(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, frame: number) {
+  const s = 20 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+
+  // 나뭇가지/간판
+  const sway = Math.sin(frame * 0.06) * s * 0.05;
+  // 가로 막대
+  ctx.fillStyle = '#5c3d1e';
+  ctx.fillRect(-s * 1.0, -s * 0.65 + sway, s * 2.0, s * 0.18);
+  // 세로 지지대
+  ctx.fillStyle = '#4a3218';
+  ctx.fillRect(-s * 0.9, -s * 0.65 + sway, s * 0.12, s * 0.8);
+  ctx.fillRect(s * 0.78, -s * 0.65 + sway, s * 0.12, s * 0.8);
+  // 덩굴
+  ctx.strokeStyle = '#2d8a4e';
+  ctx.lineWidth = 2 * scale;
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.5, -s * 0.65 + sway);
+  ctx.quadraticCurveTo(-s * 0.3, -s * 0.2 + sway, -s * 0.4, s * 0.1 + sway);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(s * 0.3, -s * 0.65 + sway);
+  ctx.quadraticCurveTo(s * 0.5, -s * 0.3 + sway, s * 0.2, 0 + sway);
+  ctx.stroke();
+  // 경고 표시
+  const pulse = 0.6 + Math.sin(frame * 0.15) * 0.4;
+  ctx.fillStyle = `rgba(59,130,246,${0.3 * pulse})`;
+  ctx.font = `bold ${s * 0.5}px DNFBitBitv2, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⬇', 0, s * 0.4);
+  ctx.restore();
+}
+
 // ── 뼈다귀 그리기 ──
 export function drawBone(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, golden: boolean, frame: number) {
   const s = 10 * scale;
@@ -481,7 +563,7 @@ export function drawBox(
 
   // 물음표
   ctx.fillStyle = `rgba(255,255,255,${0.78 + glow * 0.2})`;
-  ctx.font = `900 ${s * 0.76}px sans-serif`;
+  ctx.font = `900 ${s * 0.76}px DNFBitBitv2, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(0,0,0,0.5)';
@@ -498,6 +580,104 @@ export function drawBox(
 
   ctx.restore();
 }
+
+// ── 추격자 (고양이) 그리기 ──
+export function drawChaser(
+  ctx: CanvasRenderingContext2D, w: number, h: number,
+  chaserDistance: number, frame: number,
+) {
+  if (chaserDistance >= 95) return; // 너무 멀면 안 그림
+
+  const vy = vanishY(h);
+  // chaserDistance(0~100)를 도로 위 t값(0=소실점, 1=하단)으로 변환
+  // 가까울수록(0) → t값 높음(화면 아래쪽)
+  const t = Math.max(0.05, Math.min(0.55, 0.55 - (chaserDistance / 100) * 0.5));
+  const chaserY = vy + (h + 40 - vy) * Math.pow(t, 1.2);
+  const scale = 0.15 + 0.85 * Math.pow(t, 1.3);
+  const cx = w / 2; // 도로 중앙
+
+  const s = 35 * scale;
+  ctx.save();
+  ctx.translate(cx, chaserY);
+  ctx.globalAlpha = Math.min(1, 0.3 + (1 - chaserDistance / 100) * 0.7);
+
+  // 눈 빛 (빨간 글로우)
+  if (chaserDistance < 40) {
+    const glowIntensity = (40 - chaserDistance) / 40;
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 15 * glowIntensity * scale;
+  }
+
+  // 몸통
+  const bobY = Math.sin(frame * 0.2) * 2 * scale;
+  ctx.fillStyle = '#374151';
+  ctx.beginPath();
+  ctx.ellipse(0, -s * 0.1 + bobY, s * 0.32, s * 0.22, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 머리
+  ctx.fillStyle = '#4b5563';
+  ctx.beginPath();
+  ctx.arc(0, -s * 0.35 + bobY, s * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 귀 (삼각형 - 고양이)
+  ctx.fillStyle = '#374151';
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.18, -s * 0.5 + bobY);
+  ctx.lineTo(-s * 0.08, -s * 0.7 + bobY);
+  ctx.lineTo(-s * 0.02, -s * 0.48 + bobY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(s * 0.18, -s * 0.5 + bobY);
+  ctx.lineTo(s * 0.08, -s * 0.7 + bobY);
+  ctx.lineTo(s * 0.02, -s * 0.48 + bobY);
+  ctx.closePath();
+  ctx.fill();
+
+  // 눈 (빛나는 빨간 눈)
+  ctx.shadowBlur = 0;
+  const eyeGlow = chaserDistance < 40 ? '#ef4444' : '#fbbf24';
+  ctx.fillStyle = eyeGlow;
+  ctx.beginPath();
+  ctx.arc(-s * 0.07, -s * 0.37 + bobY, s * 0.035, 0, Math.PI * 2);
+  ctx.arc(s * 0.07, -s * 0.37 + bobY, s * 0.035, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 다리 (빠른 달리기)
+  ctx.fillStyle = '#374151';
+  const legPhase = frame * 0.3;
+  for (const side of [-1, 1]) {
+    const legX = side * s * 0.15;
+    const kick = Math.sin(legPhase + side * 0.8) * s * 0.15;
+    ctx.fillRect(legX - s * 0.035 + kick, s * 0.05 + bobY, s * 0.07, s * 0.18);
+    ctx.fillRect(legX - s * 0.035 - kick, s * 0.1 + bobY, s * 0.07, s * 0.16);
+  }
+
+  ctx.globalAlpha = 1;
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+
+// ── 추격자 경고 비네트 ──
+export function drawChaserWarning(ctx: CanvasRenderingContext2D, w: number, h: number, chaserDistance: number, frame: number) {
+  if (chaserDistance >= CHASER_WARN_THRESHOLD_RENDER) return;
+
+  const intensity = 1 - chaserDistance / CHASER_WARN_THRESHOLD_RENDER;
+  const pulse = 0.5 + Math.sin(frame * 0.15) * 0.5;
+  const alpha = intensity * 0.35 * pulse;
+
+  // 화면 가장자리 빨간 비네트
+  const grad = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.3, w / 2, h / 2, Math.max(w, h) * 0.8);
+  grad.addColorStop(0, 'rgba(239,68,68,0)');
+  grad.addColorStop(0.7, `rgba(239,68,68,${alpha * 0.3})`);
+  grad.addColorStop(1, `rgba(239,68,68,${alpha})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+const CHASER_WARN_THRESHOLD_RENDER = 25;
 
 // ── 파티클 시스템 ──
 export function spawnParticles(particles: Particle[], x: number, y: number, type: 'dust' | 'sparkle' | 'hit', count: number): Particle[] {
@@ -552,20 +732,56 @@ export function drawParticles(ctx: CanvasRenderingContext2D, particles: Particle
   ctx.globalAlpha = 1;
 }
 
-// ── 속도 라인 (스피드감) ──
+// ── 속도 라인 (방사형 스피드감) ──
 export function drawSpeedLines(ctx: CanvasRenderingContext2D, w: number, h: number, speed: number, frame: number) {
   if (speed <= 1.2) return;
   const intensity = Math.min(1, (speed - 1) * 0.8);
-  ctx.strokeStyle = `rgba(255,255,255,${0.06 * intensity})`;
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 8; i++) {
-    const sx = ((frame * 7 + i * 137) % w);
-    const sy = ((frame * 3 + i * 89) % (h * 0.5)) + h * 0.3;
-    const len = 30 + speed * 15;
+  const vpX = w / 2;
+  const vpY = h * 0.28; // 소실점
+
+  ctx.save();
+  for (let i = 0; i < 12; i++) {
+    const angle = ((frame * 0.02 + i * (Math.PI * 2 / 12)) % (Math.PI * 2));
+    const innerR = 80 + (i % 3) * 30;
+    const outerR = innerR + 60 + speed * 25;
+    const sx = vpX + Math.cos(angle) * innerR;
+    const sy = vpY + Math.sin(angle) * innerR * 0.6;
+    const ex = vpX + Math.cos(angle) * outerR;
+    const ey = vpY + Math.sin(angle) * outerR * 0.6;
+
+    ctx.strokeStyle = `rgba(255,255,255,${0.04 * intensity + Math.sin(frame * 0.1 + i) * 0.02})`;
+    ctx.lineWidth = 1 + intensity;
     ctx.beginPath();
     ctx.moveTo(sx, sy);
-    ctx.lineTo(sx, sy + len);
+    ctx.lineTo(ex, ey);
     ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ── 터널 비전 (부스터/고속 시 가장자리 어둡게) ──
+export function drawTunnelVision(ctx: CanvasRenderingContext2D, w: number, h: number, speed: number) {
+  if (speed <= 1.3) return;
+  const intensity = Math.min(0.5, (speed - 1.3) * 0.35);
+  const grad = ctx.createRadialGradient(w / 2, h * 0.5, Math.min(w, h) * 0.25, w / 2, h * 0.5, Math.max(w, h) * 0.75);
+  grad.addColorStop(0, 'rgba(0,0,0,0)');
+  grad.addColorStop(0.6, 'rgba(0,0,0,0)');
+  grad.addColorStop(1, `rgba(0,0,0,${intensity})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+// ── 잔상 효과 (고속에서) ──
+export function drawGhostTrail(ctx: CanvasRenderingContext2D, trails: { x: number; y: number; alpha: number }[], size: number) {
+  for (const trail of trails) {
+    if (trail.alpha <= 0.02) continue;
+    ctx.save();
+    ctx.globalAlpha = trail.alpha * 0.3;
+    ctx.fillStyle = '#d4915c';
+    ctx.beginPath();
+    ctx.ellipse(trail.x, trail.y, size * 0.25, size * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -591,7 +807,7 @@ export function drawFloatingTexts(ctx: CanvasRenderingContext2D, texts: { text: 
     const alpha = ft.life / ft.maxLife;
     const scale = 0.8 + alpha * 0.4;
     ctx.globalAlpha = alpha;
-    ctx.font = `bold ${ft.size * scale}px BMJUA, sans-serif`;
+    ctx.font = `bold ${ft.size * scale}px DNFBitBitv2, sans-serif`;
     ctx.fillStyle = ft.color;
     ctx.shadowColor = 'rgba(0,0,0,0.8)';
     ctx.shadowBlur = 4;
@@ -637,7 +853,7 @@ export function drawComboGauge(ctx: CanvasRenderingContext2D, w: number, combo: 
   // 콤보 텍스트
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
-  ctx.font = `bold 14px BMJUA, sans-serif`;
+  ctx.font = `bold 14px DNFBitBitv2, sans-serif`;
   ctx.fillStyle = combo >= 20 ? '#fbbf24' : combo >= 10 ? '#f97316' : '#818cf8';
   ctx.shadowColor = 'rgba(0,0,0,0.8)';
   ctx.shadowBlur = 3;

@@ -69,7 +69,7 @@ export default function ItemRoulette({ item, onComplete }: ItemRouletteProps) {
 
     tickRef.current = setTimeout(tick, spinSpeed)
     return () => { if (tickRef.current) clearTimeout(tickRef.current) }
-  }, [phase])
+  }, [phase, spinSpeed])
 
   // 리빌 후 자동 닫기
   useEffect(() => {
@@ -110,7 +110,7 @@ export default function ItemRoulette({ item, onComplete }: ItemRouletteProps) {
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.8 }}
       className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
-      style={{ fontFamily: 'BMJUA, sans-serif' }}
+      style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
     >
       {/* 배경 오버레이 */}
       <div className="absolute inset-0" style={{

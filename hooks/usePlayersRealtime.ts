@@ -4,6 +4,7 @@ import {
   subscribeRoomRuntimeEvent,
   type PlayerPatchPayload,
 } from '@/lib/realtime/roomChannel'
+import { sortPlayersByScore } from '@/lib/utils/playerSorting'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -19,14 +20,6 @@ interface UsePlayersRealtimeOptions {
 
 type RefreshOptions = {
   silent?: boolean
-}
-
-function sortPlayers(players: Player[]): Player[] {
-  return [...players].sort((a, b) => {
-    const scoreCompare = (b.score ?? 0) - (a.score ?? 0)
-    if (scoreCompare !== 0) return scoreCompare
-    return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))
-  })
 }
 
 export function usePlayersRealtime({
@@ -65,7 +58,7 @@ export function usePlayersRealtime({
         didPatch = true
         return { ...player, ...patch, id: player.id } as Player
       })
-      return didPatch ? sortPlayers(next) : prev
+      return didPatch ? sortPlayersByScore(next) : prev
     })
   }, [])
 
@@ -107,7 +100,7 @@ export function usePlayersRealtime({
       }
 
       if (seq === loadSeqRef.current) {
-        setPlayers(sortPlayers((data ?? []) as Player[]))
+        setPlayers(sortPlayersByScore((data ?? []) as Player[]))
       }
     } catch (err) {
       if (seq === loadSeqRef.current) {
@@ -155,13 +148,13 @@ export function usePlayersRealtime({
             setPlayers((prev) => {
               const exists = prev.some((player) => player.id === newPlayer.id)
               if (exists) return prev
-              return sortPlayers([...prev, newPlayer])
+              return sortPlayersByScore([...prev, newPlayer])
             })
             onPlayerInsertRef.current?.(newPlayer)
           } else if (payload.eventType === 'UPDATE' && payload.new) {
             const updatedPlayer = payload.new as Player
             setPlayers((prev) =>
-              sortPlayers(prev.map((player) => (
+              sortPlayersByScore(prev.map((player) => (
                 player.id === updatedPlayer.id ? updatedPlayer : player
               )))
             )

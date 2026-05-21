@@ -241,7 +241,7 @@ export default function DontLookDownPage() {
     // roomCode/playerId 없거나 로딩 중
     if (!roomCode || !playerId) {
         return (
-            <main className="min-h-screen relative overflow-hidden">
+            <main className="min-h-screen relative overflow-hidden font-bitbit">
                 <AnimatedBackground />
                 <div className="relative z-10 flex items-center justify-center min-h-screen">
                     <div className="text-center text-white bg-black/50 backdrop-blur px-8 py-6 rounded-2xl">
@@ -256,7 +256,7 @@ export default function DontLookDownPage() {
 
     if (roomLoading) {
         return (
-            <main className="min-h-screen relative overflow-hidden">
+            <main className="min-h-screen relative overflow-hidden font-bitbit">
                 <AnimatedBackground />
                 <div className="relative z-10 flex items-center justify-center min-h-screen">
                     <div className="text-center text-white">
@@ -269,7 +269,7 @@ export default function DontLookDownPage() {
     }
 
     return (
-        <main className="min-h-screen relative overflow-hidden">
+        <main className="min-h-screen relative overflow-hidden font-bitbit">
             <AnimatedBackground />
 
             <AnimatePresence mode="wait">

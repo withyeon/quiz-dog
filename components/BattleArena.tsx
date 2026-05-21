@@ -33,6 +33,8 @@ interface BattleArenaProps {
     damage: number
     isCritical: boolean
   } | null
+  lockedTarget?: string | null
+  onTargetSelect?: (playerId: string) => void
   onPlayerClick?: (playerId: string) => void
   canAttack?: boolean
 }
@@ -94,6 +96,8 @@ export default function BattleArena({
   players,
   currentPlayerId,
   attackResult,
+  lockedTarget = null,
+  onTargetSelect,
   onPlayerClick,
   canAttack = false,
 }: BattleArenaProps) {
@@ -140,7 +144,7 @@ export default function BattleArena({
           </div>
           <h2 className="flex items-center gap-2 text-2xl font-black tracking-normal text-white">
             <Trophy className="h-6 w-6 text-amber-200" />
-            배틀 아레나
+            생존자 현황판
           </h2>
         </div>
 
@@ -150,11 +154,11 @@ export default function BattleArena({
             : 'border border-white/[0.12] bg-white/10 text-cyan-50'
         }`}>
           <Crosshair className="h-4 w-4" />
-          {canAttack ? '타깃 선택 가능' : '장전 대기'}
+          {lockedTarget ? '타깃 조준 완료' : canAttack ? '타깃 선택 가능' : '관전 모드'}
         </div>
       </div>
 
-      <div className="relative z-10 grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+      <div className="relative z-10 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <AnimatePresence>
           {sortedPlayers.map((player, index) => {
             const health = Math.max(0, player.health ?? 100)
@@ -162,19 +166,26 @@ export default function BattleArena({
             const healthPercent = Math.min(100, Math.round((health / maxHealth) * 100))
             const isAlive = health > 0
             const isCurrentPlayer = player.id === currentPlayerId
+            const isLocked = player.id === lockedTarget
+            const isDangerous = healthPercent <= 25 && isAlive
             const isAttacked = attackResult?.targetId === player.id
             const isAttacker = attackResult?.attackerId === player.id
             const canSelectTarget = canAttack && isAlive && !isCurrentPlayer
             const classVisual = player.player_class ? CLASS_VISUALS[player.player_class] : null
             const ClassIcon = classVisual?.Icon
+            const hpColor = healthPercent > 60 ? '#22c55e' : healthPercent > 30 ? '#f59e0b' : '#ef4444'
 
             return (
               <motion.button
                 key={player.id}
                 type="button"
                 onClick={() => {
-                  if (canSelectTarget && onPlayerClick) {
-                    onPlayerClick(player.id)
+                  if (canSelectTarget) {
+                    if (onTargetSelect) {
+                      onTargetSelect(player.id)
+                    } else if (onPlayerClick) {
+                      onPlayerClick(player.id)
+                    }
                   }
                 }}
                 disabled={!canSelectTarget}
@@ -183,21 +194,43 @@ export default function BattleArena({
                   opacity: isAlive ? 1 : 0.44,
                   y: 0,
                   scale: isAttacked ? [1, 1.02, 1] : 1,
+                  boxShadow: isLocked
+                    ? ['0 0 0 2px #ef4444', '0 0 0 7px rgba(239,68,68,0.72)', '0 0 0 2px #ef4444']
+                    : isDangerous
+                      ? ['0 0 0 1px rgba(239,68,68,0.4)', '0 0 0 5px rgba(239,68,68,0.24)', '0 0 0 1px rgba(239,68,68,0.4)']
+                      : '0 0 0 0 rgba(0,0,0,0)',
                 }}
                 exit={{ opacity: 0, scale: 0.96 }}
-                transition={{ delay: index * 0.035 }}
+                transition={{
+                  delay: index * 0.035,
+                  boxShadow: isLocked || isDangerous ? { duration: 0.8, repeat: Infinity } : undefined,
+                }}
                 whileHover={canSelectTarget ? { y: -2 } : {}}
-                className={`relative overflow-hidden rounded-[8px] border p-3 text-left transition-all ${
+                className={`relative min-h-[180px] overflow-hidden rounded-[8px] border p-4 text-left transition-all duration-300 ${
                   isCurrentPlayer
-                    ? 'border-amber-200 bg-amber-50/[0.12] shadow-lg shadow-amber-300/10'
+                    ? 'border-sky-200 bg-sky-300/[0.16] shadow-lg shadow-sky-300/10'
+                    : isLocked
+                      ? 'border-red-300 bg-red-500/[0.18]'
                     : canSelectTarget
-                      ? 'border-teal-200/70 bg-white/[0.16] hover:border-teal-100 hover:bg-white/[0.22]'
+                      ? 'border-white/30 bg-white/[0.16] hover:border-cyan-100 hover:bg-white/[0.22]'
                       : isAlive
                         ? 'border-white/[0.12] bg-white/10'
                         : 'border-white/[0.08] bg-white/[0.06] grayscale'
-                } ${isAttacked ? 'ring-2 ring-rose-300/80' : ''}`}
+                } ${isAttacked ? 'ring-2 ring-sky-300/80' : ''} ${isDangerous ? 'border-red-300' : ''}`}
               >
-                <div className="flex items-center gap-3">
+                {isLocked && (
+                  <>
+                    <div className="absolute right-2 top-2 z-10 rounded bg-red-50 px-2 py-1 text-xs font-black text-red-600">
+                      🎯 조준
+                    </div>
+                    <div className="pointer-events-none absolute inset-0">
+                      <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-red-300/40" />
+                      <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-red-300/40" />
+                    </div>
+                  </>
+                )}
+
+                <div className="flex h-full flex-col items-center justify-between gap-3 text-center">
                   <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-sm font-black ${getRankTone(index, isAlive)}`}>
                     {isAlive ? index + 1 : 'OUT'}
                   </div>
@@ -208,15 +241,15 @@ export default function BattleArena({
                     isAlive={isAlive}
                   />
 
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex min-w-0 flex-wrap items-center gap-2">
-                      <span className={`truncate text-sm font-black ${
-                        isCurrentPlayer ? 'text-amber-100' : 'text-white'
+                  <div className="min-w-0 w-full">
+                    <div className="mb-2 flex min-w-0 flex-wrap items-center justify-center gap-2">
+                      <span className={`max-w-full truncate text-base font-black ${
+                        isCurrentPlayer ? 'text-sky-100' : 'text-white'
                       }`}>
                         {player.nickname}
                       </span>
                       {isCurrentPlayer && (
-                        <span className="rounded-full border border-amber-200/40 bg-amber-100/[0.18] px-2 py-0.5 text-[10px] font-black text-amber-100">
+                        <span className="rounded-full border border-sky-200/40 bg-sky-100/[0.18] px-2 py-0.5 text-[10px] font-black text-sky-100">
                           ME
                         </span>
                       )}
@@ -236,9 +269,9 @@ export default function BattleArena({
                         </motion.span>
                       )}
                       {canSelectTarget && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-teal-400 px-2 py-0.5 text-[10px] font-black text-teal-950">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-cyan-300 px-2 py-0.5 text-[10px] font-black text-cyan-950">
                           <Crosshair className="h-3 w-3" />
-                          공격
+                          조준
                         </span>
                       )}
                     </div>
@@ -246,15 +279,13 @@ export default function BattleArena({
                     <div className="flex items-center gap-2">
                       <Thermometer className="h-4 w-4 shrink-0 text-cyan-100/70" />
                       <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-slate-950/[0.36]">
-                        <motion.div
-                          initial={{ width: `${healthPercent}%` }}
-                          animate={{ width: `${healthPercent}%` }}
-                          transition={{ duration: 0.35 }}
-                          className={`h-full rounded-full bg-gradient-to-r ${getHealthBar(healthPercent)}`}
+                        <div
+                          className="h-full rounded-full transition-all duration-700"
+                          style={{ width: `${healthPercent}%`, backgroundColor: hpColor }}
                         />
                       </div>
-                      <span className="w-12 text-right text-xs font-black tabular-nums text-cyan-50">
-                        {Math.round(health)}°
+                      <span className="w-20 text-right text-xs font-black tabular-nums text-cyan-50">
+                        {Math.round(health)}° / {maxHealth}°
                       </span>
                     </div>
 
@@ -275,8 +306,8 @@ export default function BattleArena({
                     )}
                   </div>
 
-                  <div className="shrink-0 text-right">
-                    <div className="flex items-center justify-end gap-1 text-sm font-black text-white">
+                  <div className="w-full shrink-0 text-center">
+                    <div className="flex items-center justify-center gap-1 text-sm font-black text-white">
                       <Medal className="h-4 w-4 text-amber-200" />
                       {player.score ?? 0}
                     </div>
@@ -288,6 +319,11 @@ export default function BattleArena({
                     </div>
                   </div>
                 </div>
+                {!isAlive && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-[8px] bg-slate-200/80 backdrop-blur-[1px]">
+                    <span className="text-4xl">⛄</span>
+                  </div>
+                )}
               </motion.button>
             )
           })}

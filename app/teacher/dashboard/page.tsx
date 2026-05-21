@@ -6,12 +6,14 @@ import { checkSupabaseConfig } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
+import { useRoomResync } from '@/hooks/useRoomResync'
 import { useAudioContext } from '@/components/AudioProvider'
 import GameCodeModal from '@/components/GameCodeModal'
 import GameModeSelector from '@/components/dashboards/GameModeSelector'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
 import QRCodeSVG from 'react-qr-code'
 import { DEFAULT_GAME_MODE, isGameModeId, type GameModeId } from '@/lib/game/modes'
+import { formatServiceError } from '@/lib/services/errors'
 import {
   assertQuestionSetHasQuestions,
   createRoom,
@@ -32,13 +34,7 @@ export default function TeacherDashboard() {
 
   const { players, refreshPlayers } = usePlayersRealtime({ roomCode })
   const { room, refreshRoom } = useRoomRealtime({ roomCode })
-  const resyncDashboard = useCallback(async (reason?: string) => {
-    if (reason === 'broadcast_hint') return
-    await Promise.all([
-      refreshRoom({ silent: true }),
-      refreshPlayers({ silent: true }),
-    ])
-  }, [refreshPlayers, refreshRoom])
+  const resyncDashboard = useRoomResync(refreshRoom, refreshPlayers)
   const {
     status: realtimeStatus,
     onlineCount,
@@ -117,13 +113,9 @@ export default function TeacherDashboard() {
       // 게임 코드 모달 표시
       setShowGameCodeModal(true)
       setIsGameStarted(false)
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating room:', error)
-      const errorMessage = error instanceof Error
-        ? error.message
-        : typeof error === 'object' && error !== null && 'message' in error
-          ? error.message // Supabase error often has a message property
-          : JSON.stringify(error)
+      const errorMessage = formatServiceError(error)
 
       let userMessage = `방 생성에 실패했습니다: ${errorMessage}`
       if (errorMessage.includes('violates foreign key constraint')) {
@@ -162,7 +154,7 @@ export default function TeacherDashboard() {
       setShowGameCodeModal(false)
     } catch (error) {
       console.error('Error starting game:', error)
-      alert('게임 시작에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      alert('게임 시작에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -190,7 +182,7 @@ export default function TeacherDashboard() {
       router.push(`/teacher/game/${roomCode}/end`)
     } catch (error) {
       console.error('Error ending game:', error)
-      alert('게임 종료에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      alert('게임 종료에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -212,7 +204,7 @@ export default function TeacherDashboard() {
       alert('게임이 초기화되었습니다.')
     } catch (error) {
       console.error('Error resetting game:', error)
-      alert('게임 초기화에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      alert('게임 초기화에 실패했습니다: ' + formatServiceError(error))
     }
   }
 

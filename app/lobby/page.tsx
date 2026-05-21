@@ -1,9 +1,10 @@
 'use client'
 
-import { useCallback, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRoomResync } from '@/hooks/useRoomResync'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { filterNickname } from '@/lib/utils/profanityFilter'
 import CharacterSelector from '@/components/CharacterSelector'
@@ -13,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
+import { formatServiceError } from '@/lib/services/errors'
 import { createPlayerForRoom, ensureRoomExists, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
 import { ShibaDog, DogGroup } from '@/components/PixelDogs'
 import { PixelBtn, PixelInput, PixelPanel, GameModeButton, PlayerAvatar } from '@/components/lobby/LobbyUI'
@@ -37,13 +39,7 @@ export default function LobbyPage() {
   })
 
   const { room, refreshRoom } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })
-  const resyncLobby = useCallback(async (reason?: string) => {
-    if (reason === 'broadcast_hint') return
-    await Promise.all([
-      refreshRoom({ silent: true }),
-      refreshPlayers({ silent: true }),
-    ])
-  }, [refreshPlayers, refreshRoom])
+  const resyncLobby = useRoomResync(refreshRoom, refreshPlayers)
   const { status: realtimeStatus, onlineCount, sendEvent: sendRoomEvent } = useRoomChannel({
     roomCode,
     playerId,
@@ -54,12 +50,20 @@ export default function LobbyPage() {
 
   // 게임 시작 감지
   useEffect(() => {
+    console.log('[lobby] redirect-check', {
+      status: room?.status,
+      gameMode: room?.game_mode,
+      playerId,
+      step,
+      realtimeStatus,
+    })
     if (room?.status === 'playing' && playerId && (step === 'character' || step === 'minigame')) {
       const gameMode = room?.game_mode || DEFAULT_GAME_MODE
       const gameUrl = getGameModeUrl(gameMode, roomCode, playerId)
+      console.log('[lobby] redirecting to', gameUrl)
       router.replace(gameUrl)
     }
-  }, [room?.status, step, roomCode, playerId, room?.game_mode, router])
+  }, [room?.status, step, roomCode, playerId, room?.game_mode, router, realtimeStatus])
 
   const handleCodeSubmit = async () => {
     if (!roomCode.trim() || roomCode.length !== 6) {
@@ -118,13 +122,13 @@ export default function LobbyPage() {
       void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
     } catch (err) {
       console.error('Error joining room:', err)
-      alert('방 입장에 실패했습니다: ' + (err instanceof Error ? err.message : 'Unknown error'))
+      alert('방 입장에 실패했습니다: ' + formatServiceError(err))
     }
   }
 
   return (
     <main
-      className="min-h-screen relative overflow-hidden"
+      className="min-h-screen relative overflow-hidden font-bitbit"
       style={{ background: 'linear-gradient(160deg, #FFF3DC 0%, #FFE8C0 50%, #FFF0D0 100%)' }}
     >
       <div className="absolute inset-0">
@@ -185,7 +189,7 @@ export default function LobbyPage() {
                     <DogGroup size={70} />
                   </div>
 
-                  <p className="mb-5 font-black" style={{ color: '#5B3A1A', fontFamily: "'BMJUA', sans-serif", fontSize: '1.1rem' }}>
+                  <p className="mb-5 font-black" style={{ color: '#5B3A1A', fontFamily: "'DNFBitBitv2', sans-serif", fontSize: '1.1rem' }}>
                     선생님께 받은 게임 코드를 입력하세요!
                   </p>
 
@@ -228,10 +232,10 @@ export default function LobbyPage() {
                     <ShibaDog size={100} />
                   </motion.div>
 
-                  <h2 className="text-2xl font-black mb-2" style={{ color: '#3B1F0A', fontFamily: "'BMJUA', sans-serif" }}>
+                  <h2 className="text-2xl font-black mb-2" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                     뭐라고 부를까? 🐾
                   </h2>
-                  <p className="mb-6 text-sm" style={{ color: '#7B4B1A', fontFamily: "'BMJUA', sans-serif" }}>
+                  <p className="mb-6 text-sm" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                     게임에서 사용할 닉네임을 입력하세요
                   </p>
 
@@ -251,7 +255,7 @@ export default function LobbyPage() {
                   </div>
 
                   {nickname && !filterNickname(nickname).isValid && (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-500 text-sm mb-4 font-black" style={{ fontFamily: "'BMJUA', sans-serif" }}>
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-500 text-sm mb-4 font-black" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
                       ⚠️ 부적절한 단어가 포함되어 있습니다
                     </motion.p>
                   )}
@@ -266,7 +270,7 @@ export default function LobbyPage() {
 
           {step === 'character' && (
             <motion.div key="character" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-6xl">
-              <div className="rounded-2xl px-6 py-3 flex items-center justify-between mb-4" style={{ background: 'rgba(91,45,10,0.85)', border: '3px solid #3B1A05', boxShadow: '0 4px 0 #2A1005', fontFamily: "'BMJUA', sans-serif" }}>
+              <div className="rounded-2xl px-6 py-3 flex items-center justify-between mb-4" style={{ background: 'rgba(91,45,10,0.85)', border: '3px solid #3B1A05', boxShadow: '0 4px 0 #2A1005', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                 <span className="text-white font-black text-lg">👤 {nickname}</span>
                 <span className="text-amber-300 font-black">🎮 {room?.game_mode || '?'} 모드 · 대기 중...</span>
                 <span className="text-green-300 font-black">
@@ -289,7 +293,7 @@ export default function LobbyPage() {
                       <div className="relative w-32 h-32 mx-auto mb-3">
                         <Image src={selectedCharacter.imagePath} alt={selectedCharacter.name} fill className="object-contain" sizes="128px" />
                       </div>
-                      <h3 className="text-xl font-black mb-4" style={{ color: '#3B1F0A', fontFamily: "'BMJUA', sans-serif" }}>{selectedCharacter.name}</h3>
+                      <h3 className="text-xl font-black mb-4" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>{selectedCharacter.name}</h3>
 
                       {isJoined ? (
                         <>
@@ -297,7 +301,7 @@ export default function LobbyPage() {
                           <PixelBtn color="purple" onClick={() => setStep('minigame')} className="w-full text-base py-3 mt-3">🎮 미니게임 하기</PixelBtn>
                         </>
                       ) : (
-                        <div className="py-3 px-4 rounded-xl text-center font-black" style={{ background: 'rgba(193,123,58,0.15)', border: '3px solid rgba(193,123,58,0.4)', color: '#7B4B1A', fontFamily: "'BMJUA', sans-serif" }}>
+                        <div className="py-3 px-4 rounded-xl text-center font-black" style={{ background: 'rgba(193,123,58,0.15)', border: '3px solid rgba(193,123,58,0.4)', color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                           ⏳ 캐릭터를 선택해주세요!
                         </div>
                       )}
@@ -308,7 +312,7 @@ export default function LobbyPage() {
                     <div className="p-4 pt-8">
                       <div className="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto">
                         {players.length === 0 ? (
-                          <div className="col-span-4 text-center py-4 font-black" style={{ color: '#7B4B1A', fontFamily: "'BMJUA', sans-serif" }}>아직 아무도 없어요...</div>
+                          <div className="col-span-4 text-center py-4 font-black" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>아직 아무도 없어요...</div>
                         ) : (
                           players.map((p: any) => (
                             <PlayerAvatar key={p.id} nickname={p.nickname} avatar={p.avatar || '🐶'} isReady={isJoined && p.id === playerId} />
@@ -324,7 +328,7 @@ export default function LobbyPage() {
 
           {step === 'minigame' && (
             <motion.div key="minigame" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-4xl">
-              <div className="rounded-2xl px-6 py-3 flex items-center justify-between mb-4" style={{ background: 'rgba(91,45,10,0.85)', border: '3px solid #3B1A05', boxShadow: '0 4px 0 #2A1005', fontFamily: "'BMJUA', sans-serif" }}>
+              <div className="rounded-2xl px-6 py-3 flex items-center justify-between mb-4" style={{ background: 'rgba(91,45,10,0.85)', border: '3px solid #3B1A05', boxShadow: '0 4px 0 #2A1005', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                 <span className="text-white font-black text-lg">👤 {nickname}</span>
                 <span className="text-amber-300 font-black">🎮 미니게임 점수: {minigameScore}</span>
                 <PixelBtn color="orange" onClick={() => setStep('character')} className="text-sm py-2 px-4">← 돌아가기</PixelBtn>
@@ -338,7 +342,7 @@ export default function LobbyPage() {
                 </div>
               </PixelPanel>
 
-              <div className="mt-4 rounded-2xl px-6 py-4 flex items-center gap-3" style={{ background: 'rgba(255,250,240,0.9)', border: '3px solid rgba(193,123,58,0.35)', boxShadow: '0 4px 0 rgba(91,58,26,0.2)', fontFamily: "'BMJUA', sans-serif" }}>
+              <div className="mt-4 rounded-2xl px-6 py-4 flex items-center gap-3" style={{ background: 'rgba(255,250,240,0.9)', border: '3px solid rgba(193,123,58,0.35)', boxShadow: '0 4px 0 rgba(91,58,26,0.2)', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                 <span className="text-2xl">⏳</span>
                 <span className="font-black" style={{ color: '#3B1F0A' }}>선생님이 게임을 시작하면 자동으로 이동돼요!</span>
               </div>

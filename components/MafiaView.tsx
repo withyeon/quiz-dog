@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import QuizView from '@/components/QuizView'
 import { useAudioContext } from '@/components/AudioProvider'
+import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
 
 
 interface MafiaViewProps {
@@ -167,9 +168,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
     }
 
     setSelectedAnswer(answer)
-    const normalizedAnswer = String(answer).trim()
-    const normalizedCorrect = String(currentQuestion.answer).trim()
-    const correct = normalizedAnswer === normalizedCorrect
+    const correct = isQuizAnswerMatch(answer, currentQuestion.answer)
     setIsCorrect(correct)
 
     if (correct) {
@@ -278,7 +277,7 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
   }
 
   return (
-    <div className="relative w-full h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black overflow-hidden" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>
+    <div className="mafia-ambient relative w-full h-screen overflow-hidden" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       {/* 상단 정보 바 */}
       <div className="absolute top-0 left-0 right-0 z-20 bg-black/80 backdrop-blur-sm border-b-2 border-yellow-600 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">

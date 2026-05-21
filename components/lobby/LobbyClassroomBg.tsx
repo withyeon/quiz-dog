@@ -22,8 +22,8 @@ export function LobbyClassroomBg() {
       <rect x="280" y="40" width="640" height="240" rx="4" fill="#2A2A18" />
       <rect x="292" y="52" width="616" height="216" rx="2" fill="#1E5C3A" />
       <rect x="292" y="52" width="616" height="8" fill="rgba(255,255,255,0.06)" />
-      <text x="330" y="120" fill="rgba(255,255,255,0.22)" fontSize="20" fontFamily="monospace">오늘의 퀴즈: 게임 코드를 입력하세요 🐶</text>
-      <text x="380" y="200" fill="rgba(255,255,255,0.14)" fontSize="16" fontFamily="monospace">틀려도 괜찮아! 함께 배우자!</text>
+      <text x="330" y="120" fill="rgba(255,255,255,0.22)" fontSize="20" fontFamily="DNFBitBitv2, sans-serif">오늘의 퀴즈: 게임 코드를 입력하세요 🐶</text>
+      <text x="380" y="200" fill="rgba(255,255,255,0.14)" fontSize="16" fontFamily="DNFBitBitv2, sans-serif">틀려도 괜찮아! 함께 배우자!</text>
       <rect x="280" y="278" width="640" height="14" rx="3" fill="#1E1008" />
       {[300, 335, 370, 405].map((x, i) => (
         <rect key={i} x={x} y={280} width={24} height={9} rx="2"

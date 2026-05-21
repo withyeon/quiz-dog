@@ -1,10 +1,3 @@
-export type PuppyChaosQuestion = {
-  id: number
-  question: string
-  choices: string[]
-  answerIndex: number
-}
-
 export type CardRarity = 'common' | 'rare' | 'attack' | 'legendary'
 
 export type PuppyChaosCardId =
@@ -31,19 +24,6 @@ export type PoopAttack = {
   from: string
   createdAt: string
 }
-
-export const DUMMY_QUESTIONS: PuppyChaosQuestion[] = [
-  { id: 1, question: '2 + 3 = ?', choices: ['4', '5', '6', '7'], answerIndex: 1 },
-  { id: 2, question: '강아지는 무엇을 좋아할까요?', choices: ['뼈다귀', '당근', '사과', '양파'], answerIndex: 0 },
-  { id: 3, question: '대한민국의 수도는?', choices: ['부산', '대구', '서울', '인천'], answerIndex: 2 },
-  { id: 4, question: '물은 몇 도에서 얼까요?', choices: ['0도', '10도', '-10도', '100도'], answerIndex: 0 },
-  { id: 5, question: '다음 중 동물은?', choices: ['책상', '고양이', '연필', '컵'], answerIndex: 1 },
-  { id: 6, question: '5 x 2 = ?', choices: ['7', '10', '12', '15'], answerIndex: 1 },
-  { id: 7, question: '봄 다음 계절은?', choices: ['겨울', '가을', '여름', '봄'], answerIndex: 2 },
-  { id: 8, question: '하늘이 맑을 때 많이 보이는 것은?', choices: ['구름', '태양', '눈', '번개'], answerIndex: 1 },
-  { id: 9, question: '다음 중 과일은?', choices: ['축구공', '바나나', '가위', '신발'], answerIndex: 1 },
-  { id: 10, question: '10 - 4 = ?', choices: ['4', '5', '6', '8'], answerIndex: 2 },
-]
 
 export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
   umbrella: {

@@ -17,11 +17,14 @@ import {
     canPlaceTowerOnSlot,
     getDistance,
 } from '@/lib/game/tower'
+import type { Particle } from '@/lib/game/particles'
 
 interface TowerDefenseMapProps {
     towers: Tower[]
     enemies: Enemy[]
     projectiles: Projectile[]
+    particles: Particle[]
+    shakeIntensity: number
     selectedTowerType: TowerTypeId | null
     onPlaceTower: (slot: BuildSlot) => void
     onSelectTower: (tower: Tower | null) => void
@@ -66,6 +69,8 @@ export default function TowerDefenseMap({
     towers,
     enemies,
     projectiles,
+    particles,
+    shakeIntensity,
     selectedTowerType,
     onPlaceTower,
     onSelectTower,
@@ -179,6 +184,14 @@ export default function TowerDefenseMap({
 
             ctx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT)
 
+            if (shakeIntensity > 0) {
+                ctx.save()
+                ctx.translate(
+                    (Math.random() - 0.5) * shakeIntensity,
+                    (Math.random() - 0.5) * shakeIntensity
+                )
+            }
+
             if (backgroundImageRef.current) {
                 ctx.drawImage(backgroundImageRef.current, 0, 0, MAP_WIDTH, MAP_HEIGHT)
             } else {
@@ -254,7 +267,7 @@ export default function TowerDefenseMap({
                     ctx.drawImage(towerImage, -size / 2, -size / 2, size, size)
                     ctx.restore()
                 } else {
-                    ctx.font = 'bold 32px system-ui, sans-serif'
+                    ctx.font = 'bold 32px DNFBitBitv2, sans-serif'
                     ctx.textAlign = 'center'
                     ctx.textBaseline = 'middle'
                     ctx.fillStyle = '#1f2937'
@@ -268,7 +281,7 @@ export default function TowerDefenseMap({
                     ctx.fill()
 
                     ctx.fillStyle = 'white'
-                    ctx.font = 'bold 12px system-ui, sans-serif'
+                    ctx.font = 'bold 12px DNFBitBitv2, sans-serif'
                     ctx.textAlign = 'center'
                     ctx.textBaseline = 'middle'
                     ctx.fillText(`${tower.level}`, tower.x + 25, tower.y - 25)
@@ -278,8 +291,20 @@ export default function TowerDefenseMap({
             enemies.forEach((enemy) => {
                 const enemyType = ENEMY_TYPES[enemy.type]
                 const enemyImage = enemyImagesRef.current[enemy.type]
-                const size = 50
-                const isSlowed = Boolean(enemy.slowedUntil && enemy.slowedUntil > now)
+                const isEnraged = enemy.buffType === 'ENRAGE' && (enemy.buffedUntil ?? 0) > now
+                const size = isEnraged ? 58 : 50
+                const isSlowed = Boolean(
+                    (enemy.slowedUntil && enemy.slowedUntil > now)
+                    || (enemy.frozenUntil && enemy.frozenUntil > now)
+                )
+
+                if (isEnraged) {
+                    ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)'
+                    ctx.lineWidth = 3
+                    ctx.beginPath()
+                    ctx.arc(enemy.x, enemy.y, 38 + Math.sin(now / 100) * 4, 0, Math.PI * 2)
+                    ctx.stroke()
+                }
 
                 if (enemy.type === 'FAST') {
                     ctx.strokeStyle = 'rgba(14, 165, 233, 0.8)'
@@ -321,14 +346,14 @@ export default function TowerDefenseMap({
                 } else {
                     ctx.fillStyle = enemy.hp < enemy.maxHp * 0.3 ? '#ef4444' : '#f97316'
                     ctx.beginPath()
-                    ctx.arc(enemy.x, enemy.y, 25, 0, Math.PI * 2)
+                    ctx.arc(enemy.x, enemy.y, isEnraged ? 29 : 25, 0, Math.PI * 2)
                     ctx.fill()
 
                     ctx.strokeStyle = '#991b1b'
                     ctx.lineWidth = 2
                     ctx.stroke()
 
-                    ctx.font = 'bold 24px system-ui, sans-serif'
+                    ctx.font = 'bold 24px DNFBitBitv2, sans-serif'
                     ctx.textAlign = 'center'
                     ctx.textBaseline = 'middle'
                     ctx.fillStyle = '#1f2937'
@@ -342,7 +367,7 @@ export default function TowerDefenseMap({
                     ctx.fill()
 
                     ctx.fillStyle = '#e0f2fe'
-                    ctx.font = 'bold 12px system-ui, sans-serif'
+                    ctx.font = 'bold 12px DNFBitBitv2, sans-serif'
                     ctx.textAlign = 'center'
                     ctx.textBaseline = 'middle'
                     ctx.fillText('1/2', enemy.x + 22, enemy.y - 22)
@@ -396,6 +421,41 @@ export default function TowerDefenseMap({
                 }
             })
 
+            particles.forEach((particle) => {
+                ctx.save()
+                ctx.globalAlpha = Math.max(0, Math.min(1, particle.life))
+                ctx.fillStyle = particle.color
+                ctx.strokeStyle = particle.color
+
+                if (particle.type === 'ice') {
+                    ctx.translate(particle.x, particle.y)
+                    ctx.rotate((1 - particle.life) * Math.PI * 2)
+                    ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size)
+                } else if (particle.type === 'explosion') {
+                    ctx.shadowBlur = 14
+                    ctx.shadowColor = particle.color
+                    ctx.beginPath()
+                    ctx.arc(particle.x, particle.y, particle.size * (0.7 + particle.life), 0, Math.PI * 2)
+                    ctx.fill()
+                } else if (particle.type === 'magic') {
+                    ctx.shadowBlur = 10
+                    ctx.shadowColor = particle.color
+                    ctx.beginPath()
+                    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2)
+                    ctx.fill()
+                    ctx.globalAlpha = Math.max(0, particle.life * 0.45)
+                    ctx.beginPath()
+                    ctx.arc(particle.x, particle.y, particle.size * 1.8, 0, Math.PI * 2)
+                    ctx.stroke()
+                } else {
+                    ctx.beginPath()
+                    ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2)
+                    ctx.fill()
+                }
+
+                ctx.restore()
+            })
+
             if (hoveredPosition && selectedTowerType) {
                 const hoveredSlot = getBuildSlotAtPoint(hoveredPosition.x, hoveredPosition.y)
                 const canPlace = Boolean(hoveredSlot && canPlaceTowerOnSlot(hoveredSlot.id, towers))
@@ -427,11 +487,15 @@ export default function TowerDefenseMap({
                     ctx.arc(previewX, previewY, 35, 0, Math.PI * 2)
                     ctx.fill()
 
-                    ctx.font = 'bold 32px system-ui, sans-serif'
+                    ctx.font = 'bold 32px DNFBitBitv2, sans-serif'
                     ctx.textAlign = 'center'
                     ctx.textBaseline = 'middle'
                     ctx.fillText(towerType.emoji, previewX, previewY)
                 }
+            }
+
+            if (shakeIntensity > 0) {
+                ctx.restore()
             }
 
             animationFrameRef.current = requestAnimationFrame(animate)
@@ -444,7 +508,7 @@ export default function TowerDefenseMap({
                 cancelAnimationFrame(animationFrameRef.current)
             }
         }
-    }, [towers, enemies, selectedTowerType, hoveredPosition, selectedTower, projectiles])
+    }, [towers, enemies, selectedTowerType, hoveredPosition, selectedTower, projectiles, particles, shakeIntensity])
 
     return (
         <div className="relative">

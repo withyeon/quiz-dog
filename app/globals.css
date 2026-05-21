@@ -5,8 +5,12 @@
 @font-face {
   font-family: 'DNFBitBitv2';
   font-style: normal;
-  font-weight: 400;
-  src: url('//cdn.df.nexon.com/img/common/font/DNFBitBitv2.otf') format('opentype');
+  font-weight: 400 900;
+  src:
+    local('DNFBitBitv2'),
+    url('/fonts/DNFBitBitv2.woff2') format('woff2'),
+    url('/fonts/DNFBitBitv2.otf') format('opentype');
+  font-display: swap;
 }
 
 @font-face {
@@ -74,11 +78,50 @@
   .gold-quest-ambient {
     isolation: isolate;
     background:
-      linear-gradient(180deg, rgba(7, 31, 42, 0.58), rgba(10, 42, 48, 0.52) 44%, rgba(34, 30, 24, 0.48)),
-      url('/title/gold-quest.svg');
+      linear-gradient(180deg, rgba(7, 31, 42, 0.32), rgba(10, 42, 48, 0.26) 44%, rgba(34, 30, 24, 0.28)),
+      url('/background/gold-quest.png');
     background-size: cover;
-    background-position: center top;
+    background-position: center center;
     background-attachment: fixed;
+  }
+
+  .factory-ambient {
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(255, 251, 235, 0.28) 0%, rgba(255, 255, 255, 0.2) 48%, rgba(236, 253, 245, 0.2) 100%),
+      url('/background/factory.png');
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+  }
+
+  .fishing-ambient {
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(240, 249, 255, 0.2), rgba(255, 255, 255, 0.16) 48%, rgba(248, 250, 252, 0.24)),
+      url('/background/fishing.png');
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+  }
+
+  .mafia-ambient {
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(5, 8, 15, 0.58), rgba(12, 12, 20, 0.5) 46%, rgba(0, 0, 0, 0.62)),
+      url('/background/mafia.png');
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+  }
+
+  .factory-ambient::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse 80% 60% at 50% 20%, rgba(255, 255, 255, 0.35), transparent 70%);
   }
 
   .gold-quest-ambient::before {
@@ -452,7 +495,12 @@
   .font-bitbit *,
   .font-bitbit button,
   .font-bitbit a,
-  .font-bitbit span {
+  .font-bitbit span,
+  .font-game,
+  .font-game *,
+  .font-game button,
+  .font-game a,
+  .font-game span {
     font-family: 'DNFBitBitv2', sans-serif !important;
   }
 

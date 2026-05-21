@@ -2,6 +2,7 @@
 
 import { X, CheckCircle2, XCircle } from 'lucide-react'
 import type { Question } from '@/hooks/useGameBase'
+import { displayBlankText } from '@/lib/quiz/blankText'
 
 interface StudentDetailModalProps {
     studentName: string
@@ -67,7 +68,7 @@ export default function StudentDetailModal({
                                             <div className="flex items-center gap-2 mb-1">
                                                 <span className="text-xs font-bold text-gray-400">Q{record.questionIndex + 1}</span>
                                             </div>
-                                            <p className="font-medium text-gray-900 mb-3">{q.question_text}</p>
+                                            <p className="font-medium text-gray-900 mb-3">{displayBlankText(q.question_text)}</p>
 
                                             <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-2 border border-gray-100">
                                                 <div className="flex items-start">

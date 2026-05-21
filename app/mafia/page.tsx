@@ -78,7 +78,7 @@ export default function MafiaPage() {
   const playerRank = sortedPlayers.findIndex((p) => p.id === player?.id) + 1
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900" style={{ fontFamily: 'BMKkubulim, sans-serif' }}>
+    <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       <AnimatedBackground />
 
       <AnimatePresence mode="wait">

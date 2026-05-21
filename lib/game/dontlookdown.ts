@@ -34,6 +34,8 @@ export interface Obstacle {
     height: number
     direction?: 'left' | 'right' | 'up' | 'down'  // 레이저/바람 방향
     speed?: number  // 이동 속도
+    minX?: number
+    maxX?: number
     active: boolean
 }
 
@@ -68,12 +70,17 @@ export interface Platform {
     y: number              // 상단 Y 좌표
     width: number          // 폭 (이미지 로드 전 기본값, 로드 후 이미지 크기로 갱신)
     height: number         // 높이
-    type: 'normal' | 'narrow' | 'checkpoint' | 'peak' | 'start' | 'disappearing' | 'spike'
+    type: 'normal' | 'narrow' | 'checkpoint' | 'peak' | 'start' | 'disappearing' | 'spike' | 'moving' | 'ice'
     style?: PlatformStyle  // 디자인 변형 (이미지 연결용)
     imageId?: number       // 1~9, public/dontlookdown/platforms/{imageId}.svg
     summit: number         // 속한 Summit (1-6)
     disappearTime?: number // 사라지는 플랫폼의 사라질 시간
     isVisible?: boolean    // 사라지는 플랫폼의 가시성
+    baseX?: number
+    moveRange?: number
+    moveSpeed?: number
+    movePhase?: number
+    routeRole?: 'main' | 'side' | 'rescue' | 'checkpoint' | 'peak' | 'start'
 }
 
 export const PLATFORM_IMAGE_COUNT = 9
@@ -146,13 +153,15 @@ export const POWERUP_SIZE = {
 
 export const METERS_PER_PIXEL = 0.1 // 10픽셀 = 1미터
 
-// 월드 크기 (오른쪽 위 방향 넓은 맵)
+// 월드 크기 (수직 절벽 등반 맵)
 export const WORLD = {
-    WIDTH: 3600,   // 더 넓은 우상향 맵
+    WIDTH: 1800,   // 절벽 양쪽 벽이 보이는 폭
     HEIGHT: 6000,  // 세로 여유
     VIEW_WIDTH: 800,
     VIEW_HEIGHT: 600,
 } as const
+
+export const CLIMB_START_X = WORLD.WIDTH / 2 - 80
 
 // 플랫폼 크기 (narrow = 한 칸, 아슬아슬)
 export const PLATFORM = {
@@ -215,10 +224,10 @@ const PLATFORM_STYLES: PlatformStyle[] = ['stone', 'wood', 'chair', 'barrel', 't
 export function generatePlatformMap(summitGoal: number, settings: GameSettings): Platform[] {
     const platforms: Platform[] = []
 
-    // 시작 플랫폼 (바닥) - 왼쪽 하단
+    // 시작 플랫폼 (절벽 입구)
     platforms.push({
         id: 'start',
-        x: 50,
+        x: CLIMB_START_X - 80,
         y: 600,
         width: 200,
         height: 40,
@@ -227,42 +236,49 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
         imageId: 1,
         summit: 1,
         isVisible: true,
+        routeRole: 'start',
     })
 
     const targetPixelHeight = summitGoal / METERS_PER_PIXEL
     let currentY = 560
-    let currentX = 150  // 오른쪽 위로 쌓이므로 X 시작점
+    let currentX = CLIMB_START_X
     let platformId = 0
 
-    // 오른쪽 위 diagonal: 한 층당 X +80, Y -140 (플랫폼 간 충분한 간격)
-    const X_STEP = 80
-    const Y_STEP = 140
+    // 수직 절벽 지그재그: 위로 오를수록 좌우 폭이 커지고 발판 간격이 빡빡해진다.
+    const Y_STEP = 118
 
-    // Gimkit 스타일: 6개 Summit, 오른쪽 위로 올라가는 계단
+    // Gimkit 스타일: Summit마다 성격이 달라지는 등반 코스
     SUMMITS.forEach((summit, summitIndex) => {
         const summitStartY = currentY
-        const summitStartX = currentX
         const summitHeight = (summit.endHeight - summit.startHeight) / METERS_PER_PIXEL
 
         let summitCurrentY = summitStartY
-        let summitCurrentX = summitStartX
         const summitEndY = summitStartY - summitHeight
+        let lastRouteX = currentX
 
         let checkpointAdded = false
 
         // narrow 비율: 구역이 올라갈수록 비율 증가 (8구역 기준)
         const maxSummitIndex = SUMMITS.length - 1
         const narrowRatio = maxSummitIndex <= 0 ? 0.05 : 0.05 + (summitIndex / maxSummitIndex) * 0.4
+        const hazardRatio = maxSummitIndex <= 0 ? 0 : summitIndex / maxSummitIndex
 
         while (summitCurrentY > summitEndY) {
             const difficulty = maxSummitIndex <= 0 ? 0 : summitIndex / maxSummitIndex
             const rowIndex = Math.floor((summitStartY - summitCurrentY) / Y_STEP)
 
-            // 현재 층의 X 범위 (오른쪽 위로)
-            const baseX = Math.min(summitCurrentX, WORLD.WIDTH - 300)
+            // 절벽 루트: 가운데 축을 기준으로 좌우로 흔들리는 switchback.
+            const routeAmplitude = 150 + difficulty * 165
+            const switchback = rowIndex % 2 === 0 ? -95 : 95
+            const wave = Math.sin((rowIndex + summitIndex * 1.7) * 0.82) * routeAmplitude
+            const baseX = Math.max(260, Math.min(WORLD.WIDTH - 420, CLIMB_START_X + wave + switchback))
+            lastRouteX = baseX
 
             // === 메인 루트 플랫폼 (항상 올라갈 수 있는 안전 발판) ===
-            const mainWidth = PLATFORM.NORMAL_MIN + Math.random() * (PLATFORM.NORMAL_MAX - PLATFORM.NORMAL_MIN)
+            const mainIsTight = summit.id >= 4 && Math.random() < difficulty * 0.18
+            const mainWidth = mainIsTight
+                ? PLATFORM.NORMAL_MIN
+                : PLATFORM.NORMAL_MIN + Math.random() * (PLATFORM.NORMAL_MAX - PLATFORM.NORMAL_MIN)
             const mainStyle = PLATFORM_STYLES[rowIndex % PLATFORM_STYLES.length]
             const mainImgId = 1 + (platformId % PLATFORM_IMAGE_COUNT)
 
@@ -272,27 +288,32 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                 y: summitCurrentY,
                 width: mainWidth,
                 height: 24,
-                type: 'normal',            // 메인 루트는 항상 normal
+                type: mainIsTight ? 'narrow' : 'normal',
                 style: mainStyle,
                 imageId: mainImgId,
                 summit: summit.id,
                 isVisible: true,
+                routeRole: 'main',
             })
 
-            // === 선택 루트 플랫폼 (난이도용, 없어도 됨) ===
-            if (Math.random() < 0.6) {
-                const useNarrow2 = Math.random() < narrowRatio
-                const width2 = useNarrow2 ? PLATFORM.NARROW_WIDTH : PLATFORM.NORMAL_MIN + 30
+            // === 선택 루트 플랫폼: 더 빠르지만 위험하고 보상이 많은 루트 ===
+            if (Math.random() < 0.72) {
+                const useNarrow2 = Math.random() < narrowRatio + 0.12
+                const width2 = useNarrow2 ? PLATFORM.NARROW_WIDTH : PLATFORM.NORMAL_MIN + 20
 
                 let type2: Platform['type'] = useNarrow2 ? 'narrow' : 'normal'
-                if (summit.id >= 2 && !useNarrow2 && Math.random() < 0.08) type2 = 'disappearing'
-                else if (summit.id >= 5 && !useNarrow2 && Math.random() < 0.05) type2 = 'spike'
+                if (summit.id >= 2 && Math.random() < 0.08 + hazardRatio * 0.12) type2 = 'disappearing'
+                else if (summit.id >= 4 && Math.random() < 0.08 + hazardRatio * 0.08) type2 = 'moving'
+                else if (summit.id >= 5 && Math.random() < 0.06 + hazardRatio * 0.08) type2 = 'spike'
+                else if (summit.id >= 7 && Math.random() < 0.18) type2 = 'ice'
 
                 const imgId2 = 1 + (platformId % PLATFORM_IMAGE_COUNT)
+                const side = rowIndex % 2 === 0 ? 1 : -1
+                const x2 = Math.max(240, Math.min(WORLD.WIDTH - 360, baseX + side * (175 + Math.random() * 85)))
                 platforms.push({
                     id: `platform_${platformId++}`,
-                    x: baseX + 180 + Math.random() * 80,
-                    y: summitCurrentY - 15 + Math.random() * 20,
+                    x: x2,
+                    y: summitCurrentY - 28 + Math.random() * 18,
                     width: width2,
                     height: 24,
                     type: type2,
@@ -300,6 +321,28 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                     imageId: imgId2,
                     summit: summit.id,
                     isVisible: true,
+                    baseX: type2 === 'moving' ? x2 : undefined,
+                    moveRange: type2 === 'moving' ? 70 + Math.random() * 55 : undefined,
+                    moveSpeed: type2 === 'moving' ? 0.55 + Math.random() * 0.45 : undefined,
+                    movePhase: type2 === 'moving' ? Math.random() * Math.PI * 2 : undefined,
+                    routeRole: 'side',
+                })
+            }
+
+            // 고지대에는 짧은 회복 발판을 가끔 배치해 실패 직전 구사일생 순간을 만든다.
+            if (summit.id >= 5 && rowIndex % 4 === 2 && Math.random() < 0.45) {
+                platforms.push({
+                    id: `rescue_${platformId++}`,
+                    x: Math.max(260, Math.min(WORLD.WIDTH - 380, baseX + (rowIndex % 2 === 0 ? -120 : 120))),
+                    y: summitCurrentY + 48,
+                    width: PLATFORM.NARROW_WIDTH,
+                    height: 22,
+                    type: 'narrow',
+                    style: 'wood',
+                    imageId: 1 + (platformId % PLATFORM_IMAGE_COUNT),
+                    summit: summit.id,
+                    isVisible: true,
+                    routeRole: 'rescue',
                 })
             }
 
@@ -308,7 +351,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                 checkpointAdded = true
                 platforms.push({
                     id: `checkpoint_summit${summit.id}`,
-                    x: baseX + 80,
+                    x: Math.max(280, Math.min(WORLD.WIDTH - 430, baseX + 35)),
                     y: summitCurrentY - 25,
                     width: 120,
                     height: 28,
@@ -317,22 +360,22 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                     imageId: 1 + (summit.id % PLATFORM_IMAGE_COUNT),
                     summit: summit.id,
                     isVisible: true,
+                    routeRole: 'checkpoint',
                 })
             }
 
             summitCurrentY -= Y_STEP
-            summitCurrentX += X_STEP
         }
 
         currentY = summitCurrentY
-        currentX = summitCurrentX
+        currentX = lastRouteX
     })
 
     // 정상 플랫폼 (맨 오른쪽 위)
     const lastSummitId = SUMMITS[SUMMITS.length - 1].id
     platforms.push({
         id: 'peak',
-        x: currentX - 100,
+        x: Math.max(280, Math.min(WORLD.WIDTH - 460, currentX - 80)),
         y: currentY - 80,
         width: 200,
         height: 40,
@@ -341,6 +384,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
         imageId: 9,
         summit: lastSummitId,
         isVisible: true,
+        routeRole: 'peak',
     })
 
     return platforms
@@ -355,8 +399,8 @@ export function generateObstacles(platforms: Platform[]): Obstacle[] {
     let obstacleId = 0
 
     platforms.forEach(platform => {
-        // Summit 4 이상부터 바람
-        if (platform.summit >= 4 && Math.random() < 0.08) {
+        // Summit 4 이상부터 바람. 위로 갈수록 방향 압박이 강해진다.
+        if (platform.summit >= 4 && Math.random() < 0.08 + platform.summit * 0.01) {
             obstacles.push({
                 id: `wind_${obstacleId++}`,
                 type: 'wind',
@@ -365,6 +409,25 @@ export function generateObstacles(platforms: Platform[]): Obstacle[] {
                 width: platform.width + 100,
                 height: 100,
                 direction: Math.random() > 0.5 ? 'left' : 'right',
+                active: true,
+            })
+        }
+
+        // Summit 6 이상부터 움직이는 레이저. 직접 맞으면 체크포인트로 떨어진다.
+        if (platform.summit >= 6 && platform.type !== 'checkpoint' && Math.random() < 0.06) {
+            const minX = Math.max(80, platform.x - 130)
+            const maxX = Math.min(WORLD.WIDTH - 120, platform.x + platform.width + 130)
+            obstacles.push({
+                id: `laser_${obstacleId++}`,
+                type: 'laser',
+                x: minX + Math.random() * Math.max(1, maxX - minX),
+                y: platform.y - 72,
+                width: 70,
+                height: 8,
+                direction: Math.random() > 0.5 ? 'left' : 'right',
+                speed: 140 + platform.summit * 18,
+                minX,
+                maxX,
                 active: true,
             })
         }
@@ -380,7 +443,9 @@ export function generateObstacles(platforms: Platform[]): Obstacle[] {
 export function spawnPowerUp(platforms: Platform[]): PowerUp | null {
     // 정상이 아닌 일반 플랫폼에서 랜덤 선택
     const eligiblePlatforms = platforms.filter(p =>
-        p.type === 'normal' && p.summit >= 2 && p.isVisible
+        (p.type === 'normal' || p.type === 'narrow' || p.type === 'disappearing' || p.type === 'moving' || p.type === 'ice')
+        && p.summit >= 2
+        && p.isVisible
     )
 
     if (eligiblePlatforms.length === 0) return null
@@ -470,6 +535,9 @@ export function updatePlayerPhysics(
 
             if (platform.type === 'checkpoint') {
                 updated.lastCheckpointY = platform.y
+            }
+            if (platform.type === 'ice') {
+                updated.vx *= Math.pow(0.99, dt * 60)
             }
             if (platform.type === 'spike' && !updated.hasShield) {
                 updated.energy = Math.max(0, updated.energy - ENERGY.SPIKE_DAMAGE)
@@ -565,11 +633,14 @@ export function handlePlayerFall(player: DLDPlayer, platforms: Platform[]): DLDP
     // 리스폰 위치 결정
     if (updated.lastCheckpointY > 0) {
         updated.y = updated.lastCheckpointY - PLAYER_SIZE.HEIGHT - 10
-        updated.x = 200  // 체크포인트 근처
+        const checkpoint = platforms
+            .filter(platform => platform.type === 'checkpoint')
+            .sort((a, b) => Math.abs(a.y - updated.lastCheckpointY) - Math.abs(b.y - updated.lastCheckpointY))[0]
+        updated.x = checkpoint ? checkpoint.x + checkpoint.width / 2 - PLAYER_SIZE.WIDTH / 2 : CLIMB_START_X
     } else {
         // 시작 지점 (왼쪽 하단)
         updated.y = 560
-        updated.x = 150
+        updated.x = CLIMB_START_X
     }
 
     // 완전히 리셋된 상태로, 바닥에 안정적으로 서 있도록 처리
@@ -735,12 +806,14 @@ export function updateObstacles(obstacles: Obstacle[], dt: number): Obstacle[] {
     return obstacles.map(obstacle => {
         if (obstacle.type === 'laser' && obstacle.direction) {
             const newX = obstacle.x + (obstacle.direction === 'left' ? -obstacle.speed! : obstacle.speed!) * dt
+            const minX = obstacle.minX ?? 100
+            const maxX = obstacle.maxX ?? 700
 
-            // 범위 제한 (100 ~ 700)
-            if (newX < 100 || newX > 700) {
+            if (newX < minX || newX > maxX) {
                 return {
                     ...obstacle,
                     direction: obstacle.direction === 'left' ? 'right' : 'left',
+                    x: Math.max(minX, Math.min(maxX, newX)),
                 }
             }
 
@@ -761,16 +834,23 @@ export function updatePlatforms(platforms: Platform[]): Platform[] {
     const now = Date.now()
 
     return platforms.map(platform => {
-        if (platform.type === 'disappearing' && platform.disappearTime) {
-            if (now >= platform.disappearTime) {
+        const movedPlatform = platform.type === 'moving' && platform.baseX !== undefined && platform.moveRange && platform.moveSpeed
+            ? {
+                ...platform,
+                x: platform.baseX + Math.sin((now / 1000) * platform.moveSpeed + (platform.movePhase ?? 0)) * platform.moveRange,
+            }
+            : platform
+
+        if (movedPlatform.type === 'disappearing' && movedPlatform.disappearTime) {
+            if (now >= movedPlatform.disappearTime) {
                 return {
-                    ...platform,
+                    ...movedPlatform,
                     isVisible: false,
                     disappearTime: undefined,
                 }
             }
         }
-        return platform
+        return movedPlatform
     })
 }
 
@@ -837,7 +917,7 @@ export function createPlayer(
         id,
         nickname,
         avatar,
-        x: 150,
+        x: CLIMB_START_X,
         y: 560,
         vx: 0,
         vy: 0,

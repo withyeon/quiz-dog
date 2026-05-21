@@ -1,26 +1,23 @@
 'use client'
 
-import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect, useRef } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   AlertTriangle,
   BadgeCheck,
-  Coffee,
   Crosshair,
   Flame,
   RadioTower,
-  Shield,
   Snowflake,
   Thermometer,
   Trophy,
   Users,
-  Zap,
-  type LucideIcon,
 } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import BattleArena from '@/components/BattleArena'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import { CLASS_BADGES, getReloadDelay, HudTile } from '@/components/battle/BattleHud'
 import { useGameBase } from '@/hooks/useGameBase'
 import {
   calculateDamage,
@@ -33,6 +30,7 @@ import {
   isGameOver,
   generateItem,
   calculateZoneDamage,
+  getComboDamageMultiplier,
   type AttackResult,
   type PlayerClass,
   type SnowballItem,
@@ -40,10 +38,12 @@ import {
 } from '@/lib/game/battleRoyale'
 import ClassSelector from '@/components/ClassSelector'
 import SnowEffect from '@/components/SnowEffect'
+import HitOverlay from '@/components/HitOverlay'
 import BlizzardOverlay from '@/components/BlizzardOverlay'
 import ScreenShake from '@/components/ScreenShake'
 import type { Database } from '@/types/database.types'
 import { updatePlayer } from '@/lib/services/players'
+import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
@@ -52,48 +52,10 @@ type Player = Database['public']['Tables']['players']['Row'] & {
 
 type BattleView = 'lobby' | 'classSelect' | 'countdown' | 'quiz' | 'attack' | 'wrong' | 'result'
 
-const CLASS_BADGES: Record<PlayerClass, { Icon: LucideIcon; tone: string }> = {
-  ice_fist: { Icon: Snowflake, tone: 'text-cyan-700 bg-cyan-50 border-cyan-200' },
-  rapid_fire: { Icon: Zap, tone: 'text-amber-700 bg-amber-50 border-amber-200' },
-  shield: { Icon: Shield, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
-  hot_choco: { Icon: Coffee, tone: 'text-rose-700 bg-rose-50 border-rose-200' },
-}
-
-function getReloadDelay(playerClass: PlayerClass | null) {
-  const attackSpeed = playerClass ? PLAYER_CLASSES[playerClass].attackSpeed : 1
-  return Math.max(700, Math.round(1400 / attackSpeed))
-}
-
-function HudTile({
-  icon,
-  label,
-  value,
-  detail,
-  tone = 'default',
-}: {
-  icon: ReactNode
-  label: string
-  value: string
-  detail?: string
-  tone?: 'default' | 'warm' | 'good' | 'danger'
-}) {
-  const toneClass = {
-    default: 'border-slate-200 bg-white/[0.68] text-slate-900',
-    warm: 'border-amber-200 bg-amber-50 text-amber-950',
-    good: 'border-teal-200 bg-teal-50 text-teal-950',
-    danger: 'border-rose-200 bg-rose-50 text-rose-950',
-  }[tone]
-
-  return (
-    <div className={`rounded-[8px] border px-3 py-2 shadow-sm ${toneClass}`}>
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-black text-slate-500">
-        {icon}
-        {label}
-      </div>
-      <div className="text-xl font-black tabular-nums leading-tight">{value}</div>
-      {detail && <div className="mt-0.5 text-[11px] font-bold text-slate-500">{detail}</div>}
-    </div>
-  )
+type IncomingAttack = {
+  attackerNickname: string
+  damage: number
+  isCritical: boolean
 }
 
 export default function BattlePage() {
@@ -118,6 +80,8 @@ export default function BattlePage() {
     isRoomHost,
     finishGame,
     questionStartTime,
+    consecutiveCorrect,
+    sendRoomEvent,
   } = useGameBase({ expectedGameMode: 'battle_royale' })
 
   const [attackResult, setAttackResult] = useState<AttackResult | null>(null)
@@ -130,10 +94,16 @@ export default function BattlePage() {
   const [isReloading, setIsReloading] = useState(false)
   const [gameStartTime, setGameStartTime] = useState<number>(0)
   const [zoneLevel, setZoneLevel] = useState(1)
+  const [lockedTarget, setLockedTarget] = useState<string | null>(null)
+  const [incomingAttack, setIncomingAttack] = useState<IncomingAttack | null>(null)
+  const [isEliminated, setIsEliminated] = useState(false)
+  const [showEliminationEffect, setShowEliminationEffect] = useState(false)
   const currentPlayerClass = (currentPlayer as Player | null)?.player_class ?? null
   const hasFinishedGameRef = useRef(false)
   const nextQuestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const incomingAttackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previousHealthRef = useRef<number | null>(null)
   const battleStartTime = room?.started_at
     ? new Date(room.started_at).getTime()
     : gameStartTime
@@ -142,6 +112,7 @@ export default function BattlePage() {
     return () => {
       if (nextQuestionTimerRef.current) clearTimeout(nextQuestionTimerRef.current)
       if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+      if (incomingAttackTimerRef.current) clearTimeout(incomingAttackTimerRef.current)
     }
   }, [])
 
@@ -169,6 +140,36 @@ export default function BattlePage() {
       setSelectedClass(currentPlayerClass as PlayerClass)
     }
   }, [currentPlayerClass])
+
+  useEffect(() => {
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.type !== 'battle:attacked') return
+
+      const payload = event.payload as {
+        attackerNickname?: string
+        targetId?: string
+        damage?: number
+        isCritical?: boolean
+      } | undefined
+
+      if (!payload || payload.targetId !== playerId) return
+
+      if (incomingAttackTimerRef.current) {
+        clearTimeout(incomingAttackTimerRef.current)
+      }
+
+      setIncomingAttack({
+        attackerNickname: payload.attackerNickname || '상대',
+        damage: payload.damage ?? 0,
+        isCritical: Boolean(payload.isCritical),
+      })
+      setShowSnowEffect(true)
+      incomingAttackTimerRef.current = setTimeout(() => {
+        setIncomingAttack(null)
+        setShowSnowEffect(false)
+      }, 2000)
+    })
+  }, [playerId])
 
   // 배틀로얄 전용: 게임 시작 시 직업 선택 단계 추가
   useEffect(() => {
@@ -232,12 +233,26 @@ export default function BattlePage() {
 
   // 탈락 감지 (체온이 0이 되면 눈사람으로)
   useEffect(() => {
-    if (currentPlayer && (currentPlayer.health || 100) <= 0 && currentView !== 'result') {
+    if (!currentPlayer || currentView === 'result') return
+
+    const currentHealth = currentPlayer.health ?? 100
+    const previousHealth = previousHealthRef.current
+    previousHealthRef.current = currentHealth
+
+    if (currentHealth <= 0 && previousHealth === null) {
+      setIsEliminated(true)
+      return
+    }
+
+    if (currentHealth <= 0 && previousHealth !== null && previousHealth > 0) {
       playSFX('incorrect')
-      // 눈사람 변신 연출 후 관전 모드
+      setShowEliminationEffect(true)
+      setShowSnowEffect(true)
       setTimeout(() => {
-        // 관전 모드로 전환 (다른 플레이어들이 게임하는 것을 볼 수 있음)
-      }, 2000)
+        setIsEliminated(true)
+        setShowEliminationEffect(false)
+      }, 500)
+      setTimeout(() => setShowSnowEffect(false), 3000)
     }
   }, [currentPlayer, currentView, playSFX])
 
@@ -265,6 +280,12 @@ export default function BattlePage() {
     goToNextQuestion()
   }
 
+  const handleTargetLock = (targetId: string) => {
+    if (hasSnowball || isReloading) return
+    setLockedTarget(targetId)
+    playSFX('click')
+  }
+
   // 답안 제출
   const handleAnswerSubmit = async (answer: string) => {
     if (!playerId) return false
@@ -273,6 +294,8 @@ export default function BattlePage() {
 
     if (correct) {
       playSFX('correct')
+      const nextComboCount = consecutiveCorrect + 1
+      const comboMultiplier = getComboDamageMultiplier(nextComboCount)
 
       // 핫초코 직업: 체온 회복
       if (selectedClass === 'hot_choco') {
@@ -283,6 +306,17 @@ export default function BattlePage() {
         } catch (error) {
           console.error('Error healing:', error)
         }
+      }
+
+      // 타겟을 먼저 찍었다면 정답 즉시 발사
+      if (lockedTarget) {
+        const targetId = lockedTarget
+        setLockedTarget(null)
+        await handlePlayerAttack(targetId, {
+          comboMultiplier,
+          requireSnowball: false,
+        })
+        return correct
       }
 
       if (reloadTimerRef.current) {
@@ -309,6 +343,7 @@ export default function BattlePage() {
       playSFX('incorrect')
       setHasSnowball(false)
       setIsReloading(false)
+      setLockedTarget(null)
       if (reloadTimerRef.current) {
         clearTimeout(reloadTimerRef.current)
         reloadTimerRef.current = null
@@ -319,12 +354,18 @@ export default function BattlePage() {
   }
 
   // 플레이어 공격 처리
-  const handlePlayerAttack = async (targetId: string) => {
-    if (!currentPlayer || !playerId || !hasSnowball) return
+  const handlePlayerAttack = async (
+    targetId: string,
+    options: { comboMultiplier?: number; requireSnowball?: boolean } = {},
+  ) => {
+    const { comboMultiplier = getComboDamageMultiplier(consecutiveCorrect), requireSnowball = true } = options
+    if (!currentPlayer || !playerId) return
+    if (requireSnowball && !hasSnowball) return
 
     playSFX('click')
     setHasSnowball(false)
     setIsReloading(false)
+    setLockedTarget(null)
     if (nextQuestionTimerRef.current) {
       clearTimeout(nextQuestionTimerRef.current)
       nextQuestionTimerRef.current = null
@@ -336,13 +377,15 @@ export default function BattlePage() {
     const hasGiantBall = currentItem?.type === 'giant_ball'
 
     // 데미지 계산
-    const damage = calculateDamage(
-      true,
-      time,
-      isCritical,
-      selectedClass || undefined,
-      gameTime,
-      hasGiantBall || false
+    const damage = Math.floor(
+      calculateDamage(
+        true,
+        time,
+        isCritical,
+        selectedClass || undefined,
+        gameTime,
+        hasGiantBall || false
+      ) * comboMultiplier
     )
 
     // 공격 결과 생성
@@ -360,6 +403,14 @@ export default function BattlePage() {
 
       try {
         await updatePlayer(targetId, { health: newHealth })
+        await sendRoomEvent('battle:attacked', {
+          attackerId: playerId,
+          attackerNickname: currentPlayer.nickname,
+          targetId,
+          damage,
+          isCritical,
+          itemType: attack.itemType ?? null,
+        })
 
         // 공격 화면 표시 및 이펙트
         setIsShaking(true)
@@ -447,13 +498,18 @@ export default function BattlePage() {
   const SelectedClassIcon = selectedClass ? CLASS_BADGES[selectedClass].Icon : Snowflake
   const selectedClassTone = selectedClass ? CLASS_BADGES[selectedClass].tone : 'text-slate-600 bg-slate-50 border-slate-200'
   const healthTone = currentHealth <= 30 ? 'danger' : currentHealth <= 65 ? 'warm' : 'good'
+  const comboMultiplier = getComboDamageMultiplier(consecutiveCorrect)
 
   return (
     <main
-      className="battle-shell relative min-h-screen overflow-x-hidden"
-      style={{ fontFamily: 'var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}
+      className="battle-shell relative min-h-screen overflow-x-hidden font-bitbit"
     >
-      <SnowEffect isActive={showSnowEffect} />
+      <SnowEffect
+        isActive={showSnowEffect}
+        intensity={showEliminationEffect || isEliminated ? 'blizzard' : 'normal'}
+        duration={showEliminationEffect || isEliminated ? 3000 : 2000}
+      />
+      <HitOverlay attack={incomingAttack} />
       {isBlizzardActive && isTopPlayer && <BlizzardOverlay isActive={true} />}
 
       <ScreenShake intensity={15} duration={500} isShaking={isShaking}>
@@ -559,13 +615,35 @@ export default function BattlePage() {
                     폭설 주의보 Lv.{zoneLevel}
                   </div>
                 )}
+
+                {consecutiveCorrect >= 2 && (
+                  <motion.div
+                    key={consecutiveCorrect}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 font-black text-white shadow-lg shadow-orange-300/30"
+                  >
+                    🔥 {consecutiveCorrect}연속! 데미지 {Math.round(comboMultiplier * 100)}%
+                  </motion.div>
+                )}
               </div>
             </header>
           </div>
 
           <div className="mx-auto max-w-7xl">
             {showCountdown && (
-              <Countdown onComplete={handleCountdownComplete} />
+              <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 backdrop-blur">
+                <motion.div
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="pointer-events-none absolute inset-x-0 top-[18vh] text-center text-white"
+                >
+                  <div className="mb-4 text-8xl">❄️</div>
+                  <h1 className="mb-2 text-5xl font-black">눈싸움 대작전</h1>
+                  <p className="text-xl font-bold text-cyan-200">타겟을 조준하고 퀴즈로 눈뭉치를 날려라!</p>
+                </motion.div>
+                <Countdown onComplete={handleCountdownComplete} />
+              </div>
             )}
 
             {currentView === 'lobby' && (
@@ -601,43 +679,55 @@ export default function BattlePage() {
               />
             )}
 
-            {currentPlayer && (currentPlayer.health || 100) <= 0 && currentView !== 'result' && (
-              <motion.section
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="battle-ink-panel p-5 text-center text-white sm:p-8"
-              >
+            <AnimatePresence>
+              {isEliminated && currentView !== 'result' && (
                 <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 1.2, repeat: Infinity }}
-                  className="mb-5 text-7xl"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-40 flex flex-col items-center justify-center overflow-y-auto bg-slate-950/90 p-5 backdrop-blur-md"
                 >
-                  ⛄
+                  <motion.div
+                    animate={{ y: [0, -10, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                    className="mb-6 text-9xl"
+                  >
+                    ⛄
+                  </motion.div>
+                  <h2 className="mb-3 text-center text-5xl font-black text-white">눈사람이 되었습니다</h2>
+                  <p className="mb-8 text-center text-xl font-bold text-cyan-200">체온이 0°까지 떨어졌습니다</p>
+
+                  <div className="w-full max-w-4xl">
+                    <p className="mb-4 text-center font-bold text-slate-400">남은 생존자 현황</p>
+                    <BattleArena
+                      players={players as Player[]}
+                      currentPlayerId={playerId}
+                      canAttack={false}
+                    />
+                  </div>
                 </motion.div>
-                <h2 className="text-4xl font-black">눈사람이 되었습니다</h2>
-                <p className="mx-auto mt-3 max-w-lg text-base font-semibold text-cyan-100/80">
-                  체온이 0도까지 떨어졌습니다. 남은 플레이어들의 경기를 관전할 수 있습니다.
-                </p>
-                <div className="mt-6">
-                  <BattleArena
-                    players={players as Player[]}
-                    currentPlayerId={playerId}
-                    canAttack={false}
-                  />
-                </div>
-              </motion.section>
-            )}
+              )}
+            </AnimatePresence>
 
             {currentView === 'quiz' && !showCountdown && currentPlayer && (currentPlayer.health || 100) > 0 && (
               <div className="space-y-4">
-                {hasSnowball ? (
+                {lockedTarget ? (
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="battle-status-ready flex items-center justify-center gap-2 rounded-[8px] px-4 py-3 text-center text-base font-black text-white"
                   >
                     <Crosshair className="h-5 w-5" />
-                    타깃을 선택할 수 있습니다
+                    조준 완료! 퀴즈를 맞히면 즉시 발사됩니다
+                  </motion.div>
+                ) : hasSnowball ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="battle-status-ready flex items-center justify-center gap-2 rounded-[8px] px-4 py-3 text-center text-base font-black text-white"
+                  >
+                    <Crosshair className="h-5 w-5" />
+                    눈뭉치 준비 완료. 바로 공격할 타깃을 선택하세요
                   </motion.div>
                 ) : isReloading ? (
                   <motion.div
@@ -648,7 +738,25 @@ export default function BattlePage() {
                     <Snowflake className="h-5 w-5 text-cyan-600" />
                     눈뭉치 장전 중
                   </motion.div>
-                ) : null}
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="battle-frost-panel flex items-center justify-center gap-2 px-4 py-3 text-center text-base font-black text-slate-700"
+                  >
+                    <Crosshair className="h-5 w-5 text-rose-500" />
+                    먼저 타깃을 조준한 뒤 퀴즈를 풀어보세요
+                  </motion.div>
+                )}
+
+                <BattleArena
+                  players={players as Player[]}
+                  currentPlayerId={playerId}
+                  attackResult={attackResult}
+                  lockedTarget={lockedTarget}
+                  onTargetSelect={hasSnowball ? handlePlayerAttack : handleTargetLock}
+                  canAttack={(hasSnowball || (!isReloading && !hasSnowball))}
+                />
 
                 {currentQuestion ? (
                   <QuizView
@@ -664,14 +772,6 @@ export default function BattlePage() {
                     <p className="font-bold text-slate-700">문제를 불러오는 중...</p>
                   </div>
                 )}
-
-                <BattleArena
-                  players={players as Player[]}
-                  currentPlayerId={playerId}
-                  attackResult={attackResult}
-                  onPlayerClick={handlePlayerAttack}
-                  canAttack={hasSnowball}
-                />
               </div>
             )}
 

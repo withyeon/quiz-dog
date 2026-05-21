@@ -85,7 +85,7 @@ ${countInstruction}
 - 보기가 있는 문제는 type: "CHOICE", options에 보기를 넣으세요.
 - O/X 문제는 type: "OX", options: ["O", "X"]
 - 단답형은 type: "SHORT", options: []
-- 빈칸 채우기는 type: "BLANK", question_text에 {{blank}} 사용, options: []
+- 빈칸 채우기는 type: "BLANK", question_text에 [            ] 사용, options: []
 - 정답이 이미지에 표시되어 있으면 answer에 넣고, 없으면 빈 문자열로 두세요.
 - 문제 번호는 question_text에 포함하지 마세요.
 - JSON만 출력하고 다른 설명은 포함하지 마세요.`

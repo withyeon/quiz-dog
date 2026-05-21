@@ -66,7 +66,7 @@ export default function ZombiePage() {
     <div 
       className="min-h-screen relative overflow-hidden" 
       style={{ 
-        fontFamily: 'DNFBitBitv2, sans-serif',
+        fontFamily: "'DNFBitBitv2', sans-serif",
         backgroundImage: "linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.65)), url('/zombie/background.png')",
         backgroundSize: 'cover',
         backgroundPosition: 'center'

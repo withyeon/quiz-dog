@@ -281,6 +281,9 @@ export interface Enemy {
     x: number
     y: number
     slowedUntil?: number
+    frozenUntil?: number
+    buffedUntil?: number
+    buffType?: 'ENRAGE'
 }
 
 export interface Projectile {
@@ -351,6 +354,26 @@ export function getTowerUpgradeCost(towerType: TowerTypeId, currentLevel: number
 }
 
 /**
+ * 타워에 투입된 누적 골드 계산
+ */
+export function getTowerInvestment(tower: Tower): number {
+    let total = TOWER_TYPES[tower.type].cost
+
+    for (let level = 1; level < tower.level; level += 1) {
+        total += getTowerUpgradeCost(tower.type, level)
+    }
+
+    return total
+}
+
+/**
+ * 타워 판매 환급액 계산
+ */
+export function getTowerSellValue(tower: Tower): number {
+    return Math.floor(getTowerInvestment(tower) * 0.65)
+}
+
+/**
  * 타워의 실제 데미지 계산 (레벨 적용)
  */
 export function getTowerDamage(towerType: TowerTypeId, level: number): number {
@@ -405,9 +428,14 @@ export function getNextPosition(
 
     // 이동 거리 계산
     const slowFactor = ENEMY_TYPES[enemy.type].slowFactor ?? 0.55
-    const effectiveSpeed = enemy.slowedUntil && enemy.slowedUntil > Date.now()
-        ? enemy.speed * slowFactor
-        : enemy.speed
+    const now = Date.now()
+    const isFrozen = enemy.frozenUntil && enemy.frozenUntil > now
+    const isSlowed = enemy.slowedUntil && enemy.slowedUntil > now
+    const effectiveSpeed = isFrozen
+        ? 0
+        : isSlowed
+            ? enemy.speed * slowFactor
+            : enemy.speed
     const moveDistance = effectiveSpeed * deltaTime
 
     // 현재 위치에서 다음 포인트까지의 거리

@@ -20,6 +20,8 @@ export type RoomEventType =
   | 'game:finished'
   | 'player:patch'
   | 'game:effect'
+  | 'battle:attacked'
+  | 'cafe:item_attack'
 
 export type RoomChannelEvent<TPayload = unknown> = {
   type: RoomEventType

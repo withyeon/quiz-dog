@@ -3,13 +3,15 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
+import PomeMascot from '@/components/PomeMascot'
 import DodgeMiniGame, { type DodgeResult } from '@/components/강아지대소동/강아지대소동MiniGame'
 import GameCard from '@/components/강아지대소동/GameCard'
+import QuizView from '@/components/QuizView'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRoomResync } from '@/hooks/useRoomResync'
 import {
-  DUMMY_QUESTIONS,
   clampRoundReward,
   createPoopBombAttack,
   drawCardChoices,
@@ -18,7 +20,14 @@ import {
   type PuppyChaosCard,
 } from '@/lib/game/강아지대소동'
 import { createPuppyChaosEvent } from '@/lib/services/강아지대소동Events'
+import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
+import { sortPlayersByScore } from '@/lib/utils/playerSorting'
+import {
+  checkQuestionAnswer,
+  listQuestionsForGame,
+  type GameQuestion,
+} from '@/lib/services/questions'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -47,24 +56,6 @@ type RoundSummary = {
   hits: number
 }
 
-function sortByScore(players: Player[]) {
-  return [...players].sort((a, b) => {
-    const scoreCompare = (b.score ?? 0) - (a.score ?? 0)
-    if (scoreCompare !== 0) return scoreCompare
-    return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))
-  })
-}
-
-function PomeMascot({ className = 'h-20 w-20' }: { className?: string }) {
-  return (
-    <img
-      src="/mascot_pome.png"
-      alt="퀴즈독 마스코트"
-      className={`inline-block object-contain drop-shadow-md ${className}`}
-    />
-  )
-}
-
 function PuppyChaosPageContent() {
   const searchParams = useSearchParams()
   const roomCode = searchParams?.get('room') ?? ''
@@ -74,20 +65,18 @@ function PuppyChaosPageContent() {
   const [questionIndex, setQuestionIndex] = useState(0)
   const [combo, setCombo] = useState(0)
   const [cards, setCards] = useState<PuppyChaosCard[]>([])
+  const [gameQuestions, setGameQuestions] = useState<GameQuestion[]>([])
+  const [questionError, setQuestionError] = useState<string | null>(null)
   const [cardCountdown, setCardCountdown] = useState(5)
+  const [selectedBoxIndex, setSelectedBoxIndex] = useState<number | null>(null)
+  const [isOpeningBox, setIsOpeningBox] = useState(false)
   const [roundContext, setRoundContext] = useState<RoundContext | null>(null)
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null)
   const [isSettling, setIsSettling] = useState(false)
 
   const { players, refreshPlayers, applyPlayerPatch } = usePlayersRealtime({ roomCode, enabled: Boolean(roomCode) })
   const { room, refreshRoom } = useRoomRealtime({ roomCode, enabled: Boolean(roomCode) })
-  const resync = useCallback(async (reason?: string) => {
-    if (reason === 'broadcast_hint') return
-    await Promise.all([
-      refreshRoom({ silent: true }),
-      refreshPlayers({ silent: true }),
-    ])
-  }, [refreshPlayers, refreshRoom])
+  const resync = useRoomResync(refreshRoom, refreshPlayers)
   const { sendEvent } = useRoomChannel({
     roomCode,
     playerId,
@@ -100,15 +89,47 @@ function PuppyChaosPageContent() {
     () => players.find((player) => player.id === playerId) ?? null,
     [playerId, players],
   )
-  const currentQuestion = DUMMY_QUESTIONS[questionIndex % DUMMY_QUESTIONS.length]
+  const questionCount = gameQuestions.length
+  const currentQuestion = questionCount > 0
+    ? gameQuestions[questionIndex % questionCount]
+    : null
   const roomStatus = room?.status
   const isPaused = roomStatus === 'paused'
+
+  useEffect(() => {
+    if (!room?.set_id) {
+      setGameQuestions([])
+      return
+    }
+
+    let cancelled = false
+
+    const loadQuestions = async () => {
+      try {
+        setQuestionError(null)
+        const loadedQuestions = await listQuestionsForGame(room.set_id || '')
+        if (!cancelled) setGameQuestions(loadedQuestions)
+      } catch (error) {
+        if (!cancelled) {
+          const message = formatServiceError(error)
+          setQuestionError(message)
+          console.error('Error loading puppy chaos questions:', message, error)
+        }
+      }
+    }
+
+    void loadQuestions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [room?.set_id])
 
   useEffect(() => {
     if (!currentPlayer) return
     setQuestionIndex(currentPlayer.current_question_index ?? 0)
     setCombo(currentPlayer.combo_count ?? 0)
-  }, [currentPlayer?.id])
+  }, [currentPlayer])
 
   useEffect(() => {
     if (!room) return
@@ -124,22 +145,22 @@ function PuppyChaosPageContent() {
       setPhase('waiting')
       return
     }
-    if (room.status === 'playing' && phase === 'waiting') {
-      setPhase((currentPlayer?.current_question_index ?? 0) >= DUMMY_QUESTIONS.length ? 'bonus' : 'quiz')
+    if (room.status === 'playing' && phase === 'waiting' && questionCount > 0) {
+      setPhase((currentPlayer?.current_question_index ?? 0) >= questionCount ? 'bonus' : 'quiz')
     }
-  }, [currentPlayer?.current_question_index, currentPlayer?.is_kicked, phase, room])
+  }, [currentPlayer?.current_question_index, currentPlayer?.is_kicked, phase, questionCount, room])
 
   useEffect(() => {
     if (phase !== 'roundResult' || !roundSummary) return
     const timer = window.setTimeout(() => {
-      if (questionIndex >= DUMMY_QUESTIONS.length) {
+      if (questionCount > 0 && questionIndex >= questionCount) {
         setPhase('bonus')
       } else {
         setPhase('quiz')
       }
     }, 1300)
     return () => window.clearTimeout(timer)
-  }, [phase, questionIndex, roundSummary])
+  }, [phase, questionCount, questionIndex, roundSummary])
 
   const broadcastPlayerPatch = useCallback((targetPlayerId: string, patch: Record<string, unknown>, reason: string) => {
     applyPlayerPatch(targetPlayerId, patch)
@@ -174,9 +195,9 @@ function PuppyChaosPageContent() {
     setPhase('dodge')
   }, [currentPlayer, players, updatePlayerAndBroadcast])
 
-  const handleAnswer = async (choiceIndex: number) => {
-    if (!currentPlayer || roomStatus !== 'playing') return
-    const correct = currentQuestion.answerIndex === choiceIndex
+  const handleAnswer = async (answer: string) => {
+    if (!currentPlayer || !currentQuestion || roomStatus !== 'playing') return false
+    const correct = answer ? await checkQuestionAnswer(currentQuestion.id, answer) : false
     const comboAfter = correct ? combo + 1 : 0
     setCombo(comboAfter)
 
@@ -191,6 +212,8 @@ function PuppyChaosPageContent() {
 
     if (correct) {
       setCards(drawCardChoices())
+      setSelectedBoxIndex(null)
+      setIsOpeningBox(false)
       setRoundContext({
         correct,
         isBonus: false,
@@ -206,7 +229,7 @@ function PuppyChaosPageContent() {
         poopBombed: false,
       })
       setPhase('cardSelect')
-      return
+      return true
     }
 
     await beginDodge({
@@ -222,6 +245,7 @@ function PuppyChaosPageContent() {
       cleaner: false,
       invincible: false,
     })
+    return false
   }
 
   const handleCardSelect = useCallback(async (card: PuppyChaosCard) => {
@@ -252,7 +276,7 @@ function PuppyChaosPageContent() {
 
     if (card.id === 'poop_bomb') {
       scoreBeforeDodge += 80
-      const target = sortByScore(players.filter((player) => player.id !== currentPlayer.id && !player.is_kicked))[0]
+      const target = sortPlayersByScore(players.filter((player) => player.id !== currentPlayer.id && !player.is_kicked))[0]
       if (target) {
         const pending = parsePendingAttacks(target.pending_attacks)
         await updatePlayerAndBroadcast(target.id, {
@@ -297,6 +321,17 @@ function PuppyChaosPageContent() {
     })
   }, [beginDodge, currentPlayer, phase, players, roomCode, roundContext, updatePlayerAndBroadcast])
 
+  const handleRandomBoxSelect = useCallback((boxIndex: number) => {
+    if (phase !== 'cardSelect' || isOpeningBox || !cards[boxIndex]) return
+
+    setSelectedBoxIndex(boxIndex)
+    setIsOpeningBox(true)
+
+    window.setTimeout(() => {
+      void handleCardSelect(cards[boxIndex])
+    }, 950)
+  }, [cards, handleCardSelect, isOpeningBox, phase])
+
   useEffect(() => {
     if (phase !== 'cardSelect' || cards.length === 0) return
     setCardCountdown(5)
@@ -304,7 +339,7 @@ function PuppyChaosPageContent() {
       setCardCountdown((value) => {
         if (value <= 1) {
           window.clearInterval(interval)
-          void handleCardSelect(cards[0])
+          handleRandomBoxSelect(Math.floor(Math.random() * cards.length))
           return 0
         }
         return value - 1
@@ -312,7 +347,7 @@ function PuppyChaosPageContent() {
     }, 1000)
 
     return () => window.clearInterval(interval)
-  }, [cards, handleCardSelect, phase])
+  }, [cards, handleRandomBoxSelect, phase])
 
   const handleBonusStart = async () => {
     if (!currentPlayer || roomStatus !== 'playing') return
@@ -339,7 +374,7 @@ function PuppyChaosPageContent() {
     const totalDelta = roundContext.scoreBeforeDodge + dodgeReward
     const nextQuestionIndex = roundContext.isBonus
       ? questionIndex
-      : Math.min(DUMMY_QUESTIONS.length, questionIndex + 1)
+      : Math.min(questionCount, questionIndex + 1)
     const nextScore = (currentPlayer.score ?? 0) + totalDelta
 
     try {
@@ -388,10 +423,18 @@ function PuppyChaosPageContent() {
   }
 
   const score = currentPlayer.score ?? 0
-  const progressLabel = `${Math.min(questionIndex + 1, DUMMY_QUESTIONS.length)}/${DUMMY_QUESTIONS.length}`
+  const progressLabel = questionCount > 0
+    ? `${Math.min(questionIndex + 1, questionCount)}/${questionCount}`
+    : '0/0'
 
   return (
-    <main className="min-h-screen bg-[#E0F2FE] p-4 text-slate-950" style={{ fontFamily: 'BMJUA, sans-serif' }}>
+    <main
+      className="min-h-screen bg-[#E0F2FE] bg-cover bg-center bg-no-repeat p-4 text-slate-950"
+      style={{
+        fontFamily: "'DNFBitBitv2', sans-serif",
+        backgroundImage: "linear-gradient(180deg, rgba(224, 242, 254, 0.12), rgba(255, 255, 255, 0.16)), url('/background/puppy-chaos.png')",
+      }}
+    >
       <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-3xl flex-col gap-4">
         <header className="rounded-[28px] border-4 border-slate-900 bg-white p-4 shadow-[5px_5px_0_#0f172a]">
           <div className="flex items-center justify-between gap-3">
@@ -430,21 +473,25 @@ function PuppyChaosPageContent() {
           {phase === 'quiz' && currentQuestion && (
             <motion.section key={`quiz-${questionIndex}`} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
               className="rounded-[28px] border-4 border-slate-900 bg-white p-5 shadow-[5px_5px_0_#0f172a]">
-              <div className="mb-5 rounded-[24px] bg-amber-100 p-5 text-center text-3xl font-black">
-                {currentQuestion.question}
-              </div>
-              <div className="grid gap-3">
-                {currentQuestion.choices.map((choice, index) => (
-                  <button
-                    key={choice}
-                    type="button"
-                    disabled={roomStatus !== 'playing'}
-                    onClick={() => void handleAnswer(index)}
-                    className="rounded-[22px] border-4 border-slate-900 bg-white px-5 py-5 text-left text-2xl font-black shadow-[4px_4px_0_#0f172a] transition-transform active:translate-x-1 active:translate-y-1 active:shadow-[2px_2px_0_#0f172a] disabled:opacity-60"
-                  >
-                    {index + 1}. {choice}
-                  </button>
-                ))}
+              <QuizView
+                key={currentQuestion.id}
+                question={currentQuestion}
+                onAnswer={handleAnswer}
+                timeLimit={30}
+                className="font-bitbit rounded-[24px] bg-white p-0 shadow-none"
+              />
+            </motion.section>
+          )}
+
+          {phase === 'quiz' && !currentQuestion && (
+            <motion.section key="quiz-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="flex flex-1 items-center justify-center rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center shadow-[5px_5px_0_#0f172a]">
+              <div>
+                <PomeMascot className="mx-auto mb-4 h-20 w-20" />
+                <h2 className="text-3xl font-black">
+                  {questionError ? '문제를 불러오지 못했어요' : '문제를 불러오는 중...'}
+                </h2>
+                {questionError && <p className="mt-3 text-sm font-bold text-rose-600">{questionError}</p>}
               </div>
             </motion.section>
           )}
@@ -453,13 +500,46 @@ function PuppyChaosPageContent() {
             <motion.section key="cards" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
               className="rounded-[28px] border-4 border-slate-900 bg-white p-5 shadow-[5px_5px_0_#0f172a]">
               <div className="mb-5 text-center">
-                <div className="text-4xl font-black">카드 하나 고르기!</div>
-                <div className="mt-2 text-lg font-black text-rose-600">{cardCountdown}초 후 첫 카드 자동 선택</div>
+                <div className="text-4xl font-black">랜덤박스 하나 고르기!</div>
+                <div className="mt-2 text-lg font-black text-rose-600">
+                  {isOpeningBox ? '상자를 여는 중...' : `${cardCountdown}초 후 랜덤 자동 선택`}
+                </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
-                {cards.map((card, index) => (
-                  <GameCard key={`${card.id}-${index}`} card={card} onSelect={() => void handleCardSelect(card)} />
-                ))}
+                {cards.map((card, index) => {
+                  const isSelected = selectedBoxIndex === index
+                  const isRevealed = isOpeningBox && isSelected
+
+                  return isRevealed ? (
+                    <motion.div
+                      key={`revealed-${index}-${card.id}`}
+                      initial={{ rotateY: 90, scale: 0.9 }}
+                      animate={{ rotateY: 0, scale: 1 }}
+                      transition={{ type: 'spring', stiffness: 280, damping: 18 }}
+                    >
+                      <GameCard card={card} disabled />
+                    </motion.div>
+                  ) : (
+                    <motion.button
+                      key={`box-${index}`}
+                      type="button"
+                      disabled={isOpeningBox}
+                      onClick={() => handleRandomBoxSelect(index)}
+                      whileHover={isOpeningBox ? undefined : { y: -6, rotate: index === 1 ? 0 : index === 0 ? -2 : 2 }}
+                      whileTap={isOpeningBox ? undefined : { scale: 0.96 }}
+                      className={`min-h-[168px] rounded-[24px] border-4 border-slate-900 bg-gradient-to-br from-amber-200 via-yellow-100 to-orange-200 p-4 text-center shadow-[5px_5px_0_#0f172a] transition-opacity disabled:opacity-70 ${
+                        isSelected ? 'ring-4 ring-rose-400' : ''
+                      }`}
+                    >
+                      <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-[18px] border-4 border-slate-900 bg-white text-5xl shadow-inner">
+                        🎁
+                      </div>
+                      <div className="text-2xl font-black text-slate-900">랜덤박스</div>
+                      <div className="mt-2 text-sm font-bold text-slate-600">열기 전까지 비밀!</div>
+                      <div className="mt-3 text-3xl font-black text-rose-500">?</div>
+                    </motion.button>
+                  )
+                })}
               </div>
             </motion.section>
           )}
@@ -510,17 +590,29 @@ function PuppyChaosPageContent() {
 
           {phase === 'bonus' && (
             <motion.section key="bonus" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="flex flex-1 items-center justify-center rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center shadow-[5px_5px_0_#0f172a]">
-              <div>
-                <div className="mb-4 text-7xl">🎁</div>
-                <h2 className="text-4xl font-black">보너스 라운드!</h2>
-                <p className="mt-3 text-lg font-bold text-slate-500">문제는 끝! 이제 마지막 대소동을 버티고 보너스 점수를 받아요.</p>
+              className="flex flex-1 items-center justify-center overflow-hidden rounded-[28px] border-4 border-slate-900 bg-sky-50 p-7 text-center shadow-[5px_5px_0_#0f172a]">
+              <div className="relative w-full max-w-md">
+                <div className="pointer-events-none absolute -left-14 -top-14 h-32 w-32 rounded-full bg-sky-300/35 blur-2xl" />
+                <div className="pointer-events-none absolute -bottom-14 -right-12 h-36 w-36 rounded-full bg-cyan-300/30 blur-2xl" />
+                <div className="relative rounded-[26px] border-4 border-slate-900 bg-white/90 px-5 py-7 shadow-[4px_4px_0_#0f172a]">
+                  <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-[22px] border-4 border-slate-900 bg-sky-100 text-5xl shadow-[3px_3px_0_#0f172a]">
+                    🎁
+                  </div>
+                  <h2 className="text-4xl font-black text-slate-950">보너스 라운드!</h2>
+                  <p className="mx-auto mt-3 max-w-sm text-base font-bold leading-7 text-slate-500">
+                    문제는 끝! 마지막 대소동을 버티고 보너스 점수를 받아요.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => void handleBonusStart()}
-                  className="mt-6 rounded-[24px] border-4 border-slate-900 bg-emerald-400 px-8 py-5 text-3xl font-black shadow-[5px_5px_0_#0f172a]"
+                  className="group relative mt-6 w-full overflow-hidden rounded-[24px] border-4 border-slate-900 bg-sky-400 px-8 py-5 text-3xl font-black text-slate-950 shadow-[5px_5px_0_#0f172a] transition active:translate-x-1 active:translate-y-1 active:shadow-[2px_2px_0_#0f172a]"
                 >
-                  보너스 시작
+                  <span className="absolute inset-x-0 top-0 h-1/2 bg-white/25 transition group-hover:bg-white/35" />
+                  <span className="relative inline-flex items-center justify-center gap-3">
+                    보너스 시작
+                    <span className="text-2xl">▶</span>
+                  </span>
                 </button>
               </div>
             </motion.section>

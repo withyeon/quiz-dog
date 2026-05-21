@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import GameTypeSelector, { type GameType } from '@/components/GameTypeSelector'
 import { DEFAULT_GAME_MODE, type GameModeId } from '@/lib/game/modes'
+import { formatServiceError } from '@/lib/services/errors'
 import {
   copyQuestionSetFromQuestionsOnly,
   listQuestionSetIndexFromQuestions,
@@ -188,7 +189,7 @@ function LibraryPageContent() {
       router.push('/teacher')
     } catch (error) {
       console.error('Error copying set:', error)
-      alert('문제집을 담지 못했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      alert('문제집을 담지 못했습니다: ' + formatServiceError(error))
     }
   }
 

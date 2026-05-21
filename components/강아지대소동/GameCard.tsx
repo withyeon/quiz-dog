@@ -1,5 +1,6 @@
 'use client'
 
+import PomeMascot from '@/components/PomeMascot'
 import type { PuppyChaosCard } from '@/lib/game/강아지대소동'
 
 type GameCardProps = {
@@ -29,7 +30,7 @@ export default function GameCard({ card, onSelect, disabled = false }: GameCardP
         {isGoldenDog ? (
           <span className="relative inline-flex">
             <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-3xl">👑</span>
-            <img src="/mascot_pome.png" alt="황금 강아지" className="h-14 w-14 object-contain drop-shadow-md" />
+            <PomeMascot className="h-14 w-14" />
           </span>
         ) : (
           card.emoji

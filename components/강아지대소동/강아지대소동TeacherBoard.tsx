@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import QRCodeSVG from 'react-qr-code'
 import { motion } from 'framer-motion'
+import PomeMascot from '@/components/PomeMascot'
 import EventOverlay from '@/components/강아지대소동/EventOverlay'
-import { DUMMY_QUESTIONS } from '@/lib/game/강아지대소동'
 import { createPuppyChaosEvent, type PuppyChaosEvent } from '@/lib/services/강아지대소동Events'
+import { listQuestionsForGame } from '@/lib/services/questions'
+import { sortPlayersByScore } from '@/lib/utils/playerSorting'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -21,16 +23,6 @@ type PuppyChaosTeacherBoardProps = {
   onKick?: (playerId: string) => void
 }
 
-function PomeMascot({ className = 'h-10 w-10' }: { className?: string }) {
-  return (
-    <img
-      src="/mascot_pome.png"
-      alt="퀴즈독 마스코트"
-      className={`inline-block object-contain drop-shadow-sm ${className}`}
-    />
-  )
-}
-
 export default function PuppyChaosTeacherBoard({
   room,
   players,
@@ -42,6 +34,7 @@ export default function PuppyChaosTeacherBoard({
 }: PuppyChaosTeacherBoardProps) {
   const previousLeaderRef = useRef<string | null>(null)
   const [overlayEvent, setOverlayEvent] = useState<PuppyChaosEvent | null>(null)
+  const [questionTotal, setQuestionTotal] = useState(0)
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/play/${room.room_code}` : ''
 
   const activePlayers = useMemo(
@@ -50,11 +43,7 @@ export default function PuppyChaosTeacherBoard({
   )
 
   const sortedPlayers = useMemo(
-    () => [...activePlayers].sort((a, b) => {
-      const scoreCompare = (b.score ?? 0) - (a.score ?? 0)
-      if (scoreCompare !== 0) return scoreCompare
-      return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))
-    }),
+    () => sortPlayersByScore(activePlayers),
     [activePlayers],
   )
 
@@ -83,8 +72,35 @@ export default function PuppyChaosTeacherBoard({
     }).catch(() => {})
   }, [room.room_code, room.status, sortedPlayers])
 
+  useEffect(() => {
+    if (!room.set_id) {
+      setQuestionTotal(0)
+      return
+    }
+
+    let cancelled = false
+
+    const loadQuestionTotal = async () => {
+      try {
+        const questions = await listQuestionsForGame(room.set_id || '')
+        if (!cancelled) setQuestionTotal(questions.length)
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Error loading puppy chaos question total:', error)
+          setQuestionTotal(0)
+        }
+      }
+    }
+
+    void loadQuestionTotal()
+
+    return () => {
+      cancelled = true
+    }
+  }, [room.set_id])
+
   return (
-    <div className="relative min-h-[720px] overflow-hidden rounded-[28px] border-4 border-slate-950 bg-[#F8FAFC] p-4 shadow-[8px_8px_0_#0f172a] sm:p-6">
+    <div className="relative min-h-[720px] overflow-hidden rounded-[28px] border-4 border-slate-950 bg-[#F8FAFC] p-4 font-bitbit shadow-[8px_8px_0_#0f172a] sm:p-6">
       <EventOverlay event={overlayEvent} />
 
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
@@ -130,7 +146,7 @@ export default function PuppyChaosTeacherBoard({
                   <div className="text-3xl font-black text-slate-950">{index + 1}</div>
                   <div className="min-w-0">
                     <div className="flex min-w-0 items-center gap-2 truncate text-2xl font-black text-slate-950">
-                      <PomeMascot className="h-9 w-9 flex-shrink-0" />
+                      <PomeMascot className="h-9 w-9 flex-shrink-0" shadow="sm" />
                       <span className="truncate">{player.nickname}</span>
                     </div>
                     <div className="text-sm font-bold text-slate-500">
@@ -141,7 +157,9 @@ export default function PuppyChaosTeacherBoard({
                     {(player.score ?? 0).toLocaleString()}
                   </div>
                   <div className="col-start-2 text-left text-sm font-black text-slate-600 sm:col-start-auto sm:text-right">
-                    {Math.min((player.current_question_index ?? 0) + 1, DUMMY_QUESTIONS.length)}/{DUMMY_QUESTIONS.length}
+                    {questionTotal > 0
+                      ? `${Math.min((player.current_question_index ?? 0) + 1, questionTotal)}/${questionTotal}`
+                      : '문제집 없음'}
                   </div>
                 </motion.div>
               )
@@ -160,7 +178,9 @@ export default function PuppyChaosTeacherBoard({
             <h3 className="mb-4 text-2xl font-black text-slate-950">진행률</h3>
             <div className="space-y-3">
               {activePlayers.map((player) => {
-                const progress = Math.min(100, ((player.current_question_index ?? 0) / DUMMY_QUESTIONS.length) * 100)
+                const progress = questionTotal > 0
+                  ? Math.min(100, ((player.current_question_index ?? 0) / questionTotal) * 100)
+                  : 0
                 return (
                   <div key={player.id}>
                     <div className="mb-1 flex justify-between text-sm font-black text-slate-600">

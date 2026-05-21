@@ -135,7 +135,7 @@ export default function GansikRunPage() {
     : 0
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ fontFamily: 'BMJUA, sans-serif', background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 40%, #0f2027 100%)' }}>
+    <div className="min-h-screen relative overflow-hidden" style={{ fontFamily: "'DNFBitBitv2', sans-serif", background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 40%, #0f2027 100%)' }}>
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -183,8 +183,10 @@ export default function GansikRunPage() {
                   <ul className="space-y-1.5 text-sm" style={{ color: 'rgba(200,200,230,0.8)' }}>
                     <li className="flex items-start gap-2"><span>🐕</span><span>강아지가 3차선 도로를 달려요!</span></li>
                     <li className="flex items-start gap-2"><span>⬅️➡️</span><span>좌/우 키 또는 스와이프로 차선 변경</span></li>
+                    <li className="flex items-start gap-2"><span>⬆️</span><span>위 키 또는 위 스와이프로 점프! (바닥 장애물 회피)</span></li>
+                    <li className="flex items-start gap-2"><span>⬇️</span><span>아래 키 또는 아래 스와이프로 슬라이드! (공중 장애물 회피)</span></li>
                     <li className="flex items-start gap-2"><span>🦴</span><span>뼈다귀를 모아 점수를 올려요</span></li>
-                    <li className="flex items-start gap-2"><span>🚧</span><span>장애물을 피하세요! (충돌 시 -100점)</span></li>
+                    <li className="flex items-start gap-2"><span>🐱</span><span>뒤에서 고양이가 쫓아와요! 부딪히면 가까워져요</span></li>
                     <li className="flex items-start gap-2"><span>📝</span><span>30초마다 퀴즈 등장! 정답 시 아이템 박스!</span></li>
                     <li className="flex items-start gap-2"><span>❓</span><span>박스에서 부스터, 방어막, 자석 등 획득!</span></li>
                   </ul>

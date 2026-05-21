@@ -20,7 +20,6 @@ import {
   Users,
   CheckCircle2,
   ArrowRight,
-  Star,
   Trophy,
 } from 'lucide-react'
 
@@ -158,12 +157,6 @@ const gameModesData = [
 ]
 const visibleGameModeCount = gameModesData.length
 
-const testimonialsData = [
-  { name: '김선생님', school: '서울 ○○초등학교', rating: 5, text: '학생들이 너무 좋아해요! 수업 참여도가 2배 이상 올랐습니다.', avatar: '👩‍🏫' },
-  { name: '이선생님', school: '부산 ○○중학교', rating: 5, text: 'AI 문제 생성 기능이 정말 편리합니다. 시간이 많이 절약돼요!', avatar: '👨‍🏫' },
-  { name: '박선생님', school: '대전 ○○고등학교', rating: 5, text: '다양한 게임 모드 덕분에 학생들이 지루해하지 않아요.', avatar: '👩‍🏫' },
-]
-
 /* ─────────────────────────────────────────────────────────────
    메인 컴포넌트
 ───────────────────────────────────────────────────────────── */
@@ -282,73 +275,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ══ Testimonials ══════════════════════════════════════ */}
-      <section className="py-24 px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 2 }}>
-        <div className="max-w-7xl mx-auto">
-          <motion.div
-            initial={animationsReady ? { opacity: 0, y: 20 } : false}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2
-              className="text-4xl md:text-5xl font-black mb-4"
-              style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}
-            >
-              ⭐ 선생님들의 후기
-            </h2>
-            <p className="text-lg" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-              이미 많은 선생님들이 퀴즈독과 함께하고 있습니다
-            </p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonialsData.map((t, index) => (
-              <motion.div
-                key={t.name}
-                initial={animationsReady ? { opacity: 0, y: 20 } : false}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.12 }}
-                whileHover={{ y: -6 }}
-              >
-                <PixelPanel>
-                  <div className="p-7">
-                    <div className="flex items-center gap-1 mb-4">
-                      {[...Array(t.rating)].map((_, i) => (
-                        <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                    <p className="mb-6 italic leading-relaxed text-sm" style={{ color: '#5B3A1A' }}>
-                      &ldquo;{t.text}&rdquo;
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center text-xl"
-                        style={{
-                          backgroundColor: 'rgba(193,123,58,0.15)',
-                          border: '3px solid rgba(193,123,58,0.3)',
-                        }}
-                      >
-                        {t.avatar}
-                      </div>
-                      <div>
-                        <div className="font-black text-sm" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-                          {t.name}
-                        </div>
-                        <div className="text-xs" style={{ color: '#7B4B1A', opacity: 0.7 }}>
-                          {t.school}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </PixelPanel>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ══ Final CTA ═════════════════════════════════════════ */}
       <section className="py-24 px-4 sm:px-6 lg:px-8 relative" style={{ zIndex: 2 }}>
         <div className="max-w-4xl mx-auto text-center">
@@ -392,11 +318,21 @@ export default function LandingPage() {
                 <p className="text-lg mb-10" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                   무료로 시작하고, 언제든 업그레이드하세요
                 </p>
-                <Link href="/teacher">
-                  <PixelButton color="green" className="text-xl px-14 py-5 inline-flex items-center gap-3">
-                    <Sparkles className="h-6 w-6" />
+                <Link href="/teacher" className="inline-block">
+                  <motion.span
+                    whileHover={{ y: -3, scale: 1.02 }}
+                    whileTap={{ y: 0, scale: 0.98 }}
+                    className="inline-flex items-center gap-3 rounded-full px-10 py-4 text-lg font-bold text-white sm:px-14 sm:py-5 sm:text-xl"
+                    style={{
+                      background: 'linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 40%, #0ea5e9 100%)',
+                      boxShadow:
+                        '0 8px 24px rgba(14, 165, 233, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.45)',
+                      fontFamily: "'DNFBitBitv2', sans-serif",
+                    }}
+                  >
+                    <Sparkles className="h-6 w-6 shrink-0" />
                     무료로 시작하기
-                  </PixelButton>
+                  </motion.span>
                 </Link>
               </div>
             </PixelPanel>

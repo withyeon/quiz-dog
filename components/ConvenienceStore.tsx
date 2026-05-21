@@ -192,7 +192,7 @@ export default function ConvenienceStore({
   }
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 rounded-[28px] bg-gradient-to-br from-emerald-50 via-white to-amber-50 font-sans text-slate-800 border border-white/80 shadow-2xl" style={{ fontFamily: 'BMJUA, sans-serif' }}>
+    <div className="w-full max-w-5xl mx-auto p-4 rounded-[28px] bg-gradient-to-br from-emerald-50 via-white to-amber-50 font-bitbit text-slate-800 border border-white/80 shadow-2xl">
       {/* HUD (정보창) */}
       <header className="flex flex-wrap justify-between items-center gap-3 bg-white/90 p-4 rounded-2xl shadow-md border-b-4 border-emerald-200 mb-4 sticky top-4 z-10">
         <div className="flex items-center gap-2">

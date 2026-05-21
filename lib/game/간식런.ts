@@ -23,6 +23,17 @@ export const GAME = {
   BOX_SPAWN_DELAY: 45,         // frames (~0.75초)
   NEARMISS_DIST: 50,           // 니어미스 판정 거리
   COMBO_DECAY_FRAMES: 90,      // 콤보 유지 시간 (1.5초)
+  // Temple Run 스타일
+  JUMP_DURATION: 32,            // 점프 지속 프레임
+  SLIDE_DURATION: 30,           // 슬라이드 지속 프레임
+  CHASER_START_DIST: 70,        // 추격자 초기 거리
+  CHASER_HIT_PENALTY: 20,       // 충돌 시 추격자 접근
+  CHASER_WARN_THRESHOLD: 25,    // 추격자 경고 거리
+  CHASER_RECOVERY: 1,           // 초당 추격자 거리 회복
+  OBSTACLE_LOW_START: 15,       // 바닥 장애물 등장 시간(초)
+  OBSTACLE_HIGH_START: 30,      // 공중 장애물 등장 시간(초)
+  SPAWN_INTERVAL_LOW: 80,       // 바닥 장애물 스폰 간격
+  SPAWN_INTERVAL_HIGH: 90,      // 공중 장애물 스폰 간격
 } as const
 
 // ─── 플로팅 텍스트 (UI 표시용) ───
@@ -57,7 +68,7 @@ export interface GameObject {
   id: string
   lane: Lane
   y: number    // position (0=top, screen scrolls down)
-  type: 'obstacle' | 'bone' | 'golden_bone' | 'box'
+  type: 'obstacle' | 'obstacle_low' | 'obstacle_high' | 'bone' | 'golden_bone' | 'box'
   collected?: boolean
   spawnedAt?: number
 }
@@ -100,6 +111,14 @@ export interface GansikRunState {
   lastMilestone: number
   // UI 이벤트
   floatingTexts: FloatingText[]
+  // 점프/슬라이드
+  jumpState: 'ground' | 'jumping'
+  jumpProgress: number
+  slideState: 'none' | 'sliding'
+  slideProgress: number
+  // 추격자
+  chaserDistance: number
+  chaserWarning: boolean
   _lastBoxItem?: ItemType
   _events: string[]     // UI 이벤트 큐
 }
@@ -154,7 +173,7 @@ function pushIfClear(
   objs: GameObject[],
   obj: GameObject,
   gap = SPAWN_CONFLICT_GAP,
-  types: GameObject['type'][] = ['obstacle', 'bone', 'golden_bone', 'box'],
+  types: GameObject['type'][] = ['obstacle', 'obstacle_low', 'obstacle_high', 'bone', 'golden_bone', 'box'],
 ): boolean {
   if (hasSpawnConflict(objs, obj.lane, obj.y, gap, types)) return false
   objs.push(obj)
@@ -213,6 +232,12 @@ export function createInitialState(): GansikRunState {
     nearMissCount: 0,
     lastMilestone: 0,
     floatingTexts: [],
+    jumpState: 'ground',
+    jumpProgress: 0,
+    slideState: 'none',
+    slideProgress: 0,
+    chaserDistance: GAME.CHASER_START_DIST,
+    chaserWarning: false,
     _events: [],
   }
 }
@@ -233,6 +258,18 @@ export function moveLane(state: GansikRunState, direction: 'left' | 'right'): Ga
   if (direction === 'left' && newLane > 0) newLane = (newLane - 1) as Lane
   if (direction === 'right' && newLane < 2) newLane = (newLane + 1) as Lane
   return { ...state, targetLane: newLane, laneProgress: 0 }
+}
+
+// ─── 점프 ───
+export function jump(state: GansikRunState): GansikRunState {
+  if (state.jumpState !== 'ground' || state.slideState === 'sliding' || state.isQuizActive || state.gameOver) return state
+  return { ...state, jumpState: 'jumping', jumpProgress: 0 }
+}
+
+// ─── 슬라이드 ───
+export function slide(state: GansikRunState): GansikRunState {
+  if (state.slideState === 'sliding' || state.jumpState !== 'ground' || state.isQuizActive || state.gameOver) return state
+  return { ...state, slideState: 'sliding', slideProgress: 0 }
 }
 
 // ─── 박스 아이템 결정 ───
@@ -370,6 +407,24 @@ function spawnObjects(state: GansikRunState, canvasH: number): GameObject[] {
     }
   }
 
+  // 바닥 장애물 (점프로 회피)
+  if (!rewardBoxesPending && elapsed >= GAME.OBSTACLE_LOW_START && !state.isDrone) {
+    const lowInterval = Math.max(50, GAME.SPAWN_INTERVAL_LOW - Math.floor(elapsed / 40) * 2)
+    if (fc % lowInterval === 0) {
+      const lane = Math.floor(Math.random() * 3) as Lane
+      pushIfClear(objs, { id: nextId(), lane, y: -60, type: 'obstacle_low' })
+    }
+  }
+
+  // 공중 장애물 (슬라이드로 회피)
+  if (!rewardBoxesPending && elapsed >= GAME.OBSTACLE_HIGH_START && !state.isDrone) {
+    const highInterval = Math.max(55, GAME.SPAWN_INTERVAL_HIGH - Math.floor(elapsed / 45) * 2)
+    if (fc % highInterval === 0) {
+      const lane = Math.floor(Math.random() * 3) as Lane
+      pushIfClear(objs, { id: nextId(), lane, y: -60, type: 'obstacle_high' })
+    }
+  }
+
   // 뼈다귀 패턴
   if (!rewardBoxesPending && fc % GAME.SPAWN_INTERVAL_BONE === 0) {
     spawnBonePattern(objs, fc, isGoldenRain)
@@ -407,6 +462,24 @@ export function gameTick(state: GansikRunState, canvasH: number): GansikRunState
     if (s.laneProgress >= 1) s.lane = s.targetLane
   }
 
+  // 점프 물리
+  if (s.jumpState === 'jumping') {
+    s.jumpProgress = Math.min(1, s.jumpProgress + 1 / GAME.JUMP_DURATION)
+    if (s.jumpProgress >= 1) {
+      s.jumpState = 'ground'
+      s.jumpProgress = 0
+    }
+  }
+
+  // 슬라이드 물리
+  if (s.slideState === 'sliding') {
+    s.slideProgress = Math.min(1, s.slideProgress + 1 / GAME.SLIDE_DURATION)
+    if (s.slideProgress >= 1) {
+      s.slideState = 'none'
+      s.slideProgress = 0
+    }
+  }
+
   // 콤보 타이머 감소
   if (s.comboTimer > 0) {
     s.comboTimer--
@@ -425,6 +498,11 @@ export function gameTick(state: GansikRunState, canvasH: number): GansikRunState
     s.elapsed += 1
     s.timeRemaining = Math.max(0, GAME.DURATION - s.elapsed)
     s.score += s.scoreMultiplier
+
+    // 추격자 거리 회복
+    const chaserRecovery = s.activeItems.some(i => i.type === 'booster' || i.type === 'golden_mode') ? 3 : GAME.CHASER_RECOVERY
+    s.chaserDistance = Math.min(100, s.chaserDistance + chaserRecovery)
+    s.chaserWarning = s.chaserDistance < GAME.CHASER_WARN_THRESHOLD
 
     if (s.timeRemaining <= 0) return { ...s, gameOver: true }
     if (s.elapsed >= s.nextQuizAt) return { ...s, isQuizActive: true }
@@ -507,7 +585,21 @@ export function gameTick(state: GansikRunState, canvasH: number): GansikRunState
     }
 
     // 장애물 충돌
-    if (obj.type === 'obstacle' && inHitZone && obj.lane === s.targetLane) {
+    const isAnyObstacle = obj.type === 'obstacle' || obj.type === 'obstacle_low' || obj.type === 'obstacle_high'
+    if (isAnyObstacle && inHitZone && obj.lane === s.targetLane) {
+      // 점프/슬라이드로 회피
+      if (obj.type === 'obstacle_low' && s.jumpState === 'jumping') {
+        s.score += 3 * s.scoreMultiplier
+        s = addFloatingText(s, 'JUMP! +3', (obj.lane + 0.5) / 3, playerY - 30, '#10b981', 15)
+        s._events = [...s._events, 'jump_avoid']
+        continue
+      }
+      if (obj.type === 'obstacle_high' && s.slideState === 'sliding') {
+        s.score += 3 * s.scoreMultiplier
+        s = addFloatingText(s, 'SLIDE! +3', (obj.lane + 0.5) / 3, playerY - 30, '#06b6d4', 15)
+        s._events = [...s._events, 'slide_avoid']
+        continue
+      }
       if (s.isDrone || isBoosting) continue
       if (s.isBigDog) { s.score += 20 * s.scoreMultiplier; s = addFloatingText(s, '+20 💥', 0.5, obj.y, '#f59e0b', 18); continue }
       if (s.hasShield) { s.hasShield = false; s._events = [...s._events, 'shield_break']; continue }
@@ -516,13 +608,21 @@ export function gameTick(state: GansikRunState, canvasH: number): GansikRunState
       s.combo = 0
       s.comboTimer = 0
       s.invincibleTimer = GAME.INVINCIBLE_DURATION
+      // 추격자 접근
+      s.chaserDistance = Math.max(0, s.chaserDistance - GAME.CHASER_HIT_PENALTY)
+      s.chaserWarning = s.chaserDistance < GAME.CHASER_WARN_THRESHOLD
+      if (s.chaserDistance <= 0) {
+        s.score -= 50
+        s = addFloatingText(s, '🐱 위험! -50', 0.5, playerY - 25, '#ef4444', 20)
+        s.chaserDistance = 15
+      }
       s = addFloatingText(s, '-100', 0.5, playerY, '#ef4444', 22)
       s._events = [...s._events, 'hit']
       continue
     }
 
     // 니어미스 감지 (다른 차선의 장애물이 지나감)
-    if (obj.type === 'obstacle' && obj.lane !== s.targetLane) {
+    if (isAnyObstacle && obj.lane !== s.targetLane) {
       const nearDist = Math.abs(obj.y - playerY)
       if (nearDist < GAME.NEARMISS_DIST && nearDist > 10 && Math.abs(obj.lane - s.targetLane) === 1) {
         // 프레임당 한번만 (y가 처음 지나갈때)

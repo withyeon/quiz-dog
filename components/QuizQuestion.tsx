@@ -2,6 +2,8 @@
 
 import { useState } from 'react'
 import type { Database } from '@/types/database.types'
+import { getOptionLabel } from '@/lib/quiz/optionLabels'
+import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 
 type Question = Database['public']['Tables']['questions']['Row']
 
@@ -35,7 +37,7 @@ export default function QuizQuestion({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">{question.question_text.replace(/\{\{blank\}\}/g, ' ▢ ')}</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">{displayBlankText(question.question_text)}</h2>
         {timeLimit && timeLeft > 0 && (
           <div className="text-sm text-gray-500">남은 시간: {timeLeft}초</div>
         )}
@@ -59,7 +61,10 @@ export default function QuizQuestion({
                     : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
                 }`}
               >
-                <span className="font-medium text-gray-800">{option}</span>
+                <span className="font-medium text-gray-800">
+                  <span className="mr-2 font-bold text-indigo-600">{getOptionLabel(index)}.</span>
+                  {option}
+                </span>
               </button>
             ))}
           </>
@@ -118,19 +123,23 @@ export default function QuizQuestion({
           <div>
             <div className="p-4 bg-gray-50 rounded-lg mb-3">
               <p className="text-gray-700 whitespace-pre-wrap">
-                {question.question_text.split('{{blank}}').map((part, i, arr) => (
+                {splitBlankText(question.question_text).map((part, i, arr) => (
                   <span key={i}>
                     {part}
                     {i < arr.length - 1 && (
-                      <input
-                        type="text"
-                        value={selectedAnswer}
-                        onChange={(e) => setSelectedAnswer(e.target.value)}
-                        disabled={isAnswered}
-                        className="inline-block mx-2 px-3 py-1.5 border-2 border-indigo-400 rounded-md bg-white focus:outline-none focus:border-indigo-600 min-w-[120px] text-center"
-                        placeholder=""
-                        aria-label="빈칸 정답 입력"
-                      />
+                      <span className="mx-2 inline-flex items-center gap-1">
+                        <span>[</span>
+                        <input
+                          type="text"
+                          value={selectedAnswer}
+                          onChange={(e) => setSelectedAnswer(e.target.value)}
+                          disabled={isAnswered}
+                          className="inline-block min-w-[120px] rounded-md border-2 border-indigo-400 bg-white px-3 py-1.5 text-center focus:border-indigo-600 focus:outline-none"
+                          placeholder=""
+                          aria-label="빈칸 정답 입력"
+                        />
+                        <span>]</span>
+                      </span>
                     )}
                   </span>
                 ))}

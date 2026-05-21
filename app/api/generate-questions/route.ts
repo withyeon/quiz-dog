@@ -3,6 +3,7 @@ import { generateQuestions, parseExamVisionResponse, type QuestionInput, type So
 import { getYouTubeTranscript } from '@/lib/utils/youtube'
 import { extractTextFromPDF } from '@/lib/utils/pdf'
 import { extractTextFromDOCX } from '@/lib/extractors/docx'
+import { extractTextFromPPT, extractTextFromPPTX } from '@/lib/extractors/ppt'
 import { extractTextFromFile } from '@/lib/extractors/text'
 import { extractQuestionsFromImage, isLikelyScannedPDF } from '@/lib/extractors/image'
 
@@ -106,13 +107,19 @@ export async function POST(request: NextRequest) {
         case 'docx':
           text = await extractTextFromDOCX(file)
           break
+        case 'pptx':
+          text = await extractTextFromPPTX(file)
+          break
+        case 'ppt':
+          text = await extractTextFromPPT(file)
+          break
         case 'txt':
         case 'csv':
           text = await extractTextFromFile(file)
           break
         default:
           return NextResponse.json(
-            { error: `지원하지 않는 파일 형식입니다: .${ext}\n지원 형식: PDF, DOCX, TXT, CSV` },
+            { error: `지원하지 않는 파일 형식입니다: .${ext}\n지원 형식: PDF, DOCX, PPTX, PPT, TXT, CSV` },
             { status: 400 }
           )
       }

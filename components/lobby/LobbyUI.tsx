@@ -40,7 +40,7 @@ export function PixelBtn({
         background: c.bg,
         border: `3px solid ${c.border}`,
         boxShadow: disabled ? 'none' : `0 5px 0 ${c.shadow}, 0 8px 20px rgba(0,0,0,0.2)`,
-        fontFamily: "'BMJUA', sans-serif",
+        fontFamily: "'DNFBitBitv2', sans-serif",
         textShadow: `0 2px 0 ${c.shadow}`,
       }}
     >
@@ -61,7 +61,7 @@ export function PixelInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
         background: '#FFFBF2',
         border: '3px solid #C17B3A',
         boxShadow: '0 4px 0 rgba(91,58,26,0.25), inset 0 2px 4px rgba(91,58,26,0.08)',
-        fontFamily: "'BMJUA', sans-serif",
+        fontFamily: "'DNFBitBitv2', sans-serif",
         fontSize: '1.5rem',
         ...props.style,
       }}
@@ -92,7 +92,7 @@ export function PixelPanel({
             background: labelColor,
             border: '3px solid rgba(0,0,0,0.2)',
             boxShadow: '0 3px 0 rgba(0,0,0,0.2)',
-            fontFamily: "'BMJUA', sans-serif",
+            fontFamily: "'DNFBitBitv2', sans-serif",
           }}
         >
           {label}
@@ -159,7 +159,7 @@ export function PlayerAvatar({ nickname, avatar, isReady = false }: { nickname: 
           </div>
         )}
       </div>
-      <span className="text-xs font-black truncate max-w-[56px]" style={{ color: '#3B1F0A', fontFamily: "'BMJUA', sans-serif" }}>
+      <span className="text-xs font-black truncate max-w-[56px]" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
         {nickname}
       </span>
     </motion.div>

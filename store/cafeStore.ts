@@ -13,6 +13,12 @@ import {
   MENU_ITEMS,
   UPGRADES,
 } from '@/lib/game/cafe'
+import type { ItemId } from '@/lib/game/cafeItems'
+
+export interface ActiveBuff {
+  itemId: ItemId
+  expiresAt: number
+}
 
 interface CafeStore extends CafeGameState {
   // Actions
@@ -27,16 +33,28 @@ interface CafeStore extends CafeGameState {
   resetGame: () => void
   updateCustomers: (currentTime: number) => void
   restockMenu: (menuId: string) => void // 퀴즈 정답 시 메뉴 재고충전
+  activeBuffs: ActiveBuff[]
+  applyBuff: (itemId: ItemId, duration?: number) => void
+  removeBuff: (itemId: ItemId) => void
+  goldenSpatulaActive: boolean
+  activateGoldenSpatula: () => void
+  consumeGoldenSpatula: () => void
+  removeHalfCustomers: () => void
+  purchaseMenuFree: (menuId: string) => void
 }
 
 export const useCafeStore = create<CafeStore>((set, get) => ({
   ...getInitialState(),
+  activeBuffs: [],
+  goldenSpatulaActive: false,
 
   startGame: (duration: number) => {
     set({
       ...getInitialState(),
       status: 'playing',
       timeRemaining: duration,
+      activeBuffs: [],
+      goldenSpatulaActive: false,
     })
   },
 
@@ -106,24 +124,81 @@ export const useCafeStore = create<CafeStore>((set, get) => ({
   },
 
   resetGame: () => {
-    set(getInitialState())
+    set({
+      ...getInitialState(),
+      activeBuffs: [],
+      goldenSpatulaActive: false,
+    })
   },
 
   updateCustomers: (currentTime: number) => {
     const state = get()
     if (state.status !== 'playing') return
+    const hasExpressLane = state.activeBuffs.some(buff => buff.itemId === 'EXPRESS_LANE' && buff.expiresAt > currentTime)
 
     // 인내심이 다한 손님 제거
     const validCustomers = state.customers.filter((customer) => {
       const elapsed = (currentTime - customer.spawnTime) / 1000
-      return elapsed < customer.patience
+      const patience = hasExpressLane ? customer.patience * 2 : customer.patience
+      return elapsed < patience
     })
 
     if (validCustomers.length !== state.customers.length) {
       set({
         ...state,
         customers: validCustomers,
+        activeBuffs: state.activeBuffs.filter(buff => buff.expiresAt > currentTime),
+      })
+    } else if (state.activeBuffs.some(buff => buff.expiresAt <= currentTime)) {
+      set({
+        ...state,
+        activeBuffs: state.activeBuffs.filter(buff => buff.expiresAt > currentTime),
       })
     }
+  },
+
+  applyBuff: (itemId: ItemId, duration = 0) => {
+    if (duration <= 0) return
+
+    set((state) => ({
+      ...state,
+      activeBuffs: [
+        ...state.activeBuffs.filter(buff => buff.itemId !== itemId),
+        { itemId, expiresAt: Date.now() + duration },
+      ],
+    }))
+  },
+
+  removeBuff: (itemId: ItemId) => {
+    set((state) => ({
+      ...state,
+      activeBuffs: state.activeBuffs.filter(buff => buff.itemId !== itemId),
+    }))
+  },
+
+  activateGoldenSpatula: () => {
+    set((state) => ({ ...state, goldenSpatulaActive: true }))
+  },
+
+  consumeGoldenSpatula: () => {
+    set((state) => ({ ...state, goldenSpatulaActive: false }))
+  },
+
+  removeHalfCustomers: () => {
+    set((state) => ({
+      ...state,
+      customers: state.customers.slice(Math.ceil(state.customers.length / 2)),
+    }))
+  },
+
+  purchaseMenuFree: (menuId: string) => {
+    set((state) => {
+      if (state.unlockedMenus.includes(menuId)) return state
+      if (!MENU_ITEMS.some(menu => menu.id === menuId)) return state
+      return {
+        ...state,
+        unlockedMenus: [...state.unlockedMenus, menuId],
+      }
+    })
   },
 }))

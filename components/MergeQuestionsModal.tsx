@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import type { Database } from '@/types/database.types'
 import { X, Search, ChevronRight, CheckSquare, Square, ChevronLeft } from 'lucide-react'
 import { Button } from './ui/button'
+import { displayBlankText } from '@/lib/quiz/blankText'
 import {
     getQuestionSetWithQuestions,
     listQuestionSetsExcept,
@@ -190,7 +191,7 @@ export default function MergeQuestionsModal({ currentSetId, onClose, onMerge }: 
                                                                 {q.type === 'CHOICE' ? '객관식' : q.type === 'OX' ? 'OX' : q.type === 'SHORT' ? '주관식' : q.type === 'BLANK' ? '빈칸' : q.type}
                                                             </span>
                                                         </div>
-                                                        <p className="font-medium text-gray-900 truncate">{q.question_text}</p>
+                                                        <p className="font-medium text-gray-900 truncate">{displayBlankText(q.question_text)}</p>
                                                     </div>
                                                 </div>
                                             )

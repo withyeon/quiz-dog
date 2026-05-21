@@ -1,6 +1,7 @@
 import type { Database } from '@/types/database.types'
 import type { AnalyticsQuestion } from '@/lib/services/questions'
 import { getGameModeConfig } from '@/lib/game/modes'
+import { displayBlankText } from '@/lib/quiz/blankText'
 
 export type Player = Database['public']['Tables']['players']['Row']
 export type Room = Database['public']['Tables']['rooms']['Row']
@@ -178,7 +179,7 @@ export function buildResultAnalytics(
       index,
       id: question.id,
       type: question.type,
-      text: question.question_text,
+      text: displayBlankText(question.question_text),
       answer: question.answer,
       options: question.options,
       tag: question.type === 'CHOICE' ? '선택지 이해' : question.type === 'OX' ? '개념 판단' : '서술 응답',

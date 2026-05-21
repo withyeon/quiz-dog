@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import QuizView from '@/components/QuizView'
 import { useAudioContext } from '@/components/AudioProvider'
+import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
 
 interface ZombieViewProps {
   onGameEnd?: () => void
@@ -113,7 +114,7 @@ export default function ZombieView({ onGameEnd }: ZombieViewProps) {
       }, 1500)
       return false
     }
-    const correct = answer === currentQuestion.answer
+    const correct = isQuizAnswerMatch(answer, currentQuestion.answer)
     if (correct) {
       playSFX('correct')
       actions.onCorrectAnswer()
@@ -157,7 +158,7 @@ export default function ZombieView({ onGameEnd }: ZombieViewProps) {
     <div 
       className="relative w-full h-screen overflow-hidden" 
       style={{ 
-        fontFamily: 'DNFBitBitv2, sans-serif',
+        fontFamily: "'DNFBitBitv2', sans-serif",
         backgroundImage: `linear-gradient(${overlayColor}, rgba(0,0,0,0.7)), url('/zombie/background.png')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center'

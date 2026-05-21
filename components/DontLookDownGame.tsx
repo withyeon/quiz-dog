@@ -3,14 +3,34 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import QuizView from './QuizView'
-
-type Question = {
-    id: string
-    type: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
-    question_text: string
-    options: string[]
-    answer: string
-}
+import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
+import {
+    DB_THROTTLE_MS,
+    POWERUP_COLLECT_RADIUS,
+    SUMMIT_ALERT_MS,
+    UI_SYNC_MS,
+} from '@/components/dontlookdown/constants'
+import type {
+    BackgroundCloud,
+    BackgroundStar,
+    DontLookDownQuestion,
+    GameParticle,
+    QuizFeedback,
+    TrailPoint,
+} from '@/components/dontlookdown/types'
+import {
+    drawAltitudeMarkers,
+    drawBackdrop,
+    drawCharacter,
+    drawClimbAxis,
+    drawObstacles,
+    drawParticles,
+    drawPlatforms,
+    drawPowerUps,
+    drawRoutePath,
+    drawSpeedLines,
+    drawTrail,
+} from '@/components/dontlookdown/renderer'
 
 import {
     type DLDPlayer,
@@ -48,16 +68,11 @@ interface DontLookDownGameProps {
     settings: GameSettings
     onUpdatePlayer: (player: DLDPlayer) => void
     onCollectPowerUp: (powerUpId: string) => void
-    currentQuestion: Question | null
+    currentQuestion: DontLookDownQuestion | null
     onAnswerQuestion: (answer: string) => void
     onPlatformImageSizesLoaded?: (sizes: Record<number, { w: number; h: number }>) => void
     remainingTime?: number
 }
-
-const DB_THROTTLE_MS = 200
-const UI_SYNC_MS = 150
-const SUMMIT_ALERT_MS = 3000
-const POWERUP_COLLECT_RADIUS = 30
 
 export default function DontLookDownGame({
     playerId,
@@ -101,6 +116,12 @@ export default function DontLookDownGame({
     // 타이밍
     const lastFrameTimeRef = useRef<number>(0)
     const lastDbUpdateRef = useRef<number>(0)
+    const shakeRef = useRef(0)
+    const particlesRef = useRef<GameParticle[]>([])
+    const trailRef = useRef<TrailPoint[]>([])
+    const cloudsRef = useRef<BackgroundCloud[]>([])
+    const starsRef = useRef<BackgroundStar[]>([])
+    const comboRef = useRef(0)
 
     // Summit 추적
     const summitTrackRef = useRef<number>(1)
@@ -112,6 +133,56 @@ export default function DontLookDownGame({
     const [uiPlayer, setUiPlayer] = useState<DLDPlayer | null>(null)
     const [showQuiz, setShowQuiz] = useState(false)
     const [showSummitAlert, setShowSummitAlert] = useState<number | null>(null)
+    const [combo, setCombo] = useState(0)
+    const [quizFeedback, setQuizFeedback] = useState<QuizFeedback | null>(null)
+
+    if (cloudsRef.current.length === 0) {
+        cloudsRef.current = Array.from({ length: 24 }, (_, index) => ({
+            x: (index * 173) % WORLD.WIDTH,
+            y: 80 + ((index * 113) % 1700),
+            w: 90 + ((index * 37) % 120),
+            speed: 0.12 + (index % 5) * 0.04,
+            alpha: 0.2 + (index % 4) * 0.08,
+        }))
+    }
+    if (starsRef.current.length === 0) {
+        starsRef.current = Array.from({ length: 80 }, (_, index) => ({
+            x: (index * 97) % WORLD.WIDTH,
+            y: -5200 + ((index * 181) % 3600),
+            size: 1 + (index % 3),
+            alpha: 0.35 + (index % 5) * 0.12,
+        }))
+    }
+
+    const showFeedback = (feedback: QuizFeedback) => {
+        setQuizFeedback(feedback)
+        window.setTimeout(() => setQuizFeedback(null), 1200)
+    }
+
+    const spawnBurst = (
+        x: number,
+        y: number,
+        color: string,
+        count = 12,
+        speed = 220
+    ) => {
+        const next = particlesRef.current.slice()
+        for (let i = 0; i < count; i += 1) {
+            const angle = Math.random() * Math.PI * 2
+            const velocity = speed * (0.35 + Math.random() * 0.75)
+            next.push({
+                x,
+                y,
+                vx: Math.cos(angle) * velocity,
+                vy: Math.sin(angle) * velocity - 80,
+                life: 0.45 + Math.random() * 0.35,
+                maxLife: 0.8,
+                size: 2 + Math.random() * 5,
+                color,
+            })
+        }
+        particlesRef.current = next.slice(-120)
+    }
 
     // ============ props → refs 동기화 ============
     useEffect(() => { platformsRef.current = platforms }, [platforms])
@@ -136,8 +207,8 @@ export default function DontLookDownGame({
         if (initial) {
             playerRef.current = initial
             cameraRef.current = {
-                x: Math.max(0, Math.min(initial.x - WORLD.VIEW_WIDTH / 2, WORLD.WIDTH - WORLD.VIEW_WIDTH)),
-                y: initial.y - WORLD.VIEW_HEIGHT / 2,
+                x: Math.max(0, Math.min(initial.x - WORLD.VIEW_WIDTH * 0.48, WORLD.WIDTH - WORLD.VIEW_WIDTH)),
+                y: initial.y - WORLD.VIEW_HEIGHT * 0.68,
             }
             summitTrackRef.current = initial.currentSummit
             setUiPlayer(initial)
@@ -212,9 +283,13 @@ export default function DontLookDownGame({
             }
             if (gameKey === 'e' && playerRef.current && (playerRef.current.powerUps?.length ?? 0) > 0) {
                 playerRef.current = applyPowerUp(playerRef.current, 0)
+                spawnBurst(playerRef.current.x + PLAYER_SIZE.WIDTH / 2, playerRef.current.y + PLAYER_SIZE.HEIGHT / 2, '#fde047', 18, 260)
+                shakeRef.current = Math.max(shakeRef.current, 6)
             }
             if (gameKey === 'r' && playerRef.current && (playerRef.current.powerUps?.length ?? 0) > 1) {
                 playerRef.current = applyPowerUp(playerRef.current, 1)
+                spawnBurst(playerRef.current.x + PLAYER_SIZE.WIDTH / 2, playerRef.current.y + PLAYER_SIZE.HEIGHT / 2, '#fde047', 18, 260)
+                shakeRef.current = Math.max(shakeRef.current, 6)
             }
         }
 
@@ -248,62 +323,6 @@ export default function DontLookDownGame({
     useEffect(() => {
         let rafId = 0
 
-        const drawCharacter = (
-            ctx: CanvasRenderingContext2D,
-            player: DLDPlayer,
-            avatar: string,
-            isLocal: boolean
-        ) => {
-            const cx = player.x + PLAYER_SIZE.WIDTH / 2
-            const cy = player.y + PLAYER_SIZE.HEIGHT / 2
-
-            // Shield ring
-            if (player.hasShield) {
-                ctx.save()
-                ctx.strokeStyle = '#60a5fa'
-                ctx.lineWidth = 3
-                ctx.beginPath()
-                ctx.arc(cx, cy, PLAYER_SIZE.WIDTH / 2 + 8, 0, Math.PI * 2)
-                ctx.stroke()
-                ctx.restore()
-            }
-
-            // Ghost overlay
-            const ghostActive = !!(player.activePowerUps && player.activePowerUps.has?.('ghost'))
-
-            // Emoji 캐릭터
-            ctx.save()
-            if (ghostActive) ctx.globalAlpha = 0.55
-            ctx.font = '34px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",Arial'
-            ctx.textAlign = 'center'
-            ctx.textBaseline = 'middle'
-            if (!player.facingRight) {
-                ctx.translate(cx, cy)
-                ctx.scale(-1, 1)
-                ctx.fillText(avatar, 0, 0)
-            } else {
-                ctx.fillText(avatar, cx, cy)
-            }
-            ctx.restore()
-
-            // 닉네임 (내 캐릭터는 생략)
-            if (!isLocal) {
-                ctx.save()
-                ctx.font = 'bold 11px Arial'
-                ctx.textAlign = 'center'
-                ctx.textBaseline = 'middle'
-                const m = ctx.measureText(player.nickname)
-                const padX = 5
-                const h = 14
-                const ny = player.y - 12
-                ctx.fillStyle = 'rgba(0,0,0,0.6)'
-                ctx.fillRect(cx - m.width / 2 - padX, ny - h / 2, m.width + padX * 2, h)
-                ctx.fillStyle = '#fff'
-                ctx.fillText(player.nickname, cx, ny)
-                ctx.restore()
-            }
-        }
-
         const drawScene = () => {
             const canvas = canvasRef.current
             const player = playerRef.current
@@ -315,127 +334,51 @@ export default function DontLookDownGame({
             if (canvas.width !== WORLD.VIEW_WIDTH) canvas.width = WORLD.VIEW_WIDTH
             if (canvas.height !== WORLD.VIEW_HEIGHT) canvas.height = WORLD.VIEW_HEIGHT
 
-            const camX = cameraRef.current.x
-            const camY = cameraRef.current.y
+            const shake = shakeRef.current
+            const shakeX = shake > 0 ? (Math.random() - 0.5) * shake : 0
+            const shakeY = shake > 0 ? (Math.random() - 0.5) * shake : 0
+            const camX = cameraRef.current.x - shakeX
+            const camY = cameraRef.current.y - shakeY
+            const now = performance.now()
 
-            // 배경 그라데이션
-            const summit = SUMMITS.find(s => player.currentSummit === s.id)
-            const bgColor = summit?.color || '#87CEEB'
-            const gradient = ctx.createLinearGradient(0, 0, 0, WORLD.VIEW_HEIGHT)
-            gradient.addColorStop(0, bgColor)
-            gradient.addColorStop(1, '#E0F6FF')
-            ctx.fillStyle = gradient
-            ctx.fillRect(0, 0, WORLD.VIEW_WIDTH, WORLD.VIEW_HEIGHT)
+            drawBackdrop(ctx, {
+                player,
+                camX,
+                camY,
+                settings: settingsRef.current,
+                clouds: cloudsRef.current,
+                stars: starsRef.current,
+            })
 
             ctx.save()
             ctx.translate(-camX, -camY)
 
-            // 플랫폼
-            const imgs = platformImagesRef.current
-            const platformsList = platformsRef.current
-            for (const platform of platformsList) {
-                if (!platform.isVisible) continue
+            drawAltitudeMarkers(ctx, settingsRef.current.summitGoal)
+            drawRoutePath(ctx, platformsRef.current)
+            drawClimbAxis(ctx, settingsRef.current.summitGoal)
+            drawPlatforms(ctx, {
+                platforms: platformsRef.current,
+                platformImages: platformImagesRef.current,
+            })
 
-                const img = platform.imageId ? imgs[platform.imageId] : null
-
-                if (platform.type === 'disappearing' && platform.disappearTime) {
-                    const timeLeft = platform.disappearTime - Date.now()
-                    ctx.globalAlpha = Math.max(0.3, timeLeft / 2000)
-                } else {
-                    ctx.globalAlpha = 1
-                }
-
-                if (img && img.complete && img.naturalWidth) {
-                    ctx.drawImage(
-                        img,
-                        0, 0, img.naturalWidth, img.naturalHeight,
-                        platform.x, platform.y, platform.width, platform.height
-                    )
-                } else {
-                    const styleColors: Record<string, string> = {
-                        stone: '#8B8682',
-                        wood: '#8B6914',
-                        chair: '#A0522D',
-                        barrel: '#654321',
-                        table: '#DEB887',
-                        brick: '#8B4513',
-                    }
-                    let pc = styleColors[platform.style || 'stone'] ?? '#808080'
-                    if (platform.type === 'peak') pc = '#FFD700'
-                    else if (platform.type === 'start') pc = '#654321'
-                    else if (platform.type === 'checkpoint') pc = '#2E8B57'
-                    else if (platform.type === 'disappearing') pc = '#FFA500'
-                    else if (platform.type === 'spike') pc = '#A52A2A'
-                    ctx.fillStyle = pc
-                    ctx.fillRect(platform.x, platform.y, platform.width, platform.height)
-                }
-
-                if (platform.type === 'checkpoint') {
-                    ctx.fillStyle = '#FFFFFF'
-                    ctx.font = 'bold 14px Arial'
-                    ctx.textAlign = 'center'
-                    ctx.fillText('💾', platform.x + platform.width / 2, platform.y + platform.height / 2 + 4)
-                }
-                if (platform.type === 'spike') {
-                    ctx.fillStyle = '#FFFFFF'
-                    ctx.font = 'bold 12px Arial'
-                    ctx.textAlign = 'center'
-                    for (let i = 0; i < platform.width / 15; i++) {
-                        ctx.fillText('▲', platform.x + 10 + i * 15, platform.y + 5)
-                    }
-                }
-
-                ctx.globalAlpha = 1
-            }
-
-            // 장애물
-            for (const obstacle of obstaclesRef.current) {
-                if (!obstacle.active) continue
-                if (obstacle.type === 'laser') {
-                    ctx.fillStyle = '#FF0000'
-                    ctx.shadowColor = '#FF0000'
-                    ctx.shadowBlur = 10
-                    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
-                    ctx.shadowBlur = 0
-                } else if (obstacle.type === 'wind') {
-                    ctx.fillStyle = 'rgba(200, 200, 255, 0.2)'
-                    ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height)
-                    ctx.fillStyle = 'rgba(200, 200, 255, 0.5)'
-                    ctx.font = 'bold 20px Arial'
-                    ctx.textAlign = 'center'
-                    const sym = obstacle.direction === 'left' ? '←' : '→'
-                    for (let i = 0; i < 3; i++) {
-                        ctx.fillText(sym, obstacle.x + obstacle.width / 2, obstacle.y + 30 + i * 30)
-                    }
-                }
-            }
-
-            // 파워업
-            const pulse = Math.sin(performance.now() / 200) * 0.2 + 0.8
-            for (const pu of powerUpsRef.current) {
-                if (!pu.active) continue
-                const icon = POWERUP_EFFECTS[pu.type].icon
-                ctx.globalAlpha = pulse
-                ctx.fillStyle = '#FFD700'
-                ctx.beginPath()
-                ctx.arc(pu.x + POWERUP_SIZE.WIDTH / 2, pu.y + POWERUP_SIZE.HEIGHT / 2, 15, 0, Math.PI * 2)
-                ctx.fill()
-                ctx.globalAlpha = 1
-                ctx.font = 'bold 20px Arial'
-                ctx.textAlign = 'center'
-                ctx.fillText(icon, pu.x + POWERUP_SIZE.WIDTH / 2, pu.y + POWERUP_SIZE.HEIGHT / 2 + 7)
-            }
-            ctx.globalAlpha = 1
+            drawObstacles(ctx, obstaclesRef.current, now)
+            drawPowerUps(ctx, powerUpsRef.current, now)
 
             // 다른 플레이어
             for (const op of otherPlayersRef.current) {
-                drawCharacter(ctx, op, op.avatar || '🐕', false)
+                drawCharacter(ctx, { player: op, avatar: op.avatar || '🐕', isLocal: false })
             }
 
+            drawTrail(ctx, trailRef.current)
+
             // 내 플레이어
-            drawCharacter(ctx, player, characterImageRef.current, true)
+            drawCharacter(ctx, { player, avatar: characterImageRef.current, isLocal: true })
+
+            drawParticles(ctx, particlesRef.current)
 
             ctx.restore()
+
+            drawSpeedLines(ctx, player, now)
         }
 
         const tick = (now: number) => {
@@ -453,6 +396,10 @@ export default function DontLookDownGame({
             lastFrameTimeRef.current = now
 
             let player = player0
+            const wasOnGround = player.isOnGround
+            const previousX = player.x
+            const previousY = player.y
+            const previousVy = player.vy
             const keys = keysRef.current
             const left = keys.has('left')
             const right = keys.has('right')
@@ -493,6 +440,14 @@ export default function DontLookDownGame({
                         isOnGround: false,
                         energy: player.energy - ENERGY.JUMP_COST,
                     }
+                    spawnBurst(
+                        player.x + PLAYER_SIZE.WIDTH / 2,
+                        player.y + PLAYER_SIZE.HEIGHT,
+                        '#facc15',
+                        10,
+                        160
+                    )
+                    shakeRef.current = Math.max(shakeRef.current, 3)
                     jumpBufferRef.current = 0
                     coyoteTimerRef.current = 0
                 } else if (!player.isOnGround && player.canDoubleJump) {
@@ -501,12 +456,40 @@ export default function DontLookDownGame({
                         vy: PHYSICS.DOUBLE_JUMP_POWER,
                         canDoubleJump: false,
                     }
+                    spawnBurst(
+                        player.x + PLAYER_SIZE.WIDTH / 2,
+                        player.y + PLAYER_SIZE.HEIGHT / 2,
+                        '#38bdf8',
+                        16,
+                        240
+                    )
+                    shakeRef.current = Math.max(shakeRef.current, 4)
                     jumpBufferRef.current = 0
                 }
             }
 
             // 물리 (초 단위 dt). updatePlayerPhysics가 sweep 충돌로 tunneling 방지.
             player = updatePlayerPhysics(player, platformsRef.current, obstaclesRef.current, dt)
+
+            if (!wasOnGround && player.isOnGround) {
+                const landingForce = Math.min(1, Math.max(0.15, previousVy / PHYSICS.MAX_FALL_SPEED))
+                spawnBurst(
+                    player.x + PLAYER_SIZE.WIDTH / 2,
+                    player.y + PLAYER_SIZE.HEIGHT,
+                    '#e2e8f0',
+                    8 + Math.floor(landingForce * 10),
+                    120 + landingForce * 120
+                )
+                shakeRef.current = Math.max(shakeRef.current, 2 + landingForce * 5)
+            }
+
+            if (previousY > 650 && player.y < previousY - 70) {
+                spawnBurst(previousX + PLAYER_SIZE.WIDTH / 2, previousY, '#fb7185', 22, 280)
+                shakeRef.current = Math.max(shakeRef.current, 12)
+                comboRef.current = 0
+                setCombo(0)
+                showFeedback({ text: '추락! 체크포인트에서 다시 시작', tone: 'bad' })
+            }
 
             // 파워업 시간
             player = updateActivePowerUps(player, dt)
@@ -518,6 +501,8 @@ export default function DontLookDownGame({
                 const dy = (player.y + PLAYER_SIZE.HEIGHT / 2) - (pu.y + POWERUP_SIZE.HEIGHT / 2)
                 if (dx * dx + dy * dy < POWERUP_COLLECT_RADIUS * POWERUP_COLLECT_RADIUS) {
                     player = collectPowerUp(player, pu)
+                    spawnBurst(pu.x + POWERUP_SIZE.WIDTH / 2, pu.y + POWERUP_SIZE.HEIGHT / 2, '#facc15', 18, 260)
+                    shakeRef.current = Math.max(shakeRef.current, 3)
                     onCollectPowerUpRef.current(pu.id)
                 }
             }
@@ -541,12 +526,34 @@ export default function DontLookDownGame({
             // 카메라 lerp (프레임레이트 독립적)
             const targetCamX = Math.max(
                 0,
-                Math.min(player.x - WORLD.VIEW_WIDTH / 2, WORLD.WIDTH - WORLD.VIEW_WIDTH)
+                Math.min(player.x - WORLD.VIEW_WIDTH * 0.48, WORLD.WIDTH - WORLD.VIEW_WIDTH)
             )
-            const targetCamY = player.y - WORLD.VIEW_HEIGHT / 2
+            const lookAhead = player.vy < 0 ? -70 : player.vy > 500 ? 35 : 0
+            const targetCamY = player.y - WORLD.VIEW_HEIGHT * 0.68 + lookAhead
             const camAlpha = 1 - Math.pow(1 - PHYSICS.CAMERA_LERP, dt * 60)
             cameraRef.current.x += (targetCamX - cameraRef.current.x) * camAlpha
             cameraRef.current.y += (targetCamY - cameraRef.current.y) * camAlpha
+
+            shakeRef.current = Math.max(0, shakeRef.current - dt * 24)
+            trailRef.current = [
+                ...trailRef.current
+                    .map(point => ({ ...point, life: point.life - dt }))
+                    .filter(point => point.life > 0),
+                {
+                    x: player.x,
+                    y: player.y,
+                    life: Math.min(0.35, 0.14 + (Math.abs(player.vx) + Math.abs(player.vy)) / 5200),
+                },
+            ].slice(-14)
+            particlesRef.current = particlesRef.current
+                .map(particle => ({
+                    ...particle,
+                    x: particle.x + particle.vx * dt,
+                    y: particle.y + particle.vy * dt,
+                    vy: particle.vy + 520 * dt,
+                    life: particle.life - dt,
+                }))
+                .filter(particle => particle.life > 0)
 
             // DB 업데이트 (throttled, 200ms)
             if (now - lastDbUpdateRef.current >= DB_THROTTLE_MS) {
@@ -573,14 +580,56 @@ export default function DontLookDownGame({
         onAnswerQuestion(answer)
 
         if (playerRef.current && currentQuestion) {
-            const correct = String(answer).trim() === String(currentQuestion.answer).trim()
+            const correct = isQuizAnswerMatch(answer, currentQuestion.answer)
             if (correct) {
-                playerRef.current = giveEnergy(playerRef.current, settingsRef.current.energyPerQuestion)
+                const nextCombo = comboRef.current + 1
+                const comboBonus = Math.min(400, (nextCombo - 1) * 80)
+                const boosted = giveEnergy(
+                    playerRef.current,
+                    settingsRef.current.energyPerQuestion + comboBonus
+                )
+                playerRef.current = {
+                    ...boosted,
+                    vy: Math.min(boosted.vy, nextCombo >= 3 ? -520 : -260),
+                    canDoubleJump: true,
+                }
+                comboRef.current = nextCombo
+                setCombo(nextCombo)
+                shakeRef.current = Math.max(shakeRef.current, nextCombo >= 3 ? 7 : 4)
+                spawnBurst(
+                    boosted.x + PLAYER_SIZE.WIDTH / 2,
+                    boosted.y + PLAYER_SIZE.HEIGHT / 2,
+                    nextCombo >= 3 ? '#a78bfa' : '#22c55e',
+                    nextCombo >= 3 ? 24 : 16,
+                    nextCombo >= 3 ? 320 : 240
+                )
+                showFeedback({
+                    text: nextCombo >= 3 ? `${nextCombo}콤보! 점프 부스트` : `정답! +에너지`,
+                    tone: 'good',
+                })
                 setShowQuiz(false)
                 return true
             }
         }
 
+        if (playerRef.current) {
+            playerRef.current = {
+                ...playerRef.current,
+                energy: Math.max(0, playerRef.current.energy - 180),
+                vx: playerRef.current.vx * 0.55,
+            }
+            spawnBurst(
+                playerRef.current.x + PLAYER_SIZE.WIDTH / 2,
+                playerRef.current.y + PLAYER_SIZE.HEIGHT / 2,
+                '#ef4444',
+                12,
+                180
+            )
+        }
+        comboRef.current = 0
+        setCombo(0)
+        shakeRef.current = Math.max(shakeRef.current, 8)
+        showFeedback({ text: '오답! 에너지 감소', tone: 'bad' })
         setShowQuiz(false)
         return false
     }
@@ -699,6 +748,29 @@ export default function DontLookDownGame({
                     )}
                 </div>
 
+                <AnimatePresence>
+                    {quizFeedback && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.85, y: 12 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: -12 }}
+                            className={`absolute top-24 left-1/2 -translate-x-1/2 rounded-xl px-6 py-3 text-xl font-black text-white shadow-2xl ${
+                                quizFeedback.tone === 'good'
+                                    ? 'bg-emerald-500'
+                                    : 'bg-rose-500'
+                            }`}
+                        >
+                            {quizFeedback.text}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {combo > 1 && (
+                    <div className="absolute top-20 right-4 rounded-xl bg-purple-600 px-5 py-2 font-black text-white shadow-lg">
+                        🔥 {combo} Combo
+                    </div>
+                )}
+
                 <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/95 rounded-xl px-4 py-2 shadow-lg min-w-[300px]">
                     <div className="text-xs font-bold text-gray-600 mb-2 text-center">Leaderboard</div>
                     <div className="space-y-1">
@@ -721,13 +793,13 @@ export default function DontLookDownGame({
                     whileTap={{ scale: 0.95 }}
                     className="absolute bottom-4 left-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg pointer-events-auto"
                 >
-                    Answer Questions (Q)
+                    퀴즈 풀기 (Q)
                 </motion.button>
 
                 <div className="absolute bottom-4 right-4 bg-black/70 text-white px-4 py-3 rounded-xl text-sm space-y-1">
-                    <div>⬅️➡️ Move | ⬆️ Jump</div>
-                    <div>Space: Double Jump | Shift: Run</div>
-                    <div>Q: Quiz | E/R: Use Power-up</div>
+                    <div>←/→ 이동 | ↑/Space 점프</div>
+                    <div>Shift 질주 | Q 퀴즈</div>
+                    <div>E/R 파워업 사용</div>
                 </div>
             </div>
 
@@ -757,16 +829,27 @@ export default function DontLookDownGame({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-                        onClick={() => setShowQuiz(false)}
+                        className="absolute right-4 top-24 z-50 w-[min(420px,calc(100%-2rem))]"
                     >
                         <motion.div
-                            initial={{ scale: 0.9, y: 20 }}
-                            animate={{ scale: 1, y: 0 }}
-                            exit={{ scale: 0.9, y: 20 }}
-                            className="max-w-2xl w-full"
+                            initial={{ opacity: 0, x: 40, scale: 0.96 }}
+                            animate={{ opacity: 1, x: 0, scale: 1 }}
+                            exit={{ opacity: 0, x: 40, scale: 0.96 }}
+                            className="rounded-2xl border-4 border-purple-300 bg-white/95 p-3 shadow-2xl backdrop-blur pointer-events-auto"
                             onClick={e => e.stopPropagation()}
                         >
+                            <div className="mb-2 flex items-center justify-between px-1">
+                                <div className="text-sm font-black text-purple-700">
+                                    빠른 충전 퀴즈
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowQuiz(false)}
+                                    className="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-200"
+                                >
+                                    닫기
+                                </button>
+                            </div>
                             <QuizView
                                 question={currentQuestion}
                                 onAnswer={handleAnswer}

@@ -26,6 +26,60 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function () {
+                var dynamicApiMessages = [
+                  'params are being enumerated. \`params\` is a Promise',
+                  'The keys of \`searchParams\` were accessed directly. \`searchParams\` is a Promise'
+                ];
+
+                function isDynamicApiInspectorNoise(args) {
+                  var text = Array.prototype.slice.call(args).map(function (arg) {
+                    if (typeof arg === 'string') return arg;
+                    if (arg && typeof arg.message === 'string') return arg.message;
+                    return '';
+                  }).join('\\n');
+
+                  if (!dynamicApiMessages.some(function (message) { return text.indexOf(message) !== -1; })) {
+                    return false;
+                  }
+
+                  return (
+                    text.indexOf('must be unwrapped') !== -1 ||
+                    text.indexOf('Object.keys') !== -1 ||
+                    text.indexOf('serializeValue') !== -1 ||
+                    text.indexOf('getReactComponentInfo') !== -1 ||
+                    text.indexOf('mousemoveListener') !== -1 ||
+                    text.indexOf('clickListener') !== -1 ||
+                    text.indexOf('buildDOMTree') !== -1
+                  );
+                }
+
+                function wrapConsoleMethod(method) {
+                  var current = console[method];
+                  if (!current || current.__quizDogDynamicApiPatched) return;
+
+                  var patched = function () {
+                    if (isDynamicApiInspectorNoise(arguments)) return;
+                    return current.apply(console, arguments);
+                  };
+                  patched.__quizDogDynamicApiPatched = true;
+                  console[method] = patched;
+                }
+
+                function installConsoleFilters() {
+                  wrapConsoleMethod('error');
+                  wrapConsoleMethod('warn');
+                }
+
+                installConsoleFilters();
+                var consoleFilterTimer = window.setInterval(installConsoleFilters, 50);
+
+                window.addEventListener('error', function (event) {
+                  if (event && isDynamicApiInspectorNoise([event.message || ''])) {
+                    event.preventDefault();
+                    return false;
+                  }
+                }, true);
+
                 function removeInjectedUserSelect(root) {
                   if (!root || root.nodeType !== 1) return;
                   var nodes = [root];
@@ -64,8 +118,10 @@ export default function RootLayout({
 
                 window.addEventListener('load', function () {
                   window.setTimeout(function () {
+                    window.clearInterval(consoleFilterTimer);
+                    installConsoleFilters();
                     observer.disconnect();
-                  }, 1000);
+                  }, 3000);
                 }, { once: true });
               })();
             `,

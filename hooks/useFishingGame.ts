@@ -116,8 +116,9 @@ export function useFishingGame({
 
   // 언마운트 시 타이머 정리
   useEffect(() => {
+    const sequenceTimers = sequenceTimersRef.current
     return () => {
-      sequenceTimersRef.current.forEach(clearTimeout)
+      sequenceTimers.forEach(clearTimeout)
     }
   }, [])
 

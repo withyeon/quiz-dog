@@ -2,24 +2,17 @@
 
 import { useCallback, useState } from 'react'
 import QRCodeSVG from 'react-qr-code'
+import PomeMascot from '@/components/PomeMascot'
 import PuppyChaosTeacherBoard from '@/components/강아지대소동/강아지대소동TeacherBoard'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { usePuppyChaosEvents } from '@/hooks/use강아지대소동Events'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRoomResync } from '@/hooks/useRoomResync'
+import { formatServiceError } from '@/lib/services/errors'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
-import { createRoom, endRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
+import { assertQuestionSetHasQuestions, createRoom, endRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
 import { updatePlayer } from '@/lib/services/players'
-
-function PomeMascot({ className = 'h-20 w-20' }: { className?: string }) {
-  return (
-    <img
-      src="/mascot_pome.png"
-      alt="퀴즈독 마스코트"
-      className={`inline-block object-contain drop-shadow-md ${className}`}
-    />
-  )
-}
 
 export default function PuppyChaosTeacherPage() {
   const [roomCode, setRoomCode] = useState('')
@@ -34,13 +27,7 @@ export default function PuppyChaosTeacherPage() {
     enabled: Boolean(roomCode),
   })
   const { events } = usePuppyChaosEvents(roomCode, Boolean(roomCode))
-  const resync = useCallback(async (reason?: string) => {
-    if (reason === 'broadcast_hint') return
-    await Promise.all([
-      refreshRoom({ silent: true }),
-      refreshPlayers({ silent: true }),
-    ])
-  }, [refreshPlayers, refreshRoom])
+  const resync = useRoomResync(refreshRoom, refreshPlayers)
   const { sendEvent, status: realtimeStatus, onlineCount } = useRoomChannel({
     roomCode,
     role: 'teacher',
@@ -63,10 +50,15 @@ export default function PuppyChaosTeacherPage() {
 
     setIsBusy(true)
     try {
-      const created = await createRoom({ setId: null, gameMode: 'poop_dodge' })
+      const setId = new URLSearchParams(window.location.search).get('set')
+      if (!setId) {
+        throw new Error('문제집에서 강아지 대소동을 선택해 시작해주세요.')
+      }
+      await assertQuestionSetHasQuestions(setId)
+      const created = await createRoom({ setId, gameMode: 'poop_dodge' })
       setRoomCode(created.room_code)
     } catch (error) {
-      alert('세션 생성에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      alert('세션 생성에 실패했습니다: ' + formatServiceError(error))
     } finally {
       setIsBusy(false)
     }
@@ -76,10 +68,14 @@ export default function PuppyChaosTeacherPage() {
     if (!roomCode) return
     setIsBusy(true)
     try {
+      if (!room?.set_id) {
+        throw new Error('연결된 문제집이 없습니다. 문제집에서 다시 시작해주세요.')
+      }
+      await assertQuestionSetHasQuestions(room?.set_id ?? null)
       await startRoom({ roomCode, gameMode: 'poop_dodge' })
       broadcastRoomPatch({ status: 'playing', game_mode: 'poop_dodge', started_at: new Date().toISOString() }, 'poop_dodge_start')
     } catch (error) {
-      alert('게임 시작에 실패했습니다: ' + (error instanceof Error ? error.message : 'Unknown error'))
+      alert('게임 시작에 실패했습니다: ' + formatServiceError(error))
     } finally {
       setIsBusy(false)
     }
@@ -119,7 +115,7 @@ export default function PuppyChaosTeacherPage() {
     : ''
 
   return (
-    <main className="min-h-screen bg-[#E0F2FE] p-5 text-slate-950" style={{ fontFamily: 'BMJUA, sans-serif' }}>
+    <main className="min-h-screen bg-[#E0F2FE] p-5 text-slate-950" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       <div className="mx-auto max-w-7xl">
         {!roomCode || !room ? (
           <section className="grid min-h-[calc(100vh-40px)] place-items-center">

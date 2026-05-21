@@ -19,5 +19,10 @@ export function formatServiceError(error: unknown): string {
     if (parts.length > 0) return parts.join(' | ')
   }
 
-  return String(error)
+  try {
+    const json = JSON.stringify(error)
+    return typeof json === 'string' ? json : String(error)
+  } catch {
+    return String(error)
+  }
 }

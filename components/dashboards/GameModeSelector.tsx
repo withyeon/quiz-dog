@@ -39,7 +39,7 @@ export default function GameModeSelector({ selectedMode, onSelectMode }: GameMod
               )}
               <div
                 className="text-base text-gray-600 text-center px-2"
-                style={{ fontFamily: mode.fontFamily ?? 'DNFBitBitv2, sans-serif' }}
+                style={{ fontFamily: mode.fontFamily ?? "'DNFBitBitv2', sans-serif" }}
               >
                 {mode.description}
               </div>

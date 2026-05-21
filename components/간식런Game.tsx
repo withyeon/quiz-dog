@@ -2,17 +2,21 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
+import { displayBlankText } from '@/lib/quiz/blankText'
+import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import {
   type GansikRunState, type Lane, type ItemType,
-  createInitialState, gameTick, moveLane, handleQuizResult,
+  createInitialState, gameTick, moveLane, handleQuizResult, jump, slide,
   getCurrentSpeed, formatTime, GAME, ITEM_DEFS, OBSTACLE_EMOJIS, addFloatingText,
 } from '@/lib/game/간식런'
 import {
   type RenderState, createRenderState, project, laneX,
   drawSky, drawRoad, drawSideTrees, drawDog,
-  drawObstacle, drawBone, drawBox,
+  drawObstacle, drawObstacleLow, drawObstacleHigh, drawBone, drawBox,
   drawParticles, updateParticles, spawnParticles,
-  drawSpeedLines, drawMagnetField,
+  drawSpeedLines, drawMagnetField, drawChaser, drawChaserWarning,
+  drawTunnelVision, drawGhostTrail,
 } from '@/lib/game/간식런Renderer'
 import ItemRoulette from '@/components/ItemRoulette'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
@@ -103,6 +107,14 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
         e.preventDefault()
         stateRef.current = moveLane(stateRef.current, 'right')
       }
+      if (e.key === 'ArrowUp' || e.key === 'w') {
+        e.preventDefault()
+        stateRef.current = jump(stateRef.current)
+      }
+      if (e.key === 'ArrowDown' || e.key === 's') {
+        e.preventDefault()
+        stateRef.current = slide(stateRef.current)
+      }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
@@ -118,8 +130,12 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
     const onEnd = (e: TouchEvent) => {
       if (!touchStartRef.current || showQuiz) return
       const dx = e.changedTouches[0].clientX - touchStartRef.current.x
-      if (Math.abs(dx) > 30) {
+      const dy = e.changedTouches[0].clientY - touchStartRef.current.y
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
         stateRef.current = moveLane(stateRef.current, dx < 0 ? 'left' : 'right')
+      } else if (Math.abs(dy) > 30) {
+        if (dy < 0) stateRef.current = jump(stateRef.current)
+        else stateRef.current = slide(stateRef.current)
       }
       touchStartRef.current = null
     }
@@ -142,7 +158,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
       setShowQuiz(true)
       setQuizTimer(GAME.QUIZ_TIMEOUT)
     }
-  })
+  }, [showQuiz, questions])
 
   // ─── 퀴즈 답변 ───
   const handleAnswer = useCallback(async (answer: string) => {
@@ -155,7 +171,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
     if (submittedAnswer) {
       const localAnswer = currentQ.answer.trim()
       if (localAnswer) {
-        correct = submittedAnswer === localAnswer
+        correct = isQuizAnswerMatch(submittedAnswer, localAnswer)
       } else {
         try {
           correct = await checkQuestionAnswer(currentQ.id, submittedAnswer)
@@ -212,7 +228,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
         })
       }
     }
-  })
+  }, [showRoulette, onItemActivated])
 
   useEffect(() => {
     return () => {
@@ -387,6 +403,10 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
 
         if (obj.type === 'obstacle') {
           drawObstacle(ctx, ox, screenY, scale, 0)
+        } else if (obj.type === 'obstacle_low') {
+          drawObstacleLow(ctx, ox, screenY, scale, state.frameCount)
+        } else if (obj.type === 'obstacle_high') {
+          drawObstacleHigh(ctx, ox, screenY, scale, state.frameCount)
         } else if (obj.type === 'bone') {
           drawBone(ctx, ox, screenY, scale, false, state.frameCount)
         } else if (obj.type === 'golden_bone') {
@@ -395,6 +415,9 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
           drawBox(ctx, ox, screenY, scale, state.frameCount, state.frameCount - (obj.spawnedAt ?? state.frameCount))
         }
       }
+
+      // ── 추격자 ──
+      drawChaser(ctx, w, h, state.chaserDistance, state.frameCount)
 
       // ── 강아지 캐릭터 (고정 위치) ──
       const playerT = 0.82
@@ -407,11 +430,30 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
         drawMagnetField(ctx, dogX, dogY, dogSize, state.frameCount)
       }
 
+      // 잔상 효과
+      if (state.speedMultiplier > 1) {
+        r.ghostTrails.push({ x: dogX, y: dogY, alpha: 0.5 })
+        r.ghostTrails = r.ghostTrails
+          .map(t => ({ ...t, alpha: t.alpha - 0.05 }))
+          .filter(t => t.alpha > 0)
+          .slice(-8)
+        drawGhostTrail(ctx, r.ghostTrails, dogSize)
+      } else {
+        r.ghostTrails = []
+      }
+
       drawDog(ctx, dogX, dogY, dogSize,
-        state.frameCount, state.isBigDog, state.hasShield, state.isDrone, state.invincibleTimer)
+        state.frameCount, state.isBigDog, state.hasShield, state.isDrone, state.invincibleTimer,
+        state.jumpProgress, state.slideProgress)
 
       // ── 파티클 ──
       drawParticles(ctx, r.particles)
+
+      // ── 속도 이펙트 ──
+      drawTunnelVision(ctx, w, h, state.speedMultiplier)
+
+      // ── 추격자 경고 ──
+      drawChaserWarning(ctx, w, h, state.chaserDistance, state.frameCount)
 
       // ── 하단 비네트 ──
       const vignette = ctx.createLinearGradient(0, h - 80, 0, h)
@@ -438,7 +480,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
   const isScreenShrunk = activeScreenAttacks.some((attack) => attack.type === 'screen_shrink')
 
   return (
-    <div ref={containerRef} className="relative w-full h-full" style={{ fontFamily: 'BMJUA, sans-serif' }}>
+    <div ref={containerRef} className="relative w-full h-full" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       <canvas
         ref={canvasRef}
         className="w-full h-full block"
@@ -546,6 +588,18 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
             </div>
           </div>
         )}
+
+        {/* 추격자 경고 */}
+        {state.chaserWarning && (
+          <div className="flex justify-center mt-1">
+            <div className="px-3 py-0.5 rounded-full text-xs font-bold text-white animate-pulse" style={{
+              background: 'linear-gradient(90deg, rgba(239,68,68,0.8), rgba(185,28,28,0.8))',
+              boxShadow: '0 0 12px rgba(239,68,68,0.4)',
+            }}>
+              🐱 추격자 접근 중!
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── 카트라이더 스타일 아이템 룰렛 ── */}
@@ -558,7 +612,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 0.5, times: [0, 0.22, 0.78, 1] }}
             className="absolute inset-0 z-[55] flex items-center justify-center pointer-events-none"
-            style={{ fontFamily: 'BMJUA, sans-serif' }}
+            style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
           >
             <div className="absolute inset-0" style={{
               background: 'radial-gradient(circle at center, rgba(251,191,36,0.24), rgba(0,0,0,0) 42%)',
@@ -631,7 +685,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
               </div>
 
               {/* 문제 */}
-              <h3 className="text-lg font-bold text-white mb-3 leading-snug">{currentQ.question_text}</h3>
+              <h3 className="text-lg font-bold text-white mb-3 leading-snug">{displayBlankText(currentQ.question_text)}</h3>
 
               {/* 4지선다 */}
               <div className="grid grid-cols-2 gap-2">
@@ -654,7 +708,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
                         boxShadow: `0 4px 12px ${colors[i][0]}33`,
                       }}
                     >
-                      <span className="font-bold mr-2 opacity-70">{String.fromCharCode(65 + i)}</span>
+                      <span className="font-bold mr-2 opacity-70">{getOptionLabel(i)}</span>
                       {opt}
                     </motion.button>
                   )
@@ -666,27 +720,51 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
       </AnimatePresence>
 
       {/* ── 모바일 조작 버튼 ── */}
-      <div className="absolute bottom-4 left-4 right-4 z-20 flex justify-between pointer-events-none md:hidden">
-        <button
-          onTouchStart={() => { stateRef.current = moveLane(stateRef.current, 'left') }}
-          className="pointer-events-auto w-16 h-16 rounded-full flex items-center justify-center text-2xl text-white font-bold active:scale-90 transition-transform"
-          style={{
-            background: 'rgba(255,255,255,0.12)',
-            border: '2px solid rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(4px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          }}
-        >←</button>
-        <button
-          onTouchStart={() => { stateRef.current = moveLane(stateRef.current, 'right') }}
-          className="pointer-events-auto w-16 h-16 rounded-full flex items-center justify-center text-2xl text-white font-bold active:scale-90 transition-transform"
-          style={{
-            background: 'rgba(255,255,255,0.12)',
-            border: '2px solid rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(4px)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-          }}
-        >→</button>
+      <div className="absolute bottom-4 left-4 right-4 z-20 pointer-events-none md:hidden">
+        <div className="flex justify-between items-end">
+          <button
+            onTouchStart={() => { stateRef.current = moveLane(stateRef.current, 'left') }}
+            className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center text-xl text-white font-bold active:scale-90 transition-transform"
+            style={{
+              background: 'rgba(255,255,255,0.12)',
+              border: '2px solid rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(4px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            }}
+          >←</button>
+          <div className="flex flex-col gap-2 items-center">
+            <button
+              onTouchStart={() => { stateRef.current = jump(stateRef.current) }}
+              className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center text-xl text-white font-bold active:scale-90 transition-transform"
+              style={{
+                background: 'rgba(16,185,129,0.2)',
+                border: '2px solid rgba(16,185,129,0.4)',
+                backdropFilter: 'blur(4px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              }}
+            >↑</button>
+            <button
+              onTouchStart={() => { stateRef.current = slide(stateRef.current) }}
+              className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center text-xl text-white font-bold active:scale-90 transition-transform"
+              style={{
+                background: 'rgba(59,130,246,0.2)',
+                border: '2px solid rgba(59,130,246,0.4)',
+                backdropFilter: 'blur(4px)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              }}
+            >↓</button>
+          </div>
+          <button
+            onTouchStart={() => { stateRef.current = moveLane(stateRef.current, 'right') }}
+            className="pointer-events-auto w-14 h-14 rounded-full flex items-center justify-center text-xl text-white font-bold active:scale-90 transition-transform"
+            style={{
+              background: 'rgba(255,255,255,0.12)',
+              border: '2px solid rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(4px)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            }}
+          >→</button>
+        </div>
       </div>
     </div>
   )
