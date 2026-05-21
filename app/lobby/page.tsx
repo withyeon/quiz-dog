@@ -13,11 +13,11 @@ import { CHARACTERS, type Character } from '@/lib/utils/characters'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
-import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
+import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl } from '@/lib/game/modes'
 import { formatServiceError } from '@/lib/services/errors'
 import { createPlayerForRoom, ensureRoomExists, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
 import { ShibaDog, DogGroup } from '@/components/PixelDogs'
-import { PixelBtn, PixelInput, PixelPanel, GameModeButton, PlayerAvatar } from '@/components/lobby/LobbyUI'
+import { PixelBtn, PixelInput, PixelPanel, PlayerAvatar } from '@/components/lobby/LobbyUI'
 import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
 
 type LobbyStep = 'code' | 'nickname' | 'character' | 'minigame'
@@ -50,20 +50,12 @@ export default function LobbyPage() {
 
   // 게임 시작 감지
   useEffect(() => {
-    console.log('[lobby] redirect-check', {
-      status: room?.status,
-      gameMode: room?.game_mode,
-      playerId,
-      step,
-      realtimeStatus,
-    })
     if (room?.status === 'playing' && playerId && (step === 'character' || step === 'minigame')) {
       const gameMode = room?.game_mode || DEFAULT_GAME_MODE
       const gameUrl = getGameModeUrl(gameMode, roomCode, playerId)
-      console.log('[lobby] redirecting to', gameUrl)
       router.replace(gameUrl)
     }
-  }, [room?.status, step, roomCode, playerId, room?.game_mode, router, realtimeStatus])
+  }, [room?.status, step, roomCode, playerId, room?.game_mode, router])
 
   const handleCodeSubmit = async () => {
     if (!roomCode.trim() || roomCode.length !== 6) {
@@ -80,6 +72,10 @@ export default function LobbyPage() {
       }
       if (roomData.status === 'finished') {
         alert('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
+        return
+      }
+      if (roomData.status === 'playing') {
+        alert('이미 시작된 게임이에요. 다음 게임이 열릴 때 입장해주세요.')
         return
       }
       setStep('nickname')
@@ -101,6 +97,11 @@ export default function LobbyPage() {
     setSelectedCharacter(character)
     try {
       const roomData = await ensureRoomExists(roomCode)
+      if (roomData.status !== 'waiting') {
+        alert('이미 시작된 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
+        setStep('code')
+        return
+      }
       const nicknameCheck = filterNickname(nickname)
       const finalNickname = nicknameCheck.filtered || nickname.trim()
 
@@ -113,7 +114,7 @@ export default function LobbyPage() {
       const playerData = await createPlayerForRoom({
         roomCode,
         nickname: finalNickname,
-        avatar: character.emoji,
+        avatar: character.imagePath || character.emoji,
         gameMode: roomData.game_mode,
       })
 
@@ -296,10 +297,26 @@ export default function LobbyPage() {
                       <h3 className="text-xl font-black mb-4" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>{selectedCharacter.name}</h3>
 
                       {isJoined ? (
-                        <>
-                          <GameModeButton roomCode={roomCode} playerId={playerId} gameMode={room?.game_mode || DEFAULT_GAME_MODE} />
-                          <PixelBtn color="purple" onClick={() => setStep('minigame')} className="w-full text-base py-3 mt-3">🎮 미니게임 하기</PixelBtn>
-                        </>
+                        <div className="space-y-3">
+                          <div
+                            className="rounded-xl px-4 py-4 text-center"
+                            style={{
+                              background: 'rgba(45,158,94,0.12)',
+                              border: '3px solid rgba(45,158,94,0.35)',
+                              color: '#155B33',
+                              fontFamily: "'DNFBitBitv2', sans-serif",
+                            }}
+                          >
+                            <div className="mb-1 text-2xl">✅</div>
+                            <div className="font-black">입장 완료!</div>
+                            <div className="mt-1 text-sm font-black opacity-80">
+                              선생님이 시작하면 자동으로 이동해요
+                            </div>
+                          </div>
+                          <PixelBtn color="purple" onClick={() => setStep('minigame')} className="w-full text-base py-3">
+                            🎮 기다리는 동안 미니게임
+                          </PixelBtn>
+                        </div>
                       ) : (
                         <div className="py-3 px-4 rounded-xl text-center font-black" style={{ background: 'rgba(193,123,58,0.15)', border: '3px solid rgba(193,123,58,0.4)', color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
                           ⏳ 캐릭터를 선택해주세요!
@@ -310,6 +327,11 @@ export default function LobbyPage() {
 
                   <PixelPanel label={`👥 플레이어 (${players.length}명)`} labelColor="#2D9E5E">
                     <div className="p-4 pt-8">
+                      {room && (
+                        <div className="mb-3 rounded-xl bg-white/70 px-3 py-2 text-center text-sm font-black" style={{ color: '#5B3A1A' }}>
+                          {getGameModeConfig(room.game_mode || DEFAULT_GAME_MODE).emoji} {getGameModeConfig(room.game_mode || DEFAULT_GAME_MODE).shortLabel} 대기방
+                        </div>
+                      )}
                       <div className="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto">
                         {players.length === 0 ? (
                           <div className="col-span-4 text-center py-4 font-black" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>아직 아무도 없어요...</div>
