@@ -19,6 +19,19 @@ type RefreshOptions = {
   silent?: boolean
 }
 
+function getLoadErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message || 'Failed to load room')
+  }
+  return 'Failed to load room'
+}
+
+function isTransientFetchFailure(error: unknown): boolean {
+  const message = getLoadErrorMessage(error)
+  return message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('Load failed')
+}
+
 export function useRoomRealtime({
   roomCode,
   enabled = true,
@@ -85,8 +98,16 @@ export function useRoomRealtime({
       }
     } catch (err) {
       if (seq === loadSeqRef.current) {
-        setError(err instanceof Error ? err : new Error('Failed to load room'))
-        console.error('Error loading room:', err)
+        const errorMessage = getLoadErrorMessage(err)
+        if (isTransientFetchFailure(err)) {
+          // 일시적인 REST fetch 실패는 기존 room 상태를 유지하고 개발 오버레이를 띄우지 않습니다.
+          console.warn('방 실시간 갱신 일시 실패:', errorMessage)
+          setError(null)
+          return
+        }
+
+        setError(new Error(errorMessage))
+        console.warn('방 로드 실패:', errorMessage)
       }
     } finally {
       if (seq === loadSeqRef.current && !silent) {

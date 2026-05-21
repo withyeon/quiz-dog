@@ -22,6 +22,19 @@ type RefreshOptions = {
   silent?: boolean
 }
 
+function getLoadErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object' && 'message' in error) {
+    return String((error as { message?: unknown }).message || 'Failed to load players')
+  }
+  return 'Failed to load players'
+}
+
+function isTransientFetchFailure(error: unknown): boolean {
+  const message = getLoadErrorMessage(error)
+  return message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('Load failed')
+}
+
 export function usePlayersRealtime({
   roomCode,
   enabled = true,
@@ -95,17 +108,22 @@ export function usePlayersRealtime({
         .eq('room_code', roomCode)
         .order('score', { ascending: false })
 
-      if (fetchError) {
-        throw new Error(fetchError.message || 'Failed to load players')
-      }
+      if (fetchError) throw fetchError
 
       if (seq === loadSeqRef.current) {
         setPlayers(sortPlayersByScore((data ?? []) as Player[]))
       }
     } catch (err) {
       if (seq === loadSeqRef.current) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load players'
-        console.error('플레이어 로드 실패:', errorMessage, err)
+        const errorMessage = getLoadErrorMessage(err)
+        if (isTransientFetchFailure(err)) {
+          // Supabase 네트워크가 잠깐 흔들리는 동안 Next dev overlay가 뜨지 않도록 기존 목록을 유지합니다.
+          console.warn('플레이어 실시간 갱신 일시 실패:', errorMessage)
+          setError(null)
+          return
+        }
+
+        console.warn('플레이어 로드 실패:', errorMessage)
         setError(new Error(errorMessage))
       }
     } finally {
