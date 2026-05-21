@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
 import type { CafeItem, ItemId } from '@/lib/game/cafeItems'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -113,7 +114,13 @@ export default function ItemChoiceModal({
                 onClick={() => onSelect(selectedItem.id, player.id)}
                 className="flex min-h-20 flex-col items-center gap-1 rounded-lg border-2 border-rose-300 bg-rose-50 p-3 font-bold hover:bg-rose-100"
               >
-                <span className="text-2xl">{player.avatar || '🐕'}</span>
+                <PlayerAvatarDisplay
+                  avatar={player.avatar}
+                  nickname={player.nickname}
+                  fallback="🐕"
+                  className="relative h-9 w-9 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-rose-200"
+                  sizes="36px"
+                />
                 <span className="w-full truncate text-center text-xs text-slate-700">{player.nickname}</span>
                 <span className="text-xs font-black text-green-600">${(player.score || 0).toLocaleString()}</span>
               </button>

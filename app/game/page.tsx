@@ -8,6 +8,7 @@ import QuizView from '@/components/QuizView'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { useGameBase } from '@/hooks/useGameBase'
 import { BOX_EVENT_IMAGE, generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
 import PlayerSelector from '@/components/PlayerSelector'
@@ -522,9 +523,13 @@ export default function GamePage() {
                         }`}>
                           #{index + 1}
                         </div>
-                        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/10 text-2xl">
-                          {player.avatar || 'P'}
-                        </div>
+                        <PlayerAvatarDisplay
+                          avatar={player.avatar}
+                          nickname={player.nickname}
+                          fallback="P"
+                          className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/10 text-2xl"
+                          sizes="40px"
+                        />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="truncate font-black">{player.nickname}</span>

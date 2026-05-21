@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Database } from '@/types/database.types'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import { getPlayerDisplayNickname } from '@/lib/utils/playerDisplay'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -88,6 +90,7 @@ export default function Leaderboard({
             {sortedPlayers.map((player, index) => {
               const rankChange = getRankChange(player.id, index)
               const isCurrentPlayer = player.id === currentPlayerId
+              const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
 
               return (
                 <motion.div
@@ -127,13 +130,19 @@ export default function Leaderboard({
                     <motion.span
                       animate={{ rotate: [0, 10, -10, 0] }}
                       transition={{ duration: 2, repeat: Infinity, delay: index * 0.2 }}
-                      className="text-3xl"
+                      className="inline-flex"
                     >
-                      {player.avatar || '🎮'}
+                      <PlayerAvatarDisplay
+                        avatar={player.avatar}
+                        nickname={displayNickname}
+                        fallback="🎮"
+                        className="relative h-12 w-12 overflow-hidden rounded-xl bg-white text-3xl ring-1 ring-gray-200"
+                        sizes="48px"
+                      />
                     </motion.span>
                     <div>
                       <div className="font-bold text-gray-800 text-lg">
-                        {player.nickname}
+                        {displayNickname}
                         {isCurrentPlayer && (
                           <span className="ml-2 text-xs bg-primary-500 text-white px-2 py-1 rounded-full">
                             나

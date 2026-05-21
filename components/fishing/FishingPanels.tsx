@@ -11,6 +11,7 @@ import {
 } from '@/lib/game/fishing'
 import type { useFishingGame } from '@/hooks/useFishingGame'
 import type { Database } from '@/types/database.types'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
 export type FishingPlayer = Database['public']['Tables']['players']['Row'] & {
     caught_dolls?: Doll[]
@@ -105,9 +106,13 @@ export function LeaderboardPanel({ players, playerId }: { players: FishingPlayer
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex min-w-0 items-center gap-2">
                                     <span className={`w-6 text-sm font-black ${rankColors[index] ?? 'text-slate-400'}`}>#{index + 1}</span>
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-xs font-black text-slate-600">
-                                        {player.avatar || player.nickname?.slice(0, 1) || 'P'}
-                                    </span>
+                                    <PlayerAvatarDisplay
+                                        avatar={player.avatar}
+                                        nickname={player.nickname}
+                                        fallback={player.nickname?.slice(0, 1) || 'P'}
+                                        className="relative h-7 w-7 shrink-0 overflow-hidden rounded-md bg-slate-100 text-xs font-black text-slate-600"
+                                        sizes="28px"
+                                    />
                                     <span className="truncate text-sm font-bold text-slate-800">{player.nickname}</span>
                                 </div>
                                 <div className="shrink-0 text-right">

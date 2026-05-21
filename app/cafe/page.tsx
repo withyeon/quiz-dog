@@ -14,7 +14,6 @@ import { formatTime, MENU_ITEMS } from '@/lib/game/cafe'
 import { useGameBase } from '@/hooks/useGameBase'
 import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
-import { updatePlayer } from '@/lib/services/players'
 
 type CafeViewType = 'lobby' | 'playing' | 'result'
 
@@ -35,6 +34,7 @@ export default function CafePage() {
     goToNextQuestion,
     consecutiveCorrect,
     sendRoomEvent,
+    commitPlayerPatch,
     playBGM,
     playSFX,
   } = useGameBase({ expectedGameMode: 'cafe' })
@@ -60,9 +60,15 @@ export default function CafePage() {
 
   // room 상태가 'playing'이 되면 자동으로 게임 시작
   useEffect(() => {
-    if (room?.status === 'playing' && currentView === 'lobby' && status !== 'playing') {
-      startGame(selectedDuration)
-      setCurrentView('playing')
+    if (room?.status === 'playing') {
+      if (status !== 'playing' && status !== 'ended') {
+        startGame(selectedDuration)
+      }
+      if (currentView !== 'playing' && currentView !== 'result') {
+        setCurrentView('playing')
+      }
+    } else if (room?.status === 'finished' && currentView !== 'result') {
+      setCurrentView('result')
     } else if (room?.status === 'waiting' && currentView !== 'lobby') {
       resetGame()
       setCurrentView('lobby')
@@ -137,9 +143,12 @@ export default function CafePage() {
     }
 
     scoreSyncTimerRef.current = setTimeout(() => {
-      void updatePlayer(playerId, { score: totalCash })
+      void commitPlayerPatch(playerId, {
+        score: totalCash,
+        cafe_cash: totalCash,
+      }, 'cafe_score_update')
     }, 500)
-  }, [playerId])
+  }, [commitPlayerPatch, playerId])
 
   const handleStartGame = () => {
     startGame(selectedDuration)

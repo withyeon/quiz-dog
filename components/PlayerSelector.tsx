@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { ArrowRight, Coins, Target } from 'lucide-react'
 import type { Database } from '@/types/database.types'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -89,9 +90,13 @@ export default function PlayerSelector({
               }`}
             >
               <div className="flex h-full items-center gap-4">
-                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-3xl shadow-sm">
-                  {player.avatar || 'P'}
-                </div>
+                <PlayerAvatarDisplay
+                  avatar={player.avatar}
+                  nickname={player.nickname}
+                  fallback="P"
+                  className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white text-3xl shadow-sm"
+                  sizes="56px"
+                />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-lg font-black text-[#17262a]">

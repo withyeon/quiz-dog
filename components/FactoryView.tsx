@@ -16,10 +16,14 @@ import {
   upgradeFactory,
 } from '@/lib/game/factory'
 import { updatePlayer } from '@/lib/services/players'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import { getPlayerDisplayNickname } from '@/lib/utils/playerDisplay'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   factories?: PlayerFactory[]
   factory_money?: number
+  convenience_products?: unknown[] | null
+  convenience_money?: number
 }
 
 interface FactoryViewProps {
@@ -37,7 +41,7 @@ export default function FactoryView({
   const [factories, setFactories] = useState<PlayerFactory[]>(
     (currentPlayer?.factories as PlayerFactory[]) || []
   )
-  const [money, setMoney] = useState(currentPlayer?.factory_money || 0)
+  const [money, setMoney] = useState(currentPlayer?.convenience_money ?? currentPlayer?.factory_money ?? 0)
   const [lastUpdateTime, setLastUpdateTime] = useState(Date.now())
 
   // DB 업데이트 함수
@@ -131,9 +135,18 @@ export default function FactoryView({
   }
 
   // 돈 순으로 정렬
+  const getPlayerMoney = (player: Player) => (
+    player.convenience_money ?? player.factory_money ?? player.score ?? 0
+  )
+  const getPlayerProductCount = (player: Player) => {
+    if (Array.isArray(player.convenience_products)) return player.convenience_products.length
+    if (Array.isArray(player.factories)) return player.factories.length
+    return 0
+  }
+
   const sortedPlayers = [...players].sort((a, b) => {
-    const moneyA = a.factory_money || 0
-    const moneyB = b.factory_money || 0
+    const moneyA = getPlayerMoney(a)
+    const moneyB = getPlayerMoney(b)
     return moneyB - moneyA
   })
 
@@ -261,8 +274,9 @@ export default function FactoryView({
         <h3 className="text-xl font-bold mb-4">📊 부자 순위</h3>
         <div className="space-y-2">
           {sortedPlayers.map((player, index) => {
-            const playerMoney = player.factory_money || 0
-            const playerFactories = (player.factories as PlayerFactory[]) || []
+            const playerMoney = getPlayerMoney(player)
+            const productCount = getPlayerProductCount(player)
+            const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
 
             return (
               <motion.div
@@ -288,16 +302,22 @@ export default function FactoryView({
                   >
                     {index + 1}
                   </div>
-                  <div className="text-2xl">{player.avatar || '🐕'}</div>
+                  <PlayerAvatarDisplay
+                    avatar={player.avatar}
+                    nickname={displayNickname}
+                    fallback="🐕"
+                    className="relative h-11 w-11 overflow-hidden rounded-xl bg-white text-2xl ring-1 ring-gray-200"
+                    sizes="44px"
+                  />
                   <div>
                     <div className="font-bold text-gray-900">
-                      {player.nickname}
+                      {displayNickname}
                       {player.id === currentPlayerId && (
                         <span className="ml-2 text-yellow-500">⭐</span>
                       )}
                     </div>
                     <div className="text-sm text-gray-600">
-                      공장 {playerFactories.length}개
+                      상품 {productCount}개
                     </div>
                   </div>
                 </div>

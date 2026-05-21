@@ -21,6 +21,7 @@ import {
 import type { Database } from '@/types/database.types'
 import type { GameModeId } from '@/lib/game/modes'
 import { displayBlankText } from '@/lib/quiz/blankText'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -232,7 +233,13 @@ export default function GameResult({
                         <div className="w-8 text-center font-bold text-gray-600">
                           #{index + 1}
                         </div>
-                        <span className="text-2xl">{player.avatar || '🎮'}</span>
+                        <PlayerAvatarDisplay
+                          avatar={player.avatar}
+                          nickname={player.nickname}
+                          fallback="🎮"
+                          className="relative h-9 w-9 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-gray-200"
+                          sizes="36px"
+                        />
                         <div>
                           <div className="font-semibold text-gray-800">{player.nickname}</div>
                           <div className="text-sm text-gray-500">

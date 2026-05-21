@@ -16,6 +16,7 @@ import {
   type QuestionAnalysis,
   type Room,
 } from './resultAnalytics'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
 type StudentResultViewProps = {
   room: Room
@@ -78,9 +79,13 @@ export default function StudentResultView({
                 {student.totalCount}문제 중 {student.correctCount}개 정답
               </p>
             </div>
-            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white text-6xl shadow-sm">
-              {student.avatar || '🐶'}
-            </div>
+            <PlayerAvatarDisplay
+              avatar={student.avatar}
+              nickname={student.nickname}
+              fallback="🐶"
+              className="relative h-28 w-28 overflow-hidden rounded-full bg-white text-6xl shadow-sm"
+              sizes="112px"
+            />
           </div>
           <p className="mt-5 rounded-md bg-white/80 px-4 py-3 text-base font-bold text-slate-700">
             {isTopThree ? '멋진 집중력이었어요. 오늘 배운 것도 한 번 더 확인해볼까요?' : '좋아요. 틀린 문제만 차근차근 다시 보면 다음 게임은 훨씬 가벼워질 거예요.'}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, useEffect } from 'react'
+import { useCallback, useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
@@ -24,6 +24,7 @@ import {
   updateRoomGameMode,
 } from '@/lib/services/rooms'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
+import { getPlayerDisplayNickname, isAvatarPath } from '@/lib/utils/playerDisplay'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -32,6 +33,7 @@ export default function TeacherDashboard() {
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
   const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [factoryDurationMinutes, setFactoryDurationMinutes] = useState(5) // 편의점 게임 제한 시간(분)
+  const autoFinishRequestedRef = useRef(false)
 
   const { players, refreshPlayers } = usePlayersRealtime({ roomCode })
   const { room, refreshRoom } = useRoomRealtime({ roomCode })
@@ -77,7 +79,52 @@ export default function TeacherDashboard() {
   useEffect(() => {
     if (!roomStatus) return
     setIsGameStarted(roomStatus === 'playing')
+    if (roomStatus !== 'playing') {
+      autoFinishRequestedRef.current = false
+    }
   }, [roomStatus])
+
+  useEffect(() => {
+    if (
+      !roomCode
+      || !room
+      || room.status !== 'playing'
+      || room.game_mode !== 'factory'
+      || !room.started_at
+      || !room.duration_seconds
+    ) {
+      return
+    }
+
+    const finishByTimeLimit = async () => {
+      if (autoFinishRequestedRef.current) return
+      autoFinishRequestedRef.current = true
+
+      try {
+        await finishRoom(roomCode)
+        broadcastRoomPatch({ status: 'finished' }, 'factory_time_up')
+        void sendRoomEvent('game:finished', {
+          finishedBy: 'teacher',
+          reason: 'factory_time_up',
+        })
+      } catch (error) {
+        autoFinishRequestedRef.current = false
+        console.error('편의점 시간 종료 실패:', error)
+      }
+    }
+
+    const started = new Date(room.started_at).getTime()
+    const tick = () => {
+      const elapsedSeconds = Math.floor((Date.now() - started) / 1000)
+      if (elapsedSeconds >= Number(room.duration_seconds)) {
+        void finishByTimeLimit()
+      }
+    }
+
+    tick()
+    const interval = window.setInterval(tick, 1000)
+    return () => window.clearInterval(interval)
+  }, [broadcastRoomPatch, room, roomCode, sendRoomEvent])
 
   // 게임 모드 변경 핸들러 (방이 있으면 DB도 업데이트)
   const handleGameModeChange = async (newMode: GameModeId) => {
@@ -223,11 +270,14 @@ export default function TeacherDashboard() {
   }
 
   const renderPlayerAvatar = (avatar: string | null, nickname: string) => {
-    if (avatar?.startsWith('/')) {
+    const normalizedAvatar = String(avatar || '').trim()
+    const displayNickname = getPlayerDisplayNickname(nickname, avatar)
+
+    if (isAvatarPath(normalizedAvatar)) {
       return (
         <Image
-          src={avatar}
-          alt={nickname}
+          src={normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`}
+          alt={displayNickname}
           fill
           className="object-contain scale-125"
           sizes="56px"
@@ -235,7 +285,7 @@ export default function TeacherDashboard() {
       )
     }
 
-    return avatar || '🐶'
+    return normalizedAvatar || '🐶'
   }
 
   return (
@@ -350,20 +400,24 @@ export default function TeacherDashboard() {
                   </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {players.map((player) => (
-                      <div
-                        key={player.id}
-                        className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
-                      >
-                        <div className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-white text-3xl ring-1 ring-slate-200">
-                          {renderPlayerAvatar(player.avatar, player.nickname)}
+                    {players.map((player) => {
+                      const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
+
+                      return (
+                        <div
+                          key={player.id}
+                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
+                        >
+                          <div className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-white text-3xl ring-1 ring-slate-200">
+                            {renderPlayerAvatar(player.avatar, displayNickname)}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate text-base font-black text-slate-950">{displayNickname}</div>
+                            <div className="mt-1 text-xs font-bold text-emerald-600">준비 완료</div>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-base font-black text-slate-950">{player.nickname}</div>
-                          <div className="mt-1 text-xs font-bold text-emerald-600">준비 완료</div>
-                        </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>

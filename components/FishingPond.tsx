@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Database } from '@/types/database.types'
 import type { Doll } from '@/lib/game/fishing'
 import { getTierColor, getTierName } from '@/lib/game/fishing'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   caught_dolls?: Doll[]
@@ -99,7 +100,13 @@ export default function FishingPond({
                   </div>
 
                   {/* 아바타 */}
-                  <div className="text-3xl">{player.avatar || '🐕'}</div>
+                  <PlayerAvatarDisplay
+                    avatar={player.avatar}
+                    nickname={player.nickname}
+                    fallback="🐕"
+                    className="relative h-11 w-11 overflow-hidden rounded-xl bg-white text-3xl ring-1 ring-slate-200"
+                    sizes="44px"
+                  />
 
                   {/* 닉네임 */}
                   <div>

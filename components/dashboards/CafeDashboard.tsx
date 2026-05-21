@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
 import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import { getPlayerDisplayNickname } from '@/lib/utils/playerDisplay'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -89,6 +91,7 @@ export default function CafeDashboard({
                     const rank = index + 1
                     const score = player.score || 0
                     const barWidth = Math.max(4, (score / maxScore) * 100)
+                    const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
 
                     return (
                         <motion.div
@@ -106,8 +109,14 @@ export default function CafeDashboard({
                             </div>
 
                             <div className="flex w-32 shrink-0 items-center gap-2">
-                                <span className="text-2xl">{player.avatar || '🐕'}</span>
-                                <span className="truncate text-sm font-black text-slate-900">{player.nickname}</span>
+                                <PlayerAvatarDisplay
+                                    avatar={player.avatar}
+                                    nickname={displayNickname}
+                                    fallback="🐕"
+                                    className="relative h-9 w-9 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-amber-100"
+                                    sizes="36px"
+                                />
+                                <span className="truncate text-sm font-black text-slate-900">{displayNickname}</span>
                             </div>
 
                             <div className="h-5 flex-1 overflow-hidden rounded-full bg-slate-100">

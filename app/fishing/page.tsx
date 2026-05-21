@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Award, Clock, Gamepad2, PackageCheck, Settings, Star, Target, XCircle, Zap } from 'lucide-react'
 import QuizView from '@/components/QuizView'
@@ -28,7 +29,7 @@ export default function FishingPage() {
   const gameBase = useGameBase({ expectedGameMode: 'fishing' })
   const {
     roomCode, playerId, currentView, setCurrentView,
-    showCountdown, players, roomLoading, playersLoading,
+    showCountdown, players, room, roomLoading, playersLoading,
     currentPlayer, currentQuestion, playSFX,
     checkAnswer, handleWrongAnswer, handleCountdownComplete,
     goToNextQuestion, getElapsedSeconds,
@@ -56,6 +57,12 @@ export default function FishingPage() {
   const totalPoints = caughtDolls.reduce((sum, d) => sum + (d.score || 0), 0)
   const speedGrade = getAnswerSpeedGrade(savedAnswerTime)
   const showResultCard = fishingState === 'release' && !!fishingResult?.doll
+
+  useEffect(() => {
+    if (room?.status === 'playing' && currentView === 'lobby' && !showCountdown) {
+      setCurrentView('quiz')
+    }
+  }, [currentView, room?.status, setCurrentView, showCountdown])
 
   if (!roomCode || !playerId) {
     return (
@@ -213,8 +220,9 @@ export default function FishingPage() {
           )}
 
           {/* 퀴즈 뷰 */}
-          {currentView === 'quiz' && !showCountdown && currentQuestion && (
-            <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+          {currentView === 'quiz' && !showCountdown && (
+            currentQuestion ? (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
               {/* 왼쪽: 퀴즈 + 컬렉션 */}
               <div className="space-y-4">
                 <QuizView
@@ -327,6 +335,12 @@ export default function FishingPage() {
                 </div>
               </aside>
             </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-white/90 p-10 text-center shadow-xl shadow-slate-200/60">
+                <h2 className="text-3xl font-black text-slate-900">문제를 불러오는 중...</h2>
+                <p className="mt-3 text-base font-bold text-slate-500">잠시 후 퀴즈가 자동으로 표시됩니다.</p>
+              </div>
+            )
           )}
 
           {/* 집게 뷰 */}

@@ -8,6 +8,7 @@ import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useRoomResync } from '@/hooks/useRoomResync'
 import { filterNickname } from '@/lib/utils/profanityFilter'
 import CharacterSelector from '@/components/CharacterSelector'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { CHARACTERS, type Character } from '@/lib/utils/characters'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 import { formatServiceError } from '@/lib/services/errors'
@@ -201,7 +202,13 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{player.avatar || '🎮'}</span>
+                        <PlayerAvatarDisplay
+                          avatar={player.avatar}
+                          nickname={player.nickname}
+                          fallback="🎮"
+                          className="relative h-10 w-10 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-gray-200"
+                          sizes="40px"
+                        />
                         <div>
                           <div className="font-semibold text-gray-800">
                             {player.nickname}

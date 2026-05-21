@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
+import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
 import QuizView from '@/components/QuizView'
 import ConvenienceStore from '@/components/ConvenienceStore'
@@ -55,6 +56,7 @@ export default function FactoryPage() {
   const [wrongPenalty, setWrongPenalty] = useState<number | null>(null) // 오답 패널티 표시
 
   const questionStartTime = useRef<number>(0)
+  const autoFinishRequestedRef = useRef(false)
 
   // URL에서 roomCode와 playerId 가져오기
   useEffect(() => {
@@ -69,7 +71,27 @@ export default function FactoryPage() {
 
   const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
   const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
+  const { sendEvent: sendRoomEvent } = useRoomChannel({
+    roomCode,
+    playerId,
+    role: 'student',
+    enabled: Boolean(roomCode),
+  })
   const { playBGM, playSFX } = useAudioContext()
+
+  const commitPlayerPatch = useCallback(async (
+    patch: Partial<Player> & Record<string, unknown>,
+    reason: string,
+  ) => {
+    if (!playerId) return
+
+    void sendRoomEvent('player:patch', {
+      playerId,
+      patch,
+      reason,
+    })
+    await updatePlayer(playerId, patch)
+  }, [playerId, sendRoomEvent])
 
   // 게임 모드 확인 및 리다이렉트
   useEffect(() => {
@@ -153,10 +175,11 @@ export default function FactoryPage() {
     if (!playerId) return
 
     try {
-      await updatePlayer(playerId, {
+      await commitPlayerPatch({
         convenience_money: roundedMoney,
+        factory_money: roundedMoney,
         score: roundedMoney,
-      })
+      }, 'factory_money_update')
     } catch (error) {
       console.error('Error updating money:', error)
     }
@@ -168,9 +191,9 @@ export default function FactoryPage() {
     if (!playerId) return
 
     try {
-      await updatePlayer(playerId, {
+      await commitPlayerPatch({
         convenience_products: newProducts,
-      })
+      }, 'factory_products_update')
     } catch (error) {
       console.error('Error updating products:', error)
     }
@@ -292,12 +315,22 @@ export default function FactoryPage() {
       const elapsed = (Date.now() - started) / 1000
       const remaining = Math.max(0, Math.ceil(durationSeconds - elapsed))
       setRemainingSeconds(remaining)
-      if (remaining <= 0 && isRoomHost) {
+      if (remaining <= 0 && isRoomHost && !autoFinishRequestedRef.current) {
+        autoFinishRequestedRef.current = true
         ; (async () => {
           try {
             await finishRoom(roomCode)
+            void sendRoomEvent('room:patch', {
+              patch: { status: 'finished' },
+              reason: 'factory_time_up',
+            })
+            void sendRoomEvent('game:finished', {
+              finishedBy: playerId,
+              reason: 'factory_time_up',
+            })
           } catch (e) {
             console.error('편의점 시간 종료 업데이트 실패:', e)
+            autoFinishRequestedRef.current = false
           }
         })()
       }
@@ -305,7 +338,7 @@ export default function FactoryPage() {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [durationSeconds, isRoomHost, room?.status, roomCode, startedAt])
+  }, [durationSeconds, isRoomHost, playerId, room?.status, roomCode, sendRoomEvent, startedAt])
 
   // 게임 종료 감지
   useEffect(() => {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Confetti from 'react-confetti'
 import { ArrowRight, Medal, PartyPopper, Trophy } from 'lucide-react'
+import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import type { AnalyticsQuestion } from '@/lib/services/questions'
 import {
   buildResultAnalytics,
@@ -151,8 +152,15 @@ function RevealStage({
         {label}
       </div>
       <div className="animate-[pulse_1.2s_ease-in-out_infinite] rounded-3xl border-8 border-white/20 bg-white p-10 text-slate-950 shadow-2xl">
-        <div className="text-[clamp(52px,8vw,110px)] font-black tracking-normal">
-          {player?.avatar || '🐶'} {player?.nickname || '참가자'}
+        <div className="flex items-center justify-center gap-5 text-[clamp(52px,8vw,110px)] font-black tracking-normal">
+          <PlayerAvatarDisplay
+            avatar={player?.avatar}
+            nickname={player?.nickname}
+            fallback="🐶"
+            className="relative h-24 w-24 overflow-hidden rounded-2xl bg-white text-6xl ring-1 ring-slate-200"
+            sizes="96px"
+          />
+          <span>{player?.nickname || '참가자'}</span>
         </div>
         <div className={`mt-6 text-[clamp(44px,6vw,84px)] font-black ${rank === 1 ? 'text-amber-500' : 'text-slate-700'}`}>
           {player?.score.toLocaleString() ?? 0}점
@@ -182,7 +190,16 @@ function PodiumSpot({
   return (
     <div className="flex flex-col items-center">
       <div className="mb-5 rounded-full bg-white px-8 py-5 text-center text-slate-950 shadow-xl">
-        <div className="text-[clamp(34px,4vw,58px)] font-black tracking-normal">{player?.avatar || '🐶'} {player?.nickname || '-'}</div>
+        <div className="flex items-center justify-center gap-3 text-[clamp(34px,4vw,58px)] font-black tracking-normal">
+          <PlayerAvatarDisplay
+            avatar={player?.avatar}
+            nickname={player?.nickname}
+            fallback="🐶"
+            className="relative h-14 w-14 overflow-hidden rounded-xl bg-white text-4xl ring-1 ring-slate-200"
+            sizes="56px"
+          />
+          <span>{player?.nickname || '-'}</span>
+        </div>
         <div className="mt-2 text-[clamp(24px,3vw,42px)] font-black text-slate-600">{player?.score.toLocaleString() ?? 0}점</div>
       </div>
       <div className={`${height} flex w-full items-center justify-center rounded-t-3xl bg-gradient-to-b ${toneClass} text-[clamp(72px,8vw,128px)] font-black shadow-2xl`}>
