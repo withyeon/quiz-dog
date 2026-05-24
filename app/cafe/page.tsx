@@ -1,16 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useCafeStore } from '@/store/cafeStore'
 import CafeView from '@/components/CafeView'
 import AttackAlert from '@/components/cafe/AttackAlert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import AnimatedBackground from '@/components/AnimatedBackground'
-import { Trophy, Clock, DollarSign, Users } from 'lucide-react'
-import { formatTime, MENU_ITEMS } from '@/lib/game/cafe'
+import { Trophy, Clock, Coins, Users } from 'lucide-react'
+import { formatCafeMoney, formatTime, MENU_ITEMS } from '@/lib/game/cafe'
 import { useGameBase } from '@/hooks/useGameBase'
 import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
@@ -18,7 +16,6 @@ import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 type CafeViewType = 'lobby' | 'playing' | 'result'
 
 export default function CafePage() {
-  const router = useRouter()
   const {
     roomCode,
     playerId,
@@ -155,11 +152,6 @@ export default function CafePage() {
     setCurrentView('playing')
   }
 
-  const handleRestart = () => {
-    resetGame()
-    setCurrentView('lobby')
-  }
-
   // 가장 많이 판 메뉴 찾기
   const topMenuEntry = Object.entries(stats.menuSales).sort((a, b) => b[1] - a[1])[0]
   const topMenuName = topMenuEntry
@@ -168,8 +160,7 @@ export default function CafePage() {
   const topMenuCount = topMenuEntry ? topMenuEntry[1] : 0
 
   return (
-    <div className="min-h-screen relative overflow-hidden font-bitbit bg-gradient-to-b from-amber-50 to-orange-100">
-      <AnimatedBackground />
+    <div className="cafe-ambient min-h-screen relative overflow-hidden font-bitbit">
       <AttackAlert attack={incomingAttack} />
 
       <AnimatePresence mode="wait">
@@ -277,14 +268,6 @@ export default function CafePage() {
           >
             <Card className="w-full max-w-3xl border-4 border-amber-300 shadow-2xl bg-white/95 backdrop-blur-sm">
               <CardHeader className="text-center pb-4">
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 200 }}
-                  className="text-6xl mb-4"
-                >
-                  🎉
-                </motion.div>
                 <CardTitle className="text-4xl font-bold text-gray-900 mb-2">
                   게임 종료!
                 </CardTitle>
@@ -293,9 +276,9 @@ export default function CafePage() {
                 {/* 통계 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 border-4 border-green-300 text-center">
-                    <DollarSign className="h-8 w-8 mx-auto mb-2 text-green-700" />
+                    <Coins className="h-8 w-8 mx-auto mb-2 text-green-700" />
                     <div className="text-2xl font-bold text-green-900">
-                      ${totalCashEarned.toLocaleString()}
+                      {formatCafeMoney(totalCashEarned)}
                     </div>
                     <div className="text-sm text-green-700 mt-1">총 수익</div>
                   </div>
@@ -315,24 +298,6 @@ export default function CafePage() {
                   </div>
                 </div>
 
-                {/* 액션 버튼 */}
-                <div className="flex gap-4">
-                  <Button
-                    onClick={handleRestart}
-                    size="lg"
-                    className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-lg py-6 shadow-xl"
-                  >
-                    🔄 다시 하기
-                  </Button>
-                  <Button
-                    onClick={() => router.push('/teacher/dashboard')}
-                    size="lg"
-                    variant="outline"
-                    className="flex-1 border-4 border-gray-300 font-bold text-lg py-6"
-                  >
-                    🏠 대시보드로
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </motion.div>

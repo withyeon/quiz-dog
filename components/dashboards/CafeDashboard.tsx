@@ -6,6 +6,7 @@ import type { Database } from '@/types/database.types'
 import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import { formatCafeMoney } from '@/lib/game/cafe'
 import { getPlayerDisplayNickname } from '@/lib/utils/playerDisplay'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -132,7 +133,7 @@ export default function CafeDashboard({
                             </div>
 
                             <div className="w-24 text-right text-lg font-black text-slate-900">
-                                ${score.toLocaleString()}
+                                {formatCafeMoney(score)}
                             </div>
                         </motion.div>
                     )

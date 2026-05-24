@@ -9,6 +9,8 @@ import { useCafeStore } from '@/store/cafeStore'
 import {
   MENU_ITEMS,
   Customer,
+  formatCafeMoney,
+  formatCafeMoneyDelta,
   formatTime,
 } from '@/lib/game/cafe'
 import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
@@ -357,25 +359,15 @@ export default function CafeView({
   const customersInLine = customers.slice(0, MAX_CUSTOMERS_IN_LINE)
 
   return (
-    <div className="relative w-full h-screen bg-gradient-to-b from-amber-50 via-orange-50 to-amber-100 overflow-hidden">
-      {/* 카페 배경 */}
-      <div className="absolute inset-0">
-        {/* 카운터 */}
-        <div className="absolute bottom-40 left-0 right-0 h-32 bg-gradient-to-b from-amber-800 to-amber-900 border-t-8 border-amber-950 shadow-2xl">
-          <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-amber-600 to-amber-800"></div>
-          {/* 카운터 장식 */}
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-6xl opacity-20">☕</div>
-        </div>
-      </div>
-
-      {/* 상단 정보 바 */}
-      <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-r from-amber-600 to-orange-600 border-b-4 border-amber-800 shadow-2xl">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="cafe-ambient relative w-full h-screen overflow-hidden">
+      {/* 상단 정보 */}
+      <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between pointer-events-auto">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
               <span className="text-3xl">⏰</span>
               <span
-                className={`text-3xl font-bold font-mono ${isUrgent ? 'text-red-200 animate-pulse' : 'text-white'
+                className={`text-3xl font-bold font-mono ${isUrgent ? 'text-red-600 animate-pulse' : 'text-slate-700'
                   }`}
               >
                 {formatTime(timeRemaining)}
@@ -383,11 +375,11 @@ export default function CafeView({
             </div>
             <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
               <span className="text-3xl">💰</span>
-              <span className="text-3xl font-bold text-yellow-200">${cash.toLocaleString()}</span>
+              <span className="text-3xl font-bold text-slate-700">{formatCafeMoney(cash)}</span>
             </div>
             <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
               <span className="text-2xl">👥</span>
-              <span className="text-xl font-bold text-white">{customersServed}명</span>
+              <span className="text-xl font-bold text-slate-700">{customersServed}명</span>
             </div>
             <div className="flex items-center gap-2">
               <AnimatePresence>
@@ -442,8 +434,8 @@ export default function CafeView({
         >
           <div className="bg-red-100 border-4 border-red-500 rounded-xl p-8 shadow-lg text-center max-w-md">
             <div className="text-6xl mb-4">❌</div>
-            <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다!</h2>
-            <p className="text-gray-700">다음 문제로 넘어갑니다...</p>
+            <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다.</h2>
+            <p className="text-gray-700">다른 문제로 넘어갑니다.</p>
           </div>
         </motion.div>
       )}
@@ -451,9 +443,9 @@ export default function CafeView({
       {/* 카페 화면 */}
       <>
           {/* 손님 영역 - 카운터 위쪽에 줄지어 배치 */}
-          <div className="absolute bottom-80 left-0 right-0 z-10">
-            <div className="max-w-6xl mx-auto px-8">
-              <div className="flex items-end justify-center gap-4 h-64">
+          <div className="absolute bottom-56 left-0 right-0 z-10">
+            <div className="max-w-5xl mx-auto px-4">
+              <div className="flex items-end justify-center gap-3 h-56">
                 <AnimatePresence>
                   {customersInLine.map((customer, index) => {
                     const menu = MENU_ITEMS.find((m) => m.id === customer.order)
@@ -476,24 +468,24 @@ export default function CafeView({
                         {/* 손님 */}
                         <motion.div
                           animate={{
-                            y: [0, -8, 0],
+                            y: [0, -5, 0],
                           }}
                           transition={{
                             duration: 1.5,
                             repeat: Infinity,
                             ease: 'easeInOut',
                           }}
-                          className={`mb-2 transition-all flex items-center justify-center ${isUrgentCustomer
+                          className={`mb-1.5 transition-all flex items-center justify-center ${isUrgentCustomer
                               ? 'animate-pulse scale-110'
                               : 'group-hover:scale-110'
                             }`}
                         >
-                          <div className="relative w-20 h-20">
+                          <div className="relative w-[4.5rem] h-[4.5rem]">
                             <Image
                               src={customer.characterImage}
                               alt="손님"
-                              width={80}
-                              height={80}
+                              width={72}
+                              height={72}
                               unoptimized
                               className="w-full h-full object-contain"
                               onError={(e) => {
@@ -501,7 +493,7 @@ export default function CafeView({
                                 const target = e.target as HTMLImageElement
                                 target.style.display = 'none'
                                 if (target.parentElement) {
-                                  target.parentElement.innerHTML = `<div class="text-7xl">${customer.emoji}</div>`
+                                  target.parentElement.innerHTML = `<div class="text-5xl">${customer.emoji}</div>`
                                 }
                               }}
                             />
@@ -510,39 +502,39 @@ export default function CafeView({
 
                         {/* 주문 말풍선 */}
                         <motion.div
-                          whileHover={{ scale: 1.05 }}
-                          className={`bg-white rounded-2xl px-5 py-4 shadow-2xl border-4 min-w-[140px] transition-all ${isUrgentCustomer
+                          whileHover={{ scale: 1.04 }}
+                          className={`bg-white rounded-2xl px-4 py-3 shadow-xl border-4 min-w-[120px] transition-all ${isUrgentCustomer
                               ? 'border-red-500 bg-red-50 animate-pulse'
                               : 'border-amber-400 group-hover:border-amber-500'
                             }`}
                         >
                           <div className="text-center">
-                            <div className="mb-2 flex items-center justify-center">
+                            <div className="mb-1.5 flex items-center justify-center">
                               <Image
                                 src={menu.image}
                                 alt={menu.name}
-                                width={64}
-                                height={64}
+                                width={56}
+                                height={56}
                                 unoptimized
-                                className="w-16 h-16 object-contain"
+                                className="w-14 h-14 object-contain"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement
                                   target.style.display = 'none'
                                   if (target.parentElement) {
-                                    target.parentElement.innerHTML = `<div class="text-4xl">${menu.emoji}</div>`
+                                    target.parentElement.innerHTML = `<div class="text-3xl">${menu.emoji}</div>`
                                   }
                                 }}
                               />
                             </div>
-                            <div className="text-sm font-bold text-gray-800 mb-2">{menu.name}</div>
+                            <div className="text-sm font-bold text-gray-800 mb-1">{menu.name}</div>
                             <div className="text-xs font-semibold text-green-600">
-                              +${Math.floor(menu.sellPrice * upgrades.sellPriceMultiplier)}
+                              {formatCafeMoneyDelta(Math.floor(menu.sellPrice * upgrades.sellPriceMultiplier))}
                             </div>
                           </div>
                         </motion.div>
 
                         {/* 인내심 게이지 */}
-                        <div className="mt-2 w-24 h-2 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-400">
+                        <div className="mt-2 w-28 h-2 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-400">
                           <motion.div
                             initial={{ width: '100%' }}
                             animate={{
@@ -565,9 +557,9 @@ export default function CafeView({
           </div>
 
           {/* 접시 영역 - 카운터 아래에 모든 메뉴 슬롯 표시 (그리드 형태) */}
-          <div className="absolute bottom-40 left-0 right-0 z-15">
-            <div className="max-w-6xl mx-auto px-8">
-              <div className="grid grid-cols-4 gap-4 justify-items-center">
+          <div className="absolute bottom-24 left-0 right-0 z-15">
+            <div className="max-w-5xl mx-auto px-4 pt-1">
+              <div className="grid grid-cols-4 gap-x-2 gap-y-1.5 justify-items-center">
                 {MENU_ITEMS.map((menu, index) => {
                   const isUnlocked = unlockedMenus.includes(menu.id)
                   const stock = menuStock[menu.id] || 0
@@ -583,10 +575,10 @@ export default function CafeView({
                     >
                       {/* 접시 */}
                       <div
-                        className={`relative w-20 h-20 rounded-full border-4 shadow-lg transition-all ${isUnlocked
+                        className={`relative w-14 h-14 rounded-full border-2 shadow-md transition-all ${isUnlocked
                             ? stock > 0
                               ? hasOrder
-                                ? 'bg-green-100 border-green-400 scale-110'
+                                ? 'bg-green-100 border-green-400 scale-105'
                                 : 'bg-white border-amber-300'
                               : 'bg-white border-amber-300 opacity-60'
                             : 'bg-gray-300 border-gray-500 opacity-40'
@@ -594,19 +586,19 @@ export default function CafeView({
                       >
                         {/* 메뉴 이미지 (해금되고 재고가 있을 때만) */}
                         {isUnlocked && stock > 0 && (
-                          <div className="absolute inset-0 flex items-center justify-center p-2">
+                          <div className="absolute inset-0 flex items-center justify-center p-1.5">
                             <Image
                               src={menu.image}
                               alt={menu.name}
-                              width={64}
-                              height={64}
+                              width={40}
+                              height={40}
                               unoptimized
                               className="w-full h-full object-contain"
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement
                                 target.style.display = 'none'
                                 if (target.parentElement) {
-                                  target.parentElement.innerHTML = `<span class="text-4xl">${menu.emoji}</span>`
+                                  target.parentElement.innerHTML = `<span class="text-2xl">${menu.emoji}</span>`
                                 }
                               }}
                             />
@@ -616,7 +608,7 @@ export default function CafeView({
                         {/* 재고 수 (해금된 경우만) */}
                         {isUnlocked && (
                           <div
-                            className={`absolute -bottom-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 ${stock > 0
+                            className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border ${stock > 0
                                 ? 'bg-blue-500 text-white border-blue-600'
                                 : 'bg-gray-500 text-white border-gray-600'
                               }`}
@@ -630,16 +622,16 @@ export default function CafeView({
                           <motion.div
                             animate={{ scale: [1, 1.2, 1] }}
                             transition={{ duration: 0.5, repeat: Infinity }}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-yellow-400 rounded-full flex items-center justify-center border-2 border-yellow-600"
+                            className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center border border-yellow-600"
                           >
-                            <span className="text-sm">⚡</span>
+                            <span className="text-[10px]">⚡</span>
                           </motion.div>
                         )}
                       </div>
 
                       {/* 메뉴 이름 (해금된 경우만) */}
                       {isUnlocked && (
-                        <div className="mt-1 text-xs font-bold text-gray-700 text-center max-w-[80px] truncate">
+                        <div className="mt-1 text-[10px] font-bold text-gray-700 text-center max-w-[56px] truncate">
                           {menu.name}
                         </div>
                       )}
@@ -650,21 +642,22 @@ export default function CafeView({
             </div>
           </div>
 
-          {/* 하단 Restock 버튼 및 안내 */}
-          <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-amber-900 to-amber-800 border-t-8 border-amber-950 shadow-2xl">
-            <div className="max-w-7xl mx-auto px-4 py-4">
-              <div className="flex items-center justify-center gap-4">
-                {/* Restock 버튼 */}
-                <Button
-                  onClick={() => setShowQuiz(true)}
-                  className="bg-teal-500 hover:bg-teal-600 text-white font-bold text-lg px-8 py-4 shadow-xl border-4 border-teal-700 min-w-[200px]"
-                >
-                  🍽️ 음식 채우기
-                  <div className="text-xs mt-1 opacity-90">스페이스</div>
-                </Button>
-              </div>
-              <div className="text-center text-white/80 text-sm mt-3">
-                💡 손님을 클릭하여 주문한 메뉴를 서빙하세요! 재고가 없으면 음식 채우기 버튼을 눌러주세요.
+          {/* 음식 채우기 버튼 및 안내 */}
+          <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-4">
+            <div className="max-w-7xl mx-auto flex flex-col items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowQuiz(true)}
+                className="h-auto min-h-0 min-w-[300px] items-center justify-between gap-3 border-2 border-[#3A9BDC] bg-[#88D1E7] px-10 py-1.5 text-sm font-bold text-[#1a5f8f] shadow-[0_3px_0_#3A9BDC] hover:border-[#3A9BDC] hover:bg-[#7ec8e0] hover:text-[#1a5f8f] hover:shadow-[0_2px_0_#3A9BDC] active:translate-y-0.5 active:shadow-none"
+                style={{
+                  backgroundImage: 'linear-gradient(180deg, #D9F2F9 0%, #88D1E7 52%, #7ec5e8 100%)',
+                }}
+              >
+                <span>🍽️ 음식 채우기</span>
+                <span className="mr-3 text-xs font-semibold text-[#1a5f8f]/85">스페이스바</span>
+              </Button>
+              <div className="mt-3 text-center text-sm font-bold text-slate-700 drop-shadow-sm">
+                손님을 클릭하여 주문한 메뉴를 서빙하세요! 재고가 없으면 음식 채우기 버튼을 눌러주세요.
               </div>
             </div>
           </div>
@@ -731,7 +724,7 @@ export default function CafeView({
               className={`text-4xl font-bold drop-shadow-2xl ${anim.isGolden ? 'text-amber-300' : 'text-green-400'}`}
               style={{ textShadow: anim.isGolden ? '0 0 14px rgba(251, 191, 36, 0.9)' : '0 0 10px rgba(34, 197, 94, 0.8)' }}
             >
-              +${anim.amount}
+              {formatCafeMoneyDelta(anim.amount)}
             </motion.div>
           </motion.div>
         ))}

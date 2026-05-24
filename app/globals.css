@@ -115,6 +115,16 @@
     background-attachment: fixed;
   }
 
+  .cafe-ambient {
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(255, 251, 235, 0.18) 0%, rgba(255, 255, 255, 0.1) 48%, rgba(254, 243, 199, 0.14) 100%),
+      url('/background/cafe.png');
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+  }
+
   .factory-ambient::before {
     content: '';
     position: fixed;

@@ -1,5 +1,16 @@
 // Cafe 게임 로직 및 타입 정의
 
+/** 카페 게임 화폐: 예전 $1 단위 = ₩1,000 */
+export const CAFE_WON_PER_DOLLAR = 1000
+
+export function formatCafeMoney(amount: number): string {
+  return `${amount.toLocaleString('ko-KR')}원`
+}
+
+export function formatCafeMoneyDelta(amount: number): string {
+  return `+${formatCafeMoney(amount)}`
+}
+
 export interface MenuItem {
   id: string
   name: string
@@ -53,7 +64,7 @@ export const MENU_ITEMS: MenuItem[] = [
     emoji: '🍞',
     image: '/cafe/toast.svg',
     cost: 0, // 기본 제공
-    sellPrice: 1,
+    sellPrice: 1_000,
     description: '따뜻하고 바삭한 토스트',
   },
   {
@@ -61,8 +72,8 @@ export const MENU_ITEMS: MenuItem[] = [
     name: '시리얼',
     emoji: '🥣',
     image: '/cafe/cereal.svg',
-    cost: 15,
-    sellPrice: 3,
+    cost: 15_000,
+    sellPrice: 3_000,
     description: '아침을 깨우는 시리얼',
   },
   {
@@ -70,8 +81,8 @@ export const MENU_ITEMS: MenuItem[] = [
     name: '우유',
     emoji: '🥛',
     image: '/cafe/milk.svg',
-    cost: 50,
-    sellPrice: 8,
+    cost: 50_000,
+    sellPrice: 8_000,
     description: '신선한 우유',
   },
   {
@@ -79,8 +90,8 @@ export const MENU_ITEMS: MenuItem[] = [
     name: '와플',
     emoji: '🧇',
     image: '/cafe/waffle.svg',
-    cost: 200,
-    sellPrice: 20,
+    cost: 80_000,
+    sellPrice: 15_000,
     description: '달콤한 와플',
   },
   {
@@ -88,8 +99,8 @@ export const MENU_ITEMS: MenuItem[] = [
     name: '커피',
     emoji: '☕',
     image: '/cafe/coffee.svg',
-    cost: 500,
-    sellPrice: 50,
+    cost: 200_000,
+    sellPrice: 35_000,
     description: '진한 에스프레소',
   },
   {
@@ -97,8 +108,8 @@ export const MENU_ITEMS: MenuItem[] = [
     name: '케이크',
     emoji: '🎂',
     image: '/cafe/cake.svg',
-    cost: 1000,
-    sellPrice: 120,
+    cost: 400_000,
+    sellPrice: 80_000,
     description: '달콤한 생크림 케이크',
   },
   {
@@ -106,8 +117,8 @@ export const MENU_ITEMS: MenuItem[] = [
     name: '피자',
     emoji: '🍕',
     image: '/cafe/pizza.svg',
-    cost: 2000,
-    sellPrice: 300,
+    cost: 450_000,
+    sellPrice: 150_000,
     description: '치즈가 가득한 피자',
   },
   {
@@ -115,8 +126,8 @@ export const MENU_ITEMS: MenuItem[] = [
     name: '버거',
     emoji: '🍔',
     image: '/cafe/burger.svg',
-    cost: 5000,
-    sellPrice: 800,
+    cost: 500_000,
+    sellPrice: 300_000,
     description: '든든한 햄버거',
   },
 ]
@@ -127,7 +138,7 @@ export const UPGRADES: Upgrade[] = [
     id: 'advertising',
     name: '가게 홍보',
     description: '손님 등장 속도 2배 증가',
-    cost: 100,
+    cost: 60_000,
     effect: (state) => ({
       ...state,
       upgrades: {
@@ -140,7 +151,7 @@ export const UPGRADES: Upgrade[] = [
     id: 'secret_sauce',
     name: '비법 소스',
     description: '모든 메뉴 판매가 +20%',
-    cost: 500,
+    cost: 300_000,
     effect: (state) => ({
       ...state,
       upgrades: {
@@ -153,7 +164,7 @@ export const UPGRADES: Upgrade[] = [
     id: 'faster_service',
     name: '빠른 서비스',
     description: '손님 등장 속도 추가 1.5배',
-    cost: 1000,
+    cost: 450_000,
     effect: (state) => ({
       ...state,
       upgrades: {
@@ -166,7 +177,7 @@ export const UPGRADES: Upgrade[] = [
     id: 'premium_ingredients',
     name: '프리미엄 재료',
     description: '모든 메뉴 판매가 추가 +30%',
-    cost: 2000,
+    cost: 500_000,
     effect: (state) => ({
       ...state,
       upgrades: {

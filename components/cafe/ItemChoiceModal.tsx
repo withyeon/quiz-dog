@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
+import { formatCafeMoney } from '@/lib/game/cafe'
 import type { CafeItem, ItemId } from '@/lib/game/cafeItems'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
@@ -122,7 +123,7 @@ export default function ItemChoiceModal({
                   sizes="36px"
                 />
                 <span className="w-full truncate text-center text-xs text-slate-700">{player.nickname}</span>
-                <span className="text-xs font-black text-green-600">${(player.score || 0).toLocaleString()}</span>
+                <span className="text-xs font-black text-green-600">{formatCafeMoney(player.score || 0)}</span>
               </button>
             ))}
           </div>

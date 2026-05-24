@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { MENU_ITEMS, UPGRADES, canBuyMenu, canBuyUpgrade } from '@/lib/game/cafe'
+import { MENU_ITEMS, UPGRADES, canBuyMenu, canBuyUpgrade, formatCafeMoney } from '@/lib/game/cafe'
 import { useCafeStore } from '@/store/cafeStore'
 
 export default function CafeShop() {
@@ -16,7 +16,7 @@ export default function CafeShop() {
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>🍽️</span> 메뉴 잠금 해제!
+          <span>🍽️</span> 메뉴 잠금 해제
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {lockedMenus.map((menu) => {
@@ -48,8 +48,7 @@ export default function CafeShop() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-center space-y-2">
-                    <div className="text-sm text-gray-600">{menu.description}</div>
-                    <div className="text-xl font-bold text-amber-600">${menu.cost}</div>
+                    <div className="text-xl font-bold text-amber-600">{formatCafeMoney(menu.cost)}</div>
                     <Button
                       onClick={() => purchaseMenu(menu.id)}
                       disabled={!canBuy}
@@ -84,7 +83,7 @@ export default function CafeShop() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="text-sm text-gray-600">{upgrade.description}</div>
-                    <div className="text-xl font-bold text-blue-600">${upgrade.cost}</div>
+                    <div className="text-xl font-bold text-blue-600">{formatCafeMoney(upgrade.cost)}</div>
                     <Button
                       onClick={() => purchaseUpgrade(upgrade.id)}
                       disabled={!canBuy}
