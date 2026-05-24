@@ -64,8 +64,8 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
     try {
       const roomData = await ensureRoomExists(roomCode)
-      if (roomData.status !== 'waiting') {
-        alert('이미 시작된 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
+      if (roomData.status === 'finished') {
+        alert('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
         return
       }
       const playerData = await createPlayerForRoom({
@@ -78,6 +78,10 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
       setPlayerId(playerData.id)
       setIsJoined(true)
       void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
+
+      if (roomData.status === 'playing') {
+        router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, playerData.id))
+      }
     } catch (err) {
       console.error('Error joining room:', err)
       alert('방 입장에 실패했습니다: ' + formatServiceError(err))

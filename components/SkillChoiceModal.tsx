@@ -42,7 +42,7 @@ export default function SkillChoiceModal({
                     </div>
                     {isBonus && (
                         <div className="rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-200">
-                            🔥 COMBO x{comboCount ?? 2}!
+                            🔥 {comboCount ?? 2}연속!
                         </div>
                     )}
                 </motion.div>

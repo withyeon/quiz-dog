@@ -193,7 +193,7 @@ export default function GameResult({
                             ) : (
                               <span>💰</span>
                             )}
-                            {player.gold} Gold
+                            {player.gold} 골드
                           </div>
                         </>
                       )}

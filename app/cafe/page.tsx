@@ -226,7 +226,7 @@ export default function CafePage() {
                   <h3 className="font-bold text-lg mb-2 text-gray-900">게임 방법</h3>
                   <ul className="space-y-1 text-sm text-gray-700">
                     <li>• 손님이 주문한 메뉴를 클릭해서 서빙하세요</li>
-                    <li>• 돈을 모아 새로운 메뉴를 해금하고 업그레이드를 구매하세요</li>
+                    <li>• 돈을 모아 새로운 메뉴 잠금을 해제하고 업그레이드를 구매하세요</li>
                     <li>• 시간 내에 가장 많은 돈을 벌어보세요!</li>
                   </ul>
                 </div>

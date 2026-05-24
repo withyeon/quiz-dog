@@ -47,7 +47,7 @@ export default function TowerLobbyPanel({ roomCode }: TowerLobbyPanelProps) {
                         <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                             <HeartPulse className="mb-3 h-5 w-5 text-red-500" />
                             <div className="text-2xl font-black text-slate-950">{PLAYER_START_HP}</div>
-                            <div className="mt-1 text-xs font-bold text-slate-500">코어 HP</div>
+                            <div className="mt-1 text-xs font-bold text-slate-500">코어 체력</div>
                         </div>
                     </div>
 
@@ -69,8 +69,8 @@ export default function TowerLobbyPanel({ roomCode }: TowerLobbyPanelProps) {
                         ))}
                     </div>
                     <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-lg border border-white/12 bg-black/24 px-4 py-3 text-xs font-bold text-white/70 backdrop-blur">
-                        <span>ROOM {roomCode}</span>
-                        <span>CORE ONLINE</span>
+                        <span>방 {roomCode}</span>
+                        <span>코어 작동 중</span>
                     </div>
                 </div>
             </div>

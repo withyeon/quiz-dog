@@ -44,11 +44,11 @@ export default function SelectedTowerPanel({
                 <>
                     <div className="mb-4 flex items-start justify-between gap-3">
                         <div>
-                            <div className="text-xs font-black uppercase tracking-[0.08em] text-slate-500">Selected</div>
+                            <div className="text-xs font-black tracking-[0.08em] text-slate-500">선택한 타워</div>
                             <h2 className="mt-1 text-xl font-black text-slate-950">{selectedTowerMeta.name}</h2>
                         </div>
                         <div className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-black text-white">
-                            Lv.{selectedTower.level}
+                            레벨 {selectedTower.level}
                         </div>
                     </div>
 
@@ -77,7 +77,7 @@ export default function SelectedTowerPanel({
                             className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-indigo-600 px-3 text-sm font-black text-white shadow-lg shadow-indigo-100 transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                         >
                             <ArrowUpCircle className="h-4 w-4" />
-                            {selectedUpgradeCost ? `${selectedUpgradeCost}G` : 'MAX'}
+                            {selectedUpgradeCost ? `${selectedUpgradeCost}G` : '최대'}
                         </button>
                         <button
                             onClick={onSellTower}

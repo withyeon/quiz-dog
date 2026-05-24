@@ -28,7 +28,9 @@ export default function RootLayout({
               (function () {
                 var dynamicApiMessages = [
                   'params are being enumerated. \`params\` is a Promise',
-                  'The keys of \`searchParams\` were accessed directly. \`searchParams\` is a Promise'
+                  'The keys of \`searchParams\` were accessed directly. \`searchParams\` is a Promise',
+                  'A searchParam property was accessed directly with \`searchParams.',
+                  '\`searchParams\` is a Promise and must be unwrapped'
                 ];
 
                 function isDynamicApiInspectorNoise(args) {

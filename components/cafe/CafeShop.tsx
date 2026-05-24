@@ -16,7 +16,7 @@ export default function CafeShop() {
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>🍽️</span> 메뉴 해금
+          <span>🍽️</span> 메뉴 잠금 해제!
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {lockedMenus.map((menu) => {
@@ -55,7 +55,7 @@ export default function CafeShop() {
                       disabled={!canBuy}
                       className={`w-full ${canBuy ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-300 cursor-not-allowed'}`}
                     >
-                      {canBuy ? '구매' : '돈 부족'}
+                      {canBuy ? '잠금 해제!' : '돈 부족'}
                     </Button>
                   </div>
                 </CardContent>

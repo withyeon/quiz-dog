@@ -48,20 +48,20 @@ export default function Navbar() {
               className="relative flex items-center gap-2"
             >
               <Image
-                src="/header-logo.svg"
-                alt="퀴즈독"
-                width={200}
-                height={60}
-                className="h-32 w-auto object-contain"
-                priority
-              />
-              <Image
                 src={gameAssets['mascot-pome'].tight}
                 alt="포메 마스코트"
                 width={64}
                 height={64}
                 unoptimized
                 className="hidden h-16 w-16 object-contain pixelated sm:block"
+              />
+              <Image
+                src="/header-logo.svg"
+                alt="퀴즈독"
+                width={200}
+                height={60}
+                className="h-32 w-auto object-contain"
+                priority
               />
               <Image
                 src={gameAssets.mascot_sigol.tight}

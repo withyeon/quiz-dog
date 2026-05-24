@@ -83,7 +83,7 @@ const games: GameData[] = [
         imageSrc: '/title/cafe.svg',
         titleImageSrc: '/title/cafe.svg',
         keywords: ['☕ 메뉴 경영', '👥 손님 응대', '⭐ 별점 관리', '🍰 레시피 업그레이드'],
-        description: '카페를 운영하며 퀴즈로 메뉴를 추가하고 최고의 카페를 만들어요!',
+        description: '카페를 운영하며 퀴즈로 메뉴 잠금을 해제하고 최고의 카페를 만들어요!',
         accentColor: '#f97316',
         tagColor: 'rgba(249,115,22,0.15)',
     },
@@ -102,7 +102,8 @@ const games: GameData[] = [
         name: 'Don\'t Look Down',
         emoji: '⛰️',
         videoSrc: '/videos/dontlookdown.mp4',
-        imageSrc: '/dontlookdown/background.png',
+        imageSrc: '/title/jump_jump.svg',
+        titleImageSrc: '/title/jump_jump.svg',
         keywords: ['🧗 고도 경쟁', '⚡ 파워업 수집', '💨 장애물 피하기', '🏔️ 정상 등반'],
         description: '퀴즈를 맞추며 더 높이 올라가세요! 떨어지면 탈락이에요.',
         accentColor: '#14b8a6',
@@ -281,10 +282,14 @@ export default function GameShowcase() {
                                     <p className="text-sky-700/70 text-base leading-relaxed">{game.description}</p>
                                     <Link
                                         href="/teacher"
-                                        className="mt-5 inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-bold text-white transition-[filter] duration-200 ease-in-out hover:brightness-90"
-                                        style={{ backgroundColor: PRIMARY_COLOR }}
+                                        className="mt-5 inline-flex items-center justify-center rounded-full px-8 py-3 text-base font-bold text-white transition-all duration-200 ease-in-out hover:-translate-y-0.5 hover:brightness-95 active:translate-y-0.5"
+                                        style={{
+                                            background: `linear-gradient(180deg, #7dd3fc 0%, ${PRIMARY_COLOR} 55%, #0ea5e9 100%)`,
+                                            boxShadow: '0 5px 0 #0b8fc4, 0 10px 18px rgba(14, 165, 233, 0.28), inset 0 1px 0 rgba(255,255,255,0.45)',
+                                            textShadow: '0 1px 0 rgba(0,0,0,0.18)',
+                                        }}
                                     >
-                                        지금 플레이하기
+                                        시작하기
                                     </Link>
                                 </div>
 

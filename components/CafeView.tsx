@@ -275,7 +275,7 @@ export default function CafeView({
     return correct
   }
 
-  // Space 키로 Restock 버튼 클릭
+  // 스페이스 키로 음식 채우기 버튼 클릭
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.code === 'Space' && status === 'playing' && !showQuiz && !showItemModal) {
@@ -405,7 +405,7 @@ export default function CafeView({
                       }`}
                     >
                       <span>{item.emoji}</span>
-                      <span>{remaining}s</span>
+                      <span>{remaining}초</span>
                     </motion.div>
                   )
                 })}
@@ -417,7 +417,7 @@ export default function CafeView({
                     exit={{ scale: 0 }}
                     className="flex items-center gap-1 rounded-lg bg-amber-400 px-2 py-1 text-sm font-black text-amber-950"
                   >
-                    🥄 3x
+                    🥄 3배
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -450,8 +450,8 @@ export default function CafeView({
 
       {/* 카페 화면 */}
       <>
-          {/* 손님 영역 - 카운터 앞에 줄지어 배치 */}
-          <div className="absolute bottom-48 left-0 right-0 z-10">
+          {/* 손님 영역 - 카운터 위쪽에 줄지어 배치 */}
+          <div className="absolute bottom-80 left-0 right-0 z-10">
             <div className="max-w-6xl mx-auto px-8">
               <div className="flex items-end justify-center gap-4 h-64">
                 <AnimatePresence>
@@ -491,7 +491,7 @@ export default function CafeView({
                           <div className="relative w-20 h-20">
                             <Image
                               src={customer.characterImage}
-                              alt="Customer"
+                              alt="손님"
                               width={80}
                               height={80}
                               unoptimized
@@ -659,12 +659,12 @@ export default function CafeView({
                   onClick={() => setShowQuiz(true)}
                   className="bg-teal-500 hover:bg-teal-600 text-white font-bold text-lg px-8 py-4 shadow-xl border-4 border-teal-700 min-w-[200px]"
                 >
-                  🍽️ Restock Food
-                  <div className="text-xs mt-1 opacity-90">Space</div>
+                  🍽️ 음식 채우기
+                  <div className="text-xs mt-1 opacity-90">스페이스</div>
                 </Button>
               </div>
               <div className="text-center text-white/80 text-sm mt-3">
-                💡 손님을 클릭하여 주문한 메뉴를 서빙하세요! 재고가 없으면 Restock 버튼을 눌러주세요.
+                💡 손님을 클릭하여 주문한 메뉴를 서빙하세요! 재고가 없으면 음식 채우기 버튼을 눌러주세요.
               </div>
             </div>
           </div>
@@ -686,7 +686,7 @@ export default function CafeView({
                 animate={{ scale: 1, opacity: 1 }}
                 className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg"
               >
-                🔥 {consecutiveCorrect}연속 정답! 희귀 아이템 확률 UP
+                🔥 {consecutiveCorrect}연속 정답! 희귀 아이템이 더 잘 나와요
               </motion.div>
             )}
 
@@ -755,19 +755,19 @@ export default function CafeView({
       {/* 상점 모달 */}
       <AnimatePresence>
         {showShop && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowShop(false)}
-              className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
-            />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowShop(false)}
+            className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-4xl max-h-[80vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border-4 border-amber-300 p-6"
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-4xl max-h-[80vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border-4 border-amber-300 p-6"
             >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
@@ -784,7 +784,7 @@ export default function CafeView({
 
               <CafeShop />
             </motion.div>
-          </>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

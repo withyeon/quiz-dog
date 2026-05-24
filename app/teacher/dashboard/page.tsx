@@ -31,6 +31,7 @@ export default function TeacherDashboard() {
   const [roomCode, setRoomCode] = useState('')
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
+  const [showLargeQrModal, setShowLargeQrModal] = useState(false)
   const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [factoryDurationMinutes, setFactoryDurationMinutes] = useState(5) // 편의점 게임 제한 시간(분)
   const autoFinishRequestedRef = useRef(false)
@@ -39,8 +40,6 @@ export default function TeacherDashboard() {
   const { room, refreshRoom } = useRoomRealtime({ roomCode })
   const resyncDashboard = useRoomResync(refreshRoom, refreshPlayers)
   const {
-    status: realtimeStatus,
-    onlineCount,
     sendEvent: sendRoomEvent,
   } = useRoomChannel({
     roomCode,
@@ -289,7 +288,7 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div>
+    <div className="font-bitbit">
       {/* 페이지 제목 - 블루킷 스타일 */}
       <h1 className="text-4xl font-bold text-gray-900 mb-8">게임 시작</h1>
 
@@ -328,54 +327,76 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-              <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-white shadow-md">
-                <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-blue-100">게임 참가 코드</p>
-                    <div className="mt-2 text-7xl font-black tracking-wider">{roomCode}</div>
-                  </div>
-                  <div className="rounded-xl bg-white/15 px-4 py-3 backdrop-blur">
+            {roomStatus === 'waiting' ? (
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="rounded-3xl bg-gradient-to-br from-sky-400 via-sky-500 to-cyan-500 p-6 text-white shadow-xl shadow-sky-200">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-sky-50">참가코드</p>
+                      <div className="mt-1 text-6xl font-black tracking-wider">{roomCode}</div>
+                    </div>
                     {activeModeConfig.image ? (
-                      <div className="relative h-20 w-44">
-                        <Image
-                          src={activeModeConfig.image}
-                          alt={activeModeConfig.shortLabel}
-                          fill
-                          className="object-contain"
-                          sizes="176px"
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-6xl">{activeModeConfig.emoji}</div>
-                    )}
+                        <div className="relative h-24 w-56">
+                          <Image
+                            src={activeModeConfig.image}
+                            alt={activeModeConfig.shortLabel}
+                            fill
+                            className="object-contain"
+                            sizes="224px"
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-7xl">{activeModeConfig.emoji}</div>
+                      )}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-sky-50">
+                    <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-black">참가자 {players.length}명</span>
                   </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-blue-50">
-                  <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-black">참가자 {players.length}명</span>
-                  <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-black">
-                    실시간 {realtimeStatus === 'subscribed' ? '연결됨' : '연결 중'} · 온라인 {Math.max(players.length, onlineCount)}명
-                  </span>
+
+                <div className="rounded-3xl border border-sky-100 bg-white p-6 text-center shadow-xl shadow-sky-100">
+                  <p className="mb-3 text-sm font-black text-slate-500">QR 코드로 입장</p>
+                  <button
+                    type="button"
+                    onClick={() => setShowLargeQrModal(true)}
+                    className="mx-auto inline-block rounded-2xl border-2 border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg"
+                    aria-label="QR 코드 크게 보기"
+                  >
+                    <QRCodeSVG
+                      value={inviteUrl}
+                      size={260}
+                      level="H"
+                    />
+                  </button>
+                  <p className="mt-2 text-xs font-bold text-slate-400">QR을 누르면 크게 볼 수 있어요</p>
+                  <button
+                    onClick={handleCopyInvite}
+                    className="mt-4 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100"
+                  >
+                    초대 링크 복사
+                  </button>
                 </div>
               </div>
-
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm">
-                <p className="mb-3 text-sm font-black text-slate-500">QR 코드로 입장</p>
-                <div className="mx-auto inline-block rounded-xl border-2 border-slate-200 bg-white p-3">
-                  <QRCodeSVG
-                    value={inviteUrl}
-                    size={190}
-                    level="H"
-                  />
+            ) : (
+              <div className="mx-auto flex w-full max-w-2xl items-center justify-center gap-5 rounded-3xl border border-sky-100 bg-white px-6 py-4 text-center shadow-xl shadow-sky-100">
+                <div>
+                  <p className="text-xs font-black text-sky-500">참가코드</p>
+                  <div className="text-4xl font-black tracking-wider text-slate-950">{roomCode}</div>
                 </div>
                 <button
-                  onClick={handleCopyInvite}
-                  className="mt-4 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100"
+                  type="button"
+                  onClick={() => setShowLargeQrModal(true)}
+                  className="rounded-2xl border-2 border-sky-100 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg"
+                  aria-label="QR 코드 크게 보기"
                 >
-                  초대 링크 복사
+                  <QRCodeSVG
+                    value={inviteUrl}
+                    size={110}
+                    level="H"
+                  />
                 </button>
               </div>
-            </div>
+            )}
 
             {roomStatus === 'waiting' && (
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -392,13 +413,7 @@ export default function TeacherDashboard() {
                   </button>
                 </div>
 
-                {players.length === 0 ? (
-                  <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 py-12 text-center">
-                    <div className="text-5xl">🐶</div>
-                    <p className="mt-3 text-lg font-black text-slate-700">아직 입장한 학생이 없습니다</p>
-                    <p className="mt-1 text-sm font-bold text-slate-500">코드나 QR을 공유해주세요.</p>
-                  </div>
-                ) : (
+                {players.length > 0 && (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {players.map((player) => {
                       const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
@@ -426,9 +441,9 @@ export default function TeacherDashboard() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowGameCodeModal(true)}
-                className="flex-1 rounded-lg border border-gray-200 bg-gray-100 px-4 py-3 font-semibold text-gray-700 transition-colors hover:bg-gray-200"
+                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-black text-sky-700 shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-xl"
               >
-                📋 코드 크게 보기
+                코드 크게 보기
               </button>
               {isGameStarted && (
                 <>
@@ -453,9 +468,9 @@ export default function TeacherDashboard() {
             <p className="text-gray-600 mb-6 text-lg font-medium">게임을 시작하려면 아래 버튼을 클릭하세요</p>
             <button
               onClick={handleCreateGame}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-4 px-8 rounded-lg transition-all font-semibold text-lg shadow-sm hover:shadow-md"
+              className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-black text-white shadow-lg shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-sky-200"
             >
-              🎮 새 게임 시작하기
+              게임 시작하기
             </button>
           </div>
         )}
@@ -463,7 +478,7 @@ export default function TeacherDashboard() {
         {room && (
           <div className="mt-4 p-3 bg-gray-50 rounded-md">
             <div className="text-sm text-gray-600">
-              상태: <span className="font-semibold">{room.status}</span> | 문제 번호:{' '}
+              상태: <span className="font-semibold">{room.status === 'waiting' ? '대기 중' : room.status === 'playing' ? '진행 중' : room.status === 'finished' ? '종료됨' : room.status}</span> | 문제 번호:{' '}
               <span className="font-semibold">{room.current_q_index + 1}</span>
             </div>
           </div>
@@ -491,6 +506,38 @@ export default function TeacherDashboard() {
           // 복사 완료 시 추가 동작 (선택적)
         }}
       />
+
+      {showLargeQrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-8 text-center shadow-2xl">
+            <p className="text-base font-black text-sky-500">참가코드</p>
+            <div className="mt-1 text-6xl font-black tracking-wider text-slate-950">{roomCode}</div>
+            <div className="mx-auto mt-6 inline-block rounded-3xl border-4 border-sky-100 bg-white p-6 shadow-lg">
+              <QRCodeSVG
+                value={inviteUrl}
+                size={360}
+                level="H"
+              />
+            </div>
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={handleCopyInvite}
+                className="flex-1 rounded-2xl bg-sky-500 px-5 py-4 text-lg font-black text-white shadow-lg shadow-sky-100 transition hover:bg-sky-600"
+              >
+                초대 링크 복사
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowLargeQrModal(false)}
+                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-lg font-black text-slate-700 transition hover:bg-slate-100"
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -95,6 +95,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: "Don't Look Down",
     shortLabel: '돈룩다운',
     emoji: '⛰️',
+    image: '/title/jump_jump.svg',
     fontFamily: GAME_FONT_FAMILY,
     description: '플랫폼을 점프하며 정상까지 오르는 등반 게임',
     leaderboardSort: 'score',

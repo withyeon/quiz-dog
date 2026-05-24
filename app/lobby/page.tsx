@@ -74,10 +74,6 @@ export default function LobbyPage() {
         alert('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
         return
       }
-      if (roomData.status === 'playing') {
-        alert('이미 시작된 게임이에요. 다음 게임이 열릴 때 입장해주세요.')
-        return
-      }
       setStep('nickname')
     } catch {
       alert('방 확인에 실패했어요. 인터넷 연결을 확인해주세요.')
@@ -97,8 +93,8 @@ export default function LobbyPage() {
     setSelectedCharacter(character)
     try {
       const roomData = await ensureRoomExists(roomCode)
-      if (roomData.status !== 'waiting') {
-        alert('이미 시작된 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
+      if (roomData.status === 'finished') {
+        alert('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
         setStep('code')
         return
       }
@@ -121,6 +117,10 @@ export default function LobbyPage() {
       setPlayerId(playerData.id)
       setIsJoined(true)
       void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
+
+      if (roomData.status === 'playing') {
+        router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, playerData.id))
+      }
     } catch (err) {
       console.error('Error joining room:', err)
       alert('방 입장에 실패했습니다: ' + formatServiceError(err))

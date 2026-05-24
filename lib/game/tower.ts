@@ -18,7 +18,7 @@ export interface TowerType {
 export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     BASIC: {
         id: 'BASIC',
-        name: '애로우 포스트',
+        name: '화살 타워',
         emoji: '🏹',
         description: '저렴하고 안정적인 단일 표적 공격',
         cost: 100,
@@ -28,7 +28,7 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     MAGIC: {
         id: 'MAGIC',
-        name: '아크 메이지',
+        name: '마법 타워',
         emoji: '🔮',
         description: '타격 지점 주변에 마력 피해',
         cost: 200,
@@ -39,7 +39,7 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     BOMB: {
         id: 'BOMB',
-        name: '블래스트 캐논',
+        name: '폭탄 타워',
         emoji: '💣',
         description: '느리지만 강력한 광역 폭발',
         cost: 300,
@@ -50,7 +50,7 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     LASER: {
         id: 'LASER',
-        name: '펄스 레이저',
+        name: '레이저 타워',
         emoji: '⚡',
         description: '빠른 연사로 라인을 관통 공격',
         cost: 350,
@@ -61,7 +61,7 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
     },
     SLOW: {
         id: 'SLOW',
-        name: '프로스트 코어',
+        name: '얼음 타워',
         emoji: '❄️',
         description: '적을 잠시 둔화시키는 보조 화력',
         cost: 150,

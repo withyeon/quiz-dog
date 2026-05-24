@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -283,9 +284,16 @@ export default function DontLookDownPage() {
                         className="relative z-10 flex items-center justify-center min-h-screen p-8"
                     >
                         <div className="text-center max-w-2xl">
-                            <h1 className="text-6xl font-bold text-white mb-8 drop-shadow-lg font-bitbit">
-                                ⛰️ Don&apos;t Look Down
-                            </h1>
+                            <div className="mb-8 flex justify-center">
+                                <Image
+                                    src="/title/jump_jump.svg"
+                                    alt="Don't Look Down"
+                                    width={780}
+                                    height={264}
+                                    className="h-28 w-auto max-w-full object-contain sm:h-36 md:h-44"
+                                    priority
+                                />
+                            </div>
                             <div className="bg-white/90 rounded-2xl p-8 mb-8">
                                 <p className="text-2xl font-bold text-gray-800 mb-4">
                                     정상까지 먼저 올라가세요!

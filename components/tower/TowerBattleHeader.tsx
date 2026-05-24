@@ -63,7 +63,7 @@ export default function TowerBattleHeader({
                     </div>
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs font-black text-slate-500">
-                            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">ROOM {roomCode}</span>
+                            <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">방 {roomCode}</span>
                             {selectedTowerType && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
                                     <Crosshair className="h-3.5 w-3.5" />
@@ -77,7 +77,7 @@ export default function TowerBattleHeader({
                                     animate={{ scale: 1, opacity: 1 }}
                                     className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg shadow-orange-200"
                                 >
-                                    🔥 COMBO ×{consecutiveCorrect}
+                                    🔥 {consecutiveCorrect}연속!
                                 </motion.span>
                             )}
                         </div>
@@ -88,11 +88,11 @@ export default function TowerBattleHeader({
                 </div>
 
                 <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:flex">
-                    <HudMetric icon={HeartPulse} label="Core" value={hp} detail="HP" tone="text-red-500" />
-                    <HudMetric icon={Coins} label="Gold" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
-                    <HudMetric icon={Target} label="Wave" value={`${Math.min(currentWave + 1, WAVES.length)} / ${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining} 대기` : `${waveProgress}% 클리어`} tone="text-indigo-500" />
-                    <HudMetric icon={Crosshair} label="Build" value="자유" detail={`${occupiedSlotCount} 배치`} tone="text-emerald-500" />
-                    <HudMetric icon={BrainCircuit} label="Quiz" value={quizHudValue} detail="웨이브당 1회" tone="text-sky-500" />
+                    <HudMetric icon={HeartPulse} label="코어" value={hp} detail="체력" tone="text-red-500" />
+                    <HudMetric icon={Coins} label="골드" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
+                    <HudMetric icon={Target} label="웨이브" value={`${Math.min(currentWave + 1, WAVES.length)} / ${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining}마리 남음` : `${waveProgress}% 클리어`} tone="text-indigo-500" />
+                    <HudMetric icon={Crosshair} label="배치" value="자유" detail={`${occupiedSlotCount}개 설치`} tone="text-emerald-500" />
+                    <HudMetric icon={BrainCircuit} label="퀴즈" value={quizHudValue} detail="웨이브당 1회" tone="text-sky-500" />
                 </div>
 
                 <div className="flex flex-wrap gap-2">

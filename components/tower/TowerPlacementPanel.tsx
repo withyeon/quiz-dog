@@ -26,7 +26,7 @@ export default function TowerPlacementPanel({
                     <p className="mt-1 text-xs font-bold text-slate-500">길 위와 기존 타워 주변을 피해 자유롭게 설치하세요.</p>
                 </div>
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-right">
-                    <div className="text-[10px] font-black uppercase tracking-[0.08em] text-amber-700">Gold</div>
+                    <div className="text-[10px] font-black tracking-[0.08em] text-amber-700">골드</div>
                     <div className="text-lg font-black text-amber-900">{gold.toLocaleString()}</div>
                 </div>
             </div>

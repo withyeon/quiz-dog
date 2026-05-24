@@ -13,7 +13,7 @@ import ConvenienceStore from '@/components/ConvenienceStore'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import ScreenFlash from '@/components/ScreenFlash'
-import type { Database } from '@/types/database.types'
+import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
 import { formatMoney, getAnswerSpeed, getSpeedBonus, roundMoney } from '@/lib/game/convenienceStore'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
@@ -28,7 +28,6 @@ import {
 } from '@/lib/services/questions'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
-  convenience_products?: Product[]
   convenience_money?: number
 }
 
@@ -141,7 +140,7 @@ export default function FactoryPage() {
         setMoney(currentPlayer.convenience_money)
       }
       if (currentPlayer.convenience_products) {
-        setProducts(currentPlayer.convenience_products as Product[])
+        setProducts(currentPlayer.convenience_products as unknown as Product[])
       }
     }
   }, [currentPlayer])
@@ -192,7 +191,7 @@ export default function FactoryPage() {
 
     try {
       await commitPlayerPatch({
-        convenience_products: newProducts,
+        convenience_products: newProducts as unknown as Json,
       }, 'factory_products_update')
     } catch (error) {
       console.error('Error updating products:', error)

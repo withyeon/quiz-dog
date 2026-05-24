@@ -120,8 +120,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 />
               </Link>
               <div>
-                <div className="text-sm font-medium text-slate-400">Teacher</div>
-                <h1 className="text-lg font-black tracking-normal text-slate-950">{currentItem.label}</h1>
+                <div className="text-sm font-medium text-slate-400">선생님 대시보드</div>
               </div>
             </div>
 
@@ -135,9 +134,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
               <Link
                 href="/teacher/dashboard"
-                className="flex h-10 items-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800"
+                className="flex h-10 items-center gap-2 rounded-2xl bg-sky-500 px-5 text-sm font-black text-white shadow-lg shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-sky-200"
               >
-                <PlayCircle className="h-4 w-4" />
                 게임 시작
               </Link>
             </div>

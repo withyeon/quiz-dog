@@ -59,7 +59,7 @@ export default function ItemChoiceModal({
         <div className="text-2xl font-black text-slate-950">✅ 정답! 🍽️ {restockedMenuName} 재고 충전!</div>
         {consecutiveCorrect >= 2 && (
           <div className="mt-2 inline-flex rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white">
-            🔥 {consecutiveCorrect}연속 정답! 희귀 아이템 확률 UP
+            🔥 {consecutiveCorrect}연속 정답! 희귀 아이템이 더 잘 나와요
           </div>
         )}
       </div>
@@ -90,13 +90,13 @@ export default function ItemChoiceModal({
               <span className="text-center text-xs font-semibold text-slate-600">{item.description}</span>
               {item.rarity === 'rare' && (
                 <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-600">
-                  ✨ RARE
+                  ✨ 희귀
                 </span>
               )}
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
                 item.type === 'buff' ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'
               }`}>
-                {item.type === 'buff' ? '🟢 내 버프' : '🔴 상대 방해'}
+                {item.type === 'buff' ? '🟢 나에게 좋아요' : '🔴 상대 방해'}
               </span>
             </motion.button>
           ))}
