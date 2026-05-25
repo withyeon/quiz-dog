@@ -79,7 +79,8 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
             players={players}
             currentPlayerId={null}
             sortBy={modeConfig.leaderboardSort === 'gold' ? 'gold' : 'score'}
-            title={`${modeConfig.emoji} ${modeConfig.shortLabel} 순위`}
+            title={mode === 'gold_quest' ? '골드 순위' : `${modeConfig.emoji} ${modeConfig.shortLabel} 순위`}
+            titleIcon={mode === 'gold_quest' ? '/gold-quest/quest.svg' : undefined}
         />
     )
 }

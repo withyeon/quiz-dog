@@ -25,20 +25,14 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
   const [gameOver, setGameOver] = useState(false)
   const [isMovingLeft, setIsMovingLeft] = useState(false)
   const [isMovingRight, setIsMovingRight] = useState(false)
-  const [backgroundStars, setBackgroundStars] = useState<Array<{ left: string; top: string }>>([])
 
   const objectIdRef = useRef(0)
   const gameLoopRef = useRef<NodeJS.Timeout>()
   const spawnTimerRef = useRef<NodeJS.Timeout>()
 
-  // Initialize background stars only on client-side to prevent hydration mismatch
   useEffect(() => {
-    const stars = Array.from({ length: 20 }, () => ({
-      left: `${Math.random() * 100}%`,
-      top: `${Math.random() * 100}%`,
-    }))
-    setBackgroundStars(stars)
-  }, [])
+    onScoreChange?.(score)
+  }, [score, onScoreChange])
 
   // 플레이어 이동
   useEffect(() => {
@@ -126,7 +120,6 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
               // 코인 수집
               setScore(s => {
                 const newScore = s + 10
-                if (onScoreChange) onScoreChange(newScore)
                 return newScore
               })
               obj.y = 200 // 제거 처리
@@ -145,7 +138,7 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
     return () => {
       if (gameLoopRef.current) clearInterval(gameLoopRef.current)
     }
-  }, [gameOver, playerX, score, onScoreChange])
+  }, [gameOver, playerX, score])
 
   // 게임 재시작
   const handleRestart = () => {
@@ -155,7 +148,6 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
     setFallingObjects([])
     setIsMovingLeft(false)
     setIsMovingRight(false)
-    if (onScoreChange) onScoreChange(0)
   }
 
   // 화면 클릭으로 이동
@@ -179,32 +171,10 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
 
   return (
     <div
-      className="relative w-full h-full bg-gradient-to-b from-indigo-400 via-purple-400 to-pink-300 overflow-hidden rounded-lg cursor-pointer"
+      className="relative w-full h-full overflow-hidden rounded-lg cursor-pointer bg-cover bg-bottom bg-no-repeat"
+      style={{ backgroundImage: "url('/background/mini-game.png')" }}
       onClick={handleClick}
     >
-      {/* 배경 별 */}
-      <div className="absolute inset-0">
-        {backgroundStars.map((star, i) => (
-          <motion.div
-            key={i}
-            className="absolute w-1 h-1 bg-white rounded-full"
-            style={{
-              left: star.left,
-              top: star.top,
-            }}
-            animate={{
-              opacity: [0.3, 1, 0.3],
-              scale: [1, 1.5, 1],
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              delay: (i % 10) * 0.2,
-            }}
-          />
-        ))}
-      </div>
-
       {/* 떨어지는 오브젝트 */}
       <AnimatePresence>
         {fallingObjects.map(obj => (
@@ -223,7 +193,15 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
           >
             {obj.type === 'bomb' && '💣'}
             {obj.type === 'rock' && '🪨'}
-            {obj.type === 'coin' && '🪙'}
+            {obj.type === 'coin' && (
+              <Image
+                src="/mini-game/bone.svg"
+                alt="뼈다귀"
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain drop-shadow-md"
+              />
+            )}
           </motion.div>
         ))}
       </AnimatePresence>
@@ -302,7 +280,7 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
           transition={{ duration: 2, repeat: Infinity }}
         >
           <p className="text-white text-sm font-semibold drop-shadow-lg">
-            ← → 키 또는 클릭으로 이동 | 💣🪨 피하기 | 🪙 모으기!
+            ← → 키 또는 클릭으로 이동 | 💣🪨 피하기 | 뼈다귀 모으기!
           </p>
         </motion.div>
       )}

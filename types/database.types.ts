@@ -30,6 +30,8 @@ export interface Database {
           attack_power?: number
           defense?: number
           player_class?: string | null
+          team?: 'red' | 'blue' | null
+          revival_streak?: number
           caught_dolls?: Json | null
           claw_points?: number
           caught_fishes?: Json | null
@@ -66,6 +68,8 @@ export interface Database {
           attack_power?: number
           defense?: number
           player_class?: string | null
+          team?: 'red' | 'blue' | null
+          revival_streak?: number
           caught_dolls?: Json | null
           claw_points?: number
           caught_fishes?: Json | null
@@ -102,6 +106,8 @@ export interface Database {
           attack_power?: number
           defense?: number
           player_class?: string | null
+          team?: 'red' | 'blue' | null
+          revival_streak?: number
           caught_dolls?: Json | null
           claw_points?: number
           caught_fishes?: Json | null

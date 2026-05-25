@@ -12,7 +12,6 @@ import Minigame from '@/components/Minigame'
 import { CHARACTERS, type Character } from '@/lib/utils/characters'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import Link from 'next/link'
 import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl } from '@/lib/game/modes'
 import { formatServiceError } from '@/lib/services/errors'
 import { createPlayerForRoom, ensureRoomExists, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
@@ -138,17 +137,13 @@ export default function LobbyPage() {
       </div>
 
       <div
-        className="relative z-20 flex items-center justify-between px-6 py-3"
+        className="relative z-20 flex items-center justify-center px-6 py-3"
         style={{
           background: 'rgba(91,45,10,0.92)',
           borderBottom: '4px solid #3B1A05',
           boxShadow: '0 4px 0 #2A1005, 0 8px 20px rgba(0,0,0,0.3)',
         }}
       >
-        <Link href="/" className="flex items-center gap-2">
-          <Image src="/header-logo.svg" alt="퀴즈독" width={120} height={40} className="h-8 w-auto" />
-        </Link>
-
         <div className="flex items-center gap-2">
           {(['code', 'nickname', 'character', 'minigame'] as LobbyStep[]).map((s) => (
             <div
@@ -161,12 +156,6 @@ export default function LobbyPage() {
             />
           ))}
         </div>
-
-        <Link href="/">
-          <PixelBtn color="orange" className="text-sm px-4 py-2">
-            🏠 홈으로
-          </PixelBtn>
-        </Link>
       </div>
 
       <div className="relative z-10 min-h-[calc(100vh-72px)] flex items-center justify-center p-6">

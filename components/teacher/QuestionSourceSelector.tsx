@@ -81,10 +81,10 @@ export default function QuestionSourceSelector({
   const toneClasses = {
     sky: {
       active: 'border-sky-400 bg-sky-50',
-      icon: 'bg-sky-100 text-sky-700',
+      icon: 'bg-sky-100 text-blue-900',
       focus: 'focus:border-sky-400 focus:ring-sky-100',
       selected: 'bg-sky-500',
-      text: 'text-sky-700',
+      text: 'text-blue-900',
     },
     cyan: {
       active: 'border-cyan-400 bg-cyan-50',
@@ -117,7 +117,7 @@ export default function QuestionSourceSelector({
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
           placeholder="예: 초5 도형의 넓이"
-          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none ring-2 ring-transparent transition ${toneClasses.sky.focus}`}
+          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-blue-900 outline-none ring-2 ring-transparent transition ${toneClasses.sky.focus}`}
           onClick={(e) => e.stopPropagation()}
         />
       )
@@ -145,7 +145,7 @@ export default function QuestionSourceSelector({
           value={youtubeUrl}
           onChange={(e) => setYoutubeUrl(e.target.value)}
           placeholder="https://youtube.com/watch?v=..."
-          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-900 outline-none ring-2 ring-transparent transition ${toneClasses.rose.focus}`}
+          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-blue-900 outline-none ring-2 ring-transparent transition ${toneClasses.rose.focus}`}
           onClick={(e) => e.stopPropagation()}
         />
       )
@@ -196,7 +196,7 @@ export default function QuestionSourceSelector({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-black text-slate-950">{option.title}</h3>
+                  <h3 className="text-lg font-black text-blue-900">{option.title}</h3>
                   {option.badge && (
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-black text-white ${tone.selected}`}>
                       {option.badge}

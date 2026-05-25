@@ -35,7 +35,7 @@ export default function BoxSelection({
     if (!revealedBoxes[index]) return null
     if (selectedBox !== index) return null
     if (!boxEvent) return null
-    return BOX_EVENT_IMAGE[boxEvent.type]
+    return boxEvent.image ?? BOX_EVENT_IMAGE[boxEvent.type]
   }
 
   const getBoxColor = (index: number) => {

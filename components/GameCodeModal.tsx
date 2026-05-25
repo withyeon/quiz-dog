@@ -3,12 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
 import { X, Copy, Check } from 'lucide-react'
 import QRCodeSVG from 'react-qr-code'
 import { Button } from '@/components/ui/button'
-import { generateRoomCode } from '@/lib/utils/gameCode'
-import { gameAssets } from '@/assets/game-assets'
 
 interface GameCodeModalProps {
   roomCode: string
@@ -23,7 +20,6 @@ export default function GameCodeModal({
   isOpen,
   onClose,
   onCopy,
-  onStartGame,
 }: GameCodeModalProps) {
   const [copied, setCopied] = useState(false)
   const [mounted, setMounted] = useState(false)
@@ -73,123 +69,83 @@ export default function GameCodeModal({
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8"
+          className="relative font-bitbit w-full max-w-md rounded-3xl border border-sky-100 bg-white p-8 shadow-2xl shadow-sky-200"
         >
           {/* 닫기 버튼 */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute top-4 right-4 text-slate-400 transition-colors hover:text-slate-600"
+            aria-label="닫기"
           >
             <X className="h-6 w-6" />
           </button>
 
-          <div className="text-center">
-            {/* 제목 */}
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">게임 참가 코드</h2>
-            <p className="text-gray-600 mb-6">학생들에게 이 코드를 공유하세요</p>
-
-            {/* 방 코드 - 큰 글씨로 표시 */}
-            <div className="mb-6">
-              <div className="inline-block bg-blue-600 rounded-xl p-6 shadow-lg">
-                <motion.div
-                  initial={{ scale: 0.8 }}
-                  animate={{ scale: 1 }}
-                  className="text-6xl font-bold text-white tracking-wider mb-2"
-                >
-                  {roomCode}
-                </motion.div>
-                <button
-                  onClick={handleCopyCode}
-                  className="text-sm text-primary-100 hover:text-white transition-colors flex items-center gap-1 mx-auto"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      복사됨!
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4" />
-                      코드 복사
-                    </>
-                  )}
-                </button>
-              </div>
+          <div className="space-y-5 text-center">
+            {/* 방 코드 카드 */}
+            <div className="rounded-3xl bg-gradient-to-br from-sky-400 via-sky-500 to-cyan-500 p-6 text-white shadow-xl shadow-sky-200">
+              <p className="text-sm font-black text-sky-50">참가코드</p>
+              <motion.div
+                initial={{ scale: 0.9 }}
+                animate={{ scale: 1 }}
+                className="mt-1 text-6xl font-black tracking-wider"
+              >
+                {roomCode}
+              </motion.div>
+              <button
+                onClick={handleCopyCode}
+                className="mx-auto mt-3 inline-flex items-center gap-1 rounded-full bg-white/20 px-3 py-1.5 text-xs font-black text-white transition hover:bg-white/30"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5" />
+                    복사됨!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5" />
+                    코드 복사
+                  </>
+                )}
+              </button>
             </div>
 
             {/* QR 코드 */}
-            <div className="mb-6 flex justify-center">
-              <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-gray-200">
+            <div className="flex justify-center">
+              <div className="rounded-2xl border-2 border-sky-100 bg-white p-4 shadow-sm">
                 <QRCodeSVG
                   value={inviteUrl}
-                  size={200}
+                  size={220}
                   level="H"
                 />
               </div>
             </div>
 
             {/* 참가 링크 */}
-            <div className="mb-6">
-              <p className="text-sm text-gray-600 mb-2">또는 링크로 공유</p>
-              <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
-                <input
-                  type="text"
-                  value={inviteUrl}
-                  readOnly
-                  className="flex-1 text-sm text-gray-700 bg-transparent border-none outline-none"
-                />
-                <Button
-                  size="sm"
-                  onClick={handleCopy}
-                  className="shrink-0"
-                >
-                  {copied ? (
-                    <>
-                      <Check className="h-4 w-4 mr-1" />
-                      복사됨
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-4 w-4 mr-1" />
-                      복사
-                    </>
-                  )}
-                </Button>
-              </div>
+            <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-slate-50 p-3">
+              <input
+                type="text"
+                value={inviteUrl}
+                readOnly
+                className="flex-1 truncate bg-transparent text-sm font-bold text-slate-700 outline-none"
+              />
+              <Button
+                size="sm"
+                onClick={handleCopy}
+                className="shrink-0 rounded-lg bg-sky-500 font-black text-white shadow-sm transition hover:bg-sky-600"
+              >
+                {copied ? (
+                  <>
+                    <Check className="mr-1 h-4 w-4" />
+                    복사됨
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-1 h-4 w-4" />
+                    복사
+                  </>
+                )}
+              </Button>
             </div>
-
-            {/* 안내 문구 */}
-            <div className="bg-primary-50 rounded-lg p-4 border border-primary-200">
-              <p className="text-sm text-primary-700">
-                학생들은 <strong>퀴즈독</strong> 앱이나 웹사이트에서<br />
-                위 코드를 입력하거나 QR 코드를 스캔하세요
-              </p>
-            </div>
-
-            {/* 게임 시작 버튼 */}
-            {onStartGame && (
-              <div className="mt-6">
-                <Button
-                  onClick={() => {
-                    onStartGame()
-                    onClose()
-                  }}
-                  size="lg"
-                  className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg"
-                >
-                  <Image
-                    src={gameAssets.joystick.icon64}
-                    alt=""
-                    width={64}
-                    height={64}
-                    unoptimized
-                    className="h-6 w-6 object-contain pixelated"
-                    aria-hidden
-                  />
-                  게임 시작하기
-                </Button>
-              </div>
-            )}
           </div>
         </motion.div>
       </div>

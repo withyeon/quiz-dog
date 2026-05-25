@@ -20,6 +20,8 @@ export type RoomEventType =
   | 'game:finished'
   | 'player:patch'
   | 'game:effect'
+  | 'gold_quest:attack_request'
+  | 'gold_quest:attack_response'
   | 'battle:attacked'
   | 'cafe:item_attack'
 

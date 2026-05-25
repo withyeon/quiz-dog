@@ -22,6 +22,7 @@ import {
   copyQuestionSetFromQuestionsOnly,
   listQuestionSetIndexFromQuestions,
 } from '@/lib/services/questionSets'
+import { ELEMENTARY_GRADE_NUMBERS, formatGradeLabel } from '@/lib/constants/grades'
 
 type QuestionSet = {
   set_id: string
@@ -53,7 +54,7 @@ const SCHOOL_LEVELS = [
 ]
 
 const GRADE_GROUPS = {
-  elementary: ['1', '2', '3', '4', '5', '6'],
+  elementary: [...ELEMENTARY_GRADE_NUMBERS],
   middle: ['1', '2', '3'],
   high: ['1', '2', '3'],
 } as const
@@ -79,11 +80,7 @@ const getSubjectName = (subjectId: string) => (
   SUBJECTS.find((item) => item.id === subjectId)?.name ?? '통합교과'
 )
 
-const getGradeLabel = (grade: string) => {
-  const [level, number] = grade.split('-')
-  const levelLabel = level === 'elementary' ? '초등' : level === 'middle' ? '중등' : '고등'
-  return `${levelLabel} ${number}학년`
-}
+const getGradeLabel = (grade: string) => formatGradeLabel(grade)
 
 const generateTags = (setId: string): string[] => {
   const grade = extractGrade(setId)
@@ -221,7 +218,7 @@ function LibraryPageContent() {
               <Library className="h-4 w-4" />
               수업 준비 라이브러리
             </div>
-            <h1 className="text-3xl font-black tracking-normal text-slate-950 sm:text-4xl">
+            <h1 className="text-3xl font-black tracking-normal text-blue-900 sm:text-4xl">
               바로 수업에 쓸 퀴즈 세트를 찾아보세요
             </h1>
             <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500">
@@ -240,7 +237,7 @@ function LibraryPageContent() {
                   <span className="text-xs font-bold text-slate-500">{item.label}</span>
                   <item.icon className="h-4 w-4 text-slate-400" />
                 </div>
-                <div className="mt-3 text-2xl font-black text-slate-950">{item.value}</div>
+                <div className="mt-3 text-2xl font-black text-blue-900">{item.value}</div>
               </div>
             ))}
           </div>
@@ -256,7 +253,7 @@ function LibraryPageContent() {
               placeholder="단원명, 과목, 학년으로 검색"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-12 pr-4 text-base font-bold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+              className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-12 pr-4 text-base font-bold text-blue-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
             />
           </label>
           <div className="flex items-center gap-2">
@@ -273,7 +270,7 @@ function LibraryPageContent() {
             {activeFilterCount > 0 && (
               <button
                 onClick={resetFilters}
-                className="h-12 rounded-lg px-4 text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                className="h-12 rounded-lg px-4 text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-blue-900"
               >
                 초기화
               </button>
@@ -299,7 +296,7 @@ function LibraryPageContent() {
                 { id: 'all', name: '전체' },
                 ...GRADE_GROUPS[selectedSchoolLevel as SchoolLevel].map((grade) => ({
                   id: `${selectedSchoolLevel}-${grade}`,
-                  name: `${grade}학년`,
+                  name: selectedSchoolLevel === 'elementary' ? `초${grade}` : `${grade}학년`,
                 })),
               ]}
               value={selectedGrade}
@@ -327,18 +324,18 @@ function LibraryPageContent() {
 
           {loading ? (
             <div className="flex min-h-80 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-950" />
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-900" />
             </div>
           ) : filteredSets.length === 0 ? (
             <div className="rounded-lg bg-white p-12 text-center ring-1 ring-slate-200">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                 <Search className="h-6 w-6 text-slate-400" />
               </div>
-              <h2 className="mt-4 text-lg font-black text-slate-950">맞는 자료가 없습니다</h2>
+              <h2 className="mt-4 text-lg font-black text-blue-900">맞는 자료가 없습니다</h2>
               <p className="mt-2 text-sm font-medium text-slate-500">검색어나 필터를 조금 넓혀보세요.</p>
               <button
                 onClick={resetFilters}
-                className="mt-5 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800"
+                className="mt-5 rounded-lg bg-blue-900 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-800"
               >
                 필터 초기화
               </button>
@@ -350,7 +347,7 @@ function LibraryPageContent() {
                 onClick={() => setPreviewSetId(set.set_id)}
                 className={`w-full rounded-lg bg-white p-5 text-left shadow-sm ring-1 transition ${
                   selectedSet?.set_id === set.set_id
-                    ? 'ring-slate-950'
+                    ? 'ring-blue-900'
                     : 'ring-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -366,7 +363,7 @@ function LibraryPageContent() {
                         </span>
                       ))}
                     </div>
-                    <h3 className="truncate text-lg font-black text-slate-950">{set.name}</h3>
+                    <h3 className="truncate text-lg font-black text-blue-900">{set.name}</h3>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500">
                       <span>{set.creator}</span>
                       <span>·</span>
@@ -396,7 +393,7 @@ function LibraryPageContent() {
                   </div>
                 </div>
 
-                <h2 className="mt-5 text-xl font-black leading-snug text-slate-950">{selectedSet.name}</h2>
+                <h2 className="mt-5 text-xl font-black leading-snug text-blue-900">{selectedSet.name}</h2>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <InfoTile label="문항 수" value={`${selectedSet.question_count}개`} icon={FileQuestion} />
                   <InfoTile label="대상" value={getGradeLabel(selectedSet.grade)} icon={GraduationCap} />
@@ -407,14 +404,14 @@ function LibraryPageContent() {
                 <div className="mt-5 space-y-2">
                   <button
                     onClick={() => handleCopySet(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 text-sm font-black text-white transition hover:bg-slate-800"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-900 text-sm font-black text-white transition hover:bg-blue-800"
                   >
                     <Plus className="h-4 w-4" />
                     내 문제집에 담기
                   </button>
                   <button
                     onClick={() => handleStartGame(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-white text-sm font-black text-slate-800 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-white text-sm font-black text-blue-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
                     <Play className="h-4 w-4 fill-current" />
                     바로 게임 시작
@@ -424,7 +421,7 @@ function LibraryPageContent() {
                       await navigator.clipboard.writeText(`${window.location.origin}/teacher/library?set=${selectedSet.set_id}`)
                       alert('링크가 복사되었습니다.')
                     }}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-blue-900"
                   >
                     <Copy className="h-4 w-4" />
                     링크 복사
@@ -475,7 +472,7 @@ function FilterRow({
             onClick={() => onChange(item.id)}
             className={`rounded-full px-3 py-1.5 text-sm font-black transition ${
               value === item.id
-                ? 'bg-slate-950 text-white'
+                ? 'bg-blue-900 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -500,7 +497,7 @@ function InfoTile({
     <div className="rounded-lg bg-slate-50 p-3">
       <Icon className="h-4 w-4 text-slate-400" />
       <div className="mt-2 text-xs font-bold text-slate-400">{label}</div>
-      <div className="mt-1 truncate text-sm font-black text-slate-900">{value}</div>
+      <div className="mt-1 truncate text-sm font-black text-blue-900">{value}</div>
     </div>
   )
 }

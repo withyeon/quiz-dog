@@ -54,6 +54,7 @@ type RoundSummary = {
   scoreDelta: number
   dodgeReward: number
   hits: number
+  bones: number
 }
 
 function PuppyChaosPageContent() {
@@ -395,6 +396,7 @@ function PuppyChaosPageContent() {
         scoreDelta: totalDelta,
         dodgeReward,
         hits: result.hits,
+        bones: result.bones,
       })
       setPhase('roundResult')
     } finally {
@@ -583,7 +585,10 @@ function PuppyChaosPageContent() {
                 <div className="mt-5 rounded-[24px] bg-amber-100 px-6 py-4 text-4xl font-black text-amber-700">
                   +{roundSummary.scoreDelta}
                 </div>
-                <p className="mt-3 text-lg font-bold text-slate-500">미니게임 보상 +{roundSummary.dodgeReward}</p>
+                <p className="mt-3 text-lg font-bold text-slate-500">
+                  미니게임 보상 +{roundSummary.dodgeReward}
+                  {roundSummary.bones > 0 ? ` · 뼈다귀 ${roundSummary.bones}개` : ''}
+                </p>
               </div>
             </motion.section>
           )}

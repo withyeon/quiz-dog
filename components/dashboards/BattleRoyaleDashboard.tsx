@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
+import { TEAM_INFO, type Team } from '@/lib/game/battleRoyale'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -45,6 +46,26 @@ export default function BattleRoyaleDashboard({
         [...players].sort((a, b) => (b.health ?? 100) - (a.health ?? 100))
     ), [players])
     const aliveCount = sortedPlayers.filter((player) => (player.health ?? 100) > 0).length
+    const isTeamGame = useMemo(
+      () => players.some((p) => p.team === 'red' || p.team === 'blue'),
+      [players],
+    )
+
+    const teamRosters = useMemo(() => {
+      if (!isTeamGame) return null
+      return {
+        red: sortedPlayers.filter((p) => p.team === 'red'),
+        blue: sortedPlayers.filter((p) => p.team === 'blue'),
+      }
+    }, [isTeamGame, sortedPlayers])
+
+    const teamAlive = useMemo(() => {
+      if (!isTeamGame) return null
+      return {
+        red: players.filter((p) => p.team === 'red' && (p.health ?? 100) > 0).length,
+        blue: players.filter((p) => p.team === 'blue' && (p.health ?? 100) > 0).length,
+      }
+    }, [isTeamGame, players])
 
     useEffect(() => {
         if (!gameStartTime) return
@@ -108,73 +129,35 @@ export default function BattleRoyaleDashboard({
                     <p className="mt-1 text-sm font-bold text-cyan-100/75">실시간 체온 변화와 탈락 현황</p>
                 </div>
                 <div className="flex flex-wrap gap-2 text-sm font-black">
-                    <span className="rounded-full bg-emerald-400 px-3 py-2 text-emerald-950">생존 {aliveCount}명</span>
+                    {isTeamGame && teamAlive ? (
+                        <>
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500 px-3 py-2 text-white">
+                                <span>🐕</span> 홍팀 {teamAlive.red}
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-3 py-2 text-white">
+                                <span>🐺</span> 청팀 {teamAlive.blue}
+                            </span>
+                        </>
+                    ) : (
+                        <span className="rounded-full bg-emerald-400 px-3 py-2 text-emerald-950">생존 {aliveCount}명</span>
+                    )}
                     <span className="rounded-full bg-white/10 px-3 py-2 text-cyan-100">경과 {formatTime(elapsed)}</span>
-                    <span className="rounded-full bg-rose-500 px-3 py-2 text-white">폭설 Lv.{zoneLevel}</span>
+                    <span className="rounded-full bg-rose-500/80 px-3 py-2 text-white">폭설 Lv.{zoneLevel}</span>
                 </div>
             </div>
 
-            <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
-                {sortedPlayers.map((player, index) => {
-                    const health = Math.max(0, player.health ?? 100)
-                    const maxHealth = player.player_class === 'shield' ? 150 : 100
-                    const healthPct = Math.max(0, Math.min(100, (health / maxHealth) * 100))
-                    const isAlive = health > 0
-                    const isDanger = healthPct <= 25 && isAlive
-
-                    return (
-                        <motion.article
-                            key={player.id}
-                            layout
-                            initial={{ opacity: 0, y: 14 }}
-                            animate={{
-                                opacity: isAlive ? 1 : 0.46,
-                                y: 0,
-                                boxShadow: index === 0 && isAlive
-                                    ? '0 0 28px rgba(251, 191, 36, 0.38)'
-                                    : isDanger
-                                        ? ['0 0 0 1px rgba(239,68,68,0.7)', '0 0 0 6px rgba(239,68,68,0.18)', '0 0 0 1px rgba(239,68,68,0.7)']
-                                        : '0 0 0 rgba(0,0,0,0)',
-                            }}
-                            transition={{ boxShadow: isDanger ? { duration: 0.9, repeat: Infinity } : undefined }}
-                            className={`relative overflow-hidden rounded-lg border p-4 ${
-                                index === 0 && isAlive
-                                    ? 'border-amber-300 bg-amber-300/14'
-                                    : isDanger
-                                        ? 'border-rose-300 bg-rose-500/14'
-                                        : 'border-white/10 bg-white/10'
-                            } ${!isAlive ? 'grayscale' : ''}`}
-                        >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                    <div className="truncate text-lg font-black">{index === 0 && isAlive ? '👑 ' : ''}{player.nickname}</div>
-                                    <div className="mt-1 text-xs font-bold text-cyan-100/70">#{index + 1} · {player.score ?? 0}점</div>
-                                </div>
-                                {isDanger && <span className="rounded-full bg-rose-500 px-2 py-1 text-[10px] font-black">위험</span>}
-                            </div>
-
-                            <div className="mt-4">
-                                <div className="mb-1 flex justify-between text-xs font-black text-cyan-100">
-                                    <span>체온</span>
-                                    <span>{Math.round(health)}° / {maxHealth}°</span>
-                                </div>
-                                <div className="h-3 overflow-hidden rounded-full bg-slate-950/70">
-                                    <div
-                                        className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${getHealthColor(healthPct)}`}
-                                        style={{ width: `${healthPct}%` }}
-                                    />
-                                </div>
-                            </div>
-
-                            {!isAlive && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-slate-200/75 backdrop-blur-[1px]">
-                                    <span className="text-5xl">⛄</span>
-                                </div>
-                            )}
-                        </motion.article>
-                    )
-                })}
-            </div>
+            {isTeamGame && teamRosters ? (
+                <div className="grid gap-4 p-4 lg:grid-cols-2">
+                    <TeamColumn team="red" players={teamRosters.red} />
+                    <TeamColumn team="blue" players={teamRosters.blue} />
+                </div>
+            ) : (
+                <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-4">
+                    {sortedPlayers.map((player, index) => (
+                        <PlayerCard key={player.id} player={player} rank={index + 1} highlightLeader />
+                    ))}
+                </div>
+            )}
 
             <div className="border-t border-white/10 bg-white/[0.04] p-4">
                 <h3 className="mb-3 text-sm font-black text-cyan-100">전투 피드</h3>
@@ -206,5 +189,119 @@ export default function BattleRoyaleDashboard({
                 </div>
             </div>
         </section>
+    )
+}
+
+function PlayerCard({
+    player,
+    rank,
+    highlightLeader = false,
+}: {
+    player: Player
+    rank: number
+    highlightLeader?: boolean
+}) {
+    const health = Math.max(0, player.health ?? 100)
+    const maxHealth = player.player_class === 'shield' ? 150 : 100
+    const healthPct = Math.max(0, Math.min(100, (health / maxHealth) * 100))
+    const isAlive = health > 0
+    const isDanger = healthPct <= 25 && isAlive
+    const isLeader = highlightLeader && rank === 1 && isAlive
+
+    return (
+        <motion.article
+            layout
+            initial={{ opacity: 0, y: 14 }}
+            animate={{
+                opacity: isAlive ? 1 : 0.46,
+                y: 0,
+                boxShadow: isLeader
+                    ? '0 0 28px rgba(251, 191, 36, 0.38)'
+                    : isDanger
+                        ? ['0 0 0 1px rgba(239,68,68,0.7)', '0 0 0 6px rgba(239,68,68,0.18)', '0 0 0 1px rgba(239,68,68,0.7)']
+                        : '0 0 0 rgba(0,0,0,0)',
+            }}
+            transition={{ boxShadow: isDanger ? { duration: 0.9, repeat: Infinity } : undefined }}
+            className={`relative overflow-hidden rounded-lg border p-3 ${
+                isLeader
+                    ? 'border-amber-300 bg-amber-300/14'
+                    : isDanger
+                        ? 'border-rose-300 bg-rose-500/14'
+                        : 'border-white/10 bg-white/10'
+            } ${!isAlive ? 'grayscale' : ''}`}
+        >
+            <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                    <div className="truncate text-base font-black">
+                        {isLeader ? '👑 ' : ''}{player.nickname}
+                    </div>
+                    <div className="mt-0.5 text-[10px] font-bold text-cyan-100/70">#{rank} · {player.score ?? 0}점</div>
+                </div>
+                {isDanger && <span className="rounded-full bg-rose-500 px-2 py-0.5 text-[10px] font-black">위험</span>}
+            </div>
+
+            <div className="mt-3">
+                <div className="mb-1 flex justify-between text-[10px] font-black text-cyan-100">
+                    <span>체온</span>
+                    <span>{Math.round(health)}° / {maxHealth}°</span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-slate-950/70">
+                    <div
+                        className={`h-full rounded-full bg-gradient-to-r transition-all duration-700 ${getHealthColor(healthPct)}`}
+                        style={{ width: `${healthPct}%` }}
+                    />
+                </div>
+            </div>
+
+            {!isAlive && (
+                <div className="absolute inset-0 flex items-center justify-center bg-slate-200/75 backdrop-blur-[1px]">
+                    <span className="text-4xl">⛄</span>
+                </div>
+            )}
+        </motion.article>
+    )
+}
+
+function TeamColumn({ team, players }: { team: Team; players: Player[] }) {
+    const info = TEAM_INFO[team]
+    const alive = players.filter((p) => (p.health ?? 100) > 0).length
+    const avgHealth = players.length === 0
+        ? 0
+        : Math.round(players.reduce((sum, p) => sum + Math.max(0, p.health ?? 100), 0) / players.length)
+    const isRed = team === 'red'
+
+    return (
+        <div
+            className={`rounded-xl border-2 p-3 ${
+                isRed ? 'border-rose-400/50 bg-rose-500/[0.08]' : 'border-sky-400/50 bg-sky-500/[0.08]'
+            }`}
+        >
+            <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <span className="text-3xl">{info.emoji}</span>
+                    <div>
+                        <div className={`text-xl font-black ${isRed ? 'text-rose-200' : 'text-sky-200'}`}>
+                            {info.name}
+                        </div>
+                        <div className="text-[10px] font-bold text-cyan-100/70">
+                            생존 {alive}/{players.length} · 평균 체온 {avgHealth}°
+                        </div>
+                    </div>
+                </div>
+                <span
+                    className={`rounded-full px-3 py-1.5 text-sm font-black ${
+                        isRed ? 'bg-rose-500 text-white' : 'bg-sky-500 text-white'
+                    }`}
+                >
+                    {alive}명
+                </span>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+                {players.map((player, index) => (
+                    <PlayerCard key={player.id} player={player} rank={index + 1} />
+                ))}
+            </div>
+        </div>
     )
 }

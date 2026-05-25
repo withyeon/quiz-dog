@@ -17,6 +17,7 @@ import QuizView from '@/components/QuizView'
 import BattleArena from '@/components/BattleArena'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import TeamRevealOverlay from '@/components/battle/TeamRevealOverlay'
 import { CLASS_BADGES, getReloadDelay, HudTile } from '@/components/battle/BattleHud'
 import { useGameBase } from '@/hooks/useGameBase'
 import {
@@ -27,13 +28,21 @@ import {
   applyHeal,
   applyHeater,
   checkWinner,
+  checkWinningTeam,
   isGameOver,
   generateItem,
   calculateZoneDamage,
   getComboDamageMultiplier,
+  assignTeams,
+  canAttackTarget,
+  canPlayTeamMode,
+  checkRevival,
+  TEAM_INFO,
+  REVIVAL_STREAK_REQUIRED,
   type AttackResult,
   type PlayerClass,
   type SnowballItem,
+  type Team,
   PLAYER_CLASSES,
 } from '@/lib/game/battleRoyale'
 import ClassSelector from '@/components/ClassSelector'
@@ -48,6 +57,8 @@ import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
   player_class?: PlayerClass
+  team?: Team | null
+  revival_streak?: number
 }
 
 type BattleView = 'lobby' | 'classSelect' | 'countdown' | 'quiz' | 'attack' | 'wrong' | 'result'
@@ -98,8 +109,18 @@ export default function BattlePage() {
   const [incomingAttack, setIncomingAttack] = useState<IncomingAttack | null>(null)
   const [isEliminated, setIsEliminated] = useState(false)
   const [showEliminationEffect, setShowEliminationEffect] = useState(false)
+  const [showTeamReveal, setShowTeamReveal] = useState(false)
+  const [teamRevealComplete, setTeamRevealComplete] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const code = new URLSearchParams(window.location.search).get('room')
+    if (!code) return false
+    return sessionStorage.getItem(`battle_team_revealed_${code}`) === '1'
+  })
   const currentPlayerClass = (currentPlayer as Player | null)?.player_class ?? null
+  const currentPlayerTeam = (currentPlayer as Player | null)?.team ?? null
   const hasFinishedGameRef = useRef(false)
+  const hasAssignedTeamsRef = useRef(false)
+  const lastAttackTargetRef = useRef<string | null>(null)
   const nextQuestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const incomingAttackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -170,6 +191,65 @@ export default function BattlePage() {
       }, 2000)
     })
   }, [playerId])
+
+  // 호스트가 게임 시작 시 팀 배정 (한 번만)
+  useEffect(() => {
+    if (room?.status !== 'playing') return
+    if (!isRoomHost) return
+    if (hasAssignedTeamsRef.current) return
+    if (players.length === 0) return
+
+    // 이미 팀이 배정되어 있으면 스킵 (재접속/새로고침 케이스)
+    const anyTeamAssigned = players.some((p) => (p as Player).team)
+    if (anyTeamAssigned) {
+      hasAssignedTeamsRef.current = true
+      return
+    }
+
+    if (!canPlayTeamMode(players.length)) {
+      // 인원 부족 시 개인전 폴백 — 팀 미지정 그대로 진행
+      hasAssignedTeamsRef.current = true
+      return
+    }
+
+    hasAssignedTeamsRef.current = true
+    const assignments = assignTeams(players, {
+      accuracyOf: (player) => {
+        const history = (player as Player).answer_history
+        if (!Array.isArray(history) || history.length === 0) return null
+        const correct = history.filter(
+          (rec: unknown) =>
+            typeof rec === 'object' && rec !== null && (rec as { isCorrect?: boolean }).isCorrect,
+        ).length
+        return correct / history.length
+      },
+    })
+
+    Promise.all(
+      Array.from(assignments.entries()).map(([playerId, team]) =>
+        updatePlayer(playerId, { team, revival_streak: 0 }),
+      ),
+    ).catch((error) => {
+      console.error('Error assigning teams:', error)
+      hasAssignedTeamsRef.current = false
+    })
+  }, [isRoomHost, players, room?.status])
+
+  // 팀 배정이 완료되면 reveal 표시 (모든 플레이어가 보게 됨)
+  useEffect(() => {
+    if (room?.status !== 'playing') return
+    if (teamRevealComplete) return
+    if (players.length === 0) return
+
+    const hasTeams = players.some((p) => (p as Player).team)
+    if (!hasTeams) return
+
+    // 모두에게 팀이 배정되었는지 확인
+    const allAssigned = players.every((p) => (p as Player).team)
+    if (!allAssigned) return
+
+    setShowTeamReveal(true)
+  }, [players, room?.status, teamRevealComplete])
 
   // 배틀로얄 전용: 게임 시작 시 직업 선택 단계 추가
   useEffect(() => {
@@ -256,11 +336,12 @@ export default function BattlePage() {
     }
   }, [currentPlayer, currentView, playSFX])
 
-  // 게임 종료 확인
+  // 게임 종료 확인 (팀전 우선)
   useEffect(() => {
     if (players.length > 0 && room?.status === 'playing') {
+      const winningTeam = checkWinningTeam(players as Player[])
       const winner = checkWinner(players as Player[])
-      if (winner || isGameOver(players as Player[])) {
+      if (winningTeam || winner || isGameOver(players as Player[])) {
         setCurrentView('result')
         playSFX('item')
         if (isRoomHost && !hasFinishedGameRef.current) {
@@ -282,6 +363,9 @@ export default function BattlePage() {
 
   const handleTargetLock = (targetId: string) => {
     if (hasSnowball || isReloading) return
+    const target = players.find((p) => p.id === targetId) as Player | undefined
+    if (!target || !currentPlayer) return
+    if (!canAttackTarget(currentPlayer as Player, target)) return
     setLockedTarget(targetId)
     playSFX('click')
   }
@@ -296,6 +380,28 @@ export default function BattlePage() {
       playSFX('correct')
       const nextComboCount = consecutiveCorrect + 1
       const comboMultiplier = getComboDamageMultiplier(nextComboCount)
+
+      // 탈락자 부활 처리 — 3연속 정답으로 50% 체력 복귀
+      const me = currentPlayer as Player | null
+      const myHealth = me?.health ?? 100
+      if (myHealth <= 0) {
+        const nextRevivalStreak = (me?.revival_streak ?? 0) + 1
+        const revivedHealth = checkRevival(nextRevivalStreak, selectedClass || undefined)
+        try {
+          if (revivedHealth !== null) {
+            await updatePlayer(playerId, { health: revivedHealth, revival_streak: 0 })
+            setIsEliminated(false)
+            playSFX('item')
+          } else {
+            await updatePlayer(playerId, { revival_streak: nextRevivalStreak })
+          }
+        } catch (error) {
+          console.error('Error processing revival:', error)
+        }
+        // 탈락 중에는 공격하지 않음. 다음 문제로 이동.
+        nextQuestionTimerRef.current = setTimeout(goToNextQuiz, 900)
+        return correct
+      }
 
       // 핫초코 직업: 체온 회복
       if (selectedClass === 'hot_choco') {
@@ -348,6 +454,15 @@ export default function BattlePage() {
         clearTimeout(reloadTimerRef.current)
         reloadTimerRef.current = null
       }
+      // 탈락자가 오답이면 부활 streak 리셋
+      const me = currentPlayer as Player | null
+      if (me && (me.health ?? 100) <= 0 && (me.revival_streak ?? 0) > 0) {
+        try {
+          await updatePlayer(playerId, { revival_streak: 0 })
+        } catch (error) {
+          console.error('Error resetting revival streak:', error)
+        }
+      }
       handleWrongAnswer()
     }
     return correct
@@ -361,6 +476,13 @@ export default function BattlePage() {
     const { comboMultiplier = getComboDamageMultiplier(consecutiveCorrect), requireSnowball = true } = options
     if (!currentPlayer || !playerId) return
     if (requireSnowball && !hasSnowball) return
+
+    // 같은 팀 공격 차단
+    const targetPlayerCheck = players.find((p) => p.id === targetId) as Player | undefined
+    if (!targetPlayerCheck) return
+    if (!canAttackTarget(currentPlayer as Player, targetPlayerCheck)) return
+
+    lastAttackTargetRef.current = targetId
 
     playSFX('click')
     setHasSnowball(false)
@@ -495,6 +617,17 @@ export default function BattlePage() {
   const aliveCount = players.filter((player) => (player.health ?? 100) > 0).length
   const currentRank = players.filter((player) => (player.health ?? 100) > currentHealth).length + 1
   const selectedClassInfo = selectedClass ? PLAYER_CLASSES[selectedClass] : null
+
+  // 팀 정보
+  const isTeamGame = players.some((p) => (p as Player).team)
+  const myTeam = currentPlayerTeam
+  const myTeamInfo = myTeam ? TEAM_INFO[myTeam] : null
+  const teamAlive = isTeamGame
+    ? {
+        red: players.filter((p) => (p as Player).team === 'red' && (p.health ?? 100) > 0).length,
+        blue: players.filter((p) => (p as Player).team === 'blue' && (p.health ?? 100) > 0).length,
+      }
+    : null
   const SelectedClassIcon = selectedClass ? CLASS_BADGES[selectedClass].Icon : Snowflake
   const selectedClassTone = selectedClass ? CLASS_BADGES[selectedClass].tone : 'text-slate-600 bg-slate-50 border-slate-200'
   const healthTone = currentHealth <= 30 ? 'danger' : currentHealth <= 65 ? 'warm' : 'good'
@@ -511,6 +644,28 @@ export default function BattlePage() {
       />
       <HitOverlay attack={incomingAttack} />
       {isBlizzardActive && isTopPlayer && <BlizzardOverlay isActive={true} />}
+
+      <AnimatePresence>
+        {showTeamReveal && !teamRevealComplete && (
+          <TeamRevealOverlay
+            players={players
+              .filter((p) => (p as Player).team)
+              .map((p) => ({
+                id: p.id,
+                nickname: p.nickname,
+                team: (p as Player).team as Team,
+              }))}
+            currentPlayerId={playerId}
+            onComplete={() => {
+              setTeamRevealComplete(true)
+              setShowTeamReveal(false)
+              if (typeof window !== 'undefined' && roomCode) {
+                sessionStorage.setItem(`battle_team_revealed_${roomCode}`, '1')
+              }
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       <ScreenShake intensity={15} duration={500} isShaking={isShaking}>
         <div className="relative z-10 px-3 py-4 sm:px-5 sm:py-6">
@@ -571,6 +726,22 @@ export default function BattlePage() {
               </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-2">
+                {myTeamInfo && teamAlive && (
+                  <div
+                    className={`inline-flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm font-black ${
+                      myTeam === 'red'
+                        ? 'border-rose-300 bg-rose-50 text-rose-700'
+                        : 'border-sky-300 bg-sky-50 text-sky-700'
+                    }`}
+                  >
+                    <span className="text-base">{myTeamInfo.emoji}</span>
+                    {myTeamInfo.name}
+                    <span className="ml-1 rounded-full bg-white/70 px-2 py-0.5 text-[10px]">
+                      {teamAlive[myTeam!]}명 생존 / 상대 {teamAlive[myTeam === 'red' ? 'blue' : 'red']}명
+                    </span>
+                  </div>
+                )}
+
                 {selectedClassInfo && (
                   <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-black ${selectedClassTone}`}>
                     <SelectedClassIcon className="h-4 w-4" />
@@ -661,8 +832,17 @@ export default function BattlePage() {
                     경기장 준비 중
                   </h2>
                   <p className="mt-3 max-w-md text-base font-semibold leading-relaxed text-slate-500">
-                    선생님이 게임을 시작하면 장비 선택 후 바로 아레나에 입장합니다.
+                    선생님이 게임을 시작하면 <strong className="text-slate-900">팀이 랜덤으로 배정</strong>되고,
+                    장비 선택 후 아레나에 입장합니다.
                   </p>
+                  <div className="mt-4 flex items-center gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-3">
+                    <span className="text-2xl">🐕</span>
+                    <span className="text-lg font-black text-amber-900">VS</span>
+                    <span className="text-2xl">🐺</span>
+                    <span className="ml-2 text-sm font-bold text-amber-800">
+                      홍팀 vs 청팀 — 상대팀 전원 탈락 시 승리!
+                    </span>
+                  </div>
                 </div>
                 <BattleArena
                   players={players as Player[]}
@@ -695,9 +875,49 @@ export default function BattlePage() {
                     ⛄
                   </motion.div>
                   <h2 className="mb-3 text-center text-5xl font-black text-white">눈사람이 되었습니다</h2>
-                  <p className="mb-8 text-center text-xl font-bold text-cyan-200">체온이 0°까지 떨어졌습니다</p>
+                  <p className="mb-6 text-center text-xl font-bold text-cyan-200">체온이 0°까지 떨어졌습니다</p>
 
-                  <div className="w-full max-w-4xl">
+                  {/* 부활 진행도 — 3연속 정답으로 50% 체력 부활 */}
+                  <div className="mb-8 w-full max-w-md rounded-2xl border-2 border-amber-300/40 bg-amber-500/10 p-5">
+                    <div className="mb-2 flex items-center justify-between text-amber-200">
+                      <span className="text-sm font-black">🔥 부활 게이지</span>
+                      <span className="text-sm font-black tabular-nums">
+                        {(currentPlayer as Player | null)?.revival_streak ?? 0} / {REVIVAL_STREAK_REQUIRED}
+                      </span>
+                    </div>
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-950/60">
+                      <motion.div
+                        animate={{
+                          width: `${Math.min(
+                            100,
+                            (((currentPlayer as Player | null)?.revival_streak ?? 0) /
+                              REVIVAL_STREAK_REQUIRED) *
+                              100,
+                          )}%`,
+                        }}
+                        transition={{ duration: 0.4 }}
+                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500"
+                      />
+                    </div>
+                    <p className="mt-3 text-center text-xs font-bold text-amber-100">
+                      퀴즈를 3연속 맞히면 50% 체력으로 부활!
+                    </p>
+                  </div>
+
+                  {currentQuestion && (
+                    <div className="w-full max-w-3xl">
+                      <QuizView
+                        question={currentQuestion}
+                        onAnswer={handleAnswerSubmit}
+                        onCorrectClick={goToNextQuiz}
+                        timeLimit={30}
+                        variant="battle"
+                        className="battle-frost-panel mx-auto p-5"
+                      />
+                    </div>
+                  )}
+
+                  <div className="mt-6 w-full max-w-4xl">
                     <p className="mb-4 text-center font-bold text-slate-400">남은 생존자 현황</p>
                     <BattleArena
                       players={players as Player[]}
@@ -709,7 +929,7 @@ export default function BattlePage() {
               )}
             </AnimatePresence>
 
-            {currentView === 'quiz' && !showCountdown && currentPlayer && (currentPlayer.health || 100) > 0 && (
+            {currentView === 'quiz' && !showCountdown && currentPlayer && (currentPlayer.health || 100) > 0 && !isEliminated && (
               <div className="space-y-4">
                 {lockedTarget ? (
                   <motion.div

@@ -19,6 +19,7 @@ import {
   assertQuestionSetHasQuestions,
   createRoom,
   finishRoom,
+  getRoomByCode,
   resetRoom,
   startRoom,
   updateRoomGameMode,
@@ -63,8 +64,21 @@ export default function TeacherDashboard() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const modeFromUrl = params.get('gameMode')
+    const roomFromUrl = params.get('room')
     if (isGameModeId(modeFromUrl)) {
       setGameMode(modeFromUrl)
+    }
+    if (roomFromUrl) {
+      setRoomCode(roomFromUrl)
+      void getRoomByCode(roomFromUrl)
+        .then((loadedRoom) => {
+          if (loadedRoom?.game_mode && isGameModeId(loadedRoom.game_mode)) {
+            setGameMode(loadedRoom.game_mode)
+          }
+        })
+        .catch((error) => {
+          console.error('Error loading room from URL:', error)
+        })
     }
   }, [])
 
@@ -156,6 +170,14 @@ export default function TeacherDashboard() {
     const setId = params.get('set')
 
     try {
+      if (activeModeConfig.requiresQuestionSet) {
+        if (!setId) {
+          alert('이 게임은 문제집이 필요합니다. 문제집을 선택한 뒤 새 게임을 만들어주세요.')
+          return
+        }
+        await assertQuestionSetHasQuestions(setId)
+      }
+
       const createdRoom = await createRoom({ setId, gameMode })
       setRoomCode(createdRoom.room_code)
 
@@ -184,9 +206,15 @@ export default function TeacherDashboard() {
 
     try {
       const params = new URLSearchParams(window.location.search)
-      const setId = params.get('set')
+      const setId = room?.set_id ?? params.get('set')
       const startedAt = new Date().toISOString()
-      await assertQuestionSetHasQuestions(setId)
+      if (activeModeConfig.requiresQuestionSet) {
+        if (!setId) {
+          alert('이 방에는 문제집이 연결되어 있지 않습니다. 문제집을 선택해 새 게임을 만들어주세요.')
+          return
+        }
+        await assertQuestionSetHasQuestions(setId)
+      }
       await startRoom({
         roomCode,
         gameMode,
@@ -290,7 +318,7 @@ export default function TeacherDashboard() {
   return (
     <div className="font-bitbit">
       {/* 페이지 제목 - 블루킷 스타일 */}
-      <h1 className="text-4xl font-bold text-gray-900 mb-8">게임 시작</h1>
+      <h1 className="text-4xl font-bold text-blue-900 mb-8">게임 시작</h1>
 
       {/* 방 설정 */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
@@ -381,7 +409,7 @@ export default function TeacherDashboard() {
               <div className="mx-auto flex w-full max-w-2xl items-center justify-center gap-5 rounded-3xl border border-sky-100 bg-white px-6 py-4 text-center shadow-xl shadow-sky-100">
                 <div>
                   <p className="text-xs font-black text-sky-500">참가코드</p>
-                  <div className="text-4xl font-black tracking-wider text-slate-950">{roomCode}</div>
+                  <div className="text-4xl font-black tracking-wider text-blue-900">{roomCode}</div>
                 </div>
                 <button
                   type="button"
@@ -402,7 +430,7 @@ export default function TeacherDashboard() {
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="mt-1 text-2xl font-black text-slate-950">학생들이 입장하고 있어요</h2>
+                    <h2 className="mt-1 text-2xl font-black text-blue-900">학생들이 입장하고 있어요</h2>
                   </div>
                   <button
                     onClick={handleConfirmStart}
@@ -427,7 +455,7 @@ export default function TeacherDashboard() {
                             {renderPlayerAvatar(player.avatar, displayNickname)}
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate text-base font-black text-slate-950">{displayNickname}</div>
+                            <div className="truncate text-base font-black text-blue-900">{displayNickname}</div>
                             <div className="mt-1 text-xs font-bold text-emerald-600">준비 완료</div>
                           </div>
                         </div>
@@ -441,7 +469,7 @@ export default function TeacherDashboard() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowGameCodeModal(true)}
-                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-black text-sky-700 shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-xl"
+                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-black text-blue-900 shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-xl"
               >
                 코드 크게 보기
               </button>
@@ -474,15 +502,6 @@ export default function TeacherDashboard() {
             </button>
           </div>
         )}
-
-        {room && (
-          <div className="mt-4 p-3 bg-gray-50 rounded-md">
-            <div className="text-sm text-gray-600">
-              상태: <span className="font-semibold">{room.status === 'waiting' ? '대기 중' : room.status === 'playing' ? '진행 중' : room.status === 'finished' ? '종료됨' : room.status}</span> | 문제 번호:{' '}
-              <span className="font-semibold">{room.current_q_index + 1}</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 게임 모드에 따른 표시 또는 통계 화면 */}
@@ -508,10 +527,10 @@ export default function TeacherDashboard() {
       />
 
       {showLargeQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-900/70 p-6 backdrop-blur-sm">
           <div className="w-full max-w-xl rounded-3xl bg-white p-8 text-center shadow-2xl">
             <p className="text-base font-black text-sky-500">참가코드</p>
-            <div className="mt-1 text-6xl font-black tracking-wider text-slate-950">{roomCode}</div>
+            <div className="mt-1 text-6xl font-black tracking-wider text-blue-900">{roomCode}</div>
             <div className="mx-auto mt-6 inline-block rounded-3xl border-4 border-sky-100 bg-white p-6 shadow-lg">
               <QRCodeSVG
                 value={inviteUrl}

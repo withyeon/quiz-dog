@@ -23,6 +23,7 @@ export interface BoxEvent {
   message: string
   itemName: string // 아이템 이름
   icon: string // 이모지 아이콘
+  image?: string // 결과 화면에 표시할 개별 이미지
 }
 
 /** public/gold-quest 이미지 파일명 (이벤트 타입별) */
@@ -58,51 +59,51 @@ export function generateBoxEvent(
   const canSteal = !isMannerMode && otherPlayersWithGold.length > 0
   const canSwap = !isMannerMode && otherPlayers.length > 0
 
-  if (random < 0.05) return { type: 'GOLD_STACK', value: 10, message: '낡은 금화 자루 발견. +10 골드', itemName: '금화 자루', icon: '💰' }
-  if (random < 0.175) return { type: 'GOLD_STACK', value: 20, message: '작은 보물 더미 발견. +20 골드', itemName: '작은 보물 더미', icon: '💰' }
-  if (random < 0.35) return { type: 'GOLD_STACK', value: 30, message: '숨겨진 보급 상자 발견. +30 골드', itemName: '보급 상자', icon: '💰' }
-  if (random < 0.50) return { type: 'GOLD_STACK', value: 40, message: '빛나는 금화 더미 발견. +40 골드', itemName: '금화 더미', icon: '💰' }
-  if (random < 0.635) return { type: 'GOLD_STACK', value: 50, message: '묵직한 보물 상자 발견. +50 골드', itemName: '보물 상자', icon: '💰' }
-  if (random < 0.71) return { type: 'GOLD_STACK', value: 100, message: '전설의 왕관 보물 발견. +100 골드', itemName: '왕관 보물', icon: '💰' }
+  if (random < 0.05) return { type: 'GOLD_STACK', value: 10, message: '낡은 동전 주머니를 발견했다! +10 골드', itemName: '동전 주머니', icon: '💰', image: '/gold-quest/coin-pouch.svg' }
+  if (random < 0.175) return { type: 'GOLD_STACK', value: 20, message: '무거운 골드 주머니를 발견했다! +20 골드', itemName: '골드 주머니', icon: '💰', image: '/gold-quest/money-bag.svg' }
+  if (random < 0.35) return { type: 'GOLD_STACK', value: 30, message: '수상한 나무 상자를 발견했다! +30 골드', itemName: '나무 상자', icon: '💰', image: '/gold-quest/wooden-crate.svg' }
+  if (random < 0.50) return { type: 'GOLD_STACK', value: 40, message: '반짝이는 주머니를 발견했다! +40 골드', itemName: '반짝이는 주머니', icon: '💰', image: '/gold-quest/gold-pile.svg' }
+  if (random < 0.635) return { type: 'GOLD_STACK', value: 50, message: '무거운 보물 상자를 발견했다! +50 골드', itemName: '보물 상자', icon: '💰', image: '/gold-quest/treasure-chest.svg' }
+  if (random < 0.71) return { type: 'GOLD_STACK', value: 100, message: '전설의 황금 왕관을 발견했다! +100 골드', itemName: '황금 왕관', icon: '💰', image: '/gold-quest/golden-crown.svg' }
 
   if (random < 0.80) {
     const bonus = Math.max(currentGold, 50)
-    return { type: 'JESTER', value: bonus, message: `광대의 거래 성공. +${bonus} 골드`, itemName: '광대', icon: '🃏' }
+    return { type: 'JESTER', value: bonus, message: `속임수에 걸려들지 않고 이득을 봤다. +${bonus} 골드`, itemName: '광대', icon: '🃏' }
   }
 
   if (random < 0.84) {
     const bonus = Math.max(currentGold * 2, 100)
-    return { type: 'UNICORN', value: bonus, message: `유니콘의 항로 발견. +${bonus} 골드`, itemName: '유니콘', icon: '🦄' }
+    return { type: 'UNICORN', value: bonus, message: `유니콘을 만나 행운을 얻었다. +${bonus} 골드`, itemName: '유니콘', icon: '🦄' }
   }
 
   if (random < 0.87) {
-    if (currentGold <= 0) return { type: 'FAIRY', message: '빈 함정을 발견했지만 잃을 골드는 없었다.', itemName: '빈 함정', icon: '✨' }
+    if (currentGold <= 0) return { type: 'FAIRY', message: '슬라임 함정을 밟았지만 잃을 골드가 없었다.', itemName: '빈 함정', icon: '✨' }
     const lossAmount = Math.floor(currentGold * 0.25)
-    return { type: 'SLIME_MONSTER', value: lossAmount, message: `슬라임 함정 발동. ${lossAmount} 골드를 잃었다.`, itemName: '슬라임 함정', icon: '👾' }
+    return { type: 'SLIME_MONSTER', value: lossAmount, message: `슬라임 함정에 빠졌다. -${lossAmount} 골드`, itemName: '슬라임 함정', icon: '👾' }
   }
 
   if (random < 0.88) {
-    if (currentGold <= 0) return { type: 'FAIRY', message: '용의 그림자를 피했다. 잃을 골드는 없었다.', itemName: '빈 함정', icon: '✨' }
+    if (currentGold <= 0) return { type: 'FAIRY', message: '드래곤이 나타났지만 잃을 골드가 없었다.', itemName: '빈 함정', icon: '✨' }
     const lossAmount = Math.floor(currentGold * 0.5)
-    return { type: 'DRAGON', value: lossAmount, message: `드래곤 급습. ${lossAmount} 골드를 잃었다.`, itemName: '드래곤', icon: '🐉' }
+    return { type: 'DRAGON', value: lossAmount, message: `드래곤에게 습격당했다. -${lossAmount} 골드`, itemName: '드래곤', icon: '🐉' }
   }
 
   if (random < 0.90) {
-    if (canSwap) return { type: 'KING', message: '왕의 명령서 획득. 교환할 상대를 선택하라.', itemName: '왕의 명령서', icon: '👑' }
-    return { type: 'GOLD_STACK', value: 50, message: '묵직한 보물 상자 발견. +50 골드', itemName: '보물 상자', icon: '💰' }
+    if (canSwap) return { type: 'KING', message: '왕이 명령했다. 골드를 교환할 상대를 선택하라.', itemName: '왕의 명령서', icon: '👑' }
+    return { type: 'GOLD_STACK', value: 50, message: '무거운 보물 상자를 발견했다. +50 골드', itemName: '보물 상자', icon: '💰', image: '/gold-quest/treasure-chest.svg' }
   }
 
   if (random < 0.94) {
-    if (canSteal) return { type: 'ELF', message: '엘프의 밀서 획득. 골드 10%를 가져올 상대를 선택하라.', itemName: '엘프의 밀서', icon: '🧝' }
-    return { type: 'GOLD_STACK', value: 30, message: '숨겨진 보급 상자 발견. +30 골드', itemName: '보급 상자', icon: '💰' }
+    if (canSteal) return { type: 'ELF', message: '엘프의 편지를 얻었다. 골드 10%를 빼앗을 상대를 선택하라.', itemName: '엘프의 밀서', icon: '🧝' }
+    return { type: 'GOLD_STACK', value: 30, message: '수상한 나무 상자를 발견했다. +30 골드', itemName: '나무 상자', icon: '💰', image: '/gold-quest/wooden-crate.svg' }
   }
 
   if (random < 0.98) {
-    if (canSteal) return { type: 'WIZARD', message: '마법사의 계약서 획득. 골드 25%를 가져올 상대를 선택하라.', itemName: '마법사의 계약서', icon: '🧙' }
-    return { type: 'GOLD_STACK', value: 40, message: '빛나는 금화 더미 발견. +40 골드', itemName: '금화 더미', icon: '💰' }
+    if (canSteal) return { type: 'WIZARD', message: '마법사의 계약서를 얻었다. 골드 25%를 빼앗을 상대를 선택하라.', itemName: '마법사의 계약서', icon: '🧙' }
+    return { type: 'GOLD_STACK', value: 40, message: '반짝이는 골드 주머니를 발견했다. +40 골드', itemName: '금화 더미', icon: '💰', image: '/gold-quest/gold-pile.svg' }
   }
 
-  return { type: 'FAIRY', message: '요정의 바람이 지나갔다. 이번 항로는 조용하다.', itemName: '요정', icon: '✨' }
+  return { type: 'FAIRY', message: '요정이 스쳐 지나갔다. 아무 일도 일어나지 않았다.', itemName: '요정', icon: '✨' }
 }
 
 

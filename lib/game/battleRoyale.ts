@@ -1,9 +1,34 @@
 /**
  * 눈싸움 대작전 (Battle Royale) 게임 로직
- * 문제를 맞춰 눈뭉치를 던져 상대를 얼리고 마지막까지 살아남는 게임
+ * 팀전: 홍팀(🐕) vs 청팀(🐺). 상대팀 전원 탈락 시 우리팀 승리.
  */
 
 export type PlayerClass = 'ice_fist' | 'rapid_fire' | 'shield' | 'hot_choco'
+export type Team = 'red' | 'blue'
+
+export const TEAM_INFO: Record<Team, { name: string; emoji: string; icon: string; color: string; bg: string; border: string }> = {
+  red: {
+    name: '홍팀',
+    emoji: '🐕',
+    icon: '🔥',
+    color: 'text-rose-700',
+    bg: 'bg-rose-50',
+    border: 'border-rose-300',
+  },
+  blue: {
+    name: '청팀',
+    emoji: '🐺',
+    icon: '❄️',
+    color: 'text-sky-700',
+    bg: 'bg-sky-50',
+    border: 'border-sky-300',
+  },
+}
+
+export const TEAM_MIN_PLAYERS = 6
+export const REVIVAL_STREAK_REQUIRED = 3
+export const REVIVAL_HEALTH_RATIO = 0.5
+export const TARGET_LOCK_COOLDOWN_MS = 2000
 
 export interface PlayerClassInfo {
   id: PlayerClass
@@ -140,29 +165,61 @@ export function isCriticalHit(): boolean {
 }
 
 /**
- * 공격 대상 선택
- * @param players 모든 플레이어
- * @param attackerId 공격자 ID
- * @param attackType 공격 타입 ('single' | 'all')
+ * 공격 대상 선택 (팀전)
+ * - 상대팀 생존자만 후보
+ * - 체력이 가장 높은 1~2명 중 랜덤 (몰빵 방지)
+ * - 직전 타겟은 제외
+ *
+ * 팀이 지정되지 않은 (개인전 폴백) 경우 기존 랜덤 선택.
  */
 export function selectAttackTarget(
-  players: Array<{ id: string; health?: number }>,
+  players: Array<{ id: string; health?: number; team?: Team | null }>,
   attackerId: string,
-  attackType: 'single' | 'all' = 'single'
+  options: { attackType?: 'single' | 'all'; lastTargetId?: string | null } = {}
 ): string | null {
-  if (attackType === 'all') {
-    return null // 전체 공격
+  const { attackType = 'single', lastTargetId = null } = options
+  if (attackType === 'all') return null
+
+  const attacker = players.find((p) => p.id === attackerId)
+  const isTeamGame = Boolean(attacker?.team)
+
+  const candidates = players.filter((p) => {
+    if (p.id === attackerId) return false
+    if ((p.health ?? 100) <= 0) return false
+    if (isTeamGame) return p.team && p.team !== attacker?.team
+    return true
+  })
+
+  if (candidates.length === 0) return null
+
+  // 체력 높은 순으로 정렬, 동률은 그대로
+  const sorted = [...candidates].sort((a, b) => (b.health ?? 100) - (a.health ?? 100))
+  // 상위 절반(최소 1명)을 후보풀로 — 약한 상대 몰빵 방지
+  const poolSize = Math.max(1, Math.ceil(sorted.length / 2))
+  let pool = sorted.slice(0, poolSize)
+
+  // 직전 타겟 제외 (단, 다른 선택지가 있을 때만)
+  if (lastTargetId) {
+    const filtered = pool.filter((p) => p.id !== lastTargetId)
+    if (filtered.length > 0) pool = filtered
   }
 
-  // 살아있는 다른 플레이어 중 랜덤 선택
-  const alivePlayers = players.filter(
-    p => p.id !== attackerId && (p.health || 100) > 0
-  )
+  return pool[Math.floor(Math.random() * pool.length)].id
+}
 
-  if (alivePlayers.length === 0) return null
-
-  const randomIndex = Math.floor(Math.random() * alivePlayers.length)
-  return alivePlayers[randomIndex].id
+/**
+ * 공격이 유효한지 — 같은 팀 공격 차단
+ */
+export function canAttackTarget(
+  attacker: { id: string; team?: Team | null },
+  target: { id: string; team?: Team | null; health?: number },
+): boolean {
+  if (attacker.id === target.id) return false
+  if ((target.health ?? 100) <= 0) return false
+  if (attacker.team && target.team) {
+    return attacker.team !== target.team
+  }
+  return true
 }
 
 /**
@@ -263,21 +320,52 @@ export function calculateZoneDamage(gameTime: number, zoneLevel: number): number
 /**
  * 생존자 확인
  */
-export function getSurvivors(
-  players: Array<{ id: string; health?: number }>
-): Array<{ id: string; health: number }> {
-  return players
-    .filter(p => (p.health || 100) > 0)
-    .map(p => ({ id: p.id, health: p.health || 100 }))
+export function getSurvivors<T extends { id: string; health?: number }>(
+  players: T[]
+): T[] {
+  return players.filter((p) => (p.health ?? 100) > 0)
 }
 
 /**
- * 승자 확인 (1명만 남았는지)
- * 참가자가 2명 이상일 때만 승자 인정 (혼자 dev 테스트 시 바로 결과 화면 뜨는 것 방지)
+ * 팀별 생존자 카운트
+ */
+export function getTeamSurvivors(
+  players: Array<{ id: string; health?: number; team?: Team | null }>,
+): Record<Team, number> {
+  const result: Record<Team, number> = { red: 0, blue: 0 }
+  for (const p of players) {
+    if ((p.health ?? 100) <= 0) continue
+    if (p.team === 'red' || p.team === 'blue') {
+      result[p.team] += 1
+    }
+  }
+  return result
+}
+
+/**
+ * 팀전 승리팀 확인 — 상대팀 전원 탈락 시 우리팀 승리.
+ * 팀이 지정된 게임에서만 의미가 있음.
+ */
+export function checkWinningTeam(
+  players: Array<{ id: string; health?: number; team?: Team | null }>,
+): Team | null {
+  const hasTeams = players.some((p) => p.team === 'red' || p.team === 'blue')
+  if (!hasTeams) return null
+
+  const survivors = getTeamSurvivors(players)
+  if (survivors.red > 0 && survivors.blue === 0) return 'red'
+  if (survivors.blue > 0 && survivors.red === 0) return 'blue'
+  return null
+}
+
+/**
+ * 개인전 승자 (팀 없음). 한 명만 남았을 때.
  */
 export function checkWinner(
-  players: Array<{ id: string; health?: number }>
+  players: Array<{ id: string; health?: number; team?: Team | null }>
 ): string | null {
+  const hasTeams = players.some((p) => p.team === 'red' || p.team === 'blue')
+  if (hasTeams) return null
   const survivors = getSurvivors(players)
   if (survivors.length === 1 && players.length >= 2) {
     return survivors[0].id
@@ -286,12 +374,21 @@ export function checkWinner(
 }
 
 /**
- * 게임 종료 조건 확인
- * 전원 탈락이거나, 참가자 2명 이상 중 1명만 남았을 때만 종료
+ * 게임 종료 조건 확인 — 팀전이면 한 팀이 전멸했을 때, 개인전이면 1명 남았을 때.
  */
 export function isGameOver(
-  players: Array<{ id: string; health?: number }>
+  players: Array<{ id: string; health?: number; team?: Team | null }>
 ): boolean {
+  const hasTeams = players.some((p) => p.team === 'red' || p.team === 'blue')
+
+  if (hasTeams) {
+    const survivors = getTeamSurvivors(players)
+    if (players.length >= 2 && (survivors.red === 0 || survivors.blue === 0)) {
+      return true
+    }
+    return false
+  }
+
   const survivors = getSurvivors(players)
   if (survivors.length === 0) return true
   if (survivors.length === 1 && players.length >= 2) return true
@@ -306,4 +403,72 @@ export function getComboDamageMultiplier(consecutiveCorrect: number): number {
   if (consecutiveCorrect >= 3) return 1.5
   if (consecutiveCorrect >= 2) return 1.2
   return 1
+}
+
+/**
+ * 팀 배정 — 스네이크 드래프트
+ * 정답률 기반 데이터가 있으면 강한 학생부터 1·2·2·1·1·2... 패턴으로 분배해 평균을 맞춥니다.
+ * 데이터가 부족하면 무작위 셔플 후 짝수 인덱스 = red, 홀수 인덱스 = blue.
+ * 홀수 인원이면 한 팀이 +1.
+ */
+export function assignTeams<T extends { id: string }>(
+  players: T[],
+  options: { accuracyOf?: (player: T) => number | null } = {},
+): Map<string, Team> {
+  const { accuracyOf } = options
+  const teamMap = new Map<string, Team>()
+  if (players.length === 0) return teamMap
+
+  const hasAccuracyData =
+    accuracyOf !== undefined && players.some((p) => accuracyOf(p) !== null)
+
+  let ordered: T[]
+  if (hasAccuracyData) {
+    // 정답률 내림차순. null은 0.5 평균으로 취급.
+    ordered = [...players].sort((a, b) => {
+      const av = accuracyOf!(a) ?? 0.5
+      const bv = accuracyOf!(b) ?? 0.5
+      return bv - av
+    })
+  } else {
+    // 무작위 셔플
+    ordered = [...players]
+    for (let i = ordered.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[ordered[i], ordered[j]] = [ordered[j], ordered[i]]
+    }
+  }
+
+  // 스네이크 드래프트: R, B, B, R, R, B, B, R ...
+  // 균형이 잘 맞는 패턴. snake = floor(i/2) % 2 결과를 기준으로 토글.
+  ordered.forEach((player, index) => {
+    const round = Math.floor(index / 2)
+    const isReverse = round % 2 === 1
+    const slot = index % 2
+    const team: Team = (slot === 0) === !isReverse ? 'red' : 'blue'
+    teamMap.set(player.id, team)
+  })
+
+  // 균형 보정: 홀수 인원이면 한쪽이 +1, 그건 자연스러움. 그대로 둠.
+  return teamMap
+}
+
+/**
+ * 부활 조건 충족 시 — 탈락자가 연속 정답 누적 후 50% 체력으로 복귀.
+ * 반환: 부활하면 새 체력, 아니면 null.
+ */
+export function checkRevival(
+  revivalStreak: number,
+  playerClass?: PlayerClass,
+): number | null {
+  if (revivalStreak < REVIVAL_STREAK_REQUIRED) return null
+  const maxHealth = playerClass ? PLAYER_CLASSES[playerClass].maxHealth : 100
+  return Math.floor(maxHealth * REVIVAL_HEALTH_RATIO)
+}
+
+/**
+ * 팀전 가능 여부 — 인원이 부족하면 개인전 폴백.
+ */
+export function canPlayTeamMode(playerCount: number): boolean {
+  return playerCount >= TEAM_MIN_PLAYERS
 }

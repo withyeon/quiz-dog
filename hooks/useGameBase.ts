@@ -69,6 +69,8 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
     const [answerHistory, setAnswerHistory] = useState<AnswerRecord[]>([])
     const [questions, setQuestions] = useState<Question[]>([])
+    const [questionsLoading, setQuestionsLoading] = useState(false)
+    const [questionsError, setQuestionsError] = useState<string | null>(null)
     const [isAnswerLocked, setIsAnswerLocked] = useState(false) // 중복 제출 방지
 
     const questionStartTime = useRef<number>(Date.now())
@@ -179,20 +181,38 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 문제 가져오기 ───
     useEffect(() => {
-        if (!room?.set_id) return
+        if (!room?.set_id) {
+            setQuestions([])
+            setQuestionsLoading(false)
+            setQuestionsError(null)
+            return
+        }
         const setId = room.set_id
+        let isMounted = true
 
         const fetchQuestions = async () => {
+            setQuestionsLoading(true)
+            setQuestionsError(null)
+            setQuestions([])
             try {
                 const loadedQuestions = await listQuestionsForGame(setId)
-                setQuestions(loadedQuestions)
+                if (isMounted) setQuestions(loadedQuestions)
             } catch (error) {
                 const msg = formatServiceError(error)
                 console.error('Error fetching questions:', msg, error)
+                if (isMounted) {
+                    setQuestions([])
+                    setQuestionsError(msg)
+                }
+            } finally {
+                if (isMounted) setQuestionsLoading(false)
             }
         }
 
         fetchQuestions()
+        return () => {
+            isMounted = false
+        }
     }, [room?.set_id])
 
     // ─── 게임 상태 전환 (waiting → playing → finished) ───
@@ -364,6 +384,8 @@ export function useGameBase(options: UseGameBaseOptions) {
         consecutiveCorrect,
         answerHistory,
         questions,
+        questionsLoading,
+        questionsError,
         isAnswerLocked,
 
         // 실시간 데이터

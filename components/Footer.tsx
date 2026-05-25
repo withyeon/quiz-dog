@@ -21,7 +21,7 @@ export default function Footer() {
               />
             </Link>
             <p className="text-sm text-[#1e3a8a]/80 max-w-md">
-              강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요 🐕
+              강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요
             </p>
           </div>
 

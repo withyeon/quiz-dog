@@ -1,19 +1,23 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import StudentResultView from '@/components/results/StudentResultView'
+import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import { getFinishedRoomReport } from '@/lib/services/reports'
 import { formatServiceError } from '@/lib/services/errors'
+import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 import type { Database } from '@/types/database.types'
 
 type Room = Database['public']['Tables']['rooms']['Row']
 type Player = Database['public']['Tables']['players']['Row']
 
 function StudentResultContent({ gameId }: { gameId: string }) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const playerId = searchParams?.get('playerId') ?? searchParams?.get('player') ?? ''
+  const { room: liveRoom } = useRoomRealtime({ roomCode: gameId })
   const [room, setRoom] = useState<Room | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
   const [questions, setQuestions] = useState<AnalyticsQuestion[]>([])
@@ -49,6 +53,14 @@ function StudentResultContent({ gameId }: { gameId: string }) {
       cancelled = true
     }
   }, [gameId])
+
+  useEffect(() => {
+    if (liveRoom?.status !== 'playing' || !playerId) return
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(`quiz_index_${gameId}`)
+    }
+    router.replace(getGameModeUrl(liveRoom.game_mode || DEFAULT_GAME_MODE, gameId, playerId))
+  }, [gameId, liveRoom?.game_mode, liveRoom?.status, playerId, router])
 
   if (loading) {
     return (

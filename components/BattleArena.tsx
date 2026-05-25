@@ -17,11 +17,12 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import type { Database } from '@/types/database.types'
-import { PLAYER_CLASSES, type PlayerClass } from '@/lib/game/battleRoyale'
+import { PLAYER_CLASSES, TEAM_INFO, type PlayerClass, type Team } from '@/lib/game/battleRoyale'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
   player_class?: PlayerClass
+  team?: Team | null
 }
 
 interface BattleArenaProps {
@@ -101,10 +102,18 @@ export default function BattleArena({
   onPlayerClick,
   canAttack = false,
 }: BattleArenaProps) {
+  const me = players.find((p) => p.id === currentPlayerId)
+  const myTeam = me?.team ?? null
+  const isTeamGame = players.some((p) => p.team === 'red' || p.team === 'blue')
+
+  // 팀전이면 우리팀 먼저, 그 다음 상대팀; 각 그룹 내에서는 체온 내림차순
   const sortedPlayers = [...players].sort((a, b) => {
-    const healthA = a.health ?? 100
-    const healthB = b.health ?? 100
-    return healthB - healthA
+    if (isTeamGame && myTeam) {
+      const aMine = a.team === myTeam ? 0 : 1
+      const bMine = b.team === myTeam ? 0 : 1
+      if (aMine !== bMine) return aMine - bMine
+    }
+    return (b.health ?? 100) - (a.health ?? 100)
   })
   const aliveCount = sortedPlayers.filter((player) => (player.health ?? 100) > 0).length
 
@@ -170,10 +179,16 @@ export default function BattleArena({
             const isDangerous = healthPercent <= 25 && isAlive
             const isAttacked = attackResult?.targetId === player.id
             const isAttacker = attackResult?.attackerId === player.id
-            const canSelectTarget = canAttack && isAlive && !isCurrentPlayer
+            const isTeammate = isTeamGame && myTeam && player.team === myTeam && !isCurrentPlayer
+            const canSelectTarget =
+              canAttack &&
+              isAlive &&
+              !isCurrentPlayer &&
+              (!isTeamGame || (myTeam && player.team && player.team !== myTeam))
             const classVisual = player.player_class ? CLASS_VISUALS[player.player_class] : null
             const ClassIcon = classVisual?.Icon
             const hpColor = healthPercent > 60 ? '#22c55e' : healthPercent > 30 ? '#f59e0b' : '#ef4444'
+            const teamInfo = player.team ? TEAM_INFO[player.team] : null
 
             return (
               <motion.button
@@ -206,13 +221,21 @@ export default function BattleArena({
                   boxShadow: isLocked || isDangerous ? { duration: 0.8, repeat: Infinity } : undefined,
                 }}
                 whileHover={canSelectTarget ? { y: -2 } : {}}
-                className={`relative min-h-[180px] overflow-hidden rounded-[8px] border p-4 text-left transition-all duration-300 ${
+                className={`relative min-h-[180px] overflow-hidden rounded-[8px] border-2 p-4 text-left transition-all duration-300 ${
                   isCurrentPlayer
                     ? 'border-sky-200 bg-sky-300/[0.16] shadow-lg shadow-sky-300/10'
                     : isLocked
                       ? 'border-red-300 bg-red-500/[0.18]'
+                    : isTeammate && isAlive
+                      ? player.team === 'red'
+                        ? 'border-rose-300/60 bg-rose-500/[0.16]'
+                        : 'border-sky-300/60 bg-sky-500/[0.16]'
                     : canSelectTarget
-                      ? 'border-white/30 bg-white/[0.16] hover:border-cyan-100 hover:bg-white/[0.22]'
+                      ? player.team === 'red'
+                        ? 'border-rose-300/70 bg-rose-500/[0.10] hover:border-rose-200 hover:bg-rose-500/[0.20]'
+                        : player.team === 'blue'
+                          ? 'border-sky-300/70 bg-sky-500/[0.10] hover:border-sky-200 hover:bg-sky-500/[0.20]'
+                          : 'border-white/30 bg-white/[0.16] hover:border-cyan-100 hover:bg-white/[0.22]'
                       : isAlive
                         ? 'border-white/[0.12] bg-white/10'
                         : 'border-white/[0.08] bg-white/[0.06] grayscale'
@@ -243,6 +266,19 @@ export default function BattleArena({
 
                   <div className="min-w-0 w-full">
                     <div className="mb-2 flex min-w-0 flex-wrap items-center justify-center gap-2">
+                      {teamInfo && (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                            player.team === 'red'
+                              ? 'bg-rose-200 text-rose-900'
+                              : 'bg-sky-200 text-sky-900'
+                          }`}
+                          title={teamInfo.name}
+                        >
+                          <span>{teamInfo.emoji}</span>
+                          {teamInfo.name}
+                        </span>
+                      )}
                       <span className={`max-w-full truncate text-base font-black ${
                         isCurrentPlayer ? 'text-sky-100' : 'text-white'
                       }`}>
@@ -251,6 +287,11 @@ export default function BattleArena({
                       {isCurrentPlayer && (
                         <span className="rounded-full border border-sky-200/40 bg-sky-100/[0.18] px-2 py-0.5 text-[10px] font-black text-sky-100">
                           ME
+                        </span>
+                      )}
+                      {isTeammate && isAlive && (
+                        <span className="rounded-full bg-emerald-300/30 px-2 py-0.5 text-[10px] font-black text-emerald-100">
+                          아군
                         </span>
                       )}
                       {ClassIcon && classVisual && isAlive && (

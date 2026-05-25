@@ -310,14 +310,11 @@ export default function LandingPage() {
                 </motion.div>
 
                 <h2
-                  className="text-4xl md:text-5xl font-black mb-4"
+                  className="text-4xl md:text-5xl font-black mb-10"
                   style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}
                 >
-                  지금 바로 시작하세요! 🎓
+                  지금 바로 시작하세요!
                 </h2>
-                <p className="text-lg mb-10" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-                  무료로 시작하고, 언제든 업그레이드하세요
-                </p>
                 <Link href="/teacher" className="inline-block">
                   <motion.span
                     whileHover={{ y: -3, scale: 1.02 }}

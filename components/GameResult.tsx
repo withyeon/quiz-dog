@@ -22,6 +22,7 @@ import type { Database } from '@/types/database.types'
 import type { GameModeId } from '@/lib/game/modes'
 import { displayBlankText } from '@/lib/quiz/blankText'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import { checkWinningTeam, TEAM_INFO, type Team } from '@/lib/game/battleRoyale'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -74,6 +75,15 @@ export default function GameResult({
   const currentPlayer = players.find((p) => p.id === currentPlayerId)
   const currentPlayerRank = sortedPlayers.findIndex((p) => p.id === currentPlayerId) + 1
 
+  // 배틀로얄 팀전 승리 팀
+  const winningTeam: Team | null =
+    gameMode === 'battle_royale' ? checkWinningTeam(players as any[]) : null
+  const winningTeamRoster = winningTeam
+    ? players.filter((p) => (p as any).team === winningTeam)
+    : []
+  const myTeamIsWinner =
+    winningTeam !== null && (currentPlayer as any)?.team === winningTeam
+
   // 점수 분포 데이터
   const scoreDistribution = [
     { range: '0-100', count: players.filter((p) => p.score >= 0 && p.score <= 100).length },
@@ -115,6 +125,48 @@ export default function GameResult({
             {gameMode === 'battle_royale' ? '최종 생존자를 확인하세요' : '최종 결과를 확인하세요'}
           </p>
         </motion.div>
+
+        {/* 팀전 승리 배너 */}
+        {winningTeam && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
+            className={`mb-8 overflow-hidden rounded-2xl border-4 p-6 text-center shadow-xl ${
+              winningTeam === 'red'
+                ? 'border-rose-300 bg-gradient-to-br from-rose-500 to-rose-600'
+                : 'border-sky-300 bg-gradient-to-br from-sky-500 to-sky-600'
+            }`}
+          >
+            <motion.div
+              animate={{ rotate: [0, 8, -8, 0], y: [0, -6, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity }}
+              className="mb-3 text-6xl sm:text-7xl"
+            >
+              {TEAM_INFO[winningTeam].emoji}
+            </motion.div>
+            <h2 className="mb-2 text-3xl font-black text-white sm:text-4xl">
+              {TEAM_INFO[winningTeam].name} 승리!
+            </h2>
+            {myTeamIsWinner && (
+              <p className="mb-3 text-lg font-black text-amber-100">🎉 우리팀이 이겼어요!</p>
+            )}
+            <div className="flex flex-wrap justify-center gap-2">
+              {winningTeamRoster.map((p) => (
+                <span
+                  key={p.id}
+                  className={`rounded-full px-3 py-1.5 text-sm font-black ${
+                    p.id === currentPlayerId
+                      ? 'bg-amber-300 text-amber-950 ring-2 ring-white'
+                      : 'bg-white/25 text-white'
+                  }`}
+                >
+                  {p.nickname}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* Top 3 */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">

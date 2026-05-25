@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, Reorder } from 'framer-motion'
+import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -161,7 +162,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl font-bold text-gray-800">로딩 중...</div>
+        <div className="text-2xl font-bold text-blue-900">로딩 중...</div>
       </div>
     )
   }
@@ -185,7 +186,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   type="text"
                   value={setName}
                   onChange={(e) => setSetName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded font-bold text-gray-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-bold text-blue-900"
                   placeholder="문제집 이름"
                 />
                 <div className="grid grid-cols-2 gap-3">
@@ -209,22 +210,20 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                     className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 bg-white"
                   >
                     <option value="">학년 선택</option>
-                    <option value="초등 저학년">초등 저학년</option>
-                    <option value="초등 고학년">초등 고학년</option>
-                    <option value="중학교">중학교</option>
-                    <option value="고등학교">고등학교</option>
-                    <option value="기타">기타</option>
+                    {TARGET_GRADE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
                   </select>
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <Button size="sm" onClick={handleSaveSetInfo} className="bg-purple-600 hover:bg-purple-700 text-white">저장</Button>
+                  <Button size="sm" onClick={handleSaveSetInfo} className="bg-sky-600 hover:bg-sky-700 text-white">저장</Button>
                   <Button size="sm" variant="outline" onClick={() => setIsEditingInfo(false)}>취소</Button>
                 </div>
               </div>
             ) : (
               <div className="flex items-center gap-3 group">
                 <div>
-                  <h1 className="text-3xl font-bold text-gray-900 cursor-pointer hover:text-purple-600 transition-colors" onClick={() => setIsEditingInfo(true)}>{setName}</h1>
+                  <h1 className="text-3xl font-bold text-blue-900 cursor-pointer hover:text-blue-800 transition-colors" onClick={() => setIsEditingInfo(true)}>{setName}</h1>
                   <div className="flex items-center gap-2 mt-1.5 cursor-pointer" onClick={() => setIsEditingInfo(true)}>
                     {subject ? <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold">{subject}</span> : ''}
                     {grade ? <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-xs font-semibold">{grade}</span> : ''}
@@ -264,7 +263,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                 </div>
 
                 {/* 문제 번호 */}
-                <div className="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center font-bold text-purple-600">
+                <div className="flex-shrink-0 w-10 h-10 bg-sky-100 rounded-full flex items-center justify-center font-bold text-sky-600">
                   {index + 1}
                 </div>
 
@@ -338,7 +337,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                       <div className="flex gap-2">
                         <Button
                           onClick={() => handleSaveQuestion(index)}
-                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          className="bg-sky-600 hover:bg-sky-700 text-white"
                         >
                           <Save className="h-4 w-4 mr-2" />
                           저장
@@ -358,7 +357,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-semibold">
+                          <span className="px-2 py-1 bg-sky-100 text-blue-900 rounded text-xs font-semibold">
                             {question.type === 'CHOICE' ? '객관식' :
                               question.type === 'OX' ? 'OX' :
                                 question.type === 'SHORT' ? '주관식' : '빈칸'}
@@ -384,7 +383,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                           </Button>
                         </div>
                       </div>
-                      <p className="text-lg font-medium text-gray-900">
+                      <p className="text-lg font-medium text-blue-900">
                         {displayBlankText(question.question_text)}
                       </p>
                       {question.type === 'CHOICE' && Array.isArray(question.options) && (
@@ -416,7 +415,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
 
       {/* 새 문제 추가 */}
       {newQuestion ? (
-        <Card className="border-2 border-purple-500">
+        <Card className="border-2 border-sky-500">
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle>새 문제 추가</CardTitle>
@@ -493,7 +492,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
             <div className="flex gap-2">
               <Button
                 onClick={handleAddQuestion}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="bg-sky-600 hover:bg-sky-700 text-white"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 추가
@@ -516,16 +515,16 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
               options: [],
               answer: '',
             })}
-            className="w-full bg-purple-600 hover:bg-purple-700 text-white py-6 text-lg font-bold shadow-sm"
+            className="w-full bg-sky-600 hover:bg-sky-700 text-white py-6 text-lg font-bold shadow-sm"
           >
             <Plus className="h-5 w-5 mr-2" />
             새 문제 직접 추가
           </Button>
           <Button
             onClick={() => setIsMergeModalOpen(true)}
-            className="w-full bg-white text-purple-600 border-2 border-purple-200 hover:bg-purple-50 py-6 text-lg font-bold shadow-sm"
+            className="w-full bg-white text-sky-600 border-2 border-sky-200 hover:bg-sky-50 py-6 text-lg font-bold shadow-sm"
           >
-            <Search className="h-5 w-5 mr-2 text-purple-600" />
+            <Search className="h-5 w-5 mr-2 text-sky-600" />
             다른 문제집에서 픽(Pick) 해오기
           </Button>
         </div>

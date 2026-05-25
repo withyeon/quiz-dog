@@ -46,6 +46,7 @@ export default function ChestView({
   }, [selectedChest, reward])
 
   const getRewardImage = (event: BoxEvent) => {
+    if (event.image) return event.image
     if (event.itemName === '방어권') return '/gold-quest/shield.svg'
     return BOX_EVENT_IMAGE[event.type]
   }
@@ -77,19 +78,11 @@ export default function ChestView({
       animate={{ opacity: 1, y: 0 }}
       className="gold-quest-panel p-5 sm:p-7 max-w-4xl mx-auto"
     >
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-amber-300/60 bg-amber-100/70 px-3 py-1 text-xs font-black uppercase tracking-normal text-amber-900">
-            <Image src="/gold-quest/gold-stack.svg" alt="" width={16} height={16} className="h-4 w-4" />
-            Treasure Pick
-          </div>
-          <h2 className="gold-quest-title text-3xl sm:text-4xl font-black text-[#17262a]">
-            보물 상자 선택
-          </h2>
-        </div>
-        <p className="text-sm font-semibold text-slate-600">
-          세 상자 중 하나
-        </p>
+      <div className="mb-6">
+        <h2 className="gold-quest-title flex items-center gap-3 text-3xl sm:text-4xl font-black text-[#17262a]">
+          <Image src="/gold-quest/gold-stack.svg" alt="" width={36} height={36} className="h-9 w-9 flex-shrink-0 object-contain" />
+          보물 상자 선택
+        </h2>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6">
@@ -113,24 +106,20 @@ export default function ChestView({
             }`}
             aria-label={`${index + 1}번 보물상자 선택`}
           >
-            <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0c5961] via-[#d29b2d] to-[#9e3b32]" />
             <div className="mb-5 flex items-center justify-between">
-              <span className="text-xs font-black tracking-normal text-slate-500">
+              <span className="text-2xl sm:text-3xl font-black tracking-normal text-slate-600">
                 {index + 1}
               </span>
-              <span className={`h-2.5 w-2.5 rounded-full ${
-                revealedChests[index] ? 'bg-emerald-500' : 'bg-amber-500'
-              }`} />
             </div>
 
-            <div className="mb-5 flex h-28 items-center justify-center">
+            <div className="mb-5 flex h-[168px] items-center justify-center">
               {getChestIconSrc(index) ? (
                 <Image
                   src={getChestIconSrc(index)!}
                   alt={reward?.itemName ?? '아이템'}
-                  width={120}
-                  height={120}
-                  className="h-28 w-28 drop-shadow-xl"
+                  width={180}
+                  height={180}
+                  className="h-[168px] w-[168px] drop-shadow-xl"
                 />
               ) : (
                 <Image
@@ -142,13 +131,13 @@ export default function ChestView({
                 />
               )}
             </div>
-            <div className="min-h-[44px] text-base font-black leading-snug text-[#17262a]">
-              {revealedChests[index] && selectedChest === index && reward
-                ? reward.itemName || reward.message
-                : isProcessing && selectedChest === index
-                  ? '개봉 중'
-                  : '보물상자'}
-            </div>
+            {(revealedChests[index] && selectedChest === index && reward) || (isProcessing && selectedChest === index) ? (
+              <div className="min-h-[44px] text-base font-black leading-snug text-[#17262a]">
+                {revealedChests[index] && selectedChest === index && reward
+                  ? reward.itemName || reward.message
+                  : '개봉 중'}
+              </div>
+            ) : null}
           </motion.button>
         ))}
       </div>
@@ -168,26 +157,20 @@ export default function ChestView({
               transition={{ type: 'spring', stiffness: 280, damping: 24 }}
               className={`w-full max-w-md rounded-lg border p-6 text-center shadow-2xl ${getRewardTone(reward)}`}
             >
-              <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-lg border border-white/70 bg-white/72 shadow-lg">
+              <div className="mx-auto mb-4 flex h-36 w-36 items-center justify-center rounded-lg border border-white/70 bg-white/72 shadow-lg">
                 <Image
                   src={getRewardImage(reward)}
                   alt={reward.itemName}
-                  width={88}
-                  height={88}
-                  className="h-20 w-20 drop-shadow-xl"
+                  width={132}
+                  height={132}
+                  className="h-[120px] w-[120px] drop-shadow-xl"
                 />
-              </div>
-              <div className="mb-2 text-sm font-black uppercase tracking-normal opacity-70">
-                Treasure Opened
               </div>
               <h3 className="gold-quest-title text-2xl font-black text-[#17262a]">
                 {reward.itemName}
               </h3>
               <p className="mt-3 text-lg font-black leading-snug">
                 {reward.message}
-              </p>
-              <p className="mt-4 text-xs font-bold opacity-65">
-                잠시 후 다음 단계로 이동합니다
               </p>
             </motion.div>
           </motion.div>

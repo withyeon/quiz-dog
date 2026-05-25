@@ -35,7 +35,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }) ?? navItems[0]
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa] text-slate-950">
+    <div className="min-h-screen bg-[#f7f8fa] text-blue-900">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex h-16 items-center px-5">
           <Link href="/" className="flex items-center">
@@ -53,7 +53,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 pb-4">
           <Link
             href="/teacher/create"
-            className="flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-bold text-white transition hover:bg-slate-800"
+            className="flex h-11 items-center justify-center gap-2 rounded-lg bg-blue-900 px-4 text-sm font-bold text-white transition hover:bg-blue-800"
           >
             <Plus className="h-4 w-4" />
             새 퀴즈 만들기
@@ -72,8 +72,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 href={item.href}
                 className={`flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-bold transition ${
                   active
-                    ? 'bg-slate-100 text-slate-950'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                    ? 'bg-slate-100 text-blue-900'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-blue-900'
                 }`}
               >
                 <item.icon className="h-5 w-5" />
@@ -91,7 +91,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 T
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-black text-slate-900">선생님</div>
+                <div className="truncate text-sm font-black text-blue-900">선생님</div>
                 <div className="mt-0.5 text-xs font-medium text-slate-500">Free 플랜</div>
               </div>
             </div>

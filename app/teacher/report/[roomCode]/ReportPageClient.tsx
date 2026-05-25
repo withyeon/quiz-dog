@@ -84,7 +84,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
             <div className="max-w-7xl mx-auto">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">게임 결과 리포트</h1>
+                        <h1 className="text-3xl font-bold text-blue-900">게임 결과 리포트</h1>
                         <p className="text-gray-600 mt-2">방 코드: <span className="font-mono font-bold">{roomCode}</span></p>
                     </div>
                     <button

@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import Confetti from 'react-confetti'
-import { ArrowRight, Medal, PartyPopper, Trophy } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import type { AnalyticsQuestion } from '@/lib/services/questions'
 import {
@@ -17,6 +18,8 @@ type TeacherEndSequenceProps = {
   room: Room
   players: Player[]
   questions: AnalyticsQuestion[]
+  onRestart?: () => void
+  isRestarting?: boolean
 }
 
 type Stage = 0 | 1 | 2 | 3 | 4 | 5 | 6
@@ -35,6 +38,8 @@ export default function TeacherEndSequence({
   room,
   players,
   questions,
+  onRestart,
+  isRestarting = false,
 }: TeacherEndSequenceProps) {
   const analytics = useMemo(
     () => buildResultAnalytics(players, questions, room),
@@ -106,20 +111,23 @@ export default function TeacherEndSequence({
 
       {stage === 6 && (
         <section className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
-          <div className="mb-8 flex h-32 w-32 items-center justify-center rounded-full bg-white text-8xl shadow-2xl">
-            🐕
-          </div>
-          <h1 className="text-[clamp(64px,9vw,132px)] font-black leading-none tracking-normal">수고했어요!</h1>
-          <p className="mt-8 max-w-3xl text-[clamp(24px,3vw,44px)] font-black text-sky-100">
-            오늘의 어려운 문제를 확인했어요. 이제 다음 활동으로 이어갈 수 있습니다.
-          </p>
+          <Image
+            src="/quizdog-logo.svg"
+            alt="퀴즈독"
+            width={400}
+            height={125}
+            className="mb-8 w-full max-w-md"
+            priority
+          />
           <div className="fixed bottom-8 right-8 flex gap-3">
-            <Link
-              href="/teacher/dashboard"
-              className="rounded-lg bg-white px-8 py-5 text-2xl font-black text-slate-900 shadow-xl hover:bg-slate-100"
+            <button
+              type="button"
+              onClick={onRestart}
+              disabled={!onRestart || isRestarting}
+              className="rounded-lg bg-white px-8 py-5 text-2xl font-black text-slate-900 shadow-xl transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              다음 게임
-            </Link>
+              {isRestarting ? '다시 시작 중...' : '다시 시작하기'}
+            </button>
             <Link
               href={`/teacher/game/${room.room_code}/report`}
               className="rounded-lg bg-emerald-400 px-8 py-5 text-2xl font-black text-emerald-950 shadow-xl hover:bg-emerald-300"
@@ -143,12 +151,18 @@ function RevealStage({
   const rank = 4 - stage
   const label = rank === 1 ? '1등은...' : rank === 2 ? '2등은...' : '3등은...'
   const color = rank === 1 ? 'text-amber-300' : rank === 2 ? 'text-slate-200' : 'text-orange-300'
-  const Icon = rank === 1 ? Trophy : rank === 2 ? Medal : PartyPopper
+  const rankIconSrc = rank === 1 ? '/trophy.svg' : rank === 2 ? '/silver.svg' : '/bronze.svg'
 
   return (
     <section className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
       <div className={`mb-8 flex items-center gap-6 text-[clamp(48px,7vw,96px)] font-black ${color}`}>
-        <Icon className="h-20 w-20" />
+        <Image
+          src={rankIconSrc}
+          alt=""
+          width={80}
+          height={80}
+          className="h-20 w-20 object-contain"
+        />
         {label}
       </div>
       <div className="animate-[pulse_1.2s_ease-in-out_infinite] rounded-3xl border-8 border-white/20 bg-white p-10 text-slate-950 shadow-2xl">
@@ -234,11 +248,11 @@ function ReviewQuestionStage({
   return (
     <section className="flex min-h-screen flex-col p-10">
       <div className="mb-8 text-[clamp(32px,4vw,56px)] font-black text-sky-100">
-        가장 많이 틀린 문제 #{index + 1}
+        가장 많이 틀린 문제 {index + 1}
       </div>
       <div className="flex flex-1 flex-col justify-center rounded-3xl bg-white p-10 text-slate-950 shadow-2xl">
         <h1 className="text-[clamp(44px,5vw,76px)] font-black leading-tight tracking-normal">
-          Q{question.index + 1}. {question.text}
+          질문 {question.index + 1}. {question.text}
         </h1>
         {question.options.length > 0 && (
           <div className="mt-10 grid gap-5 md:grid-cols-2">

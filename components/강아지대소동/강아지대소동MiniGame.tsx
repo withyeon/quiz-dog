@@ -12,6 +12,7 @@ type FallingObject = {
   rotation: number
   spin: number
   wobble: number
+  kind: 'poop' | 'bone'
   variant: 'normal' | 'fast' | 'heavy'
   hit: boolean
 }
@@ -30,6 +31,7 @@ type SplatParticle = {
 
 export type DodgeResult = {
   hits: number
+  bones: number
   blockedByUmbrella: number
   reward: number
 }
@@ -49,8 +51,10 @@ type DodgeMiniGameProps = {
 
 const PLAYER_SIZE = 52
 const OBJECT_SIZE = 34
+const BONE_REWARD = 20
 const MASCOT_SRC = '/mascot_pome.png'
 const BACKGROUND_SRC = '/background/puppy-chaos.png'
+const BONE_SRC = '/puppy-chaos/bone.svg'
 
 function rectsOverlap(a: DOMRectLike, b: DOMRectLike) {
   return a.x < b.x + b.width
@@ -84,6 +88,7 @@ export default function DodgeMiniGame({
   const particlesRef = useRef<SplatParticle[]>([])
   const mascotImageRef = useRef<HTMLImageElement | null>(null)
   const backgroundImageRef = useRef<HTMLImageElement | null>(null)
+  const boneImageRef = useRef<HTMLImageElement | null>(null)
   const playerXRef = useRef(0.5)
   const playerVelocityRef = useRef(0)
   const keysRef = useRef({ left: false, right: false })
@@ -93,6 +98,7 @@ export default function DodgeMiniGame({
   const spawnElapsedRef = useRef(0)
   const nextIdRef = useRef(1)
   const hitsRef = useRef(0)
+  const bonesRef = useRef(0)
   const streakRef = useRef(0)
   const umbrellaUsedRef = useRef(false)
   const completedRef = useRef(false)
@@ -104,6 +110,7 @@ export default function DodgeMiniGame({
 
   const [timeLeft, setTimeLeft] = useState(durationSeconds)
   const [hits, setHits] = useState(0)
+  const [bones, setBones] = useState(0)
   const [showBombWarning, setShowBombWarning] = useState(poopBombed)
   const [blocked, setBlocked] = useState(0)
   const [nearMisses, setNearMisses] = useState(0)
@@ -121,6 +128,14 @@ export default function DodgeMiniGame({
     image.src = BACKGROUND_SRC
     image.onload = () => {
       backgroundImageRef.current = image
+    }
+  }, [])
+
+  useEffect(() => {
+    const image = new Image()
+    image.src = BONE_SRC
+    image.onload = () => {
+      boneImageRef.current = image
     }
   }, [])
 
@@ -208,9 +223,10 @@ export default function DodgeMiniGame({
     const complete = () => {
       if (completedRef.current) return
       completedRef.current = true
-      const rawReward = baseReward * multiplier - hitsRef.current * 10
+      const rawReward = baseReward * multiplier - hitsRef.current * 10 + bonesRef.current * BONE_REWARD
       onComplete({
         hits: hitsRef.current,
+        bones: bonesRef.current,
         blockedByUmbrella: umbrellaUsedRef.current ? 1 : 0,
         reward: Math.max(0, Math.round(rawReward)),
       })
@@ -250,6 +266,7 @@ export default function DodgeMiniGame({
         if (spawnElapsedRef.current >= spawnInterval) {
           spawnElapsedRef.current = 0
           const variantRoll = Math.random()
+          const kind = variantRoll < 0.22 ? 'bone' : 'poop'
           const variant = variantRoll > 0.88 ? 'heavy' : variantRoll > 0.68 ? 'fast' : 'normal'
           const size = variant === 'heavy' ? OBJECT_SIZE + 14 : variant === 'fast' ? OBJECT_SIZE - 4 : OBJECT_SIZE
           objectsRef.current.push({
@@ -262,6 +279,7 @@ export default function DodgeMiniGame({
             rotation: Math.random() * Math.PI * 2,
             spin: (Math.random() - 0.5) * 0.012,
             wobble: Math.random() * Math.PI * 2,
+            kind,
             variant,
             hit: false,
           })
@@ -290,7 +308,8 @@ export default function DodgeMiniGame({
           .filter((object) => object.y < height + OBJECT_SIZE)
 
         for (const object of objectsRef.current) {
-          if (object.hit || invincible) continue
+          if (object.hit) continue
+          if (object.kind === 'poop' && invincible) continue
           const objectRect = {
             x: object.x - object.size / 2,
             y: object.y - object.size / 2,
@@ -300,6 +319,14 @@ export default function DodgeMiniGame({
           if (!rectsOverlap(playerRect, objectRect)) continue
 
           object.hit = true
+          if (object.kind === 'bone') {
+            bonesRef.current += 1
+            streakRef.current += 1
+            setBones(bonesRef.current)
+            spawnSplat(object.x, object.y, 10, ['#fef3c7', '#fde68a', '#fbbf24', '#ffffff'])
+            continue
+          }
+
           shakeRef.current = 260
           spawnSplat(object.x, object.y, object.variant === 'heavy' ? 18 : 12)
           if (umbrella && !umbrellaUsedRef.current) {
@@ -314,6 +341,7 @@ export default function DodgeMiniGame({
 
         for (const object of objectsRef.current) {
           if (object.hit) continue
+          if (object.kind !== 'poop') continue
           const playerCenterX = playerXRef.current * width
           const playerTop = height - PLAYER_SIZE - 32
           const passedPlayer = object.y > playerTop + PLAYER_SIZE * 0.3 && object.y < playerTop + PLAYER_SIZE * 0.3 + object.speed * delta + 4
@@ -382,7 +410,11 @@ export default function DodgeMiniGame({
           ctx.ellipse(object.x, height - 48, object.size * 0.55, object.size * 0.16, 0, 0, Math.PI * 2)
           ctx.fill()
         }
-        drawPoop(ctx, object)
+        if (object.kind === 'bone') {
+          drawBone(ctx, object, boneImageRef.current)
+        } else {
+          drawPoop(ctx, object)
+        }
       }
 
       for (const particle of particlesRef.current) {
@@ -467,6 +499,9 @@ export default function DodgeMiniGame({
         <div className="rounded-2xl border-2 border-slate-900 bg-white px-3 py-2 text-sm font-black text-rose-600 shadow-[2px_2px_0_#0f172a] sm:px-4 sm:text-base">
           맞음 {hits}
         </div>
+        <div className="rounded-2xl border-2 border-slate-900 bg-amber-50 px-3 py-2 text-sm font-black text-amber-700 shadow-[2px_2px_0_#0f172a] sm:px-4 sm:text-base">
+          뼈다귀 {bones}
+        </div>
         {blocked > 0 && (
           <div className="rounded-2xl border-2 border-slate-900 bg-cyan-100 px-3 py-2 text-sm font-black text-cyan-800 shadow-[2px_2px_0_#0f172a] sm:px-4 sm:text-base">
             우산 방어!
@@ -547,6 +582,26 @@ function drawPoop(ctx: CanvasRenderingContext2D, object: FallingObject) {
   if (object.variant === 'fast') {
     ctx.font = `${26 * scale}px DNFBitBitv2, sans-serif`
     ctx.fillText('💩', 9 * scale, 5 * scale)
+  }
+  ctx.restore()
+}
+
+function drawBone(ctx: CanvasRenderingContext2D, object: FallingObject, image: HTMLImageElement | null) {
+  ctx.save()
+  ctx.translate(object.x, object.y)
+  ctx.rotate(object.rotation)
+  const scale = object.size / OBJECT_SIZE
+  ctx.shadowColor = 'rgba(146, 64, 14, 0.28)'
+  ctx.shadowBlur = 8
+  ctx.shadowOffsetY = 4
+  if (image) {
+    const drawSize = object.size * 1.35
+    ctx.drawImage(image, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
+  } else {
+    ctx.font = `${object.variant === 'heavy' ? 42 * scale : 34 * scale}px DNFBitBitv2, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('🦴', 0, 0)
   }
   ctx.restore()
 }

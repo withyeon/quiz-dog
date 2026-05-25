@@ -3,6 +3,7 @@
 import { motion } from 'framer-motion'
 import { Trash2, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
 import { ArrowLeft } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { displayBlankText } from '@/lib/quiz/blankText'
@@ -11,7 +12,7 @@ import { getOptionLabel } from '@/lib/quiz/optionLabels'
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   CHOICE: { label: '객관식', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
   SHORT: { label: '주관식', color: 'text-blue-700', bg: 'bg-blue-50', border: 'border-blue-200' },
-  OX: { label: 'OX', color: 'text-purple-700', bg: 'bg-purple-50', border: 'border-purple-200' },
+  OX: { label: 'OX', color: 'text-blue-900', bg: 'bg-sky-50', border: 'border-sky-200' },
   BLANK: { label: '빈칸', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' },
 }
 
@@ -114,12 +115,12 @@ export default function QuestionReviewEditor({
   const totalErrors = generatedQuestions.reduce((sum, q) => sum + getQuestionErrors(q).length, 0)
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] px-4 py-5 text-slate-950 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-[#f5f7fb] px-4 py-5 text-blue-900 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
       <Button
         variant="ghost"
         onClick={onBack}
-        className="-ml-3 mb-4 h-10 rounded-lg px-3 text-slate-500 hover:bg-slate-100 hover:text-slate-950"
+        className="-ml-3 mb-4 h-10 rounded-lg px-3 text-slate-500 hover:bg-slate-100 hover:text-blue-900"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
         제작 방식 다시 선택
@@ -129,8 +130,8 @@ export default function QuestionReviewEditor({
       <div className="mb-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-sm font-black text-sky-700">저장 전 검수</div>
-            <h2 className="mt-1 text-2xl font-black text-slate-950">문제집 내용 다듬기</h2>
+            <div className="text-sm font-black text-blue-900">저장 전 검수</div>
+            <h2 className="mt-1 text-2xl font-black text-blue-900">문제집 내용 다듬기</h2>
             <p className="text-sm font-bold text-slate-500 mt-1">
               {generatedQuestions.length}문제 · {totalErrors > 0 ? (
                 <span className="text-red-500 font-black">⚠ {totalErrors}개 수정 필요</span>
@@ -158,7 +159,7 @@ export default function QuestionReviewEditor({
             value={setName}
             onChange={(e) => setSetName(e.target.value)}
             placeholder="예: 한국사 기초 문제집"
-            className="w-full rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            className="w-full rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-blue-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -167,7 +168,7 @@ export default function QuestionReviewEditor({
             <select
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-bold text-blue-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             >
               <option value="">과목 선택</option>
               <option value="국어">국어</option>
@@ -184,14 +185,12 @@ export default function QuestionReviewEditor({
             <select
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-bold text-blue-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             >
               <option value="">학년 선택</option>
-              <option value="초등 저학년">초등 저학년</option>
-              <option value="초등 고학년">초등 고학년</option>
-              <option value="중학교">중학교</option>
-              <option value="고등학교">고등학교</option>
-              <option value="기타">기타</option>
+              {TARGET_GRADE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
             </select>
           </div>
         </div>
@@ -215,7 +214,7 @@ export default function QuestionReviewEditor({
               {/* 문제 헤더 */}
               <div className={`flex items-center justify-between border-b px-5 py-3 ${cfg.bg} ${cfg.border}`}>
                 <div className="flex items-center gap-3">
-                  <span className="text-lg font-black text-slate-900">{index + 1}</span>
+                  <span className="text-lg font-black text-blue-900">{index + 1}</span>
                   <select
                     value={q.type}
                     onChange={(e) => handleTypeChange(index, e.target.value)}
@@ -243,7 +242,7 @@ export default function QuestionReviewEditor({
                   <textarea
                     value={q.type === 'BLANK' ? displayBlankText(q.question_text) : q.question_text}
                     onChange={(e) => handleEditQuestion(index, 'question_text', e.target.value)}
-                    className="w-full resize-none rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    className="w-full resize-none rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-blue-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     rows={2}
                     placeholder="문제를 입력하세요"
                   />
@@ -280,7 +279,7 @@ export default function QuestionReviewEditor({
                                   handleEditOption(index, optIdx, e.target.value)
                                 }}
                                 onClick={(e) => e.stopPropagation()}
-                                className="flex-1 bg-transparent font-bold text-slate-800 outline-none placeholder:text-slate-400"
+                                className="flex-1 bg-transparent font-bold text-blue-900 outline-none placeholder:text-slate-400"
                                 placeholder={`보기 ${optIdx + 1}`}
                                 readOnly={q.type === 'OX'}
                               />
@@ -317,7 +316,7 @@ export default function QuestionReviewEditor({
                       type="text"
                       value={q.answer}
                       onChange={(e) => handleEditQuestion(index, 'answer', e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-slate-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-blue-900 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                       placeholder="정답을 입력하세요"
                     />
                   </div>
@@ -345,7 +344,7 @@ export default function QuestionReviewEditor({
           <div className="flex gap-3 justify-center flex-wrap">
             <button
               onClick={() => onCreateManual('CHOICE')}
-              className="rounded-lg bg-sky-100 px-4 py-2 text-sm font-black text-sky-700 transition-colors hover:bg-sky-200"
+              className="rounded-lg bg-sky-100 px-4 py-2 text-sm font-black text-blue-900 transition-colors hover:bg-sky-200"
             >
               + 객관식
             </button>
@@ -363,7 +362,7 @@ export default function QuestionReviewEditor({
             </button>
             <button
               onClick={() => onCreateManual('MIXED')}
-              className="rounded-lg bg-violet-100 px-4 py-2 text-sm font-black text-violet-700 transition-colors hover:bg-violet-200"
+              className="rounded-lg bg-sky-100 px-4 py-2 text-sm font-black text-blue-900 transition-colors hover:bg-sky-200"
             >
               + 혼합 유형
             </button>

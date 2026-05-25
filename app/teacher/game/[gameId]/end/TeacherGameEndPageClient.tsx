@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import TeacherEndSequence from '@/components/results/TeacherEndSequence'
 import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import { getFinishedRoomReport } from '@/lib/services/reports'
+import { assertQuestionSetHasQuestions, resetRoom, startRoom } from '@/lib/services/rooms'
 import { formatServiceError } from '@/lib/services/errors'
+import { DEFAULT_GAME_MODE, isGameModeId } from '@/lib/game/modes'
 import type { Database } from '@/types/database.types'
 
 type Room = Database['public']['Tables']['rooms']['Row']
@@ -17,6 +19,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
   const [players, setPlayers] = useState<Player[]>([])
   const [questions, setQuestions] = useState<AnalyticsQuestion[]>([])
   const [loading, setLoading] = useState(true)
+  const [isRestarting, setIsRestarting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   useEffect(() => {
@@ -73,5 +76,36 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
     )
   }
 
-  return <TeacherEndSequence room={room} players={players} questions={questions} />
+  const handleRestart = async () => {
+    if (!room || isRestarting) return
+    setIsRestarting(true)
+    try {
+      const gameMode = isGameModeId(room.game_mode) ? room.game_mode : DEFAULT_GAME_MODE
+      await assertQuestionSetHasQuestions(room.set_id ?? null)
+      const durationSeconds = gameMode === 'factory' ? room.duration_seconds : null
+
+      await resetRoom(room.room_code)
+      await startRoom({
+        roomCode: room.room_code,
+        gameMode,
+        durationSeconds,
+      })
+
+      router.replace(`/teacher/dashboard?room=${encodeURIComponent(room.room_code)}`)
+    } catch (error) {
+      console.error('Error restarting game:', error)
+      alert('다시 시작에 실패했습니다: ' + formatServiceError(error))
+      setIsRestarting(false)
+    }
+  }
+
+  return (
+    <TeacherEndSequence
+      room={room}
+      players={players}
+      questions={questions}
+      onRestart={handleRestart}
+      isRestarting={isRestarting}
+    />
+  )
 }

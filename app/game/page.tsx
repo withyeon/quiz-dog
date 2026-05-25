@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
-import { Anchor, CheckCircle2, Coins, Radio, ShieldCheck, Trophy, XCircle } from 'lucide-react'
+import { AlertTriangle, Anchor, CheckCircle2, Coins, Radio, ShieldCheck, XCircle } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
@@ -12,9 +12,23 @@ import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { useGameBase } from '@/hooks/useGameBase'
 import { BOX_EVENT_IMAGE, generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
 import PlayerSelector from '@/components/PlayerSelector'
+import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
+type AttackRequestPayload = {
+  requestId: string
+  attackerPlayerId: string
+  attackerNickname: string
+  targetPlayerId: string
+  event: BoxEvent
+}
+type AttackResponsePayload = {
+  requestId: string
+  attackerPlayerId: string
+  targetPlayerId: string
+  blocked: boolean
+}
 
 export default function GamePage() {
   const {
@@ -28,7 +42,10 @@ export default function GamePage() {
     consecutiveCorrect,
     answerHistory,
     questions,
+    questionsLoading,
+    questionsError,
     players,
+    room,
     roomLoading,
     playersLoading,
     currentPlayer,
@@ -47,7 +64,10 @@ export default function GamePage() {
   const [boxEvent, setBoxEvent] = useState<BoxEvent | null>(null)
   const [isProcessingReward, setIsProcessingReward] = useState(false)
   const [hasShield, setHasShield] = useState(false) // 방어권 보유 여부
+  const [shieldNotice, setShieldNotice] = useState<string | null>(null)
   const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
+  const hasShieldRef = useRef(false)
+  const attackResolversRef = useRef(new Map<string, (blocked: boolean) => void>())
 
   // 가져오기(엘프/마법사)인데 대상이 없으면 2초 후 다음 문제로
   const selectableForSteal = pendingEvent && (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD')
@@ -59,6 +79,94 @@ export default function GamePage() {
     return (b.score ?? 0) - (a.score ?? 0)
   })
   const leaderGold = Math.max(1, ...rankedPlayers.map((player) => player.gold ?? 0))
+  const quizUnavailableMessage = !room?.set_id
+    ? '이 방에 연결된 문제집이 없습니다. 선생님이 문제집을 선택해 새 방을 만들어야 합니다.'
+    : questionsError
+      ? `문제를 불러오지 못했습니다. ${questionsError}`
+      : questions.length === 0
+        ? '이 문제집에 표시할 문제가 없습니다. 선생님이 문제를 추가한 뒤 다시 시작해야 합니다.'
+        : null
+
+  useEffect(() => {
+    hasShieldRef.current = hasShield
+  }, [hasShield])
+
+  useEffect(() => {
+    if (!shieldNotice) return
+    const timer = window.setTimeout(() => setShieldNotice(null), 2200)
+    return () => window.clearTimeout(timer)
+  }, [shieldNotice])
+
+  useEffect(() => {
+    if (!playerId) return
+
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.type === 'gold_quest:attack_response') {
+        const payload = event.payload as AttackResponsePayload | undefined
+        if (!payload || payload.attackerPlayerId !== playerId) return
+        const resolve = attackResolversRef.current.get(payload.requestId)
+        if (!resolve) return
+        attackResolversRef.current.delete(payload.requestId)
+        resolve(payload.blocked)
+        return
+      }
+
+      if (event.type !== 'gold_quest:attack_request') return
+      const payload = event.payload as AttackRequestPayload | undefined
+      if (!payload || payload.targetPlayerId !== playerId || payload.attackerPlayerId === playerId) return
+
+      const attackName = payload.event.itemName || '공격'
+      const useShield = hasShieldRef.current
+        ? window.confirm(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.\n방어권을 사용하시겠습니까?`)
+        : false
+
+      if (useShield) {
+        setHasShield(false)
+        setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
+        playSFX('item')
+      } else {
+        window.setTimeout(() => {
+          window.alert(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`)
+        }, 0)
+      }
+
+      void sendRoomEvent('gold_quest:attack_response', {
+        requestId: payload.requestId,
+        attackerPlayerId: payload.attackerPlayerId,
+        targetPlayerId: playerId,
+        blocked: useShield,
+      } satisfies AttackResponsePayload)
+    })
+  }, [playerId, playSFX, sendRoomEvent])
+
+  const waitForShieldResponse = async (event: BoxEvent, targetPlayer: Player): Promise<boolean> => {
+    if (!playerId || !currentPlayer) return false
+    const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+    const blocked = await new Promise<boolean>((resolve) => {
+      const timer = window.setTimeout(() => {
+        attackResolversRef.current.delete(requestId)
+        resolve(false)
+      }, 6000)
+
+      attackResolversRef.current.set(requestId, (nextBlocked) => {
+        window.clearTimeout(timer)
+        resolve(nextBlocked)
+      })
+
+      void sendRoomEvent('gold_quest:attack_request', {
+        requestId,
+        attackerPlayerId: playerId,
+        attackerNickname: currentPlayer.nickname,
+        targetPlayerId: targetPlayer.id,
+        event,
+      } satisfies AttackRequestPayload)
+    })
+
+    return blocked
+  }
   useEffect(() => {
     if (currentView !== 'playerSelect' || !pendingEvent || pendingEvent.type === 'KING') return
     if (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD') {
@@ -97,9 +205,10 @@ export default function GamePage() {
 
     if (correct) {
       playSFX('correct')
-      // 연속 3정답 시 방어권 획득 (Gold Quest 전용)
-      if (consecutiveCorrect + 1 >= 3 && !hasShield) {
+      // 연속 4정답 시 방어권 획득 (Gold Quest 전용, 적립 없음)
+      if (consecutiveCorrect + 1 >= 4 && !hasShield) {
         setHasShield(true)
+        setShieldNotice('4연속 정답 - 방어권 획득!')
         playSFX('item')
       }
       // 정답: 상자 선택 화면으로 (1.5초 후 자동 이동)
@@ -141,24 +250,27 @@ export default function GamePage() {
         event.type === 'DRAGON'
 
       if (hasShield && isNegativeEvent) {
-        setHasShield(false)
-        playSFX('item')
-        // 방어권으로 막힌 이벤트는 NOTHING으로 변경
-        const blockedEvent: BoxEvent = {
-          type: 'FAIRY',
-          message: '방어권이 손실 효과를 막았다.',
-          itemName: '방어권',
-          icon: '🛡️',
-        }
-        setBoxEvent(blockedEvent)
+        const useShield = window.confirm(`${event.itemName} 효과가 나왔습니다.\n방어권을 사용하시겠습니까?`)
+        if (useShield) {
+          setHasShield(false)
+          setShieldNotice('방어권으로 손실 효과를 막았습니다!')
+          playSFX('item')
+          const blockedEvent: BoxEvent = {
+            type: 'FAIRY',
+            message: '방어권이 손실 효과를 막았다.',
+            itemName: '방어권',
+            icon: '🛡️',
+          }
+          setBoxEvent(blockedEvent)
 
-        setTimeout(() => {
-          setSelectedChest(null)
-          setBoxEvent(null)
-          setIsProcessingReward(false)
-          goToNextQuestion()
-        }, 3000)
-        return
+          setTimeout(() => {
+            setSelectedChest(null)
+            setBoxEvent(null)
+            setIsProcessingReward(false)
+            goToNextQuestion()
+          }, 3000)
+          return
+        }
       }
 
       // King (Swap), Elf, Wizard는 플레이어 선택 필요
@@ -223,6 +335,26 @@ export default function GamePage() {
         event.message = `${targetPlayer.nickname}님과 골드를 교환했다.`
       }
 
+      const targetBlocked = await waitForShieldResponse(event, targetPlayer)
+      if (targetBlocked) {
+        const blockedEvent: BoxEvent = {
+          type: 'FAIRY',
+          message: `${targetPlayer.nickname}님이 방어권으로 공격을 막았다.`,
+          itemName: '방어권',
+          icon: '🛡️',
+        }
+        setBoxEvent(blockedEvent)
+
+        setTimeout(() => {
+          setSelectedChest(null)
+          setBoxEvent(null)
+          setPendingEvent(null)
+          setIsProcessingReward(false)
+          goToNextQuestion()
+        }, 3000)
+        return
+      }
+
       await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetId, patch) =>
         commitPlayerPatch(targetId, patch, 'gold_quest_target_reward')
       )
@@ -272,23 +404,23 @@ export default function GamePage() {
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="gold-quest-ink-panel mb-6 p-4 sm:p-5 text-white"
+          className="gold-quest-ink-panel mb-6 p-4 sm:p-5 text-[#17262a]"
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-amber-200/25 bg-white/10">
-                <Anchor className="h-6 w-6 text-amber-200" />
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-white/60 bg-white/35 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
+                <Anchor className="h-6 w-6 text-amber-700" />
               </div>
               <div>
-                <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-normal text-amber-200/90">
+                <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-normal text-amber-700">
                   Treasure Run
-                  <span className="h-1 w-1 rounded-full bg-amber-200/70" />
+                  <span className="h-1 w-1 rounded-full bg-amber-500" />
                   Room {roomCode}
                 </div>
                 <h1 className="gold-quest-title text-2xl sm:text-3xl font-black leading-none">
                   해적왕의 보물찾기
                 </h1>
-                <p className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-teal-50/80">
+                <p className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-slate-500">
                   <Radio className="h-4 w-4" />
                   실시간 {roomChannelStatus === 'subscribed' ? '연결됨' : '연결 중'}
                 </p>
@@ -296,25 +428,21 @@ export default function GamePage() {
             </div>
             {currentPlayer && (
               <div className="grid grid-cols-2 gap-2 sm:flex sm:items-stretch">
-                <div className="rounded-lg border border-white/[0.12] bg-white/10 px-4 py-3">
-                  <div className="text-xs font-bold text-teal-50/70">플레이어</div>
+                <div className="gold-quest-glass-chip rounded-lg px-4 py-3">
+                  <div className="text-xs font-bold text-slate-500">플레이어</div>
                   <div className="max-w-[180px] truncate text-lg font-black">{currentPlayer.nickname}</div>
                 </div>
-                <div className="rounded-lg border border-white/[0.12] bg-white/10 px-4 py-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-teal-50/70">
-                    <Coins className="h-4 w-4 text-amber-200" />
+                <div className="gold-quest-glass-chip rounded-lg px-4 py-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                    <Coins className="h-4 w-4 text-amber-600" />
                     골드
                   </div>
-                  <div className="text-lg font-black text-amber-100 tabular-nums">{currentPlayer.gold}</div>
+                  <div className="text-lg font-black text-amber-700 tabular-nums">{currentPlayer.gold}</div>
                 </div>
-                <div className="rounded-lg border border-white/[0.12] bg-white/10 px-4 py-3">
-                  <div className="text-xs font-bold text-teal-50/70">점수</div>
-                  <div className="text-lg font-black tabular-nums">{currentPlayer.score}</div>
-                </div>
-                <div className={`rounded-lg border px-4 py-3 ${
+                <div className={`rounded-lg border px-4 py-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] ${
                   hasShield
-                    ? 'border-emerald-200/35 bg-emerald-300/15 text-emerald-50'
-                    : 'border-white/[0.12] bg-white/[0.08] text-teal-50/70'
+                    ? 'border-emerald-200/70 bg-emerald-100/45 text-emerald-800'
+                    : 'gold-quest-glass-chip text-slate-500'
                 }`}>
                   <div className="flex items-center gap-2 text-xs font-bold">
                     <ShieldCheck className="h-4 w-4" />
@@ -329,6 +457,17 @@ export default function GamePage() {
             )}
           </div>
         </motion.header>
+
+        {shieldNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            className="mb-6 rounded-lg border border-emerald-300/80 bg-emerald-100/90 px-5 py-4 text-center text-xl font-black text-emerald-900 shadow-lg shadow-emerald-950/10"
+          >
+            {shieldNotice}
+          </motion.div>
+        )}
 
         {/* 카운트다운 */}
         {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
@@ -380,6 +519,27 @@ export default function GamePage() {
               timeLimit={30}
               variant="goldQuest"
             />
+          )}
+
+          {currentView === 'quiz' && !currentQuestion && (
+            <div className="gold-quest-panel p-8 sm:p-12 text-center">
+              {questionsLoading ? (
+                <>
+                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
+                  <h2 className="gold-quest-title text-3xl font-black text-[#17262a]">문제 불러오는 중</h2>
+                </>
+              ) : (
+                <>
+                  <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-lg border border-amber-300/70 bg-amber-100/70">
+                    <AlertTriangle className="h-8 w-8 text-amber-700" />
+                  </div>
+                  <h2 className="gold-quest-title text-3xl font-black text-[#17262a]">퀴즈를 시작할 수 없습니다</h2>
+                  <p className="mx-auto mt-4 max-w-xl text-base font-bold leading-relaxed text-slate-600">
+                    {quizUnavailableMessage || '문제 정보를 찾지 못했습니다. 선생님이 게임을 다시 시작해야 합니다.'}
+                  </p>
+                </>
+              )}
+            </div>
           )}
 
           {currentView === 'chest' && (
@@ -487,13 +647,13 @@ export default function GamePage() {
 
         {/* 플레이어 순위 (결과 화면이 아닐 때만 표시) */}
         {currentView !== 'result' && (
-          <section className="gold-quest-ink-panel p-4 sm:p-5 text-white">
+          <section className="gold-quest-ink-panel p-4 sm:p-5 text-[#17262a]">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="gold-quest-title flex items-center gap-2 text-xl font-black">
-                <Trophy className="h-5 w-5 text-amber-200" />
+                <Image src="/trophy.svg" alt="" width={20} height={20} className="h-5 w-5 object-contain" />
                 골드 순위
               </h2>
-              <div className="text-xs font-bold text-teal-50/70">{rankedPlayers.length}명 참가</div>
+              <div className="text-xs font-bold text-slate-500">{rankedPlayers.length}명 참가</div>
             </div>
             <div className="grid gap-2">
               {rankedPlayers.map((player, index) => {
@@ -504,30 +664,30 @@ export default function GamePage() {
                 return (
                   <div
                     key={player.id}
-                    className={`relative overflow-hidden rounded-lg border p-3 ${
+                    className={`relative overflow-hidden rounded-lg border p-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ${
                       isCurrent
-                        ? 'border-amber-200/70 bg-amber-100/[0.16]'
+                        ? 'border-amber-300/70 bg-amber-100/45'
                         : isTopPlayer
-                          ? 'border-red-200/40 bg-red-100/[0.12]'
-                          : 'border-white/10 bg-white/[0.08]'
+                          ? 'border-red-200/70 bg-red-100/40'
+                          : 'gold-quest-glass-chip'
                     }`}
                   >
                     <div
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-300/[0.22] to-transparent"
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-200/40 to-transparent"
                       style={{ width: `${fill}%` }}
                     />
                     <div className="relative flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-sm font-black ${
-                          isTopPlayer ? 'bg-red-500 text-white' : 'bg-white/[0.12] text-amber-100'
+                          isTopPlayer ? 'bg-red-500 text-white' : 'border border-white/50 bg-white/35 text-slate-700 backdrop-blur-sm'
                         }`}>
-                          #{index + 1}
+                          {index + 1}
                         </div>
                         <PlayerAvatarDisplay
                           avatar={player.avatar}
                           nickname={player.nickname}
                           fallback="P"
-                          className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-white/10 bg-white/10 text-2xl"
+                          className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-white/55 bg-white/35 text-2xl backdrop-blur-sm"
                           sizes="40px"
                         />
                         <div className="min-w-0">
@@ -539,18 +699,18 @@ export default function GamePage() {
                               </span>
                             )}
                           </div>
-                          <div className="mt-1 flex items-center gap-2 text-xs font-bold text-teal-50/[0.65]">
-                            <span className={`h-2 w-2 rounded-full ${player.is_online ? 'bg-emerald-300' : 'bg-slate-400'}`} />
+                          <div className="mt-1 flex items-center gap-2 text-xs font-bold text-slate-500">
+                            <span className={`h-2 w-2 rounded-full ${player.is_online ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                             {player.is_online ? '온라인' : '오프라인'}
                           </div>
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="flex items-center justify-end gap-1.5 text-lg font-black text-amber-100 tabular-nums">
+                        <div className="flex items-center justify-end gap-1.5 text-lg font-black text-amber-700 tabular-nums">
                           <Image src="/gold-quest/gold-stack.svg" alt="" width={18} height={18} className="h-[18px] w-[18px]" />
                           {gold}
                         </div>
-                        <div className="text-xs font-bold text-teal-50/[0.65]">{player.score}점</div>
+                        <div className="text-xs font-bold text-slate-500">골드</div>
                       </div>
                     </div>
                   </div>

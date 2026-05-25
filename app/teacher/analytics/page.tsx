@@ -155,7 +155,7 @@ function AnalyticsPageContent() {
         </Button>
 
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+          <h1 className="text-2xl font-bold text-blue-900 mb-2">
             {modeCfg.emoji} 게임 결과 리포트
           </h1>
           <div className="flex items-center gap-4 text-sm text-gray-500">
@@ -178,7 +178,7 @@ function AnalyticsPageContent() {
           <div className="mt-6 text-center">
             <Button
               onClick={() => router.push(`/teacher/dashboard?set=${encodeURIComponent(report.set_id!)}`)}
-              className="bg-purple-600 hover:bg-purple-700 text-white"
+              className="bg-sky-600 hover:bg-sky-700 text-white"
             >
               <Play className="h-4 w-4 mr-2" /> 이 문제집으로 다시 게임 시작
             </Button>
@@ -192,7 +192,7 @@ function AnalyticsPageContent() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">📊 게임 히스토리</h1>
+        <h1 className="text-3xl font-bold text-blue-900 mb-2">📊 게임 히스토리</h1>
         <p className="text-gray-600">지난 게임 결과를 다시 확인하세요</p>
         {errorMessage && (
           <p className="mt-3 text-sm text-red-500">리포트를 불러오는 중 문제가 발생했습니다: {errorMessage}</p>
@@ -208,7 +208,7 @@ function AnalyticsPageContent() {
           <p className="text-gray-500 mb-6">게임을 진행하면 결과가 여기에 자동으로 저장됩니다.</p>
           <Button
             onClick={() => router.push('/teacher/dashboard')}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="bg-sky-600 hover:bg-sky-700 text-white"
           >
             <Play className="h-4 w-4 mr-2" /> 게임 시작하기
           </Button>
@@ -241,7 +241,7 @@ function AnalyticsPageContent() {
                 {/* 정보 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-gray-900">{modeCfg.label}</span>
+                    <span className="font-bold text-blue-900">{modeCfg.label}</span>
                     <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{report.room_code}</span>
                   </div>
                   <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -291,7 +291,7 @@ function HistoryReportDetail({
               <span className="text-sm font-bold text-slate-500">{item.label}</span>
               <item.icon className="h-5 w-5 text-slate-400" />
             </div>
-            <div className="mt-4 text-3xl font-black text-slate-950">{item.value}</div>
+            <div className="mt-4 text-3xl font-black text-blue-900">{item.value}</div>
           </div>
         ))}
       </section>
@@ -303,7 +303,7 @@ function HistoryReportDetail({
               <ListChecks className="h-4 w-4" />
               그때 플레이했던 문제
             </div>
-            <h2 className="mt-2 text-2xl font-black text-slate-950">{questions.length}개 문항</h2>
+            <h2 className="mt-2 text-2xl font-black text-blue-900">{questions.length}개 문항</h2>
           </div>
           <p className="text-sm font-medium text-slate-500">정답과 당시 학생들의 정답률을 함께 봅니다.</p>
         </div>
@@ -326,7 +326,7 @@ function HistoryReportDetail({
                         {question.type}
                       </span>
                     </div>
-                    <h3 className="text-lg font-black leading-relaxed text-slate-950">{question.text}</h3>
+                    <h3 className="text-lg font-black leading-relaxed text-blue-900">{question.text}</h3>
                     {question.options.length > 0 && (
                       <div className="mt-4 grid gap-2 md:grid-cols-2">
                         {question.options.map((option, index) => {
@@ -350,11 +350,11 @@ function HistoryReportDetail({
                   <div className="grid min-w-44 grid-cols-2 gap-2 lg:grid-cols-1">
                     <div className="rounded-lg bg-slate-50 p-3">
                       <div className="text-xs font-bold text-slate-400">정답</div>
-                      <div className="mt-1 text-sm font-black text-slate-950">{question.answer}</div>
+                      <div className="mt-1 text-sm font-black text-blue-900">{question.answer}</div>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-3">
                       <div className="text-xs font-bold text-slate-400">정답률</div>
-                      <div className="mt-1 text-sm font-black text-slate-950">
+                      <div className="mt-1 text-sm font-black text-blue-900">
                         {question.accuracy}% · {question.correctCount}/{question.totalCount}명
                       </div>
                     </div>
@@ -373,7 +373,7 @@ function HistoryReportDetail({
               <Users className="h-4 w-4" />
               그때 아이들 결과
             </div>
-            <h2 className="mt-2 text-2xl font-black text-slate-950">{students.length}명 결과</h2>
+            <h2 className="mt-2 text-2xl font-black text-blue-900">{students.length}명 결과</h2>
           </div>
           <p className="text-sm font-medium text-slate-500">점수 순위와 문항별 답안을 같이 확인합니다.</p>
         </div>
@@ -395,8 +395,8 @@ function HistoryReportDetail({
               {students.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50">
                   <td className="px-4 py-4 font-black text-slate-500">{student.rankByScore}</td>
-                  <td className="px-4 py-4 font-black text-slate-950">{student.nickname}</td>
-                  <td className="px-4 py-4 text-right font-black text-slate-950">{student.score.toLocaleString()}</td>
+                  <td className="px-4 py-4 font-black text-blue-900">{student.nickname}</td>
+                  <td className="px-4 py-4 text-right font-black text-blue-900">{student.score.toLocaleString()}</td>
                   <td className="px-4 py-4 text-right font-bold text-slate-700">
                     {student.correctCount}/{student.totalCount}
                   </td>
