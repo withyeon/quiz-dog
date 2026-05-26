@@ -85,6 +85,7 @@ export default function GamePage() {
     return (b.score ?? 0) - (a.score ?? 0)
   })
   const leaderGold = Math.max(1, ...rankedPlayers.map((player) => player.gold ?? 0))
+  const isPaused = room?.status === 'paused'
   const quizUnavailableMessage = !room?.set_id
     ? '이 방에 연결된 문제집이 없습니다. 선생님이 문제집을 선택해 새 방을 만들어야 합니다.'
     : questionsError
@@ -535,6 +536,7 @@ export default function GamePage() {
               onAnswer={handleAnswerSubmit}
               onCorrectClick={goToChestView}
               timeLimit={30}
+              paused={isPaused}
               variant="goldQuest"
             />
           )}
@@ -738,6 +740,13 @@ export default function GamePage() {
           </section>
         )}
       </div>
+      {isPaused && currentView !== 'lobby' && currentView !== 'result' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">
+            선생님이 잠깐 멈췄어요
+          </div>
+        </div>
+      )}
     </main>
   )
 }

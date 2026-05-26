@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import QRCodeSVG from 'react-qr-code'
 import PomeMascot from '@/components/PomeMascot'
 import PuppyChaosTeacherBoard from '@/components/강아지대소동/강아지대소동TeacherBoard'
@@ -11,12 +12,17 @@ import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomResync } from '@/hooks/useRoomResync'
 import { formatServiceError } from '@/lib/services/errors'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
-import { assertQuestionSetHasQuestions, createRoom, endRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
+import { assertQuestionSetHasQuestions, createRoom, endRoom, finishRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
 import { updatePlayer } from '@/lib/services/players'
+import { saveGameReportSnapshot } from '@/lib/services/reports'
+import { PUPPY_CHAOS_BONUS_GRACE_SECONDS } from '@/lib/game/강아지대소동'
 
 export default function PuppyChaosTeacherPage() {
+  const router = useRouter()
   const [roomCode, setRoomCode] = useState('')
   const [isBusy, setIsBusy] = useState(false)
+  const [durationMinutes, setDurationMinutes] = useState(5)
+  const autoFinishRequestedRef = useRef(false)
 
   const { players, refreshPlayers, applyPlayerPatch } = usePlayersRealtime({
     roomCode,
@@ -72,8 +78,14 @@ export default function PuppyChaosTeacherPage() {
         throw new Error('연결된 문제집이 없습니다. 문제집에서 다시 시작해주세요.')
       }
       await assertQuestionSetHasQuestions(room?.set_id ?? null)
-      await startRoom({ roomCode, gameMode: 'poop_dodge' })
-      broadcastRoomPatch({ status: 'playing', game_mode: 'poop_dodge', started_at: new Date().toISOString() }, 'poop_dodge_start')
+      const startedAt = new Date().toISOString()
+      await startRoom({ roomCode, gameMode: 'poop_dodge', durationSeconds: durationMinutes * 60 })
+      broadcastRoomPatch({
+        status: 'playing',
+        game_mode: 'poop_dodge',
+        started_at: startedAt,
+        duration_seconds: durationMinutes * 60,
+      }, 'poop_dodge_start')
     } catch (error) {
       alert('게임 시작에 실패했습니다: ' + formatServiceError(error))
     } finally {
@@ -81,16 +93,69 @@ export default function PuppyChaosTeacherPage() {
     }
   }
 
+  useEffect(() => {
+    if (!roomCode || !room || room.status !== 'playing' || !room.started_at || !room.duration_seconds) {
+      autoFinishRequestedRef.current = false
+      return
+    }
+
+    const finishByTimeLimit = async () => {
+      if (autoFinishRequestedRef.current) return
+      autoFinishRequestedRef.current = true
+
+      try {
+        await finishRoom(roomCode)
+        broadcastRoomPatch({ status: 'finished' }, 'poop_dodge_time_up')
+        void sendEvent('game:finished', {
+          finishedBy: 'teacher',
+          reason: 'poop_dodge_time_up',
+        })
+        try {
+          await saveGameReportSnapshot(room, players)
+        } catch (reportError) {
+          console.error('강아지 대소동 결과 저장 실패:', reportError)
+        }
+        router.push(`/teacher/game/${roomCode}/end`)
+      } catch (error) {
+        autoFinishRequestedRef.current = false
+        console.error('강아지 대소동 시간 종료 실패:', error)
+      }
+    }
+
+    const started = new Date(room.started_at).getTime()
+    const totalSeconds = Number(room.duration_seconds) + PUPPY_CHAOS_BONUS_GRACE_SECONDS
+    const tick = () => {
+      const elapsedSeconds = Math.floor((Date.now() - started) / 1000)
+      if (elapsedSeconds >= totalSeconds) void finishByTimeLimit()
+    }
+
+    tick()
+    const interval = window.setInterval(tick, 1000)
+    return () => window.clearInterval(interval)
+  }, [broadcastRoomPatch, players, room, roomCode, router, sendEvent])
+
   const handlePause = async () => {
     if (!roomCode) return
-    await pauseRoom(roomCode)
-    broadcastRoomPatch({ status: 'paused' }, 'poop_dodge_pause')
+    const remaining = room?.started_at && room.duration_seconds
+      ? Math.max(1, Number(room.duration_seconds) - Math.floor((Date.now() - new Date(room.started_at).getTime()) / 1000))
+      : null
+    await pauseRoom(roomCode, remaining)
+    broadcastRoomPatch({
+      status: 'paused',
+      ...(remaining != null ? { duration_seconds: remaining } : {}),
+    }, 'poop_dodge_pause')
   }
 
   const handleResume = async () => {
     if (!roomCode) return
-    await startRoom({ roomCode, gameMode: 'poop_dodge' })
-    broadcastRoomPatch({ status: 'playing' }, 'poop_dodge_resume')
+    const resumedDurationSeconds = room?.duration_seconds ?? durationMinutes * 60
+    const startedAt = new Date().toISOString()
+    await startRoom({ roomCode, gameMode: 'poop_dodge', durationSeconds: resumedDurationSeconds })
+    broadcastRoomPatch({
+      status: 'playing',
+      started_at: startedAt,
+      duration_seconds: resumedDurationSeconds,
+    }, 'poop_dodge_resume')
   }
 
   const handleEnd = async () => {
@@ -173,6 +238,26 @@ export default function PuppyChaosTeacherPage() {
                 </div>
 
                 <div className="flex flex-col items-center justify-center gap-5 rounded-[28px] border-4 border-slate-950 bg-sky-50 p-5">
+                  <div className="w-full rounded-[24px] border-4 border-slate-950 bg-white p-4 shadow-[4px_4px_0_#0f172a]">
+                    <div className="mb-3 text-center text-xl font-black text-slate-950">게임 시간</div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[3, 5, 7, 10].map((minutes) => (
+                        <button
+                          key={minutes}
+                          type="button"
+                          onClick={() => setDurationMinutes(minutes)}
+                          className={`rounded-2xl border-4 border-slate-950 py-2 text-lg font-black shadow-[2px_2px_0_#0f172a] ${
+                            durationMinutes === minutes ? 'bg-amber-300' : 'bg-white'
+                          }`}
+                        >
+                          {minutes}분
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-center text-sm font-black text-slate-500">
+                      시간 종료 후 보너스 한 판을 하고 순위를 공개해요.
+                    </p>
+                  </div>
                   <div className="rounded-3xl border-4 border-slate-950 bg-white p-4 shadow-[4px_4px_0_#0f172a]">
                     <QRCodeSVG value={inviteUrl} size={240} level="H" />
                   </div>

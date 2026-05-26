@@ -57,6 +57,7 @@ export default function TowerPage() {
         showCountdown,
         setShowCountdown,
     } = useGameBase({ expectedGameMode: 'tower' })
+    const isPaused = room?.status === 'paused'
 
     const quizReturnTimerRef = useRef<NodeJS.Timeout | null>(null)
     const quizTransitionHandledRef = useRef(false)
@@ -517,6 +518,7 @@ export default function TowerPage() {
                                 onAnswer={handleAnswer}
                                 onCorrectClick={returnToPlaying}
                                 timeLimit={30}
+                                paused={isPaused}
                                 variant="default"
                             />
                         </motion.div>
@@ -557,6 +559,13 @@ export default function TowerPage() {
                             onRestart={handleRestart}
                             onExit={() => router.push('/')}
                         />
+                    </div>
+                )}
+                {isPaused && currentView !== 'lobby' && currentView !== 'result' && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
+                        <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">
+                            선생님이 잠깐 멈췄어요
+                        </div>
                     </div>
                 )}
             </div>

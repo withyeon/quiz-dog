@@ -102,6 +102,7 @@ export default function BattlePage() {
     consecutiveCorrect,
     sendRoomEvent,
   } = useGameBase({ expectedGameMode: 'battle_royale' })
+  const isPaused = room?.status === 'paused'
 
   const [attackResult, setAttackResult] = useState<AttackResult | null>(null)
   const [selectedClass, setSelectedClass] = useState<PlayerClass | null>(null)
@@ -936,6 +937,7 @@ export default function BattlePage() {
                         onAnswer={handleAnswerSubmit}
                         onCorrectClick={goToNextQuiz}
                         timeLimit={30}
+                        paused={isPaused}
                         variant="battle"
                         className="battle-frost-panel mx-auto p-5"
                       />
@@ -1009,6 +1011,7 @@ export default function BattlePage() {
                     onAnswer={handleAnswerSubmit}
                     onCorrectClick={goToNextQuiz}
                     timeLimit={30}
+                    paused={isPaused}
                     variant="battle"
                     className="battle-frost-panel mx-auto max-w-3xl p-5 sm:p-7"
                   />
@@ -1078,6 +1081,13 @@ export default function BattlePage() {
           </div>
         </div>
       </ScreenShake>
+      {isPaused && currentView !== 'lobby' && currentView !== 'result' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">
+            선생님이 잠깐 멈췄어요
+          </div>
+        </div>
+      )}
     </main>
   )
 }

@@ -82,7 +82,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
     try {
       const gameMode = isGameModeId(room.game_mode) ? room.game_mode : DEFAULT_GAME_MODE
       await assertQuestionSetHasQuestions(room.set_id ?? null)
-      const durationSeconds = gameMode === 'factory' ? room.duration_seconds : null
+      const durationSeconds = room.duration_seconds
 
       await resetRoom(room.room_code)
       await startRoom({

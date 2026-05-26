@@ -88,7 +88,7 @@ export async function startRoom({ roomCode, gameMode, durationSeconds }: StartRo
     started_at: new Date().toISOString(),
     duration_seconds: null,
   }
-  if (gameMode === 'factory' && durationSeconds) {
+  if (durationSeconds) {
     updatePayload.duration_seconds = durationSeconds
   }
 
@@ -109,10 +109,32 @@ export async function finishRoom(roomCode: string): Promise<void> {
   if (error) throw error
 }
 
-export async function pauseRoom(roomCode: string): Promise<void> {
+export async function pauseRoom(roomCode: string, durationSeconds?: number | null): Promise<void> {
+  const patch: Record<string, unknown> = { status: 'paused' }
+  if (durationSeconds != null) {
+    patch.duration_seconds = durationSeconds
+  }
+
   const { error } = await (supabase
     .from('rooms') as any)
-    .update({ status: 'paused' })
+    .update(patch)
+    .eq('room_code', roomCode)
+
+  if (error) throw error
+}
+
+export async function resumeRoom(roomCode: string, durationSeconds?: number | null): Promise<void> {
+  const patch: Record<string, unknown> = {
+    status: 'playing',
+    started_at: new Date().toISOString(),
+  }
+  if (durationSeconds != null) {
+    patch.duration_seconds = durationSeconds
+  }
+
+  const { error } = await (supabase
+    .from('rooms') as any)
+    .update(patch)
     .eq('room_code', roomCode)
 
   if (error) throw error

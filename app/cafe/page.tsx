@@ -51,6 +51,7 @@ export default function CafePage() {
     itemName: string
     itemEmoji: string
   } | null>(null)
+  const isPaused = room?.status === 'paused'
   const scoreSyncTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const {
@@ -274,6 +275,7 @@ export default function CafePage() {
               consecutiveCorrect={consecutiveCorrect}
               onSendEvent={handleSendCafeEvent}
               onScoreChange={syncScore}
+              paused={isPaused}
             />
           </motion.div>
         )}
@@ -323,6 +325,13 @@ export default function CafePage() {
           </motion.div>
         )}
       </AnimatePresence>
+      {isPaused && currentView !== 'lobby' && currentView !== 'result' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">
+            선생님이 잠깐 멈췄어요
+          </div>
+        </div>
+      )}
     </div>
   )
 }

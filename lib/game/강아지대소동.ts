@@ -26,6 +26,8 @@ export type PoopAttack = {
   createdAt: string
 }
 
+export const PUPPY_CHAOS_BONUS_GRACE_SECONDS = 12
+
 export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
   umbrella: {
     id: 'umbrella',

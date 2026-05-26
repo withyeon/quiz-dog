@@ -38,6 +38,27 @@ export interface ZombieGameLog {
   timestamp: number
 }
 
+export type ZombiePlayerMeta = {
+  role: ZombieRole
+  originalRole: ZombieRole
+  shield: number
+  infectCount: number
+  correctStreak: number
+  totalCorrect: number
+  totalWrong: number
+  scanCooldown: number
+}
+
+export type RoomZombiePlayer = {
+  id: string
+  nickname: string
+  health?: number | null
+  attack_power?: number | null
+  active_item?: unknown
+  is_online?: boolean | null
+  is_kicked?: boolean | null
+}
+
 export type ZombieActionType = 
   | 'attack'      // 좀비: 인간 공격 (정답 시)
   | 'heal'        // 인간: 체력 회복 (정답 시)
@@ -135,6 +156,108 @@ export function assignRoles(players: ZombiePlayer[]): ZombiePlayer[] {
       shield: 0,
     }
   })
+}
+
+export function isZombieMeta(value: unknown): value is ZombiePlayerMeta {
+  if (!value || typeof value !== 'object') return false
+  const meta = value as Partial<ZombiePlayerMeta>
+  return (meta.role === 'human' || meta.role === 'zombie')
+    && (meta.originalRole === 'human' || meta.originalRole === 'zombie')
+}
+
+export function createZombieMeta(role: ZombieRole): ZombiePlayerMeta {
+  return {
+    role,
+    originalRole: role,
+    shield: 0,
+    infectCount: 0,
+    correctStreak: 0,
+    totalCorrect: 0,
+    totalWrong: 0,
+    scanCooldown: 0,
+  }
+}
+
+export function getZombieMeta(player: RoomZombiePlayer): ZombiePlayerMeta | null {
+  return isZombieMeta(player.active_item) ? player.active_item : null
+}
+
+export function roomPlayerToZombiePlayer(player: RoomZombiePlayer): ZombiePlayer {
+  const meta = getZombieMeta(player) ?? createZombieMeta('human')
+  const role = meta.role
+
+  return {
+    id: player.id,
+    name: player.nickname,
+    isAi: false,
+    role,
+    originalRole: meta.originalRole,
+    health: role === 'zombie' ? 999 : (player.health ?? GAME_CONSTANTS.HUMAN_INITIAL_HEALTH),
+    shield: meta.shield ?? 0,
+    attackPower: role === 'zombie' ? (player.attack_power ?? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK) : 0,
+    infectCount: meta.infectCount ?? 0,
+    correctStreak: meta.correctStreak ?? 0,
+    totalCorrect: meta.totalCorrect ?? 0,
+    totalWrong: meta.totalWrong ?? 0,
+    isEliminated: false,
+    statusEffects: [],
+  }
+}
+
+export function createRoleAssignmentPatches(players: RoomZombiePlayer[]): Array<{
+  playerId: string
+  patch: {
+    active_item: ZombiePlayerMeta
+    health: number
+    attack_power: number
+    score: number
+  }
+}> {
+  const zombieCount = calculateZombieCount(players.length)
+  const zombieIds = new Set(
+    [...players]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, zombieCount)
+      .map((player) => player.id),
+  )
+
+  return players.map((player) => {
+    const role: ZombieRole = zombieIds.has(player.id) ? 'zombie' : 'human'
+    return {
+      playerId: player.id,
+      patch: {
+        active_item: createZombieMeta(role),
+        health: role === 'zombie' ? 999 : GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
+        attack_power: role === 'zombie' ? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK : 0,
+        score: role === 'zombie' ? 0 : GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
+      },
+    }
+  })
+}
+
+export function zombiePlayerToPatch(player: ZombiePlayer): {
+  active_item: ZombiePlayerMeta
+  health: number
+  attack_power: number
+  score: number
+} {
+  const active_item: ZombiePlayerMeta = {
+    role: player.role,
+    originalRole: player.originalRole,
+    shield: player.shield,
+    infectCount: player.infectCount,
+    correctStreak: player.correctStreak,
+    totalCorrect: player.totalCorrect,
+    totalWrong: player.totalWrong,
+    scanCooldown: 0,
+  }
+
+  return {
+    active_item,
+    health: player.health,
+    attack_power: player.attackPower,
+    score: player.role === 'human' ? player.health : player.infectCount,
+  }
 }
 
 /**
@@ -239,11 +362,11 @@ export function zombieAttack(
 
   let log: string
   if (infected) {
-    log = `🧟 ${zombie.name}이(가) ${target.name}을(를) 감염시켰습니다! ${target.name}은(는) 이제 좀비입니다!`
+    log = `${zombie.name}이(가) ${target.name}을(를) 감염시켰습니다! ${target.name}은(는) 이제 좀비입니다!`
   } else if (target.shield > 0 && newShield === 0) {
-    log = `⚔️ ${zombie.name}이(가) ${target.name}의 방어막을 파괴했습니다! (HP: ${newHealth})`
+    log = `${zombie.name}이(가) ${target.name}의 방어막을 파괴했습니다! (HP: ${newHealth})`
   } else {
-    log = `⚔️ ${zombie.name}이(가) ${target.name}을(를) 공격했습니다! (HP: ${target.health} → ${newHealth})`
+    log = `${zombie.name}이(가) ${target.name}을(를) 공격했습니다! (HP: ${target.health} → ${newHealth})`
   }
 
   return { newZombie, newTarget, log, infected }
@@ -259,7 +382,7 @@ export function humanHeal(player: ZombiePlayer): { newPlayer: ZombiePlayer; log:
 
   return {
     newPlayer: { ...player, health: newHealth },
-    log: `💚 ${player.name}이(가) 체력을 ${actualHeal} 회복했습니다! (HP: ${newHealth})`,
+    log: `${player.name}이(가) 체력을 ${actualHeal} 회복했습니다! (HP: ${newHealth})`,
   }
 }
 
@@ -273,7 +396,7 @@ export function humanShield(player: ZombiePlayer): { newPlayer: ZombiePlayer; lo
 
   return {
     newPlayer: { ...player, shield: newShield },
-    log: `🛡️ ${player.name}이(가) 방어막 ${actualShield}을(를) 획득했습니다! (방어막: ${newShield})`,
+    log: `${player.name}이(가) 방어막 ${actualShield}을(를) 획득했습니다! (방어막: ${newShield})`,
   }
 }
 
@@ -286,8 +409,8 @@ export function scanPlayer(
 ): { isZombie: boolean; log: string } {
   const isZombie = target.role === 'zombie'
   const log = isZombie
-    ? `🔍 스캔 결과: ${target.name}은(는) 🧟 좀비입니다!!!`
-    : `🔍 스캔 결과: ${target.name}은(는) ✅ 인간입니다.`
+    ? `스캔 결과: ${target.name}은(는) 좀비입니다!`
+    : `스캔 결과: ${target.name}은(는) 인간입니다.`
 
   return { isZombie, log }
 }
@@ -343,13 +466,13 @@ export function applyWrongPenalty(player: ZombiePlayer): { newPlayer: ZombiePlay
     newPlayer.health = Math.max(0, newPlayer.health - GAME_CONSTANTS.WRONG_PENALTY_HUMAN)
     return {
       newPlayer,
-      log: `❌ ${player.name} 오답! 체력 -${GAME_CONSTANTS.WRONG_PENALTY_HUMAN} (HP: ${newPlayer.health})`,
+      log: `${player.name} 오답! 체력 -${GAME_CONSTANTS.WRONG_PENALTY_HUMAN} (HP: ${newPlayer.health})`,
     }
   }
 
   return {
     newPlayer,
-    log: `❌ ${player.name} 오답!`,
+    log: `${player.name} 오답!`,
   }
 }
 
@@ -457,12 +580,12 @@ export function generateRandomEvent(round: number): RandomEvent {
   const events: RandomEvent[] = [
     {
       type: 'fog',
-      description: '🌫️ 안개가 짙어집니다... 이번 라운드는 아무도 스캔할 수 없습니다!',
+      description: '안개가 짙어집니다... 이번 라운드는 아무도 스캔할 수 없습니다!',
       effect: (players) => players,
     },
     {
       type: 'antidote',
-      description: '💉 해독제를 발견했습니다! 모든 인간의 체력이 15 회복됩니다!',
+      description: '해독제를 발견했습니다! 모든 인간의 체력이 15 회복됩니다!',
       effect: (players) =>
         players.map(p =>
           p.role === 'human'
@@ -472,7 +595,7 @@ export function generateRandomEvent(round: number): RandomEvent {
     },
     {
       type: 'mutation',
-      description: '☠️ 좀비 바이러스가 변이했습니다! 좀비 공격력이 5 증가합니다!',
+      description: '좀비 바이러스가 변이했습니다! 좀비 공격력이 5 증가합니다!',
       effect: (players) =>
         players.map(p =>
           p.role === 'zombie'
@@ -482,7 +605,7 @@ export function generateRandomEvent(round: number): RandomEvent {
     },
     {
       type: 'safe_zone',
-      description: '🏥 안전 구역을 발견했습니다! 모든 인간이 방어막 10을 획득합니다!',
+      description: '안전 구역을 발견했습니다! 모든 인간이 방어막 10을 획득합니다!',
       effect: (players) =>
         players.map(p =>
           p.role === 'human'

@@ -1,289 +1,308 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { useZombieStore } from '@/store/zombieStore'
-import { formatTime, GAME_CONSTANTS, ZombiePlayer } from '@/lib/game/zombie'
-import { Heart, Shield, Sword, Search, Stethoscope, Skull } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Heart } from 'lucide-react'
+import QuizView from '@/components/QuizView'
+import ZombieIcon from '@/components/zombie/ZombieIcon'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import QuizView from '@/components/QuizView'
 import { useAudioContext } from '@/components/AudioProvider'
-import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
+import {
+  applyCorrectBonus,
+  applyWrongPenalty,
+  checkWinCondition,
+  formatTime,
+  GAME_CONSTANTS,
+  humanHeal,
+  humanShield,
+  roomPlayerToZombiePlayer,
+  scanPlayer,
+  zombieAttack,
+  zombiePlayerToPatch,
+  type RoomZombiePlayer,
+  type ZombieActionType,
+  type ZombieGameLog,
+} from '@/lib/game/zombie'
+import type { Question } from '@/hooks/useGameBase'
 
-interface ZombieViewProps {
+type ViewState = 'quiz' | 'actionSelect' | 'targetSelect' | 'scanResult' | 'attackResult' | 'wrong'
+
+type ZombieViewProps = {
+  roomCode: string
+  playerId: string
+  roomStatus: string
+  roomPlayers: RoomZombiePlayer[]
+  currentQuestion: Question | null
+  onAnswer: (answer: string) => Promise<boolean>
+  onNextQuestion: () => void
   onGameEnd?: () => void
-  roomCode?: string
-  playerId?: string
+  onFinishRoom: () => Promise<boolean>
+  onPlayerPatch: (playerId: string, patch: Record<string, unknown>, reason: string) => void
 }
 
-const DUMMY_QUESTIONS = [
-  { id: '1', question_text: '한국의 수도는?', options: ['서울', '부산', '대구', '인천'], answer: '서울' },
-  { id: '2', question_text: '태양계에서 가장 큰 행성은?', options: ['지구', '목성', '토성', '화성'], answer: '목성' },
-  { id: '3', question_text: '2 + 2는?', options: ['3', '4', '5', '6'], answer: '4' },
-  { id: '4', question_text: '한국의 광복절은?', options: ['3월 1일', '8월 15일', '10월 3일', '12월 25일'], answer: '8월 15일' },
-  { id: '5', question_text: '지구의 위성은?', options: ['화성', '금성', '달', '태양'], answer: '달' },
-  { id: '6', question_text: '1 + 1은?', options: ['1', '2', '3', '4'], answer: '2' },
-  { id: '7', question_text: '물의 화학식은?', options: ['H2O', 'CO2', 'O2', 'NaCl'], answer: 'H2O' },
-  { id: '8', question_text: '가장 큰 대륙은?', options: ['아시아', '아프리카', '유럽', '북아메리카'], answer: '아시아' },
-]
+function addLog(logs: ZombieGameLog[], message: string, type: ZombieGameLog['type'] = 'info'): ZombieGameLog[] {
+  return [
+    ...logs,
+    {
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      message,
+      type,
+      timestamp: Date.now(),
+    },
+  ].slice(-30)
+}
 
-type ViewState = 'quiz' | 'actionSelect' | 'targetSelect' | 'scanResult' | 'attackResult' | 'wrong' | 'event'
-
-export default function ZombieView({ onGameEnd }: ZombieViewProps) {
-  const {
-    status, timeRemaining, roundNumber, players, gameLog, winner, winReason,
-    scanCooldown, lastScanResult, lastAttackResult, currentEvent, actions,
-  } = useZombieStore()
-
+export default function ZombieView({
+  roomStatus,
+  roomPlayers,
+  playerId,
+  currentQuestion,
+  onAnswer,
+  onNextQuestion,
+  onFinishRoom,
+  onPlayerPatch,
+}: ZombieViewProps) {
   const [currentView, setCurrentView] = useState<ViewState>('quiz')
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const timerInterval = useRef<NodeJS.Timeout | null>(null)
-  const logEndRef = useRef<HTMLDivElement>(null)
+  const [timeRemaining, setTimeRemaining] = useState(GAME_CONSTANTS.GAME_DURATION)
+  const [gameLog, setGameLog] = useState<ZombieGameLog[]>([])
+  const [lastScanResult, setLastScanResult] = useState<{ playerId: string; isZombie: boolean } | null>(null)
+  const [lastAttackResult, setLastAttackResult] = useState<{ targetId: string; damage: number; infected: boolean; log: string } | null>(null)
+  const finishingRef = useRef(false)
   const { playSFX } = useAudioContext()
 
-  const myPlayer = players.find(p => !p.isAi)
-  const otherPlayers = players.filter(p => p.isAi)
-  const currentQuestion = DUMMY_QUESTIONS[currentQuestionIndex % DUMMY_QUESTIONS.length]
+  const players = useMemo(() => roomPlayers.map(roomPlayerToZombiePlayer), [roomPlayers])
+  const myPlayer = players.find((player) => player.id === playerId) ?? null
+  const otherPlayers = players.filter((player) => player.id !== playerId)
   const isZombie = myPlayer?.role === 'zombie'
-  const isUrgent = timeRemaining <= 60 && status === 'playing'
+  const isPaused = roomStatus === 'paused'
+  const humanCount = players.filter((player) => player.role === 'human').length
+  const zombieCount = players.filter((player) => player.role === 'zombie').length
+  const isUrgent = timeRemaining <= 60 && roomStatus === 'playing'
 
-  const humanCount = players.filter(p => p.role === 'human').length
-  const zombieCount = players.filter(p => p.role === 'zombie').length
-
-  // Timer
-  useEffect(() => {
-    if (status === 'playing') {
-      timerInterval.current = setInterval(() => actions.tickTimer(), 1000)
-    } else {
-      if (timerInterval.current) clearInterval(timerInterval.current)
-    }
-    return () => { if (timerInterval.current) clearInterval(timerInterval.current) }
-  }, [status, actions])
-
-  // Game end
-  useEffect(() => {
-    if (status === 'ended' && onGameEnd) onGameEnd()
-  }, [status, onGameEnd])
-
-  // Log auto-scroll
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [gameLog])
-
-  // Clear results after delay
-  useEffect(() => {
-    if (lastScanResult) {
-      const t = setTimeout(() => {
-        actions.clearScanResult()
-        setCurrentView('quiz')
-        setCurrentQuestionIndex(p => p + 1)
-      }, 2500)
-      return () => clearTimeout(t)
-    }
-  }, [lastScanResult, actions])
+  const commitZombiePlayer = (player: ReturnType<typeof roomPlayerToZombiePlayer>, reason: string) => {
+    onPlayerPatch(player.id, zombiePlayerToPatch(player), reason)
+  }
 
   useEffect(() => {
-    if (lastAttackResult) {
-      const t = setTimeout(() => {
-        actions.clearAttackResult()
-        setCurrentView('quiz')
-        setCurrentQuestionIndex(p => p + 1)
-      }, 2500)
-      return () => clearTimeout(t)
-    }
-  }, [lastAttackResult, actions])
+    if (roomStatus !== 'playing' || isPaused) return
+    const timer = window.setInterval(() => {
+      setTimeRemaining((value) => Math.max(0, value - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [isPaused, roomStatus])
 
   useEffect(() => {
-    if (currentEvent) {
-      const t = setTimeout(() => {
-        actions.clearEvent()
-      }, 3000)
-      return () => clearTimeout(t)
-    }
-  }, [currentEvent, actions])
+    const winCheck = checkWinCondition(players, timeRemaining)
+    if (!winCheck.gameOver || finishingRef.current) return
+    finishingRef.current = true
+    setGameLog((logs) => addLog(logs, winCheck.reason, winCheck.winner === 'human' ? 'success' : 'danger'))
+    void onFinishRoom()
+  }, [onFinishRoom, players, timeRemaining])
 
-  const handleAnswerSubmit = (answer: string) => {
-    if (!answer) {
-      playSFX('incorrect')
-      actions.onWrongAnswer()
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setCurrentQuestionIndex(p => p + 1)
-      }, 1500)
-      return false
-    }
-    const correct = isQuizAnswerMatch(answer, currentQuestion.answer)
+  useEffect(() => {
+    if (!lastScanResult) return
+    const timer = window.setTimeout(() => {
+      setLastScanResult(null)
+      setCurrentView('quiz')
+      onNextQuestion()
+    }, 2500)
+    return () => window.clearTimeout(timer)
+  }, [lastScanResult, onNextQuestion])
+
+  useEffect(() => {
+    if (!lastAttackResult) return
+    const timer = window.setTimeout(() => {
+      setLastAttackResult(null)
+      setCurrentView('quiz')
+      onNextQuestion()
+    }, 2500)
+    return () => window.clearTimeout(timer)
+  }, [lastAttackResult, onNextQuestion])
+
+  const handleAnswerSubmit = async (answer: string) => {
+    if (!myPlayer || roomStatus !== 'playing') return false
+
+    const correct = answer ? await onAnswer(answer) : false
     if (correct) {
       playSFX('correct')
-      actions.onCorrectAnswer()
-      actions.processAiRound()
-      setTimeout(() => setCurrentView('actionSelect'), 1000)
-    } else {
-      playSFX('incorrect')
-      actions.onWrongAnswer()
-      actions.processAiRound()
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setCurrentQuestionIndex(p => p + 1)
-      }, 1500)
+      const { newPlayer, bonusLog } = applyCorrectBonus(myPlayer)
+      commitZombiePlayer(newPlayer, 'zombie_correct_answer')
+      if (bonusLog) setGameLog((logs) => addLog(logs, bonusLog, 'success'))
+      window.setTimeout(() => setCurrentView('actionSelect'), 700)
+      return true
     }
-    return correct
+
+    playSFX('incorrect')
+    const { newPlayer, log } = applyWrongPenalty(myPlayer)
+    let updatedPlayer = newPlayer
+    let logType: ZombieGameLog['type'] = 'warning'
+
+    if (newPlayer.health <= 0 && newPlayer.role === 'human') {
+      updatedPlayer = {
+        ...newPlayer,
+        role: 'zombie',
+        health: 999,
+        shield: 0,
+        attackPower: GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
+      }
+      logType = 'infection'
+    }
+
+    commitZombiePlayer(updatedPlayer, 'zombie_wrong_answer')
+    setGameLog((logs) => addLog(logs, updatedPlayer.role === 'zombie' && myPlayer.role === 'human' ? `${myPlayer.name}이(가) 좀비가 되었습니다!` : log, logType))
+    setCurrentView('wrong')
+    window.setTimeout(() => {
+      setCurrentView('quiz')
+      onNextQuestion()
+    }, 1500)
+    return false
   }
 
   const handleHumanAction = (action: 'heal' | 'shield') => {
-    actions.performAction(action)
+    if (!myPlayer) return
+    const result = action === 'heal' ? humanHeal(myPlayer) : humanShield(myPlayer)
+    commitZombiePlayer(result.newPlayer, `zombie_${action}`)
+    setGameLog((logs) => addLog(logs, result.log, 'success'))
     playSFX('correct')
     setCurrentView('quiz')
-    setCurrentQuestionIndex(p => p + 1)
+    onNextQuestion()
   }
 
-  const handleScanSelect = () => setCurrentView('targetSelect')
+  const handleTargetSelect = (targetId: string, action: Extract<ZombieActionType, 'attack' | 'scan'>) => {
+    if (!myPlayer) return
+    const target = players.find((player) => player.id === targetId)
+    if (!target) return
 
-  const handleTargetSelect = (targetId: string, action: 'attack' | 'scan') => {
-    actions.performAction(action, targetId)
-    playSFX(action === 'attack' ? 'incorrect' : 'click')
-    setCurrentView(action === 'attack' ? 'attackResult' : 'scanResult')
+    if (action === 'scan') {
+      const result = scanPlayer(myPlayer, target)
+      setLastScanResult({ playerId: targetId, isZombie: result.isZombie })
+      setGameLog((logs) => addLog(logs, result.log, result.isZombie ? 'danger' : 'info'))
+      setCurrentView('scanResult')
+      playSFX('click')
+      return
+    }
+
+    const result = zombieAttack(myPlayer, target)
+    commitZombiePlayer(result.newZombie, 'zombie_attack_actor')
+    commitZombiePlayer(result.newTarget, 'zombie_attack_target')
+    setLastAttackResult({
+      targetId,
+      damage: myPlayer.attackPower,
+      infected: result.infected,
+      log: result.log,
+    })
+    setGameLog((logs) => addLog(logs, result.log, result.infected ? 'infection' : 'danger'))
+    setCurrentView('attackResult')
+    playSFX('incorrect')
   }
 
-  const overlayColor = isZombie
-    ? 'rgba(5, 46, 22, 0.5)' // Dark green for zombie
-    : 'rgba(30, 27, 75, 0.5)' // Dark indigo for human
+  const overlayColor = isZombie ? 'rgba(5, 46, 22, 0.5)' : 'rgba(30, 27, 75, 0.5)'
   const accentColor = isZombie ? 'text-green-400' : 'text-blue-400'
   const borderColor = isZombie ? 'border-green-600' : 'border-blue-600'
 
   return (
-    <div 
-      className="relative w-full h-screen overflow-hidden" 
-      style={{ 
+    <div
+      className="relative h-screen w-full overflow-hidden"
+      style={{
         fontFamily: "'DNFBitBitv2', sans-serif",
         backgroundImage: `linear-gradient(${overlayColor}, rgba(0,0,0,0.7)), url('/zombie/background.png')`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center'
+        backgroundPosition: 'center',
       }}
     >
-      {/* Floating particles */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {Array.from({ length: 12 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className={`absolute rounded-full ${isZombie ? 'bg-green-500/20' : 'bg-blue-500/20'}`}
-            style={{ width: 4 + Math.random() * 8, height: 4 + Math.random() * 8, left: `${Math.random() * 100}%` }}
-            animate={{ y: [window?.innerHeight || 800, -20], opacity: [0, 0.6, 0] }}
-            transition={{ duration: 4 + Math.random() * 6, repeat: Infinity, delay: Math.random() * 5 }}
-          />
-        ))}
-      </div>
-
-      {/* Top HUD */}
-      <div className={`absolute top-0 left-0 right-0 z-20 bg-black/80 backdrop-blur-sm border-b-2 ${borderColor} shadow-lg`}>
-        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between">
+      <div className={`absolute left-0 right-0 top-0 z-20 border-b-2 ${borderColor} bg-black/80 shadow-lg backdrop-blur-sm`}>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2">
           <div className="flex items-center gap-4">
-            {/* Timer */}
             <div className="flex items-center gap-2">
-              <span className="text-2xl">⏰</span>
-              <span className={`text-3xl font-bold tabular-nums ${isUrgent ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+              <ZombieIcon name="timer" size={28} alt="" />
+              <span className={`text-3xl font-bold tabular-nums ${isUrgent ? 'animate-pulse text-red-500' : 'text-white'}`}>
                 {formatTime(timeRemaining)}
               </span>
             </div>
-            {/* Round */}
-            <div className="text-lg text-gray-400">R{roundNumber}</div>
           </div>
-
-          {/* Role badge */}
-          <div className={`px-4 py-1 rounded-full border-2 ${isZombie ? 'border-green-500 bg-green-950/80' : 'border-blue-500 bg-blue-950/80'}`}>
-            <span className="text-2xl mr-2">{isZombie ? '🧟' : '🧑'}</span>
-            <span className={`text-lg font-bold ${isZombie ? 'text-green-400' : 'text-blue-400'}`}>
-              {isZombie ? '좀비' : '인간'}
-            </span>
+          <div className={`rounded-full border-2 px-4 py-1 ${isZombie ? 'border-green-500 bg-green-950/80' : 'border-blue-500 bg-blue-950/80'}`}>
+            <ZombieIcon
+              name={isZombie ? 'zombie' : 'human'}
+              size={28}
+              className="mr-2 inline-block align-middle"
+              alt={isZombie ? '좀비' : '인간'}
+            />
+            <span className={`text-lg font-bold ${accentColor}`}>{isZombie ? '좀비' : '인간'}</span>
           </div>
-
-          {/* Stats */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1 text-green-400">
-              <span>🧑</span>
-              <span className="font-bold text-lg">{humanCount}</span>
-            </div>
-            <div className="flex items-center gap-1 text-red-400">
-              <span>🧟</span>
-              <span className="font-bold text-lg">{zombieCount}</span>
-            </div>
+            <span className="inline-flex items-center gap-1 font-bold text-green-400">
+              <ZombieIcon name="human" size={22} alt="인간" />
+              {humanCount}
+            </span>
+            <span className="inline-flex items-center gap-1 font-bold text-red-400">
+              <ZombieIcon name="zombie" size={22} alt="좀비" />
+              {zombieCount}
+            </span>
             {myPlayer && !isZombie && (
-              <div className="flex items-center gap-2">
-                <Heart className="h-5 w-5 text-red-500" />
-                <span className="text-lg font-bold text-red-400">{myPlayer.health}</span>
+              <span className="inline-flex items-center gap-2 font-bold text-red-400">
+                <Heart className="h-5 w-5" />{myPlayer.health}
                 {myPlayer.shield > 0 && (
                   <>
-                    <Shield className="h-5 w-5 text-cyan-400" />
-                    <span className="text-lg font-bold text-cyan-400">{myPlayer.shield}</span>
+                    <ZombieIcon name="shield" size={20} className="ml-2" alt="방어막" />
+                    <span className="text-cyan-400">{myPlayer.shield}</span>
                   </>
                 )}
-              </div>
+              </span>
             )}
             {myPlayer && isZombie && (
-              <div className="flex items-center gap-2">
-                <Sword className="h-5 w-5 text-red-500" />
-                <span className="text-lg font-bold text-red-400">{myPlayer.attackPower}</span>
-                <span className="text-sm text-gray-400">감염: {myPlayer.infectCount}</span>
-              </div>
+              <span className="inline-flex items-center gap-2 font-bold text-red-400">
+                <ZombieIcon name="attack" size={20} alt="공격력" />
+                {myPlayer.attackPower}
+              </span>
             )}
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="absolute top-14 left-0 right-80 bottom-36 flex items-center justify-center">
+      <div className="absolute bottom-36 left-0 right-80 top-14 flex items-center justify-center">
         <AnimatePresence mode="wait">
           {currentView === 'quiz' && (
             <motion.div key="quiz" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-3xl px-4">
-              <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} onCorrectClick={() => setCurrentView('actionSelect')} timeLimit={GAME_CONSTANTS.ROUND_DURATION} />
+              {currentQuestion ? (
+                <QuizView
+                  question={currentQuestion}
+                  onAnswer={handleAnswerSubmit}
+                  onCorrectClick={() => setCurrentView('actionSelect')}
+                  timeLimit={GAME_CONSTANTS.ROUND_DURATION}
+                  paused={isPaused}
+                />
+              ) : (
+                <div className="rounded-2xl bg-black/80 p-8 text-center text-2xl font-black text-white">
+                  문제를 불러오는 중...
+                </div>
+              )}
             </motion.div>
           )}
 
-          {currentView === 'actionSelect' && (
+          {currentView === 'actionSelect' && myPlayer && (
             <motion.div key="actionSelect" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-2xl px-4">
               <Card className={`border-4 ${borderColor} bg-black/90 backdrop-blur-sm`}>
                 <CardContent className="p-8 text-center">
-                  <h2 className={`text-3xl font-bold ${accentColor} mb-6`}>
-                    ✅ 정답! 행동을 선택하세요
-                  </h2>
-
+                  <h2 className={`mb-6 text-3xl font-bold ${accentColor}`}>정답! 행동을 선택하세요</h2>
                   {isZombie ? (
-                    /* Zombie actions */
-                    <div className="grid grid-cols-1 gap-4">
-                      <Button onClick={() => { setCurrentView('targetSelect') }} size="lg" className="h-24 bg-gradient-to-br from-red-700 to-red-600 hover:from-red-800 hover:to-red-700 text-white font-bold text-xl">
-                        <div className="flex flex-col items-center gap-2">
-                          <Skull className="h-8 w-8" />
-                          <span>🧟 인간 공격하기</span>
-                          <span className="text-sm opacity-80">공격력: {myPlayer?.attackPower}</span>
-                        </div>
-                      </Button>
-                    </div>
+                    <Button onClick={() => setCurrentView('targetSelect')} size="lg" className="h-24 w-full bg-gradient-to-br from-red-700 to-red-600 text-xl font-bold text-white hover:from-red-800 hover:to-red-700">
+                      <ZombieIcon name="attack" size={32} className="mr-3" alt="" />
+                      인간 공격하기
+                    </Button>
                   ) : (
-                    /* Human actions */
                     <div className="grid grid-cols-3 gap-4">
-                      <Button onClick={() => handleHumanAction('heal')} size="lg" className="h-28 bg-gradient-to-br from-emerald-700 to-emerald-600 hover:from-emerald-800 hover:to-emerald-700 text-white font-bold text-lg">
-                        <div className="flex flex-col items-center gap-2">
-                          <Stethoscope className="h-7 w-7" />
-                          <span>💚 치료</span>
-                          <span className="text-xs opacity-80">HP +{GAME_CONSTANTS.HUMAN_HEAL_AMOUNT}</span>
-                        </div>
+                      <Button onClick={() => handleHumanAction('heal')} size="lg" className="flex h-28 flex-col items-center justify-center bg-gradient-to-br from-emerald-700 to-emerald-600 text-lg font-bold text-white">
+                        <ZombieIcon name="heal" size={28} className="mb-2" alt="" />
+                        치료
                       </Button>
-                      <Button onClick={() => handleHumanAction('shield')} size="lg" className="h-28 bg-gradient-to-br from-cyan-700 to-cyan-600 hover:from-cyan-800 hover:to-cyan-700 text-white font-bold text-lg">
-                        <div className="flex flex-col items-center gap-2">
-                          <Shield className="h-7 w-7" />
-                          <span>🛡️ 방어막</span>
-                          <span className="text-xs opacity-80">+{GAME_CONSTANTS.HUMAN_SHIELD_AMOUNT}</span>
-                        </div>
+                      <Button onClick={() => handleHumanAction('shield')} size="lg" className="flex h-28 flex-col items-center justify-center bg-gradient-to-br from-cyan-700 to-cyan-600 text-lg font-bold text-white">
+                        <ZombieIcon name="shield" size={28} className="mb-2" alt="" />
+                        방어막
                       </Button>
-                      <Button onClick={handleScanSelect} disabled={scanCooldown > 0} size="lg" className="h-28 bg-gradient-to-br from-purple-700 to-purple-600 hover:from-purple-800 hover:to-purple-700 text-white font-bold text-lg disabled:opacity-40">
-                        <div className="flex flex-col items-center gap-2">
-                          <Search className="h-7 w-7" />
-                          <span>🔍 스캔</span>
-                          <span className="text-xs opacity-80">{scanCooldown > 0 ? `쿨다운 ${scanCooldown}R` : '역할 확인'}</span>
-                        </div>
+                      <Button onClick={() => setCurrentView('targetSelect')} size="lg" className="flex h-28 flex-col items-center justify-center bg-gradient-to-br from-purple-700 to-purple-600 text-lg font-bold text-white">
+                        <ZombieIcon name="scan" size={28} className="mb-2" alt="" />
+                        스캔
                       </Button>
                     </div>
                   )}
@@ -296,31 +315,25 @@ export default function ZombieView({ onGameEnd }: ZombieViewProps) {
             <motion.div key="targetSelect" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-3xl px-4">
               <Card className={`border-4 ${borderColor} bg-black/90 backdrop-blur-sm`}>
                 <CardContent className="p-6">
-                  <h2 className={`text-3xl font-bold ${accentColor} mb-4 text-center`}>
-                    {isZombie ? '🧟 공격할 대상 선택' : '🔍 스캔할 대상 선택'}
-                  </h2>
-                  <div className="grid grid-cols-2 gap-3 max-h-[50vh] overflow-y-auto">
-                    {otherPlayers.filter(p => isZombie ? (p.role === 'human') : true).map(p => (
+                  <h2 className={`mb-4 text-center text-3xl font-bold ${accentColor}`}>{isZombie ? '공격할 친구 선택' : '스캔할 친구 선택'}</h2>
+                  <div className="grid max-h-[50vh] grid-cols-2 gap-3 overflow-y-auto">
+                    {otherPlayers.filter((player) => isZombie ? player.role === 'human' : true).map((player) => (
                       <Button
-                        key={p.id}
-                        onClick={() => handleTargetSelect(p.id, isZombie ? 'attack' : 'scan')}
+                        key={player.id}
+                        onClick={() => handleTargetSelect(player.id, isZombie ? 'attack' : 'scan')}
                         size="lg"
-                        className="h-20 bg-gray-800 hover:bg-gray-700 text-white font-bold text-lg justify-start px-4"
+                        className="h-20 justify-start bg-gray-800 px-4 text-lg font-bold text-white hover:bg-gray-700"
                       >
-                        <div className="flex items-center gap-3 w-full">
-                          <span className="text-2xl">👤</span>
-                          <div className="text-left flex-1">
-                            <div className="truncate">{p.name}</div>
-                            {!isZombie && <div className="text-xs text-gray-400">정체불명</div>}
-                            {isZombie && <div className="text-xs text-red-300">HP: {p.health} {p.shield > 0 ? `🛡️${p.shield}` : ''}</div>}
-                          </div>
+                        <ZombieIcon name="player" size={28} className="mr-3 shrink-0" alt="" />
+                        <div className="min-w-0 text-left">
+                          <div className="truncate">{player.name}</div>
+                          {isZombie && <div className="text-xs text-red-300">HP {player.health} {player.shield > 0 ? `방어막 ${player.shield}` : ''}</div>}
+                          {!isZombie && <div className="text-xs text-gray-400">정체불명</div>}
                         </div>
                       </Button>
                     ))}
                   </div>
-                  <Button onClick={() => setCurrentView('actionSelect')} variant="outline" className="w-full mt-4 border-gray-600 text-gray-300">
-                    ← 돌아가기
-                  </Button>
+                  <Button onClick={() => setCurrentView('actionSelect')} variant="outline" className="mt-4 w-full border-gray-600 text-gray-300">돌아가기</Button>
                 </CardContent>
               </Card>
             </motion.div>
@@ -328,130 +341,99 @@ export default function ZombieView({ onGameEnd }: ZombieViewProps) {
 
           {currentView === 'scanResult' && lastScanResult && (
             <motion.div key="scanResult" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} className="text-center">
-              <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
-                <div className="text-8xl mb-4">{lastScanResult.isZombie ? '🧟' : '✅'}</div>
-              </motion.div>
+              <div className="mb-4 flex justify-center">
+                <ZombieIcon
+                  name={lastScanResult.isZombie ? 'zombie' : 'correct'}
+                  size={96}
+                  alt={lastScanResult.isZombie ? '좀비' : '인간 확인'}
+                />
+              </div>
               <p className={`text-4xl font-bold ${lastScanResult.isZombie ? 'text-red-400' : 'text-green-400'}`}>
                 {lastScanResult.isZombie ? '좀비 발견!' : '인간 확인!'}
               </p>
-              <p className="text-xl text-gray-300 mt-2">
-                {players.find(p => p.id === lastScanResult.playerId)?.name}
-              </p>
+              <p className="mt-2 text-xl text-gray-300">{players.find((player) => player.id === lastScanResult.playerId)?.name}</p>
             </motion.div>
           )}
 
           {currentView === 'attackResult' && lastAttackResult && (
             <motion.div key="attackResult" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} className="text-center">
-              <motion.div animate={{ rotate: [0, -5, 5, 0] }} transition={{ duration: 0.3, repeat: 3 }}>
-                <div className="text-8xl mb-4">{lastAttackResult.infected ? '🧟' : '⚔️'}</div>
-              </motion.div>
+              <div className="mb-4 flex justify-center">
+                <ZombieIcon
+                  name={lastAttackResult.infected ? 'zombie' : 'attack'}
+                  size={96}
+                  alt={lastAttackResult.infected ? '감염' : '공격'}
+                />
+              </div>
               <p className={`text-4xl font-bold ${lastAttackResult.infected ? 'text-green-400' : 'text-red-400'}`}>
                 {lastAttackResult.infected ? '감염 성공!' : `${lastAttackResult.damage} 데미지!`}
               </p>
-              <p className="text-xl text-gray-300 mt-2">
-                {players.find(p => p.id === lastAttackResult.targetId)?.name}
-              </p>
+              <p className="mt-2 text-xl text-gray-300">{players.find((player) => player.id === lastAttackResult.targetId)?.name}</p>
             </motion.div>
           )}
 
           {currentView === 'wrong' && (
             <motion.div key="wrong" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center">
-              <div className="text-7xl mb-4">❌</div>
+              <div className="mb-4 flex justify-center">
+                <ZombieIcon name="wrong" size={84} alt="오답" />
+              </div>
               <p className="text-4xl font-bold text-red-400">틀렸습니다!</p>
-              {myPlayer?.role === 'human' && (
-                <p className="text-xl text-gray-400 mt-2">체력 -{GAME_CONSTANTS.WRONG_PENALTY_HUMAN}</p>
-              )}
+              {myPlayer?.role === 'human' && <p className="mt-2 text-xl text-gray-400">체력 -{GAME_CONSTANTS.WRONG_PENALTY_HUMAN}</p>}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Right sidebar - Player list */}
-      <div className={`absolute top-14 right-0 w-80 bottom-36 p-4 border-l-2 ${borderColor} bg-black/50 overflow-y-auto`}>
-        <h2 className={`text-xl font-bold ${accentColor} mb-3 flex items-center gap-2`}>
-          👥 플레이어 ({humanCount}🧑 / {zombieCount}🧟)
-        </h2>
+      <div className={`absolute bottom-36 right-0 top-14 w-80 overflow-y-auto border-l-2 ${borderColor} bg-black/50 p-4`}>
+          <h3 className={`mb-3 flex items-center gap-2 text-xl font-bold ${accentColor}`}>
+            <ZombieIcon name="player" size={22} alt="" />
+            플레이어 ({humanCount} 인간 / {zombieCount} 좀비)
+          </h3>
         <div className="space-y-2">
-          {/* My player first */}
-          {myPlayer && (
-            <Card className={`border-2 ${isZombie ? 'border-green-500 bg-green-950/40' : 'border-blue-500 bg-blue-950/40'}`}>
-              <CardContent className="p-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">{isZombie ? '🧟' : '🧑'}</span>
-                    <span className="font-bold text-white text-sm">{myPlayer.name} (나)</span>
-                  </div>
-                  {!isZombie ? (
-                    <div className="flex items-center gap-1">
-                      <Heart className="h-3 w-3 text-red-500" />
-                      <span className="text-red-400 text-sm font-bold">{myPlayer.health}</span>
-                      {myPlayer.shield > 0 && <>
-                        <Shield className="h-3 w-3 text-cyan-400 ml-1" />
-                        <span className="text-cyan-400 text-sm font-bold">{myPlayer.shield}</span>
-                      </>}
+          {players.map((player) => {
+            const isMe = player.id === playerId
+            const revealRole = isMe || isZombie
+            return (
+              <Card key={player.id} className={`border ${isMe ? borderColor : 'border-gray-700'} bg-gray-800/30`}>
+                <CardContent className="p-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-bold text-white">{player.name}{isMe ? ' (나)' : ''}</div>
+                      <div className="text-xs text-gray-400">{revealRole ? (player.role === 'zombie' ? '좀비' : '인간') : '정체불명'}</div>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <Sword className="h-3 w-3 text-red-500" />
-                      <span className="text-red-400 text-sm font-bold">{myPlayer.attackPower}</span>
+                    <div className="text-xs text-gray-400">
+                      {player.role === 'human' ? `HP ${player.health}` : revealRole ? '좀비' : '???'}
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-          {/* Other players - role hidden */}
-          {otherPlayers.map(p => (
-            <Card key={p.id} className={`border ${p.role === 'zombie' && isZombie ? 'border-green-700/50 bg-green-950/20' : 'border-gray-700 bg-gray-800/30'}`}>
-              <CardContent className="p-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{isZombie ? (p.role === 'zombie' ? '🧟' : '👤') : '👤'}</span>
-                    <span className="text-white text-xs truncate max-w-[120px]">{p.name}</span>
                   </div>
-                  {isZombie ? (
-                    <span className="text-xs text-gray-400">
-                      {p.role === 'human' ? `HP:${p.health}` : '🧟'}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-500">???</span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       </div>
 
-      {/* Bottom log */}
-      <div className={`absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-sm border-t-2 ${borderColor} shadow-lg`}>
-        <div className="max-w-7xl mx-auto px-4 py-2">
-          <h3 className={`text-sm font-bold ${accentColor} mb-1 flex items-center gap-2`}>
-            📡 생존 로그
+      <div className={`absolute bottom-0 left-0 right-0 z-20 border-t-2 ${borderColor} bg-black/90 shadow-lg backdrop-blur-sm`}>
+        <div className="mx-auto max-w-7xl px-4 py-2">
+          <h3 className={`mb-1 flex items-center gap-2 text-sm font-bold ${accentColor}`}>
+            <ZombieIcon name="log" size={18} alt="" />
+            생존 로그
           </h3>
-          <div className="h-24 overflow-y-auto bg-black/50 rounded-lg p-2 font-mono text-xs space-y-0.5">
-            {gameLog.slice(-20).map(log => (
+          <div className="h-24 space-y-0.5 overflow-y-auto rounded-lg bg-black/50 p-2 font-mono text-xs">
+            {gameLog.map((log) => (
               <div key={log.id} className={`${log.type === 'success' ? 'text-green-400' : log.type === 'warning' ? 'text-yellow-400' : log.type === 'danger' ? 'text-red-400' : log.type === 'infection' ? 'text-purple-400' : 'text-gray-300'}`}>
                 [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
               </div>
             ))}
-            <div ref={logEndRef} />
           </div>
         </div>
       </div>
 
-      {/* Random Event Overlay */}
-      <AnimatePresence>
-        {currentEvent && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
-            <div className="absolute inset-0 bg-black/60" />
-            <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }} exit={{ scale: 0.5 }} className="relative bg-gray-900 border-4 border-yellow-500 rounded-2xl p-8 max-w-lg text-center shadow-2xl">
-              <div className="text-6xl mb-4">⚡</div>
-              <p className="text-2xl font-bold text-yellow-400">{currentEvent.description}</p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isPaused && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">
+            선생님이 잠깐 멈췄어요
+          </div>
+        </div>
+      )}
     </div>
   )
 }

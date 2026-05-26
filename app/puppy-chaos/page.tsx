@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import PomeMascot from '@/components/PomeMascot'
@@ -19,6 +19,7 @@ import {
 } from '@/lib/game/강아지대소동'
 import { createPuppyChaosEvent } from '@/lib/services/강아지대소동Events'
 import { updatePlayer } from '@/lib/services/players'
+import { checkQuestionAnswer } from '@/lib/services/questions'
 import { sortPlayersByScore } from '@/lib/utils/playerSorting'
 
 const PUPPY_ICON = {
@@ -61,7 +62,6 @@ export default function PuppyChaosPage() {
     players,
     room,
     currentPlayer,
-    currentQuestion,
     currentQuestionIndex,
     setCurrentQuestionIndex,
     questions,
@@ -73,7 +73,6 @@ export default function PuppyChaosPage() {
     shouldShowPreStartQuiz,
     isPreStartQuizComplete,
     handlePreStartQuizAnswer,
-    checkAnswer,
     goToNextQuestion,
     applyPlayerPatch,
     sendRoomEvent,
@@ -87,17 +86,76 @@ export default function PuppyChaosPage() {
   const [roundContext, setRoundContext] = useState<RoundContext | null>(null)
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null)
   const [isSettling, setIsSettling] = useState(false)
+  const [isAnswerLocked, setIsAnswerLocked] = useState(false)
+  const [randomQuestionIndex, setRandomQuestionIndex] = useState(0)
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null)
+  const [hasTimeExpired, setHasTimeExpired] = useState(false)
+  const [bonusCompleted, setBonusCompleted] = useState(false)
 
   const questionCount = questions.length
   const roomStatus = room?.status
   const isPaused = roomStatus === 'paused'
   const questionIndex = currentQuestionIndex
+  const activeQuestion = questionCount > 0
+    ? questions[randomQuestionIndex % questionCount]
+    : null
+  const durationSeconds = (room as { duration_seconds?: number | null } | null)?.duration_seconds ?? null
+  const startedAt = (room as { started_at?: string | null } | null)?.started_at ?? null
+  const bonusSessionKey = useMemo(() => {
+    if (!roomCode || !playerId || !startedAt) return null
+    return `puppy_bonus_completed_${roomCode}_${playerId}_${startedAt}`
+  }, [playerId, roomCode, startedAt])
+
+  const pickRandomQuestionIndex = useCallback(() => {
+    if (questionCount <= 0) return 0
+    return Math.floor(Math.random() * questionCount)
+  }, [questionCount])
 
   useEffect(() => {
     if (!currentPlayer) return
     setCurrentQuestionIndex(currentPlayer.current_question_index ?? 0)
     setCombo(currentPlayer.combo_count ?? 0)
   }, [currentPlayer, setCurrentQuestionIndex])
+
+  useEffect(() => {
+    if (questionCount <= 0) return
+    setRandomQuestionIndex(pickRandomQuestionIndex())
+  }, [pickRandomQuestionIndex, questionCount])
+
+  useEffect(() => {
+    if (!bonusSessionKey || typeof window === 'undefined') {
+      setBonusCompleted(false)
+      return
+    }
+    setBonusCompleted(window.sessionStorage.getItem(bonusSessionKey) === 'true')
+  }, [bonusSessionKey])
+
+  useEffect(() => {
+    if (!bonusSessionKey || typeof window === 'undefined') return
+    if (bonusCompleted) window.sessionStorage.setItem(bonusSessionKey, 'true')
+  }, [bonusCompleted, bonusSessionKey])
+
+  useEffect(() => {
+    if (roomStatus !== 'playing' || !durationSeconds || !startedAt) {
+      setRemainingSeconds(null)
+      setHasTimeExpired(false)
+      return
+    }
+
+    const startedMs = new Date(startedAt).getTime()
+    if (!Number.isFinite(startedMs)) return
+
+    const tick = () => {
+      const elapsed = (Date.now() - startedMs) / 1000
+      const remaining = Math.max(0, Math.ceil(durationSeconds - elapsed))
+      setRemainingSeconds(remaining)
+      setHasTimeExpired(remaining <= 0)
+    }
+
+    tick()
+    const interval = window.setInterval(tick, 1000)
+    return () => window.clearInterval(interval)
+  }, [durationSeconds, roomStatus, startedAt])
 
   useEffect(() => {
     if (!room) return
@@ -117,21 +175,34 @@ export default function PuppyChaosPage() {
       return
     }
     if (room.status === 'playing' && phase === 'waiting' && questionCount > 0) {
-      setPhase((currentPlayer?.current_question_index ?? 0) >= questionCount ? 'bonus' : 'quiz')
+      setPhase(hasTimeExpired ? (bonusCompleted ? 'finalResult' : 'bonus') : 'quiz')
     }
-  }, [currentPlayer?.current_question_index, currentPlayer?.is_kicked, isPreStartQuizComplete, phase, questionCount, room])
+  }, [bonusCompleted, currentPlayer?.current_question_index, currentPlayer?.is_kicked, hasTimeExpired, isPreStartQuizComplete, phase, questionCount, room])
+
+  useEffect(() => {
+    if (roomStatus !== 'playing' || !isPreStartQuizComplete || !hasTimeExpired) return
+    if (bonusCompleted) {
+      if (phase !== 'finalResult') setPhase('finalResult')
+      return
+    }
+    if (phase === 'waiting' || phase === 'quiz') {
+      setPhase('bonus')
+    }
+  }, [bonusCompleted, hasTimeExpired, isPreStartQuizComplete, phase, roomStatus])
 
   useEffect(() => {
     if (phase !== 'roundResult' || !roundSummary) return
     const timer = window.setTimeout(() => {
-      if (questionCount > 0 && questionIndex >= questionCount) {
+      if (roundContext?.isBonus || bonusCompleted) {
+        setPhase('finalResult')
+      } else if (hasTimeExpired) {
         setPhase('bonus')
       } else {
         setPhase('quiz')
       }
     }, 1300)
     return () => window.clearTimeout(timer)
-  }, [phase, questionCount, questionIndex, roundSummary])
+  }, [bonusCompleted, hasTimeExpired, phase, roundContext?.isBonus, roundSummary])
 
   const broadcastPlayerPatch = useCallback((targetPlayerId: string, patch: Record<string, unknown>, reason: string) => {
     applyPlayerPatch(targetPlayerId, patch)
@@ -167,8 +238,23 @@ export default function PuppyChaosPage() {
   }, [currentPlayer, players, updatePlayerAndBroadcast])
 
   const handleAnswer = async (answer: string) => {
-    if (!currentPlayer || !currentQuestion || roomStatus !== 'playing') return false
-    const correct = await checkAnswer(answer)
+    if (!currentPlayer || !activeQuestion || roomStatus !== 'playing' || isAnswerLocked) return false
+    if (hasTimeExpired) {
+      setPhase(bonusCompleted ? 'finalResult' : 'bonus')
+      return false
+    }
+
+    setIsAnswerLocked(true)
+    const submittedAnswer = String(answer).trim()
+    let correct = false
+    if (submittedAnswer) {
+      try {
+        correct = await checkQuestionAnswer(activeQuestion.id, submittedAnswer)
+      } catch (error) {
+        console.error('강아지 대소동 채점 오류, 오답 처리함:', error)
+      }
+    }
+
     const comboAfter = correct ? combo + 1 : 0
     setCombo(comboAfter)
 
@@ -358,7 +444,9 @@ export default function PuppyChaosPage() {
 
       if (!roundContext.isBonus) {
         goToNextQuestion()
+        setRandomQuestionIndex(pickRandomQuestionIndex())
       } else {
+        setBonusCompleted(true)
         setCurrentQuestionIndex(nextQuestionIndex)
       }
       setRoundSummary({
@@ -375,6 +463,7 @@ export default function PuppyChaosPage() {
       setPhase('roundResult')
     } finally {
       setIsSettling(false)
+      setIsAnswerLocked(false)
     }
   }
 
@@ -399,9 +488,11 @@ export default function PuppyChaosPage() {
   }
 
   const score = currentPlayer.score ?? 0
-  const progressLabel = questionCount > 0
-    ? `${Math.min(questionIndex + 1, questionCount)}/${questionCount}`
-    : '0/0'
+  const progressLabel = remainingSeconds == null
+    ? '시간 대기'
+    : remainingSeconds <= 0
+      ? '보너스'
+      : `${Math.floor(remainingSeconds / 60)}:${String(remainingSeconds % 60).padStart(2, '0')}`
 
   return (
     <main
@@ -457,20 +548,21 @@ export default function PuppyChaosPage() {
             </motion.section>
           )}
 
-          {phase === 'quiz' && currentQuestion && (
+          {phase === 'quiz' && activeQuestion && (
             <motion.section key={`quiz-${questionIndex}`} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -16 }}
               className="rounded-[28px] border-4 border-slate-900 bg-white p-5 shadow-[5px_5px_0_#0f172a]">
               <QuizView
-                key={currentQuestion.id}
-                question={currentQuestion}
+                key={`${activeQuestion.id}-${questionIndex}`}
+                question={activeQuestion}
                 onAnswer={handleAnswer}
                 timeLimit={30}
+                paused={isPaused}
                 className="font-bitbit rounded-[24px] bg-white p-0 shadow-none"
               />
             </motion.section>
           )}
 
-          {phase === 'quiz' && !currentQuestion && (
+          {phase === 'quiz' && !activeQuestion && (
             <motion.section key="quiz-loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="flex flex-1 items-center justify-center rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center shadow-[5px_5px_0_#0f172a]">
               <div>
@@ -492,49 +584,51 @@ export default function PuppyChaosPage() {
                   {isOpeningBox ? '상자를 여는 중...' : `${cardCountdown}초 후 랜덤 자동 선택`}
                 </div>
               </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                {cards.map((card, index) => {
-                  const isSelected = selectedBoxIndex === index
-                  const isRevealed = isOpeningBox && isSelected
+              {isOpeningBox && selectedBoxIndex !== null && cards[selectedBoxIndex] ? (
+                <div className="flex min-h-[360px] items-center justify-center py-4">
+                  <motion.div
+                    key={`revealed-${selectedBoxIndex}-${cards[selectedBoxIndex].id}`}
+                    initial={{ rotateY: 90, scale: 0.72, y: 18 }}
+                    animate={{ rotateY: 0, scale: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                    className="w-full max-w-sm"
+                  >
+                    <GameCard card={cards[selectedBoxIndex]} disabled size="large" />
+                  </motion.div>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {cards.map((card, index) => {
+                    const isSelected = selectedBoxIndex === index
 
-                  return isRevealed ? (
-                    <motion.div
-                      key={`revealed-${index}-${card.id}`}
-                      initial={{ rotateY: 90, scale: 0.9 }}
-                      animate={{ rotateY: 0, scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 280, damping: 18 }}
-                    >
-                      <GameCard card={card} disabled />
-                    </motion.div>
-                  ) : (
-                    <motion.button
-                      key={`box-${index}`}
-                      type="button"
-                      disabled={isOpeningBox}
-                      onClick={() => handleRandomBoxSelect(index)}
-                      whileHover={isOpeningBox ? undefined : { y: -6, rotate: index === 1 ? 0 : index === 0 ? -2 : 2 }}
-                      whileTap={isOpeningBox ? undefined : { scale: 0.96 }}
-                      className={`min-h-[168px] rounded-[24px] border-4 border-slate-900 bg-gradient-to-br from-amber-200 via-yellow-100 to-orange-200 p-4 text-center shadow-[5px_5px_0_#0f172a] transition-opacity disabled:opacity-70 ${
-                        isSelected ? 'ring-4 ring-rose-400' : ''
-                      }`}
-                    >
-                      <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-[18px] border-4 border-slate-900 bg-white shadow-inner">
+                    return (
+                      <motion.button
+                        key={`box-${index}`}
+                        type="button"
+                        disabled={isOpeningBox}
+                        onClick={() => handleRandomBoxSelect(index)}
+                        whileHover={isOpeningBox ? undefined : { y: -6, rotate: index === 1 ? 0 : index === 0 ? -2 : 2 }}
+                        whileTap={isOpeningBox ? undefined : { scale: 0.96 }}
+                        className={`min-h-[168px] rounded-[24px] border-4 border-slate-900 bg-gradient-to-br from-amber-200 via-yellow-100 to-orange-200 p-4 text-center shadow-[5px_5px_0_#0f172a] transition-opacity disabled:opacity-70 ${
+                          isSelected ? 'ring-4 ring-rose-400' : ''
+                        }`}
+                      >
                         <Image
                           src={PUPPY_ICON.randomBox}
                           alt="랜덤박스"
                           width={72}
                           height={72}
-                          className="h-[72px] w-[72px] object-contain"
+                          className="mx-auto mb-3 h-[72px] w-[72px] object-contain"
                           unoptimized
                         />
-                      </div>
-                      <div className="text-2xl font-black text-slate-900">랜덤박스</div>
-                      <div className="mt-2 text-sm font-bold text-slate-600">열기 전까지 비밀!</div>
-                      <div className="mt-3 text-3xl font-black text-rose-500">?</div>
-                    </motion.button>
-                  )
-                })}
-              </div>
+                        <div className="text-2xl font-black text-slate-900">랜덤박스</div>
+                        <div className="mt-2 text-sm font-bold text-slate-600">열기 전까지 비밀!</div>
+                        <div className="mt-3 text-3xl font-black text-rose-500">?</div>
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              )}
             </motion.section>
           )}
 

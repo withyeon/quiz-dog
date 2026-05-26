@@ -42,6 +42,7 @@ interface CafeViewProps {
   consecutiveCorrect: number
   onSendEvent: (type: 'cafe:item_attack', payload: unknown) => Promise<unknown> | void
   onScoreChange?: (totalCash: number) => void
+  paused?: boolean
 }
 
 export default function CafeView({
@@ -54,6 +55,7 @@ export default function CafeView({
   consecutiveCorrect,
   onSendEvent,
   onScoreChange,
+  paused = false,
 }: CafeViewProps) {
   const {
     status,
@@ -95,10 +97,11 @@ export default function CafeView({
   const patienceUpdateInterval = useRef<NodeJS.Timeout | null>(null)
 
   const { playSFX } = useAudioContext()
+  const effectiveStatus = paused ? 'paused' : status
 
   // 타이머
   useEffect(() => {
-    if (status === 'playing') {
+    if (effectiveStatus === 'playing') {
       timerInterval.current = setInterval(() => {
         tickTimer()
       }, 1000)
@@ -113,7 +116,7 @@ export default function CafeView({
         clearInterval(timerInterval.current)
       }
     }
-  }, [status, tickTimer])
+  }, [effectiveStatus, tickTimer])
 
   const hasActiveBuff = useCallback((itemId: ItemId) => (
     activeBuffs.some(buff => buff.itemId === itemId && buff.expiresAt > Date.now())
@@ -121,7 +124,7 @@ export default function CafeView({
 
   // 손님 업데이트 (인내심 체크)
   useEffect(() => {
-    if (status === 'playing') {
+    if (effectiveStatus === 'playing') {
       customerUpdateInterval.current = setInterval(() => {
         updateCustomers(Date.now())
       }, 1000)
@@ -132,11 +135,11 @@ export default function CafeView({
         }
       }
     }
-  }, [status, updateCustomers])
+  }, [effectiveStatus, updateCustomers])
 
   // 인내심 게이지 실시간 업데이트
   useEffect(() => {
-    if (status === 'playing') {
+    if (effectiveStatus === 'playing') {
       patienceUpdateInterval.current = setInterval(() => {
         setCurrentTime(Date.now())
       }, 100) // 0.1초마다 업데이트
@@ -147,7 +150,7 @@ export default function CafeView({
         }
       }
     }
-  }, [status])
+  }, [effectiveStatus])
 
   // 게임 종료 처리
   useEffect(() => {
@@ -158,7 +161,7 @@ export default function CafeView({
 
   // 손님을 항상 3명 유지
   useEffect(() => {
-    if (status === 'playing') {
+    if (effectiveStatus === 'playing') {
       const interval = setInterval(() => {
         if (hasActiveBuff('BAD_REVIEW')) return
         // 손님이 3명 미만이면 계속 추가
@@ -169,7 +172,7 @@ export default function CafeView({
 
       return () => clearInterval(interval)
     }
-  }, [status, customers.length, addCustomer, hasActiveBuff])
+  }, [effectiveStatus, customers.length, addCustomer, hasActiveBuff])
 
   const closeQuizAndAdvance = useCallback(() => {
     setShowQuiz(false)
@@ -280,7 +283,7 @@ export default function CafeView({
   // 스페이스 키로 음식 채우기 버튼 클릭
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && status === 'playing' && !showQuiz && !showItemModal) {
+      if (e.code === 'Space' && effectiveStatus === 'playing' && !showQuiz && !showItemModal) {
         e.preventDefault()
         setShowQuiz(true)
       }
@@ -288,10 +291,11 @@ export default function CafeView({
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [status, showQuiz, showItemModal])
+  }, [effectiveStatus, showQuiz, showItemModal])
 
   // 손님 클릭으로 서빙 (Blooket 스타일)
   const handleCustomerClick = (customer: Customer, event: React.MouseEvent) => {
+    if (effectiveStatus !== 'playing') return
     const result = serveMenu(customer.id, customer.order)
     if (result.success) {
       let finalEarned = result.earned
@@ -353,7 +357,7 @@ export default function CafeView({
     return Math.min(1, remaining / effectivePatience)
   }
 
-  const isUrgent = timeRemaining <= 10 && status === 'playing'
+  const isUrgent = timeRemaining <= 10 && effectiveStatus === 'playing'
 
   // 카운터 앞 손님들 (최대 5명)
   const customersInLine = customers.slice(0, MAX_CUSTOMERS_IN_LINE)
@@ -700,6 +704,7 @@ export default function CafeView({
                   onAnswer={handleAnswerSubmit}
                   onCorrectClick={() => undefined}
                   timeLimit={30}
+                  paused={paused}
                 />
               )}
             </div>

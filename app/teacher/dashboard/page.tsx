@@ -20,12 +20,15 @@ import {
   createRoom,
   finishRoom,
   getRoomByCode,
+  pauseRoom,
   resetRoom,
+  resumeRoom,
   startRoom,
   updateRoomGameMode,
 } from '@/lib/services/rooms'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
 import { getPlayerDisplayNickname, isAvatarPath } from '@/lib/utils/playerDisplay'
+import { PUPPY_CHAOS_BONUS_GRACE_SECONDS } from '@/lib/game/강아지대소동'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -34,7 +37,7 @@ export default function TeacherDashboard() {
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
   const [showLargeQrModal, setShowLargeQrModal] = useState(false)
   const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
-  const [factoryDurationMinutes, setFactoryDurationMinutes] = useState(5) // 편의점 게임 제한 시간(분)
+  const [timedDurationMinutes, setTimedDurationMinutes] = useState(5)
   const autoFinishRequestedRef = useRef(false)
 
   const { players, refreshPlayers } = usePlayersRealtime({ roomCode })
@@ -91,8 +94,8 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     if (!roomStatus) return
-    setIsGameStarted(roomStatus === 'playing')
-    if (roomStatus !== 'playing') {
+    setIsGameStarted(roomStatus === 'playing' || roomStatus === 'paused')
+    if (roomStatus !== 'playing' && roomStatus !== 'paused') {
       autoFinishRequestedRef.current = false
     }
   }, [roomStatus])
@@ -102,7 +105,6 @@ export default function TeacherDashboard() {
       !roomCode
       || !room
       || room.status !== 'playing'
-      || room.game_mode !== 'factory'
       || !room.started_at
       || !room.duration_seconds
     ) {
@@ -115,21 +117,32 @@ export default function TeacherDashboard() {
 
       try {
         await finishRoom(roomCode)
-        broadcastRoomPatch({ status: 'finished' }, 'factory_time_up')
+        const reason = room.game_mode === 'poop_dodge'
+          ? 'poop_dodge_time_up'
+          : `${room.game_mode || 'game'}_time_up`
+        broadcastRoomPatch({ status: 'finished' }, reason)
         void sendRoomEvent('game:finished', {
           finishedBy: 'teacher',
-          reason: 'factory_time_up',
+          reason,
         })
+        try {
+          await saveGameReportSnapshot(room, players)
+        } catch (reportError) {
+          console.error('Error saving timed game report snapshot:', reportError)
+        }
+        router.push(`/teacher/game/${roomCode}/end`)
       } catch (error) {
         autoFinishRequestedRef.current = false
-        console.error('편의점 시간 종료 실패:', error)
+        console.error('시간 종료 실패:', error)
       }
     }
 
     const started = new Date(room.started_at).getTime()
+    const totalSeconds = Number(room.duration_seconds)
+      + (room.game_mode === 'poop_dodge' ? PUPPY_CHAOS_BONUS_GRACE_SECONDS : 0)
     const tick = () => {
       const elapsedSeconds = Math.floor((Date.now() - started) / 1000)
-      if (elapsedSeconds >= Number(room.duration_seconds)) {
+      if (elapsedSeconds >= totalSeconds) {
         void finishByTimeLimit()
       }
     }
@@ -137,7 +150,7 @@ export default function TeacherDashboard() {
     tick()
     const interval = window.setInterval(tick, 1000)
     return () => window.clearInterval(interval)
-  }, [broadcastRoomPatch, room, roomCode, sendRoomEvent])
+  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent])
 
   // 게임 모드 변경 핸들러 (방이 있으면 DB도 업데이트)
   const handleGameModeChange = async (newMode: GameModeId) => {
@@ -218,13 +231,13 @@ export default function TeacherDashboard() {
       await startRoom({
         roomCode,
         gameMode,
-        durationSeconds: gameMode === 'factory' ? factoryDurationMinutes * 60 : null,
+        durationSeconds: timedDurationMinutes * 60,
       })
       broadcastRoomPatch({
         status: 'playing',
         game_mode: gameMode,
         started_at: startedAt,
-        duration_seconds: gameMode === 'factory' ? factoryDurationMinutes * 60 : null,
+        duration_seconds: timedDurationMinutes * 60,
       }, 'teacher_start')
 
       setIsGameStarted(true)
@@ -260,6 +273,47 @@ export default function TeacherDashboard() {
     } catch (error) {
       console.error('Error ending game:', error)
       alert('게임 종료에 실패했습니다: ' + formatServiceError(error))
+    }
+  }
+
+  const getTimedRemainingSeconds = useCallback(() => {
+    if (!room?.started_at || !room.duration_seconds) return null
+    const elapsedSeconds = Math.floor((Date.now() - new Date(room.started_at).getTime()) / 1000)
+    return Math.max(1, Number(room.duration_seconds) - elapsedSeconds)
+  }, [room?.duration_seconds, room?.started_at])
+
+  const handlePauseGame = async () => {
+    if (!roomCode || !room || room.status !== 'playing') return
+    playSFX('click')
+
+    try {
+      const remaining = getTimedRemainingSeconds()
+      await pauseRoom(roomCode, remaining)
+      broadcastRoomPatch({
+        status: 'paused',
+        ...(remaining != null ? { duration_seconds: remaining } : {}),
+      }, 'teacher_pause')
+    } catch (error) {
+      console.error('Error pausing game:', error)
+      alert('게임 일시정지에 실패했습니다: ' + formatServiceError(error))
+    }
+  }
+
+  const handleResumeGame = async () => {
+    if (!roomCode || !room || room.status !== 'paused') return
+    playSFX('click')
+
+    try {
+      const startedAt = new Date().toISOString()
+      await resumeRoom(roomCode, room.duration_seconds)
+      broadcastRoomPatch({
+        status: 'playing',
+        started_at: startedAt,
+        ...(room.duration_seconds != null ? { duration_seconds: room.duration_seconds } : {}),
+      }, 'teacher_resume')
+    } catch (error) {
+      console.error('Error resuming game:', error)
+      alert('게임 재개에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -333,16 +387,16 @@ export default function TeacherDashboard() {
 
         {roomCode ? (
           <div className="space-y-4">
-            {/* 편의점: 게임 시간 설정 */}
-            {gameMode === 'factory' && (
+            {/* 공통 게임 시간 설정 */}
+            {(
               <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
                 <label className="block text-lg font-semibold text-amber-800 mb-2">⏱️ 게임 시간 (몇 분 후 자동 종료)</label>
                 <div className="flex flex-wrap gap-3">
                   {[3, 5, 7, 10].map((minutes) => (
                     <button
                       key={minutes}
-                      onClick={() => setFactoryDurationMinutes(minutes)}
-                      className={`px-4 py-2 rounded-lg font-bold border-2 transition-all ${factoryDurationMinutes === minutes
+                      onClick={() => setTimedDurationMinutes(minutes)}
+                      className={`px-4 py-2 rounded-lg font-bold border-2 transition-all ${timedDurationMinutes === minutes
                         ? 'border-amber-500 bg-amber-200 text-amber-900'
                         : 'border-amber-200 bg-white text-amber-800 hover:border-amber-400'
                         }`}
@@ -351,7 +405,11 @@ export default function TeacherDashboard() {
                     </button>
                   ))}
                 </div>
-                <p className="text-sm text-amber-700 mt-2">시간이 되면 자동 종료되고, 돈 많은 순으로 순위가 정해져요.</p>
+                <p className="text-sm text-amber-700 mt-2">
+                  {gameMode === 'poop_dodge'
+                    ? '시간이 되면 보너스 라운드 한 판 후 자동 종료되고 순위를 공개해요.'
+                    : '시간이 되면 자동 종료되고 순위를 공개해요.'}
+                </p>
               </div>
             )}
 
@@ -475,6 +533,21 @@ export default function TeacherDashboard() {
               </button>
               {isGameStarted && (
                 <>
+                  {roomStatus === 'paused' ? (
+                    <button
+                      onClick={handleResumeGame}
+                      className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                    >
+                      ▶️ 다시 시작
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handlePauseGame}
+                      className="flex-1 rounded-lg bg-amber-500 px-4 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-amber-600"
+                    >
+                      ⏸️ 일시정지
+                    </button>
+                  )}
                   <button
                     onClick={handleEndGame}
                     className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-red-700"

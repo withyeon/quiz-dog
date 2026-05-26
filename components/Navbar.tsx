@@ -45,16 +45,8 @@ export default function Navbar() {
             <motion.div
               whileHover={{ scale: 1.05 }}
               transition={{ duration: 0.2 }}
-              className="relative flex items-center gap-2"
+              className="relative flex items-center gap-0"
             >
-              <Image
-                src={gameAssets['mascot-pome'].tight}
-                alt="포메 마스코트"
-                width={64}
-                height={64}
-                unoptimized
-                className="hidden h-16 w-16 object-contain pixelated sm:block"
-              />
               <Image
                 src="/header-logo.svg"
                 alt="퀴즈독"
@@ -63,14 +55,24 @@ export default function Navbar() {
                 className="h-32 w-auto object-contain"
                 priority
               />
+              <div className="hidden sm:flex items-center -ml-2 gap-0.5 translate-y-5">
+              <Image
+                src={gameAssets['mascot-pome'].tight}
+                alt="포메 마스코트"
+                width={48}
+                height={48}
+                unoptimized
+                className="h-12 w-12 object-contain pixelated"
+              />
               <Image
                 src={gameAssets.mascot_sigol.tight}
                 alt="시골 마스코트"
-                width={64}
-                height={64}
+                width={48}
+                height={48}
                 unoptimized
-                className="hidden h-16 w-16 object-contain pixelated sm:block"
+                className="h-12 w-12 object-contain pixelated"
               />
+              </div>
             </motion.div>
           </Link>
 

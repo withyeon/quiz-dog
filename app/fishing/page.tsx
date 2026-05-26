@@ -61,6 +61,7 @@ export default function FishingPage() {
   const totalPoints = caughtDolls.reduce((sum, d) => sum + (d.score || 0), 0)
   const speedGrade = getAnswerSpeedGrade(savedAnswerTime)
   const showResultCard = fishingState === 'release' && !!fishingResult?.doll
+  const isPaused = room?.status === 'paused'
 
   useEffect(() => {
     if (room?.status === 'playing' && currentView === 'lobby' && !showCountdown && isPreStartQuizComplete) {
@@ -242,6 +243,7 @@ export default function FishingPage() {
                   onAnswer={handleAnswerSubmit}
                   timeLimit={30}
                   onCorrectClick={handleOpenClaw}
+                  paused={isPaused}
                   variant="fishing"
                   className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60"
                 />
@@ -538,6 +540,13 @@ export default function FishingPage() {
           100% { background-position: 0% 50%; }
         }
       `}</style>
+      {isPaused && currentView !== 'lobby' && currentView !== 'result' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">
+            선생님이 잠깐 멈췄어요
+          </div>
+        </div>
+      )}
     </main>
   )
 }

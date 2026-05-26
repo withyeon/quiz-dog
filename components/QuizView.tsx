@@ -21,9 +21,10 @@ interface QuizViewProps {
   onCorrectClick?: () => void // 정답 확인 후 클릭 시 호출
   className?: string // 외부에서 스타일 오버라이드 가능
   variant?: 'default' | 'goldQuest' | 'battle' | 'fishing'
+  paused?: boolean
 }
 
-export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick, className, variant = 'default' }: QuizViewProps) {
+export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick, className, variant = 'default', paused = false }: QuizViewProps) {
   const [inputValue, setInputValue] = useState<string>('')
   const [submittedAnswer, setSubmittedAnswer] = useState<string>('')
   const [answerResult, setAnswerResult] = useState<boolean | null>(null)
@@ -38,7 +39,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
   const isFishing = variant === 'fishing'
 
   const handleAnswerSelect = useCallback(async (answer: string) => {
-    if (submittedAnswer || isSubmitting) return
+    if (paused || submittedAnswer || isSubmitting) return
     playSFX('click')
     setSubmittedAnswer(answer)
     setInputValue(answer)
@@ -58,11 +59,11 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
     } finally {
       setIsSubmitting(false)
     }
-  }, [submittedAnswer, isSubmitting, playSFX, onAnswer, question.answer])
+  }, [paused, submittedAnswer, isSubmitting, playSFX, onAnswer, question.answer])
 
   // 시간 제한 카운트다운
   useEffect(() => {
-    if (submittedAnswer || !timeLimit) return // 이미 제출했거나 시간 제한이 없으면 중단
+    if (paused || submittedAnswer || !timeLimit) return // 이미 제출했거나 시간 제한이 없으면 중단
 
     let timerId: NodeJS.Timeout | null = null
 
@@ -91,7 +92,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         clearInterval(timerId)
       }
     }
-  }, [submittedAnswer, timeLimit, isSubmitting, handleAnswerSelect])
+  }, [paused, submittedAnswer, timeLimit, isSubmitting, handleAnswerSelect])
 
   // 문제가 바뀔 때마다 시간 리셋
   useEffect(() => {
@@ -150,7 +151,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                   void handleAnswerSelect(inputValue.trim())
                 }
               }}
-              disabled={!!submittedAnswer || isSubmitting}
+              disabled={paused || !!submittedAnswer || isSubmitting}
               placeholder="답을 입력하세요"
               className={`w-full px-6 py-4 text-lg border rounded-lg bg-white/90 disabled:bg-gray-100 disabled:cursor-not-allowed ${
                 isGoldQuest
@@ -164,9 +165,9 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
             <MotionButton
               type="button"
               onClick={() => void handleAnswerSelect(inputValue.trim())}
-              disabled={!inputValue.trim() || !!submittedAnswer || isSubmitting}
-              whileHover={inputValue.trim() && !submittedAnswer ? { scale: 1.02 } : {}}
-              whileTap={inputValue.trim() && !submittedAnswer ? { scale: 0.98 } : {}}
+              disabled={paused || !inputValue.trim() || !!submittedAnswer || isSubmitting}
+              whileHover={!paused && inputValue.trim() && !submittedAnswer ? { scale: 1.02 } : {}}
+              whileTap={!paused && inputValue.trim() && !submittedAnswer ? { scale: 0.98 } : {}}
               className={`w-full text-white py-4 px-6 rounded-lg transition-colors font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
                 isGoldQuest ? 'bg-[#b7791f] hover:bg-[#9a6219]' : isBattle ? 'bg-[#13202b] hover:bg-[#223848]' : 'bg-blue-600 hover:bg-blue-700'
               }`}
@@ -203,7 +204,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                               void handleAnswerSelect(inputValue.trim())
                             }
                           }}
-                          disabled={!!submittedAnswer || isSubmitting}
+                          disabled={paused || !!submittedAnswer || isSubmitting}
                           className={`inline-block px-4 py-2 border bg-white min-w-[150px] text-center font-semibold rounded-md shadow-sm focus:outline-none focus:bg-white ${
                             isGoldQuest
                               ? 'border-amber-400 text-[#7a4b14] focus:border-amber-600'
@@ -225,9 +226,9 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
             <MotionButton
               type="button"
               onClick={() => void handleAnswerSelect(inputValue.trim())}
-              disabled={!inputValue.trim() || !!submittedAnswer || isSubmitting}
-              whileHover={inputValue.trim() && !submittedAnswer ? { scale: 1.02 } : {}}
-              whileTap={inputValue.trim() && !submittedAnswer ? { scale: 0.98 } : {}}
+              disabled={paused || !inputValue.trim() || !!submittedAnswer || isSubmitting}
+              whileHover={!paused && inputValue.trim() && !submittedAnswer ? { scale: 1.02 } : {}}
+              whileTap={!paused && inputValue.trim() && !submittedAnswer ? { scale: 0.98 } : {}}
               className={`w-full text-white py-4 px-6 rounded-lg transition-colors font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
                 isGoldQuest ? 'bg-[#b7791f] hover:bg-[#9a6219]' : isBattle ? 'bg-[#13202b] hover:bg-[#223848]' : 'bg-blue-600 hover:bg-blue-700'
               }`}
@@ -248,9 +249,9 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
             <MotionButton
               key={index}
               onClick={() => void handleAnswerSelect(option)}
-              disabled={submittedAnswer !== '' || isSubmitting}
-              whileHover={submittedAnswer === '' ? { scale: 1.02, x: 5 } : {}}
-              whileTap={submittedAnswer === '' ? { scale: 0.98 } : {}}
+              disabled={paused || submittedAnswer !== '' || isSubmitting}
+              whileHover={!paused && submittedAnswer === '' ? { scale: 1.02, x: 5 } : {}}
+              whileTap={!paused && submittedAnswer === '' ? { scale: 0.98 } : {}}
               className={`w-full text-left p-5 sm:p-6 rounded-lg border transition-all ${submittedAnswer === ''
                 ? isGoldQuest
                   ? 'border-[#d7bd78]/80 bg-white/[0.78] hover:border-[#b7791f] hover:bg-[#fff5dc] cursor-pointer shadow-md hover:shadow-xl'
