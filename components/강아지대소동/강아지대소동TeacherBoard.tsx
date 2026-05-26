@@ -36,6 +36,7 @@ export default function PuppyChaosTeacherBoard({
   const [overlayEvent, setOverlayEvent] = useState<PuppyChaosEvent | null>(null)
   const [questionTotal, setQuestionTotal] = useState(0)
   const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/play/${room.room_code}` : ''
+  const showTeacherControls = Boolean(onPause || onResume || onEnd || onKick)
 
   const activePlayers = useMemo(
     () => players.filter((player) => !player.is_kicked),
@@ -114,9 +115,11 @@ export default function PuppyChaosTeacherBoard({
           </div>
         </div>
 
+        {showTeacherControls && (
         <div className="w-fit rounded-3xl border-4 border-slate-950 bg-white p-3 shadow-[4px_4px_0_#0f172a]">
           <QRCodeSVG value={inviteUrl} size={110} level="M" />
         </div>
+        )}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -196,6 +199,7 @@ export default function PuppyChaosTeacherBoard({
             </div>
           </div>
 
+          {showTeacherControls && (
           <div className="rounded-[24px] border-4 border-slate-950 bg-white p-5 shadow-[5px_5px_0_#0f172a]">
             <h3 className="mb-4 text-2xl font-black text-slate-950">교사 통제</h3>
             <div className="grid gap-3">
@@ -213,7 +217,9 @@ export default function PuppyChaosTeacherBoard({
               </button>
             </div>
           </div>
+          )}
 
+          {showTeacherControls && (
           <div className="rounded-[24px] border-4 border-slate-950 bg-white p-5 shadow-[5px_5px_0_#0f172a]">
             <h3 className="mb-4 text-2xl font-black text-slate-950">학생 관리</h3>
             <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
@@ -227,6 +233,7 @@ export default function PuppyChaosTeacherBoard({
               ))}
             </div>
           </div>
+          )}
         </aside>
       </div>
     </div>

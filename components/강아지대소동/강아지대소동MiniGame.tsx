@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import NextImage from 'next/image'
 
 type FallingObject = {
   id: number
@@ -55,6 +56,9 @@ const BONE_REWARD = 20
 const MASCOT_SRC = '/mascot_pome.png'
 const BACKGROUND_SRC = '/background/puppy-chaos.png'
 const BONE_SRC = '/puppy-chaos/bone.svg'
+const POOP_SRC = '/puppy-chaos/poop.svg'
+const FAST_POOP_SRC = '/puppy-chaos/fast-poop.svg'
+const GOLDEN_DOG_SRC = '/puppy-chaos/golden-dog.svg'
 
 function rectsOverlap(a: DOMRectLike, b: DOMRectLike) {
   return a.x < b.x + b.width
@@ -89,6 +93,9 @@ export default function DodgeMiniGame({
   const mascotImageRef = useRef<HTMLImageElement | null>(null)
   const backgroundImageRef = useRef<HTMLImageElement | null>(null)
   const boneImageRef = useRef<HTMLImageElement | null>(null)
+  const poopImageRef = useRef<HTMLImageElement | null>(null)
+  const fastPoopImageRef = useRef<HTMLImageElement | null>(null)
+  const goldenDogImageRef = useRef<HTMLImageElement | null>(null)
   const playerXRef = useRef(0.5)
   const playerVelocityRef = useRef(0)
   const keysRef = useRef({ left: false, right: false })
@@ -132,11 +139,24 @@ export default function DodgeMiniGame({
   }, [])
 
   useEffect(() => {
-    const image = new Image()
-    image.src = BONE_SRC
-    image.onload = () => {
-      boneImageRef.current = image
+    const loadImage = (src: string, setImage: (image: HTMLImageElement) => void) => {
+      const image = new Image()
+      image.src = src
+      image.onload = () => setImage(image)
     }
+
+    loadImage(BONE_SRC, (image) => {
+      boneImageRef.current = image
+    })
+    loadImage(POOP_SRC, (image) => {
+      poopImageRef.current = image
+    })
+    loadImage(FAST_POOP_SRC, (image) => {
+      fastPoopImageRef.current = image
+    })
+    loadImage(GOLDEN_DOG_SRC, (image) => {
+      goldenDogImageRef.current = image
+    })
   }, [])
 
   useEffect(() => {
@@ -413,7 +433,7 @@ export default function DodgeMiniGame({
         if (object.kind === 'bone') {
           drawBone(ctx, object, boneImageRef.current)
         } else {
-          drawPoop(ctx, object)
+          drawPoop(ctx, object, poopImageRef.current, fastPoopImageRef.current)
         }
       }
 
@@ -427,7 +447,7 @@ export default function DodgeMiniGame({
       }
       ctx.globalAlpha = 1
 
-      drawPlayer(ctx, mascotImageRef.current, playerXRef.current * width, height - PLAYER_SIZE / 2 - 28, invincible, playerVelocityRef.current)
+      drawPlayer(ctx, mascotImageRef.current, goldenDogImageRef.current, playerXRef.current * width, height - PLAYER_SIZE / 2 - 28, invincible, playerVelocityRef.current)
 
       if (pausedRef.current) {
         ctx.fillStyle = 'rgba(15, 23, 42, 0.58)'
@@ -515,8 +535,9 @@ export default function DodgeMiniGame({
       </div>
 
       {showBombWarning && (
-        <div className="absolute inset-x-4 top-20 rounded-3xl border-4 border-red-900 bg-red-100 px-5 py-4 text-center text-2xl font-black text-red-700 shadow-[4px_4px_0_#7f1d1d]">
-          💣 똥폭탄 공격받음! 떨어지는 속도가 빨라져요
+        <div className="absolute inset-x-4 top-20 flex items-center justify-center gap-3 rounded-3xl border-4 border-red-900 bg-red-100 px-5 py-4 text-center text-2xl font-black text-red-700 shadow-[4px_4px_0_#7f1d1d]">
+          <NextImage src="/puppy-chaos/poop-bomb.svg" alt="" width={48} height={48} className="h-12 w-12 object-contain" unoptimized />
+          <span>똥폭탄 공격받음! 떨어지는 속도가 빨라져요</span>
         </div>
       )}
 
@@ -567,7 +588,12 @@ function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, scale: n
   ctx.restore()
 }
 
-function drawPoop(ctx: CanvasRenderingContext2D, object: FallingObject) {
+function drawPoop(
+  ctx: CanvasRenderingContext2D,
+  object: FallingObject,
+  image: HTMLImageElement | null,
+  fastImage: HTMLImageElement | null,
+) {
   ctx.save()
   ctx.translate(object.x, object.y)
   ctx.rotate(object.rotation)
@@ -575,13 +601,19 @@ function drawPoop(ctx: CanvasRenderingContext2D, object: FallingObject) {
   ctx.shadowColor = 'rgba(69, 26, 3, 0.28)'
   ctx.shadowBlur = 8
   ctx.shadowOffsetY = 4
-  ctx.font = `${object.variant === 'heavy' ? 42 * scale : 34 * scale}px DNFBitBitv2, sans-serif`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(object.variant === 'fast' ? '💨' : '💩', 0, object.variant === 'fast' ? -2 : 0)
-  if (object.variant === 'fast') {
-    ctx.font = `${26 * scale}px DNFBitBitv2, sans-serif`
-    ctx.fillText('💩', 9 * scale, 5 * scale)
+  const selectedImage = object.variant === 'fast' ? fastImage || image : image
+  if (selectedImage) {
+    const drawSize = object.size * (object.variant === 'heavy' ? 1.45 : 1.35)
+    ctx.drawImage(selectedImage, -drawSize / 2, -drawSize / 2, drawSize, drawSize)
+  } else {
+    ctx.font = `${object.variant === 'heavy' ? 42 * scale : 34 * scale}px DNFBitBitv2, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(object.variant === 'fast' ? '💨' : '💩', 0, object.variant === 'fast' ? -2 : 0)
+    if (object.variant === 'fast') {
+      ctx.font = `${26 * scale}px DNFBitBitv2, sans-serif`
+      ctx.fillText('💩', 9 * scale, 5 * scale)
+    }
   }
   ctx.restore()
 }
@@ -609,6 +641,7 @@ function drawBone(ctx: CanvasRenderingContext2D, object: FallingObject, image: H
 function drawPlayer(
   ctx: CanvasRenderingContext2D,
   image: HTMLImageElement | null,
+  goldenDogImage: HTMLImageElement | null,
   x: number,
   y: number,
   invincible: boolean,
@@ -623,11 +656,15 @@ function drawPlayer(
   ctx.ellipse(0, 34, 34, 10, 0, 0, Math.PI * 2)
   ctx.fill()
   if (invincible) {
-    ctx.fillStyle = '#fbbf24'
-    ctx.font = '32px DNFBitBitv2, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('👑', 0, -44)
+    if (goldenDogImage) {
+      ctx.drawImage(goldenDogImage, -22, -70, 44, 44)
+    } else {
+      ctx.fillStyle = '#fbbf24'
+      ctx.font = '32px DNFBitBitv2, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('👑', 0, -44)
+    }
   }
   if (image) {
     ctx.drawImage(image, -36, -42, 72, 74)

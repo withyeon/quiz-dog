@@ -71,6 +71,7 @@ export default function GameResult({
       )
       : [...players].sort((a, b) => b.score - a.score)
   const isGoldQuest = gameMode === 'gold_quest'
+  const isDontLookDown = gameMode === 'dontlookdown'
   const top3 = sortedPlayers.slice(0, 3)
   const currentPlayer = players.find((p) => p.id === currentPlayerId)
   const currentPlayerRank = sortedPlayers.findIndex((p) => p.id === currentPlayerId) + 1
@@ -234,6 +235,16 @@ export default function GameResult({
                             <div className="text-xl text-red-600 font-bold flex items-center gap-1"><Image src="/trophy.svg" alt="트로피" width={20} height={20} className="w-5 h-5" /> 승리!</div>
                           )}
                         </>
+                      ) : isDontLookDown ? (
+                        <>
+                          <div className="text-4xl font-bold text-gray-900">
+                            {player.score}m
+                          </div>
+                          <div className="text-xl text-yellow-600 font-bold flex items-center gap-1.5">
+                            <span>⚡</span>
+                            {player.gold.toLocaleString()} 에너지
+                          </div>
+                        </>
                       ) : (
                         <>
                           <div className="text-4xl font-bold text-gray-900">
@@ -302,6 +313,14 @@ export default function GameResult({
                       <div className="text-right">
                         {gameMode === 'battle_royale' ? (
                           <div className="font-bold text-gray-800">{(player as any).health || 0} HP</div>
+                        ) : isDontLookDown ? (
+                          <>
+                            <div className="font-bold text-gray-800">{player.score}m</div>
+                            <div className="text-sm text-yellow-600 flex items-center gap-1">
+                              <span>⚡</span>
+                              {player.gold.toLocaleString()} 에너지
+                            </div>
+                          </>
                         ) : (
                           <>
                             <div className="font-bold text-gray-800">{player.score}점</div>
@@ -345,20 +364,25 @@ export default function GameResult({
                     </div>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-1">내 점수</div>
+                    <div className="text-sm text-gray-600 mb-1">{isDontLookDown ? '내 높이' : '내 점수'}</div>
                     <div className="text-3xl font-bold text-purple-600">
-                      {currentPlayer?.score || 0}점
+                      {isDontLookDown ? `${currentPlayer?.score || 0}m` : `${currentPlayer?.score || 0}점`}
                     </div>
                   </div>
                   <div className="p-4 bg-yellow-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-1">내 Gold</div>
+                    <div className="text-sm text-gray-600 mb-1">{isDontLookDown ? '내 에너지' : '내 골드'}</div>
                     <div className="text-3xl font-bold text-yellow-600 flex items-center gap-2">
                       {gameMode === 'gold_quest' ? (
                         <Image src="/gold-quest/gold-stack.svg" alt="골드" width={28} height={28} className="w-7 h-7" />
+                      ) : isDontLookDown ? (
+                        <span>⚡</span>
                       ) : (
                         <span>💰</span>
                       )}
-                      {currentPlayer?.gold || 0}
+                      {isDontLookDown
+                        ? (currentPlayer?.gold || 0).toLocaleString()
+                        : (currentPlayer?.gold || 0)}
+                      {isDontLookDown && <span className="text-lg">에너지</span>}
                     </div>
                   </div>
                 </div>

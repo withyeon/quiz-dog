@@ -37,9 +37,9 @@ const ITEM_BADGES: Record<SpecialItemType, { icon: string; label: string; color:
 }
 
 const AIM_STYLE = {
-  perfect: { label: '정중앙', textColor: 'text-amber-700', barColor: 'bg-amber-400', glow: 'shadow-[0_0_14px_rgba(251,191,36,0.58)]' },
-  great: { label: '좋은 조준', textColor: 'text-violet-700', barColor: 'bg-violet-400', glow: 'shadow-[0_0_12px_rgba(167,139,250,0.48)]' },
-  good: { label: '안정 조준', textColor: 'text-sky-700', barColor: 'bg-sky-400', glow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]' },
+  perfect: { label: '훌륭함', textColor: 'text-amber-700', barColor: 'bg-amber-400', glow: 'shadow-[0_0_14px_rgba(251,191,36,0.58)]' },
+  great: { label: '좋음', textColor: 'text-violet-700', barColor: 'bg-violet-400', glow: 'shadow-[0_0_12px_rgba(167,139,250,0.48)]' },
+  good: { label: '보통', textColor: 'text-sky-700', barColor: 'bg-sky-400', glow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]' },
   safe: { label: '아슬아슬', textColor: 'text-emerald-700', barColor: 'bg-emerald-500', glow: '' },
 }
 

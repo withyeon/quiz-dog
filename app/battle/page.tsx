@@ -2,21 +2,21 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import Image from 'next/image'
 import {
   AlertTriangle,
   BadgeCheck,
   Crosshair,
   Flame,
-  RadioTower,
   Snowflake,
   Thermometer,
-  Trophy,
   Users,
 } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import BattleArena from '@/components/BattleArena'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import TeamRevealOverlay from '@/components/battle/TeamRevealOverlay'
 import { CLASS_BADGES, getReloadDelay, HudTile } from '@/components/battle/BattleHud'
 import { useGameBase } from '@/hooks/useGameBase'
@@ -83,7 +83,15 @@ export default function BattlePage() {
     playersLoading,
     currentPlayer,
     currentQuestion,
+    questionsLoading,
+    questionsError,
+    preStartQuizQuestion,
+    preStartSubmittedCount,
+    preStartQuizTotal,
+    shouldShowPreStartQuiz,
+    isPreStartQuizComplete,
     playSFX,
+    handlePreStartQuizAnswer,
     checkAnswer,
     handleWrongAnswer,
     handleCountdownComplete,
@@ -125,9 +133,7 @@ export default function BattlePage() {
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const incomingAttackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousHealthRef = useRef<number | null>(null)
-  const battleStartTime = room?.started_at
-    ? new Date(room.started_at).getTime()
-    : gameStartTime
+  const battleStartTime = gameStartTime
 
   useEffect(() => {
     return () => {
@@ -194,7 +200,7 @@ export default function BattlePage() {
 
   // 호스트가 게임 시작 시 팀 배정 (한 번만)
   useEffect(() => {
-    if (room?.status !== 'playing') return
+    if (room?.status !== 'playing' || !isPreStartQuizComplete) return
     if (!isRoomHost) return
     if (hasAssignedTeamsRef.current) return
     if (players.length === 0) return
@@ -233,7 +239,7 @@ export default function BattlePage() {
       console.error('Error assigning teams:', error)
       hasAssignedTeamsRef.current = false
     })
-  }, [isRoomHost, players, room?.status])
+  }, [isPreStartQuizComplete, isRoomHost, players, room?.status])
 
   // 팀 배정이 완료되면 reveal 표시 (모든 플레이어가 보게 됨)
   useEffect(() => {
@@ -276,7 +282,7 @@ export default function BattlePage() {
 
   // 자기장(폭설 주의보) 시스템
   useEffect(() => {
-    if (room?.status !== 'playing' || !battleStartTime) return
+    if (room?.status !== 'playing' || !battleStartTime || !isPreStartQuizComplete) return
 
     const interval = setInterval(() => {
       const elapsed = Date.now() - battleStartTime
@@ -285,11 +291,11 @@ export default function BattlePage() {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [battleStartTime, room?.status])
+  }, [battleStartTime, isPreStartQuizComplete, room?.status])
 
   // 자기장 데미지 적용
   useEffect(() => {
-    if (room?.status !== 'playing' || !battleStartTime || zoneLevel <= 1) return
+    if (room?.status !== 'playing' || !battleStartTime || zoneLevel <= 1 || !isPreStartQuizComplete) return
     if (!isRoomHost) return
 
     const interval = setInterval(() => {
@@ -309,7 +315,7 @@ export default function BattlePage() {
     }, 10000) // 10초마다
 
     return () => clearInterval(interval)
-  }, [battleStartTime, isRoomHost, players, room?.status, zoneLevel])
+  }, [battleStartTime, isPreStartQuizComplete, isRoomHost, players, room?.status, zoneLevel])
 
   // 탈락 감지 (체온이 0이 되면 눈사람으로)
   useEffect(() => {
@@ -338,7 +344,7 @@ export default function BattlePage() {
 
   // 게임 종료 확인 (팀전 우선)
   useEffect(() => {
-    if (players.length > 0 && room?.status === 'playing') {
+    if (players.length > 0 && room?.status === 'playing' && isPreStartQuizComplete) {
       const winningTeam = checkWinningTeam(players as Player[])
       const winner = checkWinner(players as Player[])
       if (winningTeam || winner || isGameOver(players as Player[])) {
@@ -350,7 +356,12 @@ export default function BattlePage() {
         }
       }
     }
-  }, [finishGame, isRoomHost, players, room?.status, playSFX, setCurrentView])
+  }, [finishGame, isPreStartQuizComplete, isRoomHost, players, room?.status, playSFX, setCurrentView])
+
+  const handleBattleCountdownComplete = () => {
+    setGameStartTime(Date.now())
+    handleCountdownComplete()
+  }
 
   // 정답 후 다음 문제로 (클릭 시 즉시 이동)
   const goToNextQuiz = () => {
@@ -673,17 +684,19 @@ export default function BattlePage() {
             <header className="battle-frost-panel overflow-hidden p-4 sm:p-5">
               <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[8px] bg-slate-950 text-cyan-100 shadow-lg">
-                    <Snowflake className="h-7 w-7" strokeWidth={2.4} />
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-white shadow-lg">
+                    <Image
+                      src="/title/battle-royale.svg"
+                      alt="눈싸움 대작전"
+                      width={56}
+                      height={56}
+                      className="h-full w-full object-contain p-1"
+                    />
                   </div>
                   <div>
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="battle-chip inline-flex items-center gap-1.5 px-3 py-1 text-xs font-black text-slate-600">
-                        <RadioTower className="h-3.5 w-3.5 text-teal-600" />
-                        ROOM {roomCode}
-                      </span>
                       <span className="battle-chip px-3 py-1 text-xs font-black text-slate-600">
-                        LIVE BATTLE
+                        실시간 배틀
                       </span>
                     </div>
                     <h1 className="text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
@@ -704,9 +717,9 @@ export default function BattlePage() {
                     tone={healthTone}
                   />
                   <HudTile
-                    icon={<Trophy className="h-3.5 w-3.5" />}
+                    icon={<Image src="/trophy.svg" alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" />}
                     label="순위"
-                    value={`#${currentRank}`}
+                    value={`${currentRank}`}
                     detail={`${players.length}명 중`}
                     tone="warm"
                   />
@@ -783,7 +796,7 @@ export default function BattlePage() {
                 {zoneLevel > 1 && (
                   <div className="battle-status-warn inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-black text-white">
                     <AlertTriangle className="h-4 w-4" />
-                    폭설 주의보 Lv.{zoneLevel}
+                    폭설 주의보 {zoneLevel}단계
                   </div>
                 )}
 
@@ -802,6 +815,18 @@ export default function BattlePage() {
           </div>
 
           <div className="mx-auto max-w-7xl">
+            {shouldShowPreStartQuiz && (
+              <PreStartQuizGate
+                question={preStartQuizQuestion}
+                submittedCount={preStartSubmittedCount}
+                total={preStartQuizTotal}
+                onAnswer={handlePreStartQuizAnswer}
+                questionsLoading={questionsLoading}
+                questionsError={questionsError}
+                variant="battle"
+              />
+            )}
+
             {showCountdown && (
               <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 backdrop-blur">
                 <motion.div
@@ -813,7 +838,7 @@ export default function BattlePage() {
                   <h1 className="mb-2 text-5xl font-black">눈싸움 대작전</h1>
                   <p className="text-xl font-bold text-cyan-200">타겟을 조준하고 퀴즈로 눈뭉치를 날려라!</p>
                 </motion.div>
-                <Countdown onComplete={handleCountdownComplete} />
+                <Countdown onComplete={handleBattleCountdownComplete} />
               </div>
             )}
 
@@ -826,7 +851,7 @@ export default function BattlePage() {
                 <div className="flex flex-col justify-center">
                   <div className="battle-chip mb-4 inline-flex w-fit items-center gap-2 px-3 py-1.5 text-xs font-black text-slate-600">
                     <BadgeCheck className="h-3.5 w-3.5 text-teal-600" />
-                    READY ROOM
+                    대기실
                   </div>
                   <h2 className="text-3xl font-black text-slate-950 sm:text-4xl">
                     경기장 준비 중

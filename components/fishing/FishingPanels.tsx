@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Clock, Coins, Gift, ShieldCheck, Star, Target, Ticket, Trophy, Zap } from 'lucide-react'
+import { Clock, Coins, Gift, ShieldCheck, Star, Target, Ticket, Zap } from 'lucide-react'
 import {
     getAimGradeLabel,
     getAnswerSpeedLabel,
@@ -91,7 +91,7 @@ export function LeaderboardPanel({ players, playerId }: { players: FishingPlayer
     return (
         <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-200/50">
             <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-slate-800">
-                <Trophy size={16} /> 순위
+                <Image src="/trophy.svg" alt="" width={16} height={16} className="h-4 w-4 object-contain" /> 순위
             </h3>
             <div className="space-y-2">
                 {sorted.slice(0, 5).map((player, index) => {
@@ -105,7 +105,7 @@ export function LeaderboardPanel({ players, playerId }: { players: FishingPlayer
                         <div key={player.id} className={`rounded-lg border p-2.5 ${isMe ? 'border-amber-300 bg-amber-50 shadow-sm' : 'border-slate-200 bg-white/80'}`}>
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex min-w-0 items-center gap-2">
-                                    <span className={`w-6 text-sm font-black ${rankColors[index] ?? 'text-slate-400'}`}>#{index + 1}</span>
+                                    <span className={`w-6 text-sm font-black ${rankColors[index] ?? 'text-slate-400'}`}>{index + 1}</span>
                                     <PlayerAvatarDisplay
                                         avatar={player.avatar}
                                         nickname={player.nickname}
@@ -212,7 +212,7 @@ export function ResultCard({
                     </div>
                     <div className="rounded-lg border border-white bg-white/70 px-2 py-3">
                         <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-slate-500">
-                            <Target size={10} /> 조준
+                            <Target size={10} /> 정확도
                         </div>
                         <div className="text-sm font-black leading-tight text-slate-900">
                             {getAimGradeLabel(fishingResult.aimGrade)}

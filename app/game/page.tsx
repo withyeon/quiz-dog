@@ -8,6 +8,7 @@ import QuizView from '@/components/QuizView'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { useGameBase } from '@/hooks/useGameBase'
 import { BOX_EVENT_IMAGE, generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
@@ -44,6 +45,10 @@ export default function GamePage() {
     questions,
     questionsLoading,
     questionsError,
+    preStartQuizQuestion,
+    preStartSubmittedCount,
+    preStartQuizTotal,
+    shouldShowPreStartQuiz,
     players,
     room,
     roomLoading,
@@ -52,6 +57,7 @@ export default function GamePage() {
     currentQuestion,
     playBGM,
     playSFX,
+    handlePreStartQuizAnswer,
     checkAnswer,
     handleWrongAnswer,
     goToNextQuestion,
@@ -470,6 +476,18 @@ export default function GamePage() {
         )}
 
         {/* 카운트다운 */}
+        {shouldShowPreStartQuiz && (
+          <PreStartQuizGate
+            question={preStartQuizQuestion}
+            submittedCount={preStartSubmittedCount}
+            total={preStartQuizTotal}
+            onAnswer={handlePreStartQuizAnswer}
+            questionsLoading={questionsLoading}
+            questionsError={questionsError}
+            variant="goldQuest"
+          />
+        )}
+
         {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
 
         {/* 게임 화면 */}

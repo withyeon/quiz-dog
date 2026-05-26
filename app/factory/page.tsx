@@ -12,6 +12,7 @@ import QuizView from '@/components/QuizView'
 import ConvenienceStore from '@/components/ConvenienceStore'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import ScreenFlash from '@/components/ScreenFlash'
 import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
@@ -31,7 +32,9 @@ type Player = Database['public']['Tables']['players']['Row'] & {
   convenience_money?: number
 }
 
-type FactoryView = 'lobby' | 'countdown' | 'quiz' | 'wrong' | 'result' | 'selection'
+type FactoryView = 'lobby' | 'prestartQuiz' | 'countdown' | 'quiz' | 'wrong' | 'result' | 'selection'
+
+const PRE_START_QUIZ_TOTAL = 3
 
 export default function FactoryPage() {
   const router = useRouter()
@@ -47,12 +50,18 @@ export default function FactoryPage() {
   const [money, setMoney] = useState(0)
   const [isQuizMode, setIsQuizMode] = useState(false)
   const [questions, setQuestions] = useState<GameQuestion[]>([])
+  const [questionsLoading, setQuestionsLoading] = useState(false)
+  const [questionsError, setQuestionsError] = useState<string | null>(null)
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0) // Blooket: 3문제마다 유닛 획득
   const [showOrderModal, setShowOrderModal] = useState(false) // 정답 3개마다 발주 모달
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null) // 제한 시간 남은 초
   const [lastAnswerSpeed, setLastAnswerSpeed] = useState<'fast' | 'normal' | 'slow'>('normal') // 마지막 정답 속도
   const [speedBonusDisplay, setSpeedBonusDisplay] = useState<number | null>(null) // 속도 보너스 표시용
   const [wrongPenalty, setWrongPenalty] = useState<number | null>(null) // 오답 패널티 표시
+  const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
+  const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
+  const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
+  const [localGameStartedAt, setLocalGameStartedAt] = useState<number | null>(null)
 
   const questionStartTime = useRef<number>(0)
   const autoFinishRequestedRef = useRef(false)
@@ -118,12 +127,18 @@ export default function FactoryPage() {
     const setId = room.set_id
 
     const fetchQuestions = async () => {
+      setQuestionsLoading(true)
+      setQuestionsError(null)
       try {
         const loadedQuestions = await listQuestionsForGame(setId, { shuffle: true })
         setQuestions(loadedQuestions)
       } catch (error) {
         const msg = formatServiceError(error)
         console.error('Error fetching questions:', msg, error)
+        setQuestions([])
+        setQuestionsError(msg)
+      } finally {
+        setQuestionsLoading(false)
       }
     }
 
@@ -132,6 +147,8 @@ export default function FactoryPage() {
 
   // 무한 반복: 인덱스는 나머지로 사용, 다음 문제는 랜덤 선택
   const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
+  const preStartQuizQuestion = questions.length > 0 ? questions[preStartQuestionIndex % questions.length] : null
+  const isPreStartQuizComplete = preStartSubmittedCount >= PRE_START_QUIZ_TOTAL
 
   // 저장된 데이터 불러오기
   useEffect(() => {
@@ -150,21 +167,62 @@ export default function FactoryPage() {
     if (room && room.status === 'playing') {
       // 게임이 시작되면 로비에서 카운트다운으로 이동
       if (currentView === 'lobby') {
-        setShowCountdown(true)
-        setCurrentView('countdown')
+        if (isPreStartQuizComplete) {
+          setShowCountdown(true)
+          setCurrentView('countdown')
+        } else {
+          setShowCountdown(false)
+          setCurrentView('prestartQuiz')
+        }
         playBGM('game')
       }
     } else if (room && room.status === 'waiting' && currentView !== 'lobby') {
       setCurrentView('lobby')
       setShowCountdown(false)
+      setPreStartSubmittedCount(0)
+      setPreStartQuestionIndex(0)
+      setIsPreStartAnswerLocked(false)
+      setLocalGameStartedAt(null)
     }
-  }, [room, currentView, playBGM])
+  }, [currentView, isPreStartQuizComplete, playBGM, room])
 
   // 카운트다운 완료 후 퀴즈 시작
   const handleCountdownComplete = () => {
     setShowCountdown(false)
     setCurrentView('quiz')
+    setLocalGameStartedAt(Date.now())
     questionStartTime.current = Date.now()
+  }
+
+  const handlePreStartQuizAnswer = async (answer: string) => {
+    if (!preStartQuizQuestion || isPreStartAnswerLocked || isPreStartQuizComplete) return false
+
+    setIsPreStartAnswerLocked(true)
+    const submittedAnswer = String(answer).trim()
+    let correct = false
+
+    if (submittedAnswer !== '') {
+      try {
+        correct = await checkQuestionAnswer(preStartQuizQuestion.id, submittedAnswer)
+      } catch (err) {
+        console.error('Error checking pre-start answer on server:', err)
+        correct = false
+      }
+    }
+
+    const nextCount = Math.min(PRE_START_QUIZ_TOTAL, preStartSubmittedCount + 1)
+    window.setTimeout(() => {
+      setPreStartSubmittedCount(nextCount)
+      setPreStartQuestionIndex((prev) => prev + 1)
+      setIsPreStartAnswerLocked(false)
+
+      if (nextCount >= PRE_START_QUIZ_TOTAL) {
+        setShowCountdown(true)
+        setCurrentView('countdown')
+      }
+    }, 650)
+
+    return correct
   }
 
   // 돈 변경 핸들러
@@ -305,13 +363,17 @@ export default function FactoryPage() {
   const startedAt = (room as { started_at?: string | null } | null)?.started_at ?? null
 
   useEffect(() => {
-    if (room?.status !== 'playing' || durationSeconds == null || !startedAt) {
+    const fallbackStartedAt = currentView !== 'prestartQuiz' && currentView !== 'countdown' && startedAt
+      ? new Date(startedAt).getTime()
+      : null
+    const timerStartMs = localGameStartedAt ?? fallbackStartedAt
+
+    if (room?.status !== 'playing' || durationSeconds == null || !timerStartMs) {
       setRemainingSeconds(null)
       return
     }
-    const started = new Date(startedAt).getTime()
     const tick = () => {
-      const elapsed = (Date.now() - started) / 1000
+      const elapsed = (Date.now() - timerStartMs) / 1000
       const remaining = Math.max(0, Math.ceil(durationSeconds - elapsed))
       setRemainingSeconds(remaining)
       if (remaining <= 0 && isRoomHost && !autoFinishRequestedRef.current) {
@@ -337,7 +399,7 @@ export default function FactoryPage() {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [durationSeconds, isRoomHost, playerId, room?.status, roomCode, sendRoomEvent, startedAt])
+  }, [currentView, durationSeconds, isRoomHost, localGameStartedAt, playerId, room?.status, roomCode, sendRoomEvent, startedAt])
 
   // 게임 종료 감지
   useEffect(() => {
@@ -445,6 +507,17 @@ export default function FactoryPage() {
         {/* 메인 컨텐츠 */}
         <div className="max-w-[1600px] mx-auto">
           {/* 카운트다운 */}
+          {currentView === 'prestartQuiz' && (
+            <PreStartQuizGate
+              question={preStartQuizQuestion}
+              submittedCount={preStartSubmittedCount}
+              total={PRE_START_QUIZ_TOTAL}
+              onAnswer={handlePreStartQuizAnswer}
+              questionsLoading={questionsLoading}
+              questionsError={questionsError}
+            />
+          )}
+
           {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
 
           {/* 로비 */}
@@ -455,7 +528,7 @@ export default function FactoryPage() {
               className="bg-white/90 backdrop-blur-sm rounded-xl p-8 shadow-lg text-center"
             >
               <h2 className="text-3xl font-bold mb-4">🏪 전설의 편의점</h2>
-              <p className="text-gray-600">3문제마다 상품을 받고, 10칸을 채운 뒤 더 좋은 상품으로 교체하세요!</p>
+              <p className="text-gray-600">3문제마다 상품을 받고, 9칸을 채운 뒤 더 좋은 상품으로 교체하세요!</p>
               <p className="text-sm text-gray-500 mt-2">선생님이 게임을 시작할 때까지 기다려주세요.</p>
             </motion.div>
           )}

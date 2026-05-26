@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useMafiaStore } from '@/store/mafiaStore'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import MafiaView from '@/components/MafiaView'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
@@ -26,6 +27,14 @@ export default function MafiaPage() {
     room,
     roomLoading,
     playersLoading,
+    questionsLoading,
+    questionsError,
+    preStartQuizQuestion,
+    preStartSubmittedCount,
+    preStartQuizTotal,
+    shouldShowPreStartQuiz,
+    isPreStartQuizComplete,
+    handlePreStartQuizAnswer,
     playBGM,
     playSFX,
   } = useGameBase({ expectedGameMode: 'mafia' })
@@ -41,23 +50,23 @@ export default function MafiaPage() {
 
   // room 상태가 'playing'이 되면 자동으로 게임 시작
   useEffect(() => {
-    if (room?.status === 'playing' && currentView === 'lobby' && status !== 'playing') {
+    if (room?.status === 'playing' && currentView === 'lobby' && status !== 'playing' && isPreStartQuizComplete) {
       actions.startGame(selectedDuration)
       setCurrentView('playing')
     } else if (room?.status === 'waiting' && currentView !== 'lobby') {
       actions.resetGame()
       setCurrentView('lobby')
     }
-  }, [room?.status, currentView, status, actions, selectedDuration, setCurrentView])
+  }, [isPreStartQuizComplete, room?.status, currentView, status, actions, selectedDuration, setCurrentView])
 
   // 게임 상태 동기화
   useEffect(() => {
-    if (status === 'playing' && currentView !== 'playing') {
+    if (status === 'playing' && currentView !== 'playing' && isPreStartQuizComplete) {
       setCurrentView('playing')
     } else if (status === 'ended' && currentView !== 'result') {
       setCurrentView('result')
     }
-  }, [status, currentView, setCurrentView])
+  }, [isPreStartQuizComplete, status, currentView, setCurrentView])
 
   const handleStartGame = () => {
     actions.startGame(selectedDuration)
@@ -80,6 +89,16 @@ export default function MafiaPage() {
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       <AnimatedBackground />
+      {shouldShowPreStartQuiz && (
+        <PreStartQuizGate
+          question={preStartQuizQuestion}
+          submittedCount={preStartSubmittedCount}
+          total={preStartQuizTotal}
+          onAnswer={handlePreStartQuizAnswer}
+          questionsLoading={questionsLoading}
+          questionsError={questionsError}
+        />
+      )}
 
       <AnimatePresence mode="wait">
         {currentView === 'lobby' && (

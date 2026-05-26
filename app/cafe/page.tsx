@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useCafeStore } from '@/store/cafeStore'
 import CafeView from '@/components/CafeView'
 import AttackAlert from '@/components/cafe/AttackAlert'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trophy, Clock, Coins, Users } from 'lucide-react'
@@ -27,7 +28,15 @@ export default function CafePage() {
     players,
     currentPlayer,
     currentQuestion,
+    questionsLoading,
+    questionsError,
+    preStartQuizQuestion,
+    preStartSubmittedCount,
+    preStartQuizTotal,
+    shouldShowPreStartQuiz,
+    isPreStartQuizComplete,
     checkAnswer,
+    handlePreStartQuizAnswer,
     goToNextQuestion,
     consecutiveCorrect,
     sendRoomEvent,
@@ -58,6 +67,7 @@ export default function CafePage() {
   // room 상태가 'playing'이 되면 자동으로 게임 시작
   useEffect(() => {
     if (room?.status === 'playing') {
+      if (!isPreStartQuizComplete) return
       if (status !== 'playing' && status !== 'ended') {
         startGame(selectedDuration)
       }
@@ -70,16 +80,16 @@ export default function CafePage() {
       resetGame()
       setCurrentView('lobby')
     }
-  }, [room?.status, currentView, status, startGame, resetGame, selectedDuration, setCurrentView])
+  }, [isPreStartQuizComplete, room?.status, currentView, status, startGame, resetGame, selectedDuration, setCurrentView])
 
   // 게임 상태 동기화
   useEffect(() => {
-    if (status === 'playing' && currentView !== 'playing') {
+    if (status === 'playing' && currentView !== 'playing' && isPreStartQuizComplete) {
       setCurrentView('playing')
     } else if (status === 'ended' && currentView !== 'result') {
       setCurrentView('result')
     }
-  }, [status, currentView, setCurrentView])
+  }, [isPreStartQuizComplete, status, currentView, setCurrentView])
 
   useEffect(() => {
     return () => {
@@ -162,6 +172,16 @@ export default function CafePage() {
   return (
     <div className="cafe-ambient min-h-screen relative overflow-hidden font-bitbit">
       <AttackAlert attack={incomingAttack} />
+      {shouldShowPreStartQuiz && (
+        <PreStartQuizGate
+          question={preStartQuizQuestion}
+          submittedCount={preStartSubmittedCount}
+          total={preStartQuizTotal}
+          onAnswer={handlePreStartQuizAnswer}
+          questionsLoading={questionsLoading}
+          questionsError={questionsError}
+        />
+      )}
 
       <AnimatePresence mode="wait">
         {currentView === 'lobby' && (

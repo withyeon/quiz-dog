@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useZombieStore } from '@/store/zombieStore'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import ZombieView from '@/components/ZombieView'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
@@ -17,26 +18,37 @@ export default function ZombiePage() {
   const router = useRouter()
   const {
     roomCode, playerId, currentView, setCurrentView,
-    room, roomLoading, playersLoading, playBGM, playSFX,
+    room, roomLoading, playersLoading,
+    questionsLoading, questionsError,
+    preStartQuizQuestion, preStartSubmittedCount, preStartQuizTotal,
+    shouldShowPreStartQuiz, isPreStartQuizComplete,
+    handlePreStartQuizAnswer,
+    playBGM, playSFX,
   } = useGameBase({ expectedGameMode: 'zombie' })
 
   const { status, players, winner, winReason, actions, playerCount } = useZombieStore()
 
   // Room state sync
   useEffect(() => {
-    if (room?.status === 'playing' && currentView === 'lobby' && status !== 'playing' && status !== 'role_reveal') {
+    if (
+      room?.status === 'playing'
+      && currentView === 'lobby'
+      && status !== 'playing'
+      && status !== 'role_reveal'
+      && isPreStartQuizComplete
+    ) {
       actions.startGame()
       setCurrentView('playing')
     } else if (room?.status === 'waiting' && currentView !== 'lobby') {
       actions.resetGame()
       setCurrentView('lobby')
     }
-  }, [room?.status, currentView, status, actions, setCurrentView])
+  }, [isPreStartQuizComplete, room?.status, currentView, status, actions, setCurrentView])
 
   useEffect(() => {
-    if (status === 'playing' && currentView !== 'playing') setCurrentView('playing')
+    if (status === 'playing' && currentView !== 'playing' && isPreStartQuizComplete) setCurrentView('playing')
     else if (status === 'ended' && currentView !== 'result') setCurrentView('result')
-  }, [status, currentView, setCurrentView])
+  }, [isPreStartQuizComplete, status, currentView, setCurrentView])
 
   const handleStartGame = () => {
     actions.startGame()
@@ -73,6 +85,16 @@ export default function ZombiePage() {
       }}
     >
       <AnimatedBackground />
+      {shouldShowPreStartQuiz && (
+        <PreStartQuizGate
+          question={preStartQuizQuestion}
+          submittedCount={preStartSubmittedCount}
+          total={preStartQuizTotal}
+          onAnswer={handlePreStartQuizAnswer}
+          questionsLoading={questionsLoading}
+          questionsError={questionsError}
+        />
+      )}
 
       <AnimatePresence mode="wait">
         {/* ── LOBBY ── */}

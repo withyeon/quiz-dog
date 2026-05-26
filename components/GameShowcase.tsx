@@ -99,7 +99,7 @@ const games: GameData[] = [
         tagColor: 'rgba(107,114,128,0.15)',
     },
     {
-        name: 'Don\'t Look Down',
+        name: '점프점프',
         emoji: '⛰️',
         videoSrc: '/videos/dontlookdown.mp4',
         imageSrc: '/title/jump_jump.svg',

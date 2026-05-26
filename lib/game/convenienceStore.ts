@@ -11,7 +11,9 @@ export interface Product {
   emoji: string // 하위 호환성
   image: string // 상품 이미지 경로
   tier: ProductTier
-  income: number // 초당 수익
+  income: number // 수익 주기마다 받는 돈
+  incomeSeconds?: number // 몇 초마다 수익을 받는지 (기존 저장 데이터는 1초로 처리)
+  orderSeconds: number // 발주 후 입고까지 걸리는 시간 (초)
   color: string // 카드 배경색
   borderColor: string
   category: ProductCategory // 상품 카테고리 (시너지용)
@@ -34,29 +36,29 @@ export function formatMoney(value: number): string {
 }
 
 export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
-  // 일반 (Common) - 50%  — 수익 30~50원/초
-  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.svg', tier: '일반', income: 30, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
-  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.svg', tier: '일반', income: 40, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
-  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.svg', tier: '일반', income: 40, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
-  { baseId: 'p4', name: '초코바', emoji: '🍫', image: '/store/chocolate.svg', tier: '일반', income: 50, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
+  // 일반 (Common) - 50%
+  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.svg', tier: '일반', income: 100, incomeSeconds: 2, orderSeconds: 2, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
+  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.svg', tier: '일반', income: 180, incomeSeconds: 2, orderSeconds: 2, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
+  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.svg', tier: '일반', income: 250, incomeSeconds: 3, orderSeconds: 2, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
+  { baseId: 'p4', name: '초콜릿', emoji: '🍫', image: '/store/chocolate.svg', tier: '일반', income: 500, incomeSeconds: 3, orderSeconds: 3, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
 
-  // 희귀 (Rare) - 30%  — 수익 80~120원/초
-  { baseId: 'p5', name: '뚱바나나우유', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 80, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
-  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.svg', tier: '희귀', income: 120, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
-  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.svg', tier: '희귀', income: 100, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
+  // 희귀 (Rare) - 30%
+  { baseId: 'p5', name: '음료수', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 300, incomeSeconds: 2, orderSeconds: 3, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
+  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.svg', tier: '희귀', income: 700, incomeSeconds: 4, orderSeconds: 4, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
+  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.svg', tier: '희귀', income: 900, incomeSeconds: 5, orderSeconds: 4, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
 
-  // 영웅 (Epic) - 15%  — 수익 300~400원/초
-  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.svg', tier: '영웅', income: 300, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
-  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.svg', tier: '영웅', income: 400, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
-  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.svg', tier: '영웅', income: 350, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
+  // 영웅 (Epic) - 15%
+  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.svg', tier: '영웅', income: 900, incomeSeconds: 4, orderSeconds: 6, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
+  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.svg', tier: '영웅', income: 1200, incomeSeconds: 5, orderSeconds: 7, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
+  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.svg', tier: '영웅', income: 1500, incomeSeconds: 6, orderSeconds: 7, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
 
-  // 전설 (Legendary) - 5%  — 수익 800~1200원/초
-  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.svg', tier: '전설', income: 800, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
-  { baseId: 'p12', name: '캐릭터 빵', emoji: '🍞', image: '/store/character_bread.svg', tier: '전설', income: 1000, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
-  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.svg', tier: '전설', income: 1200, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
+  // 전설 (Legendary) - 5%
+  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.svg', tier: '전설', income: 2500, incomeSeconds: 8, orderSeconds: 10, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
+  { baseId: 'p12', name: '식빵', emoji: '🍞', image: '/store/character_bread.svg', tier: '전설', income: 1000, incomeSeconds: 1, orderSeconds: 10, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
+  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.svg', tier: '전설', income: 3000, incomeSeconds: 10, orderSeconds: 12, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
 ]
 
-export const GRID_SIZE = 10 // Factory 스타일: 10칸 생산/진열 슬롯
+export const GRID_SIZE = 9 // Factory 스타일: 3x3 생산/진열 슬롯
 
 // 고객 타입
 export type CustomerType = 'normal' | 'vip' | 'bulk'
@@ -150,7 +152,7 @@ export function generateProductOptions(
     // 일반 = 100 - 2 - 8 - 30 = 60%
   }
 
-  // 10칸을 모두 채운 뒤에는 Blooket Factory처럼 교체 전략이 시작되도록 고등급 비중 증가
+  // 9칸을 모두 채운 뒤에는 Blooket Factory처럼 교체 전략이 시작되도록 고등급 비중 증가
   if (shelfIsFull) {
     legendChance += 6
     epicChance += 10
@@ -214,11 +216,38 @@ export function calculateProductIncome(product: Product, products: Product[]): n
   return roundMoney(baseIncome * categoryMultiplier)
 }
 
+export function getProductIncomeSeconds(product: Product): number {
+  return Math.max(1, Math.round(product.incomeSeconds ?? 1))
+}
+
+export function formatProductIncomeRate(product: Product, products?: Product[]): string {
+  const income = products ? calculateProductIncome(product, products) : product.income
+  return `+${formatMoney(income)}/${getProductIncomeSeconds(product)}초`
+}
+
+export function shouldProductPayOnTick(product: Product, tick: number): boolean {
+  return tick > 0 && tick % getProductIncomeSeconds(product) === 0
+}
+
+export function calculateProductIncomePerSecond(product: Product, products: Product[]): number {
+  return calculateProductIncome(product, products) / getProductIncomeSeconds(product)
+}
+
 /**
- * 총 초당 수익 계산 (시너지 포함)
+ * 평균 초당 수익 계산 (시너지와 수익 주기 포함)
  */
 export function calculateTotalCPS(products: Product[]): number {
   return products.reduce((total, product) => {
+    return total + calculateProductIncomePerSecond(product, products)
+  }, 0)
+}
+
+/**
+ * 현재 1초 틱에 실제로 지급되는 수익 계산
+ */
+export function calculateTickIncome(products: Product[], tick: number): number {
+  return products.reduce((total, product) => {
+    if (!shouldProductPayOnTick(product, tick)) return total
     return total + calculateProductIncome(product, products)
   }, 0)
 }

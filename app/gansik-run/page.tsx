@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import GansikRunGame from '@/components/간식런Game'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Clock, Target, Package } from 'lucide-react'
@@ -31,6 +32,10 @@ export default function GansikRunPage() {
   const {
     roomCode, playerId, currentView, setCurrentView,
     room, roomLoading, playBGM, playSFX, questions: serverQuestions,
+    questionsLoading, questionsError,
+    preStartQuizQuestion, preStartSubmittedCount, preStartQuizTotal,
+    shouldShowPreStartQuiz, isPreStartQuizComplete,
+    handlePreStartQuizAnswer,
     players, currentPlayer, commitPlayerPatch, sendRoomEvent,
   } = useGameBase({ expectedGameMode: 'treat_rush' })
 
@@ -43,12 +48,12 @@ export default function GansikRunPage() {
 
   // Room sync
   useEffect(() => {
-    if (room?.status === 'playing' && pageView === 'lobby') {
+    if (room?.status === 'playing' && pageView === 'lobby' && isPreStartQuizComplete) {
       setPageView('playing')
     } else if (room?.status === 'waiting' && pageView !== 'lobby') {
       setPageView('lobby')
     }
-  }, [room?.status, pageView])
+  }, [isPreStartQuizComplete, room?.status, pageView])
 
   const handleStart = () => setPageView('playing')
 
@@ -150,6 +155,17 @@ export default function GansikRunPage() {
           }} />
         ))}
       </div>
+
+      {shouldShowPreStartQuiz && (
+        <PreStartQuizGate
+          question={preStartQuizQuestion}
+          submittedCount={preStartSubmittedCount}
+          total={preStartQuizTotal}
+          onAnswer={handlePreStartQuizAnswer}
+          questionsLoading={questionsLoading}
+          questionsError={questionsError}
+        />
+      )}
 
       <AnimatePresence mode="wait">
         {/* ── LOBBY ── */}

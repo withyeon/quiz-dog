@@ -240,9 +240,9 @@ export function getAimGrade(accuracy: number): AimGrade {
 
 export function getAimGradeLabel(grade: AimGrade): string {
   const labels: Record<AimGrade, string> = {
-    perfect: '정중앙',
-    great: '좋은 조준',
-    good: '안정 조준',
+    perfect: '훌륭함',
+    great: '좋음',
+    good: '보통',
     safe: '아슬아슬',
   }
   return labels[grade]
@@ -424,11 +424,11 @@ export function getMachineRankProgress(correctAnswers: number): {
  */
 export function getMachineRankName(rank: MachineRank): string {
   const names = {
-    1: '스탠다드 크레인',
-    2: '집중 크레인',
-    3: '정밀 크레인',
-    4: '프리미엄 크레인',
-    5: '마스터 크레인',
+    1: '기본 집게',
+    2: '집중 집게',
+    3: '초집중 집게',
+    4: '고급 집게',
+    5: '황금 집게',
   }
   return names[rank]
 }

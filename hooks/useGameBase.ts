@@ -32,6 +32,8 @@ export type AnswerRecord = {
 
 export { getGameModeUrl }
 
+export const DEFAULT_PRE_START_QUIZ_TOTAL = 3
+
 interface UseGameBaseOptions {
     /** 이 게임 페이지가 어떤 게임 모드인지 (리다이렉트용) */
     expectedGameMode: string
@@ -39,6 +41,8 @@ interface UseGameBaseOptions {
     wrongAnswerDelay?: number
     /** 퀴즈 제한 시간 (초). 기본값: 30 */
     timeLimit?: number
+    /** 게임 시작 전 제출해야 하는 문제 수. 기본값: 3 */
+    preStartQuizTotal?: number
 }
 
 /**
@@ -55,7 +59,13 @@ interface UseGameBaseOptions {
  * - 정답/오답 기록 (answerHistory)
  */
 export function useGameBase(options: UseGameBaseOptions) {
-    const { expectedGameMode, wrongAnswerDelay = 2000, timeLimit = 30 } = options
+    const {
+        expectedGameMode,
+        wrongAnswerDelay = 2000,
+        timeLimit = 30,
+        preStartQuizTotal = DEFAULT_PRE_START_QUIZ_TOTAL,
+    } = options
+    const requiredPreStartQuizCount = Math.max(0, preStartQuizTotal)
     const router = useRouter()
 
     // ─── 핵심 상태 ───
@@ -72,6 +82,9 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [questionsLoading, setQuestionsLoading] = useState(false)
     const [questionsError, setQuestionsError] = useState<string | null>(null)
     const [isAnswerLocked, setIsAnswerLocked] = useState(false) // 중복 제출 방지
+    const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
+    const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
+    const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
 
     const questionStartTime = useRef<number>(Date.now())
     const [hasRestoredData, setHasRestoredData] = useState(false)
@@ -131,6 +144,16 @@ export function useGameBase(options: UseGameBaseOptions) {
     const currentQuestion = questions.length > 0
         ? questions[currentQuestionIndex % questions.length]
         : null
+    const preStartQuizQuestion = questions.length > 0
+        ? questions[preStartQuestionIndex % questions.length]
+        : null
+    const preStartQuizSessionKey = useMemo(() => {
+        if (!roomCode || !playerId || !room?.started_at) return null
+        return `pre_start_quiz_${expectedGameMode}_${roomCode}_${playerId}_${room.started_at}`
+    }, [expectedGameMode, playerId, room?.started_at, roomCode])
+    const isPreStartQuizComplete = requiredPreStartQuizCount === 0
+        || preStartSubmittedCount >= requiredPreStartQuizCount
+    const shouldShowPreStartQuiz = roomStatus === 'playing' && !isPreStartQuizComplete
     const isRoomHost = useMemo(
         () => isRoomHostPlayer(playerId, players, presence),
         [playerId, players, presence],
@@ -215,11 +238,60 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
     }, [room?.set_id])
 
+    // ─── 게임 시작 전 3문제 제출 게이트 ───
+    useEffect(() => {
+        if (requiredPreStartQuizCount === 0) {
+            setPreStartSubmittedCount(0)
+            setPreStartQuestionIndex(0)
+            setIsPreStartAnswerLocked(false)
+            return
+        }
+
+        if (roomStatus === 'waiting') {
+            setPreStartSubmittedCount(0)
+            setPreStartQuestionIndex(0)
+            setIsPreStartAnswerLocked(false)
+            return
+        }
+
+        if (roomStatus !== 'playing' || !preStartQuizSessionKey || typeof window === 'undefined') return
+
+        const savedCount = Number(window.sessionStorage.getItem(preStartQuizSessionKey) ?? '0')
+        const restoredCount = Number.isFinite(savedCount)
+            ? Math.min(requiredPreStartQuizCount, Math.max(0, savedCount))
+            : 0
+
+        setPreStartSubmittedCount(restoredCount)
+        setPreStartQuestionIndex(restoredCount)
+        setIsPreStartAnswerLocked(false)
+    }, [preStartQuizSessionKey, requiredPreStartQuizCount, roomStatus])
+
+    useEffect(() => {
+        if (
+            requiredPreStartQuizCount === 0
+            || roomStatus !== 'playing'
+            || !preStartQuizSessionKey
+            || typeof window === 'undefined'
+        ) {
+            return
+        }
+
+        window.sessionStorage.setItem(
+            preStartQuizSessionKey,
+            String(Math.min(preStartSubmittedCount, requiredPreStartQuizCount)),
+        )
+    }, [preStartQuizSessionKey, preStartSubmittedCount, requiredPreStartQuizCount, roomStatus])
+
     // ─── 게임 상태 전환 (waiting → playing → finished) ───
     useEffect(() => {
         if (!room) return
 
         if (roomStatus === 'playing') {
+            if (!isPreStartQuizComplete) {
+                if (showCountdown) setShowCountdown(false)
+                return
+            }
+
             if (currentView === 'lobby' && !showCountdown) {
                 // 새로고침 복구: 인덱스 남아있으면 카운트다운 건너뛰기
                 const savedIndex = roomCode ? sessionStorage.getItem(`quiz_index_${roomCode}`) : null
@@ -245,7 +317,7 @@ export function useGameBase(options: UseGameBaseOptions) {
                 playBGM('result')
             }
         }
-    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room, playerId, router])
+    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room, playerId, router, isPreStartQuizComplete])
 
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {
@@ -341,6 +413,62 @@ export function useGameBase(options: UseGameBaseOptions) {
         }, wrongAnswerDelay)
     }, [wrongAnswerDelay, goToNextQuestion])
 
+    // ─── 시작 전 퀴즈: 정답 보상 없이 제출 수만 카운트 ───
+    const handlePreStartQuizAnswer = useCallback(async (answer: string): Promise<boolean> => {
+        if (
+            !preStartQuizQuestion
+            || isPreStartAnswerLocked
+            || isPreStartQuizComplete
+            || roomStatus !== 'playing'
+        ) {
+            return false
+        }
+
+        setIsPreStartAnswerLocked(true)
+
+        const submittedAnswer = String(answer).trim()
+        let correct = false
+
+        if (submittedAnswer !== '') {
+            try {
+                correct = await checkQuestionAnswer(preStartQuizQuestion.id, submittedAnswer)
+            } catch (err) {
+                console.error('시작 전 퀴즈 채점 오류, 오답 처리함:', formatServiceError(err), err)
+                correct = false
+            }
+        }
+
+        const recordedQuestionIndex = questions.length > 0
+            ? preStartQuestionIndex % questions.length
+            : preStartQuestionIndex
+
+        setAnswerHistory((prev) => [
+            ...prev,
+            {
+                questionIndex: recordedQuestionIndex,
+                isCorrect: correct,
+                selectedAnswer: submittedAnswer,
+            },
+        ])
+
+        window.setTimeout(() => {
+            setPreStartSubmittedCount((prev) => Math.min(requiredPreStartQuizCount, prev + 1))
+            setPreStartQuestionIndex((prev) => prev + 1)
+            setIsPreStartAnswerLocked(false)
+            questionStartTime.current = Date.now()
+        }, 650)
+
+        return correct
+    }, [
+        isPreStartAnswerLocked,
+        isPreStartQuizComplete,
+        preStartQuestionIndex,
+        preStartQuizQuestion,
+        questions.length,
+        requiredPreStartQuizCount,
+        roomStatus,
+    ])
+
     // ─── 게임 종료 (모든 문제 풀었을 때) ───
     const finishGame = useCallback(async (): Promise<boolean> => {
         if (!roomCode || !room || room.status === 'finished') return false
@@ -387,6 +515,12 @@ export function useGameBase(options: UseGameBaseOptions) {
         questionsLoading,
         questionsError,
         isAnswerLocked,
+        preStartQuizQuestion,
+        preStartSubmittedCount,
+        preStartQuizTotal: requiredPreStartQuizCount,
+        isPreStartQuizComplete,
+        shouldShowPreStartQuiz,
+        isPreStartAnswerLocked,
 
         // 실시간 데이터
         players,
@@ -406,6 +540,7 @@ export function useGameBase(options: UseGameBaseOptions) {
 
         // 함수
         checkAnswer,
+        handlePreStartQuizAnswer,
         goToNextQuestion,
         handleWrongAnswer,
         handleCountdownComplete,

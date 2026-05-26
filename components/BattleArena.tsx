@@ -11,7 +11,6 @@ import {
   Shield,
   Snowflake,
   Thermometer,
-  Trophy,
   Users,
   Zap,
   type LucideIcon,
@@ -118,7 +117,7 @@ export default function BattleArena({
   const aliveCount = sortedPlayers.filter((player) => (player.health ?? 100) > 0).length
 
   return (
-    <section className="battle-ink-panel battle-snowline overflow-hidden p-4 text-white sm:p-5">
+    <section className="battle-sky-panel battle-snowline overflow-hidden p-4 text-slate-800 sm:p-5">
       <div className="pointer-events-none absolute inset-0 opacity-40">
         {DRIFTING_SNOW.map((flake) => (
           <motion.span
@@ -147,12 +146,12 @@ export default function BattleArena({
 
       <div className="relative z-10 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/10 px-3 py-1 text-xs font-black text-cyan-50">
+          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/70 px-3 py-1 text-xs font-black text-sky-800">
             <Users className="h-3.5 w-3.5" />
             {aliveCount}명 생존
           </div>
-          <h2 className="flex items-center gap-2 text-2xl font-black tracking-normal text-white">
-            <Trophy className="h-6 w-6 text-amber-200" />
+          <h2 className="flex items-center gap-2 text-2xl font-black tracking-normal text-slate-900">
+            <Image src="/trophy.svg" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
             생존자 현황판
           </h2>
         </div>
@@ -160,7 +159,7 @@ export default function BattleArena({
         <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-black ${
           canAttack
             ? 'battle-status-ready text-white battle-pulse'
-            : 'border border-white/[0.12] bg-white/10 text-cyan-50'
+            : 'border border-sky-200 bg-white/70 text-sky-800'
         }`}>
           <Crosshair className="h-4 w-4" />
           {lockedTarget ? '타깃 조준 완료' : canAttack ? '타깃 선택 가능' : '관전 모드'}
@@ -235,10 +234,10 @@ export default function BattleArena({
                         ? 'border-rose-300/70 bg-rose-500/[0.10] hover:border-rose-200 hover:bg-rose-500/[0.20]'
                         : player.team === 'blue'
                           ? 'border-sky-300/70 bg-sky-500/[0.10] hover:border-sky-200 hover:bg-sky-500/[0.20]'
-                          : 'border-white/30 bg-white/[0.16] hover:border-cyan-100 hover:bg-white/[0.22]'
+                          : 'border-sky-200 bg-white/70 hover:border-sky-300 hover:bg-white/85'
                       : isAlive
-                        ? 'border-white/[0.12] bg-white/10'
-                        : 'border-white/[0.08] bg-white/[0.06] grayscale'
+                        ? 'border-sky-200 bg-white/60'
+                        : 'border-slate-200 bg-white/40 grayscale'
                 } ${isAttacked ? 'ring-2 ring-sky-300/80' : ''} ${isDangerous ? 'border-red-300' : ''}`}
               >
                 {isLocked && (
@@ -255,7 +254,7 @@ export default function BattleArena({
 
                 <div className="flex h-full flex-col items-center justify-between gap-3 text-center">
                   <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-sm font-black ${getRankTone(index, isAlive)}`}>
-                    {isAlive ? index + 1 : 'OUT'}
+                    {isAlive ? index + 1 : '탈락'}
                   </div>
 
                   <PlayerAvatar
@@ -280,17 +279,17 @@ export default function BattleArena({
                         </span>
                       )}
                       <span className={`max-w-full truncate text-base font-black ${
-                        isCurrentPlayer ? 'text-sky-100' : 'text-white'
+                        isCurrentPlayer ? 'text-sky-800' : 'text-slate-900'
                       }`}>
                         {player.nickname}
                       </span>
                       {isCurrentPlayer && (
-                        <span className="rounded-full border border-sky-200/40 bg-sky-100/[0.18] px-2 py-0.5 text-[10px] font-black text-sky-100">
-                          ME
+                        <span className="rounded-full border border-sky-300 bg-sky-100 px-2 py-0.5 text-[10px] font-black text-sky-800">
+                          나
                         </span>
                       )}
                       {isTeammate && isAlive && (
-                        <span className="rounded-full bg-emerald-300/30 px-2 py-0.5 text-[10px] font-black text-emerald-100">
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">
                           아군
                         </span>
                       )}
@@ -304,7 +303,7 @@ export default function BattleArena({
                         <motion.span
                           initial={{ scale: 0, rotate: -20 }}
                           animate={{ scale: [0, 1.1, 1], rotate: [-20, 8, 0] }}
-                          className="inline-flex items-center text-cyan-100"
+                          className="inline-flex items-center text-sky-600"
                         >
                           <Snowflake className="h-4 w-4" />
                         </motion.span>
@@ -318,14 +317,14 @@ export default function BattleArena({
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <Thermometer className="h-4 w-4 shrink-0 text-cyan-100/70" />
-                      <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-slate-950/[0.36]">
+                      <Thermometer className="h-4 w-4 shrink-0 text-sky-700" />
+                      <div className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-sky-200">
                         <div
                           className="h-full rounded-full transition-all duration-700"
                           style={{ width: `${healthPercent}%`, backgroundColor: hpColor }}
                         />
                       </div>
-                      <span className="w-20 text-right text-xs font-black tabular-nums text-cyan-50">
+                      <span className="w-20 text-right text-xs font-black tabular-nums text-slate-700">
                         {Math.round(health)}° / {maxHealth}°
                       </span>
                     </div>
@@ -348,12 +347,12 @@ export default function BattleArena({
                   </div>
 
                   <div className="w-full shrink-0 text-center">
-                    <div className="flex items-center justify-center gap-1 text-sm font-black text-white">
-                      <Medal className="h-4 w-4 text-amber-200" />
+                    <div className="flex items-center justify-center gap-1 text-sm font-black text-slate-800">
+                      <Medal className="h-4 w-4 text-amber-500" />
                       {player.score ?? 0}
                     </div>
                     <div className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
-                      isAlive ? 'bg-emerald-300/[0.18] text-emerald-100' : 'bg-slate-200/[0.14] text-slate-300'
+                      isAlive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
                     }`}>
                       {isAlive && <BadgeCheck className="h-3 w-3" />}
                       {isAlive ? '생존' : '탈락'}
@@ -372,8 +371,8 @@ export default function BattleArena({
       </div>
 
       <div className="relative z-10 mt-4 flex justify-center">
-        <div className="rounded-full border border-white/[0.12] bg-white/10 px-3 py-1.5 text-sm font-black text-cyan-50">
-          {aliveCount} / {sortedPlayers.length} alive
+        <div className="rounded-full border border-sky-200 bg-white/70 px-3 py-1.5 text-sm font-black text-sky-800">
+          {aliveCount} / {sortedPlayers.length} 생존
         </div>
       </div>
     </section>

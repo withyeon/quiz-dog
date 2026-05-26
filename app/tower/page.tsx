@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import QuizView from '@/components/QuizView'
 import TowerDefenseMap from '@/components/TowerDefenseMap'
 import Countdown from '@/components/Countdown'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import GameResult from '@/components/GameResult'
 import SkillChoiceModal from '@/components/SkillChoiceModal'
 import TowerBattleHeader from '@/components/tower/TowerBattleHeader'
@@ -14,7 +15,7 @@ import TowerLobbyPanel from '@/components/tower/TowerLobbyPanel'
 import TowerPlacementPanel from '@/components/tower/TowerPlacementPanel'
 import TowerWavePanel from '@/components/tower/TowerWavePanel'
 import { useGameBase } from '@/hooks/useGameBase'
-import { useTowerDefenseGame } from '@/hooks/useTowerDefenseGame'
+import { TOWER_QUIZZES_PER_WAVE, useTowerDefenseGame } from '@/hooks/useTowerDefenseGame'
 import {
     ENEMY_TYPES,
     PATH_POINTS,
@@ -39,9 +40,16 @@ export default function TowerPage() {
         playersLoading,
         room,
         currentQuestion,
+        questionsLoading,
+        questionsError,
+        preStartQuizQuestion,
+        preStartSubmittedCount,
+        preStartQuizTotal,
+        shouldShowPreStartQuiz,
         consecutiveCorrect,
         playBGM,
         playSFX,
+        handlePreStartQuizAnswer,
         checkAnswer,
         goToNextQuestion,
         getElapsedSeconds,
@@ -94,7 +102,8 @@ export default function TowerPage() {
         totalGoldEarned,
         totalTowersPlaced,
         isQuizAvailable,
-        markQuizUsed,
+        canStartWave,
+        recordQuizResult,
         resetGame,
         handlePlaceTower,
         handleUpgradeTower,
@@ -106,7 +115,11 @@ export default function TowerPage() {
         waveProgress,
         occupiedSlotCount,
         quizHudValue,
+        quizHudDetail,
         quizButtonLabel,
+        startWaveButtonLabel,
+        currentWaveQuizAnswered,
+        currentWaveQuizCorrect,
     } = useTowerDefenseGame({
         roomCode,
         roomStatus: room?.status,
@@ -144,17 +157,27 @@ export default function TowerPage() {
     const handleAnswer = async (answer: string) => {
         const timeElapsed = getElapsedSeconds()
         const correct = await checkAnswer(answer)
+        const quizProgress = recordQuizResult(currentWave, correct)
 
         if (correct) {
             playSFX('correct')
             const goldReward = calculateQuizGoldReward(timeElapsed, 30)
-            const nextCombo = consecutiveCorrect + 1
+            const nextCombo = quizProgress.correct
             setGold(prev => prev + goldReward)
             setTotalGoldEarned(prev => prev + goldReward)
             setPendingGoldReward(goldReward)
             setPendingComboCount(nextCombo)
-            setSkillChoices(getSkillChoices(nextCombo))
-            setShowSkillModal(true)
+
+            if (quizProgress.completed && quizProgress.allCorrect) {
+                setSkillChoices(getSkillChoices(nextCombo))
+                setShowSkillModal(true)
+            } else {
+                scheduleReturnToPlaying(900)
+                if (quizProgress.completed && !quizProgress.allCorrect) {
+                    setSkillToast('3문제 완료! 모두 정답이어야 아이템을 뽑을 수 있어요.')
+                    window.setTimeout(() => setSkillToast(null), 1800)
+                }
+            }
         } else {
             playSFX('incorrect')
             setHp(prev => Math.max(0, prev - QUIZ_HP_PENALTY))
@@ -173,6 +196,10 @@ export default function TowerPage() {
                         : enemy
                 ))
             })
+            if (quizProgress.completed) {
+                setSkillToast('3문제 완료! 모두 정답이어야 아이템을 뽑을 수 있어요.')
+                window.setTimeout(() => setSkillToast(null), 1800)
+            }
             scheduleReturnToPlaying(2000)
         }
         return correct
@@ -291,7 +318,6 @@ export default function TowerPage() {
     // 퀴즈 버튼 클릭
     const handleQuizClick = () => {
         if (isQuizAvailable) {
-            markQuizUsed(currentWave)
             quizTransitionHandledRef.current = false
             questionStartTime.current = Date.now()
             setCurrentView('quiz')
@@ -337,6 +363,17 @@ export default function TowerPage() {
     return (
         <main className="tower-command-screen min-h-screen overflow-x-hidden font-bitbit text-slate-900">
             <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
+                {shouldShowPreStartQuiz && (
+                    <PreStartQuizGate
+                        question={preStartQuizQuestion}
+                        submittedCount={preStartSubmittedCount}
+                        total={preStartQuizTotal}
+                        onAnswer={handlePreStartQuizAnswer}
+                        questionsLoading={questionsLoading}
+                        questionsError={questionsError}
+                    />
+                )}
+
                 {currentView === 'lobby' && (
                     <TowerLobbyPanel roomCode={roomCode} />
                 )}
@@ -357,9 +394,12 @@ export default function TowerPage() {
                             waveProgress={waveProgress}
                             occupiedSlotCount={occupiedSlotCount}
                             quizHudValue={quizHudValue}
+                            quizHudDetail={quizHudDetail}
                             quizButtonLabel={quizButtonLabel}
                             consecutiveCorrect={consecutiveCorrect}
                             isQuizAvailable={isQuizAvailable}
+                            canStartWave={canStartWave}
+                            startWaveButtonLabel={startWaveButtonLabel}
                             onQuizClick={handleQuizClick}
                             onStartWave={startWave}
                         />
@@ -456,11 +496,18 @@ export default function TowerPage() {
                             transition={{ type: 'spring', damping: 20 }}
                             className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-md"
                         >
+                            <motion.div
+                                initial={{ y: -20, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                className="absolute left-1/2 top-8 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-950 px-5 py-2 text-base font-black text-white shadow-xl"
+                            >
+                                웨이브 퀴즈 {Math.min(currentWaveQuizAnswered + 1, TOWER_QUIZZES_PER_WAVE)}/{TOWER_QUIZZES_PER_WAVE} · 정답 {currentWaveQuizCorrect}/{TOWER_QUIZZES_PER_WAVE}
+                            </motion.div>
                             {consecutiveCorrect >= 2 && (
                                 <motion.div
                                     initial={{ y: -20, opacity: 0 }}
                                     animate={{ y: 0, opacity: 1 }}
-                                    className="absolute left-1/2 top-8 flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-5 py-2 text-base font-black text-white shadow-xl"
+                                    className="absolute left-1/2 top-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-5 py-2 text-base font-black text-white shadow-xl"
                                 >
                                     🔥 {consecutiveCorrect}연속 정답! 스킬 보너스 대기 중
                                 </motion.div>

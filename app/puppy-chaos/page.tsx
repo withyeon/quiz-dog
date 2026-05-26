@@ -1,16 +1,14 @@
 'use client'
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
+import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import PomeMascot from '@/components/PomeMascot'
 import DodgeMiniGame, { type DodgeResult } from '@/components/강아지대소동/강아지대소동MiniGame'
 import GameCard from '@/components/강아지대소동/GameCard'
 import QuizView from '@/components/QuizView'
-import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
-import { useRoomChannel } from '@/hooks/useRoomChannel'
-import { useRoomRealtime } from '@/hooks/useRoomRealtime'
-import { useRoomResync } from '@/hooks/useRoomResync'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
+import { useGameBase } from '@/hooks/useGameBase'
 import {
   clampRoundReward,
   createPoopBombAttack,
@@ -20,17 +18,16 @@ import {
   type PuppyChaosCard,
 } from '@/lib/game/강아지대소동'
 import { createPuppyChaosEvent } from '@/lib/services/강아지대소동Events'
-import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
 import { sortPlayersByScore } from '@/lib/utils/playerSorting'
-import {
-  checkQuestionAnswer,
-  listQuestionsForGame,
-  type GameQuestion,
-} from '@/lib/services/questions'
-import type { Database } from '@/types/database.types'
 
-type Player = Database['public']['Tables']['players']['Row']
+const PUPPY_ICON = {
+  trophy: '/puppy-chaos/trophy.svg',
+  play: '/puppy-chaos/play.svg',
+  exit: '/puppy-chaos/exit.svg',
+  randomBox: '/puppy-chaos/random-box.svg',
+} as const
+
 type Phase = 'waiting' | 'quiz' | 'cardSelect' | 'dodge' | 'roundResult' | 'bonus' | 'finalResult'
 
 type RoundContext = {
@@ -57,17 +54,33 @@ type RoundSummary = {
   bones: number
 }
 
-function PuppyChaosPageContent() {
-  const searchParams = useSearchParams()
-  const roomCode = searchParams?.get('room') ?? ''
-  const playerId = searchParams?.get('playerId') ?? ''
-
+export default function PuppyChaosPage() {
+  const {
+    roomCode,
+    playerId,
+    players,
+    room,
+    currentPlayer,
+    currentQuestion,
+    currentQuestionIndex,
+    setCurrentQuestionIndex,
+    questions,
+    questionsLoading,
+    questionsError,
+    preStartQuizQuestion,
+    preStartSubmittedCount,
+    preStartQuizTotal,
+    shouldShowPreStartQuiz,
+    isPreStartQuizComplete,
+    handlePreStartQuizAnswer,
+    checkAnswer,
+    goToNextQuestion,
+    applyPlayerPatch,
+    sendRoomEvent,
+  } = useGameBase({ expectedGameMode: 'poop_dodge' })
   const [phase, setPhase] = useState<Phase>('waiting')
-  const [questionIndex, setQuestionIndex] = useState(0)
   const [combo, setCombo] = useState(0)
   const [cards, setCards] = useState<PuppyChaosCard[]>([])
-  const [gameQuestions, setGameQuestions] = useState<GameQuestion[]>([])
-  const [questionError, setQuestionError] = useState<string | null>(null)
   const [cardCountdown, setCardCountdown] = useState(5)
   const [selectedBoxIndex, setSelectedBoxIndex] = useState<number | null>(null)
   const [isOpeningBox, setIsOpeningBox] = useState(false)
@@ -75,62 +88,16 @@ function PuppyChaosPageContent() {
   const [roundSummary, setRoundSummary] = useState<RoundSummary | null>(null)
   const [isSettling, setIsSettling] = useState(false)
 
-  const { players, refreshPlayers, applyPlayerPatch } = usePlayersRealtime({ roomCode, enabled: Boolean(roomCode) })
-  const { room, refreshRoom } = useRoomRealtime({ roomCode, enabled: Boolean(roomCode) })
-  const resync = useRoomResync(refreshRoom, refreshPlayers)
-  const { sendEvent } = useRoomChannel({
-    roomCode,
-    playerId,
-    role: 'student',
-    enabled: Boolean(roomCode && playerId),
-    onResyncNeeded: resync,
-  })
-
-  const currentPlayer = useMemo(
-    () => players.find((player) => player.id === playerId) ?? null,
-    [playerId, players],
-  )
-  const questionCount = gameQuestions.length
-  const currentQuestion = questionCount > 0
-    ? gameQuestions[questionIndex % questionCount]
-    : null
+  const questionCount = questions.length
   const roomStatus = room?.status
   const isPaused = roomStatus === 'paused'
-
-  useEffect(() => {
-    if (!room?.set_id) {
-      setGameQuestions([])
-      return
-    }
-
-    let cancelled = false
-
-    const loadQuestions = async () => {
-      try {
-        setQuestionError(null)
-        const loadedQuestions = await listQuestionsForGame(room.set_id || '')
-        if (!cancelled) setGameQuestions(loadedQuestions)
-      } catch (error) {
-        if (!cancelled) {
-          const message = formatServiceError(error)
-          setQuestionError(message)
-          console.error('Error loading puppy chaos questions:', message, error)
-        }
-      }
-    }
-
-    void loadQuestions()
-
-    return () => {
-      cancelled = true
-    }
-  }, [room?.set_id])
+  const questionIndex = currentQuestionIndex
 
   useEffect(() => {
     if (!currentPlayer) return
-    setQuestionIndex(currentPlayer.current_question_index ?? 0)
+    setCurrentQuestionIndex(currentPlayer.current_question_index ?? 0)
     setCombo(currentPlayer.combo_count ?? 0)
-  }, [currentPlayer])
+  }, [currentPlayer, setCurrentQuestionIndex])
 
   useEffect(() => {
     if (!room) return
@@ -146,10 +113,13 @@ function PuppyChaosPageContent() {
       setPhase('waiting')
       return
     }
+    if (room.status === 'playing' && !isPreStartQuizComplete) {
+      return
+    }
     if (room.status === 'playing' && phase === 'waiting' && questionCount > 0) {
       setPhase((currentPlayer?.current_question_index ?? 0) >= questionCount ? 'bonus' : 'quiz')
     }
-  }, [currentPlayer?.current_question_index, currentPlayer?.is_kicked, phase, questionCount, room])
+  }, [currentPlayer?.current_question_index, currentPlayer?.is_kicked, isPreStartQuizComplete, phase, questionCount, room])
 
   useEffect(() => {
     if (phase !== 'roundResult' || !roundSummary) return
@@ -165,13 +135,13 @@ function PuppyChaosPageContent() {
 
   const broadcastPlayerPatch = useCallback((targetPlayerId: string, patch: Record<string, unknown>, reason: string) => {
     applyPlayerPatch(targetPlayerId, patch)
-    void sendEvent('player:patch', {
+    void sendRoomEvent('player:patch', {
       playerId: targetPlayerId,
       patch,
       reason,
     })
-    void sendEvent('room:snapshot-hint', { reason })
-  }, [applyPlayerPatch, sendEvent])
+    void sendRoomEvent('room:snapshot-hint', { reason })
+  }, [applyPlayerPatch, sendRoomEvent])
 
   const updatePlayerAndBroadcast = useCallback(async (
     targetPlayerId: string,
@@ -198,7 +168,7 @@ function PuppyChaosPageContent() {
 
   const handleAnswer = async (answer: string) => {
     if (!currentPlayer || !currentQuestion || roomStatus !== 'playing') return false
-    const correct = answer ? await checkQuestionAnswer(currentQuestion.id, answer) : false
+    const correct = await checkAnswer(answer)
     const comboAfter = correct ? combo + 1 : 0
     setCombo(comboAfter)
 
@@ -318,7 +288,7 @@ function PuppyChaosPageContent() {
       umbrella,
       cleaner,
       invincible,
-      cardLabel: `${card.label} ${card.emoji}`,
+      cardLabel: card.label,
     })
   }, [beginDodge, currentPlayer, phase, players, roomCode, roundContext, updatePlayerAndBroadcast])
 
@@ -386,7 +356,11 @@ function PuppyChaosPageContent() {
         has_umbrella: false,
       }, 'poop_dodge_round_complete')
 
-      setQuestionIndex(nextQuestionIndex)
+      if (!roundContext.isBonus) {
+        goToNextQuestion()
+      } else {
+        setCurrentQuestionIndex(nextQuestionIndex)
+      }
       setRoundSummary({
         title: roundContext.isBonus
           ? '보너스 성공!'
@@ -438,6 +412,17 @@ function PuppyChaosPageContent() {
       }}
     >
       <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-3xl flex-col gap-4">
+        {shouldShowPreStartQuiz && (
+          <PreStartQuizGate
+            question={preStartQuizQuestion}
+            submittedCount={preStartSubmittedCount}
+            total={preStartQuizTotal}
+            onAnswer={handlePreStartQuizAnswer}
+            questionsLoading={questionsLoading}
+            questionsError={questionsError}
+          />
+        )}
+
         <header className="rounded-[28px] border-4 border-slate-900 bg-white p-4 shadow-[5px_5px_0_#0f172a]">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -491,9 +476,9 @@ function PuppyChaosPageContent() {
               <div>
                 <PomeMascot className="mx-auto mb-4 h-20 w-20" />
                 <h2 className="text-3xl font-black">
-                  {questionError ? '문제를 불러오지 못했어요' : '문제를 불러오는 중...'}
-                </h2>
-                {questionError && <p className="mt-3 text-sm font-bold text-rose-600">{questionError}</p>}
+                {questionsError ? '문제를 불러오지 못했어요' : '문제를 불러오는 중...'}
+              </h2>
+                {questionsError && <p className="mt-3 text-sm font-bold text-rose-600">{questionsError}</p>}
               </div>
             </motion.section>
           )}
@@ -533,8 +518,15 @@ function PuppyChaosPageContent() {
                         isSelected ? 'ring-4 ring-rose-400' : ''
                       }`}
                     >
-                      <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-[18px] border-4 border-slate-900 bg-white text-5xl shadow-inner">
-                        🎁
+                      <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-[18px] border-4 border-slate-900 bg-white shadow-inner">
+                        <Image
+                          src={PUPPY_ICON.randomBox}
+                          alt="랜덤박스"
+                          width={72}
+                          height={72}
+                          className="h-[72px] w-[72px] object-contain"
+                          unoptimized
+                        />
                       </div>
                       <div className="text-2xl font-black text-slate-900">랜덤박스</div>
                       <div className="mt-2 text-sm font-bold text-slate-600">열기 전까지 비밀!</div>
@@ -574,7 +566,14 @@ function PuppyChaosPageContent() {
                 <div className="mb-3 flex justify-center">
                   {roundSummary.hits === 0 ? (
                     <div className="relative">
-                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 text-4xl">🏆</div>
+                      <Image
+                        src={PUPPY_ICON.trophy}
+                        alt="성공"
+                        width={48}
+                        height={48}
+                        className="absolute -top-7 left-1/2 h-12 w-12 -translate-x-1/2 object-contain"
+                        unoptimized
+                      />
                       <PomeMascot className="h-24 w-24" />
                     </div>
                   ) : (
@@ -600,8 +599,15 @@ function PuppyChaosPageContent() {
                 <div className="pointer-events-none absolute -left-14 -top-14 h-32 w-32 rounded-full bg-sky-300/35 blur-2xl" />
                 <div className="pointer-events-none absolute -bottom-14 -right-12 h-36 w-36 rounded-full bg-cyan-300/30 blur-2xl" />
                 <div className="relative rounded-[26px] border-4 border-slate-900 bg-white/90 px-5 py-7 shadow-[4px_4px_0_#0f172a]">
-                  <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-[22px] border-4 border-slate-900 bg-sky-100 text-5xl shadow-[3px_3px_0_#0f172a]">
-                    🎁
+                  <div className="mx-auto mb-4 grid h-20 w-20 place-items-center rounded-[22px] border-4 border-slate-900 bg-sky-100 shadow-[3px_3px_0_#0f172a]">
+                    <Image
+                      src={PUPPY_ICON.randomBox}
+                      alt="보너스"
+                      width={72}
+                      height={72}
+                      className="h-[72px] w-[72px] object-contain"
+                      unoptimized
+                    />
                   </div>
                   <h2 className="text-4xl font-black text-slate-950">보너스 라운드!</h2>
                   <p className="mx-auto mt-3 max-w-sm text-base font-bold leading-7 text-slate-500">
@@ -616,7 +622,14 @@ function PuppyChaosPageContent() {
                   <span className="absolute inset-x-0 top-0 h-1/2 bg-white/25 transition group-hover:bg-white/35" />
                   <span className="relative inline-flex items-center justify-center gap-3">
                     보너스 시작
-                    <span className="text-2xl">▶</span>
+                    <Image
+                      src={PUPPY_ICON.play}
+                      alt=""
+                      width={28}
+                      height={28}
+                      className="h-7 w-7 object-contain"
+                      unoptimized
+                    />
                   </span>
                 </button>
               </div>
@@ -627,7 +640,14 @@ function PuppyChaosPageContent() {
             <motion.section key="final" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
               className="flex flex-1 items-center justify-center rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center shadow-[5px_5px_0_#0f172a]">
               <div>
-                <div className="mb-4 text-7xl">{currentPlayer.is_kicked ? '🚪' : '🏆'}</div>
+                <Image
+                  src={currentPlayer.is_kicked ? PUPPY_ICON.exit : PUPPY_ICON.trophy}
+                  alt={currentPlayer.is_kicked ? '나감' : '우승'}
+                  width={96}
+                  height={96}
+                  className="mx-auto mb-4 h-24 w-24 object-contain"
+                  unoptimized
+                />
                 <h1 className="text-4xl font-black">{currentPlayer.is_kicked ? '게임에서 나갔어요' : '게임 종료!'}</h1>
                 <div className="mt-6 rounded-[24px] bg-amber-100 px-8 py-5 text-5xl font-black text-amber-700">
                   {score.toLocaleString()}
@@ -647,13 +667,5 @@ function PuppyChaosPageContent() {
         )}
       </div>
     </main>
-  )
-}
-
-export default function PuppyChaosPage() {
-  return (
-    <Suspense fallback={<main className="min-h-screen bg-sky-100" />}>
-      <PuppyChaosPageContent />
-    </Suspense>
   )
 }

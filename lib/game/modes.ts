@@ -92,7 +92,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
   {
     id: 'dontlookdown',
     route: '/dontlookdown',
-    label: "Don't Look Down",
+    label: '점프점프',
     shortLabel: '돈룩다운',
     emoji: '⛰️',
     image: '/title/jump_jump.svg',
@@ -147,7 +147,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     fontFamily: GAME_FONT_FAMILY,
     description: '퀴즈를 풀고 카드를 뽑아 강아지들의 대소동을 버티는 라이브 교실 게임',
     leaderboardSort: 'score',
-    requiresQuestionSet: false,
+    requiresQuestionSet: true,
   },
 ] as const
 

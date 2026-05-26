@@ -1,6 +1,6 @@
 'use client'
 
-import PomeMascot from '@/components/PomeMascot'
+import Image from 'next/image'
 import type { PuppyChaosCard } from '@/lib/game/강아지대소동'
 
 type GameCardProps = {
@@ -17,8 +17,6 @@ const RARITY_CLASS = {
 }
 
 export default function GameCard({ card, onSelect, disabled = false }: GameCardProps) {
-  const isGoldenDog = card.id === 'golden_dog'
-
   return (
     <button
       type="button"
@@ -26,14 +24,18 @@ export default function GameCard({ card, onSelect, disabled = false }: GameCardP
       onClick={onSelect}
       className={`min-h-[168px] rounded-[24px] border-4 p-4 text-center shadow-[5px_5px_0_#0f172a] transition-transform active:translate-x-1 active:translate-y-1 active:shadow-[2px_2px_0_#0f172a] disabled:opacity-70 ${RARITY_CLASS[card.rarity]}`}
     >
-      <div className="mb-2 flex h-14 items-center justify-center text-5xl">
-        {isGoldenDog ? (
-          <span className="relative inline-flex">
-            <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-3xl">👑</span>
-            <PomeMascot className="h-14 w-14" />
-          </span>
+      <div className="mb-2 flex h-16 items-center justify-center">
+        {card.icon ? (
+          <Image
+            src={card.icon}
+            alt={card.label}
+            width={64}
+            height={64}
+            className="h-16 w-16 object-contain"
+            unoptimized
+          />
         ) : (
-          card.emoji
+          <span className="text-5xl">{card.emoji}</span>
         )}
       </div>
       <div className="text-xl font-black text-slate-900">{card.label}</div>

@@ -451,19 +451,22 @@ export default function DontLookDownGame({
                     jumpBufferRef.current = 0
                     coyoteTimerRef.current = 0
                 } else if (!player.isOnGround && player.canDoubleJump) {
-                    player = {
-                        ...player,
-                        vy: PHYSICS.DOUBLE_JUMP_POWER,
-                        canDoubleJump: false,
+                    if (player.energy >= ENERGY.DOUBLE_JUMP_COST) {
+                        player = {
+                            ...player,
+                            vy: PHYSICS.DOUBLE_JUMP_POWER,
+                            canDoubleJump: false,
+                            energy: player.energy - ENERGY.DOUBLE_JUMP_COST,
+                        }
+                        spawnBurst(
+                            player.x + PLAYER_SIZE.WIDTH / 2,
+                            player.y + PLAYER_SIZE.HEIGHT / 2,
+                            '#38bdf8',
+                            16,
+                            240
+                        )
+                        shakeRef.current = Math.max(shakeRef.current, 4)
                     }
-                    spawnBurst(
-                        player.x + PLAYER_SIZE.WIDTH / 2,
-                        player.y + PLAYER_SIZE.HEIGHT / 2,
-                        '#38bdf8',
-                        16,
-                        240
-                    )
-                    shakeRef.current = Math.max(shakeRef.current, 4)
                     jumpBufferRef.current = 0
                 }
             }
@@ -590,7 +593,6 @@ export default function DontLookDownGame({
                 )
                 playerRef.current = {
                     ...boosted,
-                    vy: Math.min(boosted.vy, nextCombo >= 3 ? -520 : -260),
                     canDoubleJump: true,
                 }
                 comboRef.current = nextCombo
@@ -604,7 +606,7 @@ export default function DontLookDownGame({
                     nextCombo >= 3 ? 320 : 240
                 )
                 showFeedback({
-                    text: nextCombo >= 3 ? `${nextCombo}콤보! 점프 부스트` : `정답! +에너지`,
+                    text: nextCombo >= 3 ? `${nextCombo}콤보! 에너지 대충전` : `정답! +에너지`,
                     tone: 'good',
                 })
                 setShowQuiz(false)
@@ -636,7 +638,7 @@ export default function DontLookDownGame({
 
     // ============ 로딩 가드 ============
     if (!uiPlayer) {
-        return <div className="w-full h-full flex items-center justify-center text-gray-700">Loading...</div>
+        return <div className="w-full h-full flex items-center justify-center text-gray-700">불러오는 중...</div>
     }
 
     // ============ UI 파생값 (uiPlayer 기반) ============
@@ -675,7 +677,7 @@ export default function DontLookDownGame({
 
                 <div className="absolute top-4 left-4 bg-white/95 rounded-xl px-5 py-3 shadow-lg pointer-events-auto min-w-[200px]">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-gray-600">🏔️ Summit {uiPlayer.currentSummit}/{SUMMITS.length}</span>
+                        <span className="text-sm font-semibold text-gray-600">🏔️ 구역 {uiPlayer.currentSummit}/{SUMMITS.length}</span>
                         <span className="text-xs text-gray-500">{Math.floor(summitProgress)}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
@@ -686,7 +688,7 @@ export default function DontLookDownGame({
                     </div>
 
                     <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-600">Height</span>
+                        <span className="text-sm font-semibold text-gray-600">높이</span>
                         <span className="text-xs text-gray-500">{Math.floor(uiPlayer.height)}m / {settings.summitGoal}m</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -698,7 +700,7 @@ export default function DontLookDownGame({
 
                     {settings.livesEnabled && (
                         <div className="mt-3 flex items-center gap-1">
-                            <span className="text-sm font-semibold text-gray-600">Lives:</span>
+                            <span className="text-sm font-semibold text-gray-600">생명</span>
                             {Array.from({ length: settings.startingLives }).map((_, i) => (
                                 <span key={i} className="text-lg">
                                     {i < uiPlayer.lives ? '❤️' : '🖤'}
@@ -710,17 +712,17 @@ export default function DontLookDownGame({
 
                 <div className="absolute top-4 right-4 bg-white/95 rounded-xl px-5 py-3 shadow-lg pointer-events-auto min-w-[180px]">
                     <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-600">Energy</span>
+                        <span className="text-sm font-semibold text-gray-600">에너지</span>
                         <span className="text-xs text-gray-500">{Math.floor(uiPlayer.energy)}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
                         <div
                             className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(100, (uiPlayer.energy / 5000) * 100)}%` }}
+                            style={{ width: `${Math.min(100, (uiPlayer.energy / ENERGY.MAX) * 100)}%` }}
                         />
                     </div>
 
-                    <div className="text-xs font-semibold text-gray-600 mb-2">Power-ups</div>
+                    <div className="text-xs font-semibold text-gray-600 mb-2">파워업</div>
                     <div className="flex gap-2">
                         {[0, 1].map(index => {
                             const powerUp = uiPlayer.powerUps[index]
@@ -741,7 +743,7 @@ export default function DontLookDownGame({
                             {Array.from(uiPlayer.activePowerUps.entries()).map(([type, time]) => (
                                 <div key={type} className="text-xs bg-purple-100 px-2 py-1 rounded flex items-center justify-between">
                                     <span>{POWERUP_EFFECTS[type].icon} {POWERUP_EFFECTS[type].name}</span>
-                                    <span className="font-bold">{Math.ceil(time)}s</span>
+                                    <span className="font-bold">{Math.ceil(time)}초</span>
                                 </div>
                             ))}
                         </div>
@@ -767,19 +769,19 @@ export default function DontLookDownGame({
 
                 {combo > 1 && (
                     <div className="absolute top-20 right-4 rounded-xl bg-purple-600 px-5 py-2 font-black text-white shadow-lg">
-                        🔥 {combo} Combo
+                        🔥 {combo} 콤보
                     </div>
                 )}
 
                 <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/95 rounded-xl px-4 py-2 shadow-lg min-w-[300px]">
-                    <div className="text-xs font-bold text-gray-600 mb-2 text-center">Leaderboard</div>
+                    <div className="text-xs font-bold text-gray-600 mb-2 text-center">순위</div>
                     <div className="space-y-1">
                         {leaderboard.map((player, index) => (
                             <div key={player.id} className={`flex items-center justify-between text-sm ${player.id === playerId ? 'font-bold text-blue-600' : ''}`}>
                                 <div className="flex items-center gap-2">
                                     <span>{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
                                     <span className="truncate max-w-[120px]">{player.nickname}</span>
-                                    {player.id === playerId && <span className="text-xs">(You)</span>}
+                                    {player.id === playerId && <span className="text-xs">(나)</span>}
                                 </div>
                                 <span>{Math.floor(player.height)}m</span>
                             </div>
@@ -797,8 +799,8 @@ export default function DontLookDownGame({
                 </motion.button>
 
                 <div className="absolute bottom-4 right-4 bg-black/70 text-white px-4 py-3 rounded-xl text-sm space-y-1">
-                    <div>←/→ 이동 | ↑/Space 점프</div>
-                    <div>Shift 질주 | Q 퀴즈</div>
+                    <div>←/→ 이동 · ↑/스페이스 점프</div>
+                    <div>⇧ 질주 · Q 퀴즈</div>
                     <div>E/R 파워업 사용</div>
                 </div>
             </div>
@@ -813,7 +815,7 @@ export default function DontLookDownGame({
                     >
                         <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-12 py-6 rounded-2xl shadow-2xl">
                             <div className="text-4xl font-bold text-center mb-2">
-                                🏔️ Summit {showSummitAlert} 도달!
+                                🏔️ 구역 {showSummitAlert} 도달!
                             </div>
                             <div className="text-xl text-center opacity-90">
                                 {SUMMITS[showSummitAlert - 1]?.name}

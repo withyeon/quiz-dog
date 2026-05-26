@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NODE_OPTIONS=\"--max-old-space-size=4096\" next dev",
+    "dev:clean": "rm -rf .next && NODE_OPTIONS=\"--max-old-space-size=4096\" next dev",
     "assets": "node scripts/process-assets.mjs",
     "build": "next build",
     "start": "next start",

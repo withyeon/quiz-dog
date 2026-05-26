@@ -134,11 +134,14 @@ export const PHYSICS = {
 } as const
 
 export const ENERGY = {
-    MOVE_COST: 0.2,            // 이동 시 에너지 소모 (프레임당) - 낮춤
-    JUMP_COST: 4,              // 점프 에너지 소모
-    DOUBLE_JUMP_COST: 8,       // 더블 점프 에너지 소모
-    FALL_PENALTY: 25,          // 떨어졌을 때 페널티
-    SPIKE_DAMAGE: 15,          // 가시 데미지
+    MAX: 1200,
+    START: 180,
+    MOVE_COST: 0.7,            // 이동 시 에너지 소모 (60fps 기준 프레임당)
+    RUN_MULTIPLIER: 1.35,
+    JUMP_COST: 90,             // 점프 에너지 소모
+    DOUBLE_JUMP_COST: 150,     // 더블 점프 에너지 소모
+    FALL_PENALTY: 120,         // 떨어졌을 때 페널티
+    SPIKE_DAMAGE: 90,          // 가시 데미지
 } as const
 
 export const PLAYER_SIZE = {
@@ -156,7 +159,7 @@ export const METERS_PER_PIXEL = 0.1 // 10픽셀 = 1미터
 // 월드 크기 (수직 절벽 등반 맵)
 export const WORLD = {
     WIDTH: 1800,   // 절벽 양쪽 벽이 보이는 폭
-    HEIGHT: 6000,  // 세로 여유
+    HEIGHT: 7200,  // 세로 여유
     VIEW_WIDTH: 800,
     VIEW_HEIGHT: 600,
 } as const
@@ -182,31 +185,31 @@ export const PLATFORM_IMAGES: Record<PlatformStyle, string> = {
 
 // Summit 구성 (8개 구역 - 위쪽 맵 확장)
 export const SUMMITS = [
-    { id: 1, name: '훈련장', startHeight: 0, endHeight: 15, color: '#87CEEB' },
-    { id: 2, name: '산길', startHeight: 15, endHeight: 35, color: '#7CB9E8' },
-    { id: 3, name: '중간 계곡', startHeight: 35, endHeight: 55, color: '#6495ED' },
-    { id: 4, name: '바람 계곡', startHeight: 55, endHeight: 70, color: '#4169E1' },
-    { id: 5, name: '가시 숲', startHeight: 70, endHeight: 85, color: '#0000CD' },
-    { id: 6, name: '고원', startHeight: 85, endHeight: 100, color: '#000080' },
-    { id: 7, name: '눈 덮인 길', startHeight: 100, endHeight: 115, color: '#E6E6FA' },
-    { id: 8, name: '정상', startHeight: 115, endHeight: 130, color: '#2F2F4F' },
+    { id: 1, name: '훈련장', startHeight: 0, endHeight: 65, color: '#87CEEB' },
+    { id: 2, name: '산길', startHeight: 65, endHeight: 130, color: '#7CB9E8' },
+    { id: 3, name: '중간 계곡', startHeight: 130, endHeight: 195, color: '#6495ED' },
+    { id: 4, name: '바람 계곡', startHeight: 195, endHeight: 260, color: '#4169E1' },
+    { id: 5, name: '가시 숲', startHeight: 260, endHeight: 325, color: '#0000CD' },
+    { id: 6, name: '고원', startHeight: 325, endHeight: 390, color: '#000080' },
+    { id: 7, name: '눈 덮인 길', startHeight: 390, endHeight: 455, color: '#E6E6FA' },
+    { id: 8, name: '정상', startHeight: 455, endHeight: 520, color: '#2F2F4F' },
 ] as const
 
 // 파워업 효과
 export const POWERUP_EFFECTS = {
-    shield: { duration: Infinity, icon: '🛡️', name: 'Shield' },
-    rocket: { duration: 0, icon: '🚀', name: 'Rocket Boost' },
-    energy: { duration: 0, icon: '⚡', name: 'Energy Surge' },
-    double_points: { duration: 30, icon: '🌟', name: 'Double Points' },
-    ghost: { duration: 5, icon: '👻', name: 'Ghost Mode' },
-    time_freeze: { duration: 3, icon: '⏱️', name: 'Time Freeze' },
+    shield: { duration: Infinity, icon: '🛡️', name: '실드' },
+    rocket: { duration: 0, icon: '🚀', name: '로켓 부스트' },
+    energy: { duration: 0, icon: '⚡', name: '에너지 충전' },
+    double_points: { duration: 30, icon: '🌟', name: '2배 점수' },
+    ghost: { duration: 5, icon: '👻', name: '유령 모드' },
+    time_freeze: { duration: 3, icon: '⏱️', name: '시간 정지' },
 } as const
 
 // 기본 설정
 export const DEFAULT_SETTINGS: GameSettings = {
     duration: 300,             // 5분 (선생님이 설정하는 제한 시간 기준)
-    energyPerQuestion: 800,    // 문제당 800 에너지 (Gimkit 스타일)
-    summitGoal: 130,           // 정상 높이 (진행도 표시용, 8구역)
+    energyPerQuestion: 650,    // 문제당 에너지 충전량
+    summitGoal: 520,           // 정상 높이 (진행도 표시용, 8구역)
     checkpointsEnabled: true,
     livesEnabled: false,       // Don't Look Down: 생명 시스템 비활성화
     startingLives: 0,
@@ -245,7 +248,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
     let platformId = 0
 
     // 수직 절벽 지그재그: 위로 오를수록 좌우 폭이 커지고 발판 간격이 빡빡해진다.
-    const Y_STEP = 118
+    const Y_STEP = 92
 
     // Gimkit 스타일: Summit마다 성격이 달라지는 등반 코스
     SUMMITS.forEach((summit, summitIndex) => {
@@ -268,19 +271,24 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
             const rowIndex = Math.floor((summitStartY - summitCurrentY) / Y_STEP)
 
             // 절벽 루트: 가운데 축을 기준으로 좌우로 흔들리는 switchback.
-            const routeAmplitude = 150 + difficulty * 165
-            const switchback = rowIndex % 2 === 0 ? -95 : 95
+            const routeAmplitude = 170 + difficulty * 220
+            const switchback = rowIndex % 2 === 0 ? -110 : 110
             const wave = Math.sin((rowIndex + summitIndex * 1.7) * 0.82) * routeAmplitude
             const baseX = Math.max(260, Math.min(WORLD.WIDTH - 420, CLIMB_START_X + wave + switchback))
             lastRouteX = baseX
 
             // === 메인 루트 플랫폼 (항상 올라갈 수 있는 안전 발판) ===
-            const mainIsTight = summit.id >= 4 && Math.random() < difficulty * 0.18
+            const mainIsTight = summit.id >= 4 && Math.random() < 0.08 + difficulty * 0.22
             const mainWidth = mainIsTight
                 ? PLATFORM.NORMAL_MIN
                 : PLATFORM.NORMAL_MIN + Math.random() * (PLATFORM.NORMAL_MAX - PLATFORM.NORMAL_MIN)
+            let mainType: Platform['type'] = mainIsTight ? 'narrow' : 'normal'
+            if (summit.id >= 5 && Math.random() < 0.08 + difficulty * 0.08) mainType = 'ice'
+            else if (summit.id >= 6 && Math.random() < 0.05 + difficulty * 0.05) mainType = 'moving'
+            else if (summit.id >= 7 && Math.random() < 0.04 + difficulty * 0.04) mainType = 'disappearing'
             const mainStyle = PLATFORM_STYLES[rowIndex % PLATFORM_STYLES.length]
             const mainImgId = 1 + (platformId % PLATFORM_IMAGE_COUNT)
+            const moveRange = mainType === 'moving' ? 45 + Math.random() * 45 : undefined
 
             platforms.push({
                 id: `platform_${platformId++}`,
@@ -288,11 +296,15 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                 y: summitCurrentY,
                 width: mainWidth,
                 height: 24,
-                type: mainIsTight ? 'narrow' : 'normal',
+                type: mainType,
                 style: mainStyle,
                 imageId: mainImgId,
                 summit: summit.id,
                 isVisible: true,
+                baseX: mainType === 'moving' ? baseX : undefined,
+                moveRange,
+                moveSpeed: mainType === 'moving' ? 0.45 + Math.random() * 0.35 : undefined,
+                movePhase: mainType === 'moving' ? Math.random() * Math.PI * 2 : undefined,
                 routeRole: 'main',
             })
 
@@ -666,10 +678,13 @@ export function movePlayer(
     isRunning: boolean = false,
     dt: number = 1 / 60
 ): DLDPlayer {
-    if (player.energy < ENERGY.MOVE_COST) return player
+    if (player.energy <= 0 || player.energy < ENERGY.MOVE_COST) {
+        return { ...player, vx: 0 }
+    }
 
     const accel = isRunning ? PHYSICS.MOVE_ACCEL * 1.4 : PHYSICS.MOVE_ACCEL
     const maxSpeed = isRunning ? PHYSICS.MOVE_SPEED * PHYSICS.RUN_MULTIPLIER : PHYSICS.MOVE_SPEED
+    const costMultiplier = isRunning ? ENERGY.RUN_MULTIPLIER : 1
 
     let newVx = player.vx + (direction === 'left' ? -accel * dt : accel * dt)
     newVx = Math.max(-maxSpeed, Math.min(maxSpeed, newVx))
@@ -679,14 +694,13 @@ export function movePlayer(
         ...player,
         vx: newVx,
         facingRight: direction === 'right',
-        energy: player.energy - ENERGY.MOVE_COST * (dt * 60),
+        energy: Math.max(0, player.energy - ENERGY.MOVE_COST * costMultiplier * (dt * 60)),
     }
 }
 
 export function jumpPlayer(player: DLDPlayer, isDoubleJump: boolean = false): DLDPlayer {
     if (isDoubleJump) {
-        // 더블 점프: 에너지 상관없이 항상 한 번은 가능하도록 완화
-        if (!player.canDoubleJump) {
+        if (!player.canDoubleJump || player.energy < ENERGY.DOUBLE_JUMP_COST) {
             return player
         }
 
@@ -694,6 +708,7 @@ export function jumpPlayer(player: DLDPlayer, isDoubleJump: boolean = false): DL
             ...player,
             vy: PHYSICS.DOUBLE_JUMP_POWER,
             canDoubleJump: false,
+            energy: player.energy - ENERGY.DOUBLE_JUMP_COST,
         }
     } else {
         // 일반 점프
@@ -714,7 +729,7 @@ export function giveEnergy(player: DLDPlayer, amount: number): DLDPlayer {
     const multiplier = player.activePowerUps.has('double_points') ? 2 : 1
     return {
         ...player,
-        energy: player.energy + (amount * multiplier),
+        energy: Math.min(ENERGY.MAX, player.energy + (amount * multiplier)),
     }
 }
 
@@ -753,7 +768,7 @@ export function applyPowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer
             updated.vy = 0
             break
         case 'energy':
-            updated.energy += 50
+            updated.energy = Math.min(ENERGY.MAX, updated.energy + 350)
             break
         case 'double_points':
             updated.activePowerUps.set('double_points', 30)
@@ -921,7 +936,7 @@ export function createPlayer(
         y: 560,
         vx: 0,
         vy: 0,
-        energy: 2000,          // Gimkit: 시작 에너지 2000
+        energy: ENERGY.START,
         height: 0,
         isOnGround: true,
         canDoubleJump: true,

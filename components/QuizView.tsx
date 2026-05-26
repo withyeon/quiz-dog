@@ -20,7 +20,7 @@ interface QuizViewProps {
   timeLimit?: number
   onCorrectClick?: () => void // 정답 확인 후 클릭 시 호출
   className?: string // 외부에서 스타일 오버라이드 가능
-  variant?: 'default' | 'goldQuest' | 'battle'
+  variant?: 'default' | 'goldQuest' | 'battle' | 'fishing'
 }
 
 export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick, className, variant = 'default' }: QuizViewProps) {
@@ -35,6 +35,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
   const MotionButton = motion.button
   const isGoldQuest = variant === 'goldQuest'
   const isBattle = variant === 'battle'
+  const isFishing = variant === 'fishing'
 
   const handleAnswerSelect = useCallback(async (answer: string) => {
     if (submittedAnswer || isSubmitting) return
@@ -118,10 +119,14 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               ? 'border border-teal-900/10 bg-[#0c3b42] text-white shadow-lg shadow-teal-950/10'
               : isBattle
                 ? 'border border-slate-200/70 bg-[#13202b] text-white shadow-lg shadow-slate-900/10'
+              : isFishing
+                ? 'border border-pink-200 bg-pink-100 text-pink-900'
               : 'bg-blue-600 text-white'
           }`}>
             <div className="text-sm font-semibold">남은 시간</div>
-            <div className={`text-3xl font-black tabular-nums ${isGoldQuest ? 'text-amber-200' : isBattle ? 'text-cyan-100' : ''}`}>{timeLeft}초</div>
+            <div className={`text-3xl font-black tabular-nums ${
+              isGoldQuest ? 'text-amber-200' : isBattle ? 'text-cyan-100' : isFishing ? 'text-pink-700' : ''
+            }`}>{timeLeft}초</div>
           </div>
         )}
         <h2 className={`gold-quest-title text-2xl sm:text-3xl font-black leading-tight mb-4 ${

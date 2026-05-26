@@ -29,9 +29,12 @@ interface TowerBattleHeaderProps {
     waveProgress: number
     occupiedSlotCount: number
     quizHudValue: string
+    quizHudDetail: string
     quizButtonLabel: string
     consecutiveCorrect: number
     isQuizAvailable: boolean
+    canStartWave: boolean
+    startWaveButtonLabel: string
     onQuizClick: () => void
     onStartWave: () => void
 }
@@ -48,9 +51,12 @@ export default function TowerBattleHeader({
     waveProgress,
     occupiedSlotCount,
     quizHudValue,
+    quizHudDetail,
     quizButtonLabel,
     consecutiveCorrect,
     isQuizAvailable,
+    canStartWave,
+    startWaveButtonLabel,
     onQuizClick,
     onStartWave,
 }: TowerBattleHeaderProps) {
@@ -92,7 +98,7 @@ export default function TowerBattleHeader({
                     <HudMetric icon={Coins} label="골드" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
                     <HudMetric icon={Target} label="웨이브" value={`${Math.min(currentWave + 1, WAVES.length)} / ${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining}마리 남음` : `${waveProgress}% 클리어`} tone="text-indigo-500" />
                     <HudMetric icon={Crosshair} label="배치" value="자유" detail={`${occupiedSlotCount}개 설치`} tone="text-emerald-500" />
-                    <HudMetric icon={BrainCircuit} label="퀴즈" value={quizHudValue} detail="웨이브당 1회" tone="text-sky-500" />
+                    <HudMetric icon={BrainCircuit} label="퀴즈" value={quizHudValue} detail={quizHudDetail} tone="text-sky-500" />
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -109,13 +115,14 @@ export default function TowerBattleHeader({
 
                     {!isWaveActive && currentWave < WAVES.length && (
                         <motion.button
-                            whileHover={{ y: -1 }}
-                            whileTap={{ scale: 0.98 }}
+                            whileHover={canStartWave ? { y: -1 } : {}}
+                            whileTap={canStartWave ? { scale: 0.98 } : {}}
                             onClick={onStartWave}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-rose-500 px-4 text-sm font-black text-white shadow-lg shadow-rose-200 transition-colors hover:bg-rose-600"
+                            disabled={!canStartWave}
+                            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-rose-500 px-4 text-sm font-black text-white shadow-lg shadow-rose-200 transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-slate-200"
                         >
                             <Play className="h-4 w-4 fill-current" />
-                            웨이브 {currentWave + 1}
+                            {startWaveButtonLabel}
                         </motion.button>
                     )}
                 </div>

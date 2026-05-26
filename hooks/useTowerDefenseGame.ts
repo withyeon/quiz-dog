@@ -37,6 +37,13 @@ import {
 } from '@/lib/game/particles'
 import type { SFXType } from '@/hooks/useAudio'
 
+export const TOWER_QUIZZES_PER_WAVE = 3
+
+type WaveQuizProgress = {
+    answered: number
+    correct: number
+}
+
 interface UseTowerDefenseGameOptions {
     roomCode: string
     roomStatus?: string | null
@@ -73,7 +80,7 @@ export function useTowerDefenseGame({
     const [selectedTower, setSelectedTower] = useState<Tower | null>(null)
     const [isWaveActive, setIsWaveActive] = useState(false)
     const [waveEnemiesRemaining, setWaveEnemiesRemaining] = useState(0)
-    const [quizUsedWaves, setQuizUsedWaves] = useState<number[]>([])
+    const [quizProgressByWave, setQuizProgressByWave] = useState<Record<number, WaveQuizProgress>>({})
     const [totalEnemiesKilled, setTotalEnemiesKilled] = useState(0)
     const [totalGoldEarned, setTotalGoldEarned] = useState(0)
     const [totalTowersPlaced, setTotalTowersPlaced] = useState(0)
@@ -90,13 +97,24 @@ export function useTowerDefenseGame({
     const nextTowerIdRef = useRef(0)
     const nextProjectileIdRef = useRef(0)
     const overclockUntilRef = useRef(0)
-    const quizStorageKey = roomCode ? `tower_quiz_used_${roomCode}` : null
-    const isCurrentWaveQuizUsed = quizUsedWaves.includes(currentWave)
+    const quizProgressByWaveRef = useRef<Record<number, WaveQuizProgress>>({})
+    const quizStorageKey = roomCode ? `tower_quiz_progress_${roomCode}` : null
+    const currentWaveQuizProgress = quizProgressByWave[currentWave] ?? { answered: 0, correct: 0 }
+    const isCurrentWaveQuizComplete = currentWaveQuizProgress.answered >= TOWER_QUIZZES_PER_WAVE
+    const isCurrentWaveQuizPerfect = (
+        isCurrentWaveQuizComplete
+        && currentWaveQuizProgress.correct >= TOWER_QUIZZES_PER_WAVE
+    )
     const isQuizAvailable = Boolean(
         currentQuestionAvailable
         && !isWaveActive
         && currentWave < WAVES.length
-        && !isCurrentWaveQuizUsed
+        && !isCurrentWaveQuizComplete
+    )
+    const canStartWave = Boolean(
+        !isWaveActive
+        && currentWave < WAVES.length
+        && isCurrentWaveQuizComplete
     )
 
     const applyEnemyRewards = useCallback((deadEnemies: Enemy[]) => {
@@ -135,17 +153,43 @@ export function useTowerDefenseGame({
 
         try {
             const saved = window.sessionStorage.getItem(quizStorageKey)
-            const parsed = saved ? JSON.parse(saved) : []
-            setQuizUsedWaves(Array.isArray(parsed) ? parsed.filter((value) => Number.isInteger(value)) : [])
+            const parsed = saved ? JSON.parse(saved) : {}
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+                setQuizProgressByWave({})
+                quizProgressByWaveRef.current = {}
+                return
+            }
+
+            const nextProgress = Object.entries(parsed).reduce<Record<number, WaveQuizProgress>>((acc, [wave, value]) => {
+                if (!Number.isInteger(Number(wave)) || !value || typeof value !== 'object') return acc
+
+                const progress = value as Partial<WaveQuizProgress>
+                acc[Number(wave)] = {
+                    answered: Math.min(
+                        TOWER_QUIZZES_PER_WAVE,
+                        Math.max(0, Number(progress.answered) || 0),
+                    ),
+                    correct: Math.min(
+                        TOWER_QUIZZES_PER_WAVE,
+                        Math.max(0, Number(progress.correct) || 0),
+                    ),
+                }
+                return acc
+            }, {})
+
+            quizProgressByWaveRef.current = nextProgress
+            setQuizProgressByWave(nextProgress)
         } catch {
-            setQuizUsedWaves([])
+            quizProgressByWaveRef.current = {}
+            setQuizProgressByWave({})
         }
     }, [quizStorageKey])
 
     useEffect(() => {
         if (roomStatus !== 'waiting') return
 
-        setQuizUsedWaves([])
+        setQuizProgressByWave({})
+        quizProgressByWaveRef.current = {}
         if (quizStorageKey && typeof window !== 'undefined') {
             window.sessionStorage.removeItem(quizStorageKey)
         }
@@ -175,16 +219,29 @@ export function useTowerDefenseGame({
         currentWaveRef.current = currentWave
     }, [currentWave])
 
-    const markQuizUsed = useCallback((wave: number) => {
-        setQuizUsedWaves(prev => {
-            if (prev.includes(wave)) return prev
+    const recordQuizResult = useCallback((wave: number, correct: boolean) => {
+        const current = quizProgressByWaveRef.current[wave] ?? { answered: 0, correct: 0 }
+        const nextForWave = {
+            answered: Math.min(TOWER_QUIZZES_PER_WAVE, current.answered + 1),
+            correct: Math.min(TOWER_QUIZZES_PER_WAVE, current.correct + (correct ? 1 : 0)),
+        }
+        const nextProgress = {
+            ...quizProgressByWaveRef.current,
+            [wave]: nextForWave,
+        }
 
-            const next = [...prev, wave]
-            if (quizStorageKey && typeof window !== 'undefined') {
-                window.sessionStorage.setItem(quizStorageKey, JSON.stringify(next))
-            }
-            return next
-        })
+        quizProgressByWaveRef.current = nextProgress
+        setQuizProgressByWave(nextProgress)
+
+        if (quizStorageKey && typeof window !== 'undefined') {
+            window.sessionStorage.setItem(quizStorageKey, JSON.stringify(nextProgress))
+        }
+
+        return {
+            ...nextForWave,
+            completed: nextForWave.answered >= TOWER_QUIZZES_PER_WAVE,
+            allCorrect: nextForWave.correct >= TOWER_QUIZZES_PER_WAVE,
+        }
     }, [quizStorageKey])
 
     const resetGame = useCallback(() => {
@@ -203,7 +260,7 @@ export function useTowerDefenseGame({
         setSelectedTower(null)
         setIsWaveActive(false)
         setWaveEnemiesRemaining(0)
-        setQuizUsedWaves([])
+        setQuizProgressByWave({})
         setTotalEnemiesKilled(0)
         setTotalGoldEarned(0)
         setTotalTowersPlaced(0)
@@ -214,10 +271,12 @@ export function useTowerDefenseGame({
         nextTowerIdRef.current = 0
         nextProjectileIdRef.current = 0
         overclockUntilRef.current = 0
+        quizProgressByWaveRef.current = {}
 
         if (roomCode && typeof window !== 'undefined') {
             window.sessionStorage.removeItem(`quiz_index_${roomCode}`)
             window.sessionStorage.removeItem(`tower_quiz_used_${roomCode}`)
+            window.sessionStorage.removeItem(`tower_quiz_progress_${roomCode}`)
         }
 
         setCurrentQuestionIndex(0)
@@ -293,6 +352,11 @@ export function useTowerDefenseGame({
 
     const startWave = useCallback(() => {
         if (currentWave >= WAVES.length) return
+        const progress = quizProgressByWaveRef.current[currentWave] ?? { answered: 0, correct: 0 }
+        if (progress.answered < TOWER_QUIZZES_PER_WAVE) {
+            playSFX('incorrect')
+            return
+        }
 
         const wave = WAVES[currentWave]
         setIsWaveActive(true)
@@ -609,14 +673,26 @@ export function useTowerDefenseGame({
     const waveProgress = Math.min(100, Math.round((currentWave / WAVES.length) * 100))
     const occupiedSlotCount = towers.length
     const remainingSlots = 999
-    const quizHudValue = isWaveActive ? '전투중' : isQuizAvailable ? '가능' : isCurrentWaveQuizUsed ? '사용됨' : '대기'
+    const quizHudValue = isWaveActive
+        ? '전투중'
+        : currentWave >= WAVES.length
+            ? '완료'
+            : `${currentWaveQuizProgress.answered}/${TOWER_QUIZZES_PER_WAVE}`
+    const quizHudDetail = isWaveActive
+        ? `${waveEnemiesRemaining}마리 남음`
+        : currentWave >= WAVES.length
+            ? '모든 웨이브 완료'
+            : `정답 ${currentWaveQuizProgress.correct}/${TOWER_QUIZZES_PER_WAVE}`
     const quizButtonLabel = !currentQuestionAvailable
         ? '문항 없음'
         : isWaveActive
             ? '전투 중'
-            : isCurrentWaveQuizUsed
-                ? '퀴즈 사용됨'
-                : '퀴즈 충전'
+            : isCurrentWaveQuizComplete
+                ? isCurrentWaveQuizPerfect ? '아이템 획득 완료' : '퀴즈 완료'
+                : `퀴즈 ${currentWaveQuizProgress.answered + 1}/${TOWER_QUIZZES_PER_WAVE}`
+    const startWaveButtonLabel = !isCurrentWaveQuizComplete
+        ? `퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제 먼저`
+        : `웨이브 ${currentWave + 1}`
 
     return {
         hp,
@@ -648,7 +724,8 @@ export function useTowerDefenseGame({
         totalGoldEarned,
         totalTowersPlaced,
         isQuizAvailable,
-        markQuizUsed,
+        canStartWave,
+        recordQuizResult,
         resetGame,
         handlePlaceTower,
         handleUpgradeTower,
@@ -663,6 +740,12 @@ export function useTowerDefenseGame({
         occupiedSlotCount,
         remainingSlots,
         quizHudValue,
+        quizHudDetail,
         quizButtonLabel,
+        startWaveButtonLabel,
+        currentWaveQuizAnswered: currentWaveQuizProgress.answered,
+        currentWaveQuizCorrect: currentWaveQuizProgress.correct,
+        isCurrentWaveQuizComplete,
+        isCurrentWaveQuizPerfect,
     }
 }

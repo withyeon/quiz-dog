@@ -16,6 +16,7 @@ export type PuppyChaosCard = {
   label: string
   description: string
   emoji: string
+  icon: string
 }
 
 export type PoopAttack = {
@@ -31,6 +32,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'common',
     label: '우산',
     emoji: '☂️',
+    icon: '/puppy-chaos/umbrella.svg',
     description: '한 번은 괜찮아!',
   },
   bone: {
@@ -38,6 +40,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'common',
     label: '뼈다귀',
     emoji: '🦴',
+    icon: '/puppy-chaos/bone.svg',
     description: '점수 +50!',
   },
   multiplier_1_5: {
@@ -45,6 +48,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'common',
     label: '1.5배',
     emoji: '✨',
+    icon: '/puppy-chaos/multiplier-1-5.svg',
     description: '이번 판 보상 1.5배',
   },
   cleaner: {
@@ -52,6 +56,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'rare',
     label: '청소기',
     emoji: '🧹',
+    icon: '/puppy-chaos/cleaner.svg',
     description: '2초 후 화면을 싹!',
   },
   multiplier_2: {
@@ -59,6 +64,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'rare',
     label: '2배',
     emoji: '⭐',
+    icon: '/puppy-chaos/multiplier-2.svg',
     description: '이번 판 보상 2배!',
   },
   poop_bomb: {
@@ -66,6 +72,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'attack',
     label: '똥폭탄',
     emoji: '💣',
+    icon: '/puppy-chaos/poop-bomb.svg',
     description: '1등에게 대소동을!',
   },
   score_thief: {
@@ -73,6 +80,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'attack',
     label: '점수 도둑',
     emoji: '🦹',
+    icon: '/puppy-chaos/score-thief.svg',
     description: '랜덤 친구 점수 50 훔치기!',
   },
   golden_dog: {
@@ -80,6 +88,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'legendary',
     label: '황금 강아지',
     emoji: '👑',
+    icon: '/puppy-chaos/golden-dog.svg',
     description: '이번 판은 무적! +500!',
   },
 }

@@ -10,6 +10,7 @@ import { useAudioContext } from '@/components/AudioProvider'
 import DontLookDownGame from '@/components/DontLookDownGame'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import Leaderboard from '@/components/Leaderboard'
 import {
@@ -27,6 +28,7 @@ import {
     updateObstacles,
     updatePlatforms,
     respawnPlatforms,
+    SUMMITS,
 } from '@/lib/game/dontlookdown'
 import { useGameBase } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
@@ -45,6 +47,13 @@ export default function DontLookDownPage() {
         currentQuestionIndex,
         setCurrentQuestionIndex,
         questions,
+        questionsLoading,
+        questionsError,
+        preStartQuizQuestion,
+        preStartSubmittedCount,
+        preStartQuizTotal,
+        shouldShowPreStartQuiz,
+        isPreStartQuizComplete,
         players,
         room,
         roomLoading,
@@ -53,8 +62,9 @@ export default function DontLookDownPage() {
         currentQuestion,
         playBGM,
         playSFX,
+        handlePreStartQuizAnswer,
         checkAnswer,
-        handleWrongAnswer,
+        goToNextQuestion,
         isRoomHost,
         finishGame,
     } = useGameBase({ expectedGameMode: 'dontlookdown' })
@@ -73,9 +83,10 @@ export default function DontLookDownPage() {
     const platformUpdateRef = useRef<NodeJS.Timeout>()
     const platformRespawnRef = useRef<NodeJS.Timeout>()
     const platformsRef = useRef<Platform[]>([])
+    const dldPlayersRef = useRef<Map<string, DLDPlayer>>(new Map())
     const hasFinishedGameRef = useRef(false)
     const resolvedGameStartTime = room?.started_at
-        ? new Date(room.started_at).getTime()
+        ? gameStartTime || new Date(room.started_at).getTime()
         : gameStartTime
 
     // 플랫폼 이미지 로드 시 크기로 박스 갱신 (이미지 크기 = 플랫폼 박스)
@@ -90,6 +101,7 @@ export default function DontLookDownPage() {
     // 게임 시작 (플레이어 로드 완료 후에만)
     useEffect(() => {
         if (room?.status !== 'playing' || currentView !== 'lobby') return
+        if (!isPreStartQuizComplete) return
         // 현재 플레이어가 players에 있을 때만 시작 (로딩 타임아웃 방지)
         if (!playerId || !players.some(p => p.id === playerId)) return
 
@@ -117,18 +129,23 @@ export default function DontLookDownPage() {
             )
         })
         setDldPlayers(initialPlayers)
-        setGameStartTime(room?.started_at ? new Date(room.started_at).getTime() : Date.now())
-    }, [room?.started_at, room?.status, currentView, players, gameSettings, playerId, setCurrentView])
+        setGameStartTime(Date.now())
+    }, [isPreStartQuizComplete, room?.started_at, room?.status, currentView, players, gameSettings, playerId, setCurrentView])
 
     // Update platformsRef when platforms change
     useEffect(() => {
         platformsRef.current = platforms
     }, [platforms])
 
+    useEffect(() => {
+        dldPlayersRef.current = dldPlayers
+    }, [dldPlayers])
+
     // 카운트다운 완료
     const handleCountdownComplete = () => {
         setCurrentView('game')
         setRemainingTime(gameSettings.duration)
+        setGameStartTime(Date.now())
         playBGM('lobby')
 
         // 파워업 생성 타이머 시작 (10초마다)
@@ -204,9 +221,10 @@ export default function DontLookDownPage() {
         const correct = await checkAnswer(answer)
         if (correct) {
             playSFX('correct')
+            window.setTimeout(goToNextQuestion, 250)
         } else {
             playSFX('incorrect')
-            handleWrongAnswer()
+            window.setTimeout(goToNextQuestion, 250)
         }
     }
 
@@ -220,7 +238,7 @@ export default function DontLookDownPage() {
             setRemainingTime(remaining)
 
             if (elapsed >= gameSettings.duration) {
-                const leaderboard = getLeaderboard(dldPlayers)
+                const leaderboard = getLeaderboard(dldPlayersRef.current)
                 if (leaderboard.length > 0) {
                     setWinner(leaderboard[0].id)
                     setCurrentView('result')
@@ -237,7 +255,7 @@ export default function DontLookDownPage() {
         }, 1000)
 
         return () => clearInterval(interval)
-    }, [currentView, dldPlayers, finishGame, gameSettings, isRoomHost, resolvedGameStartTime, setCurrentView])
+    }, [currentView, finishGame, gameSettings.duration, isRoomHost, resolvedGameStartTime, setCurrentView])
 
     // roomCode/playerId 없거나 로딩 중
     if (!roomCode || !playerId) {
@@ -273,6 +291,17 @@ export default function DontLookDownPage() {
         <main className="min-h-screen relative overflow-hidden font-bitbit">
             <AnimatedBackground />
 
+            {shouldShowPreStartQuiz && (
+                <PreStartQuizGate
+                    question={preStartQuizQuestion}
+                    submittedCount={preStartSubmittedCount}
+                    total={preStartQuizTotal}
+                    onAnswer={handlePreStartQuizAnswer}
+                    questionsLoading={questionsLoading}
+                    questionsError={questionsError}
+                />
+            )}
+
             <AnimatePresence mode="wait">
                 {/* 로비 대기 */}
                 {currentView === 'lobby' && (
@@ -287,7 +316,7 @@ export default function DontLookDownPage() {
                             <div className="mb-8 flex justify-center">
                                 <Image
                                     src="/title/jump_jump.svg"
-                                    alt="Don't Look Down"
+                                    alt="점프점프"
                                     width={780}
                                     height={264}
                                     className="h-28 w-auto max-w-full object-contain sm:h-36 md:h-44"
@@ -299,7 +328,7 @@ export default function DontLookDownPage() {
                                     정상까지 먼저 올라가세요!
                                 </p>
                                 <p className="text-gray-600 mb-4">
-                                    퀴즈를 풀어 에너지를 얻고, 플랫폼을 점프하며 6개의 Summit을 넘어 정상을 정복하세요
+                                    퀴즈를 풀어 에너지를 얻고, 플랫폼을 점프하며 {SUMMITS.length}개 구역을 넘어 정상을 정복하세요
                                 </p>
                                 <div className="grid grid-cols-2 gap-4 text-sm text-left">
                                     <div className="bg-blue-50 p-3 rounded">
@@ -307,7 +336,7 @@ export default function DontLookDownPage() {
                                         <div className="text-xs text-gray-600">실드, 로켓, 에너지 등</div>
                                     </div>
                                     <div className="bg-purple-50 p-3 rounded">
-                                        <div className="font-bold mb-1">🏔️ 6개 Summit</div>
+                                        <div className="font-bold mb-1">🏔️ {SUMMITS.length}개 구역</div>
                                         <div className="text-xs text-gray-600">난이도가 점점 증가</div>
                                     </div>
                                     <div className="bg-red-50 p-3 rounded">

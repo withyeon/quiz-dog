@@ -191,8 +191,24 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
             exit={{ scale: 0 }}
             transition={{ rotate: { duration: 2, repeat: Infinity, ease: 'linear' } }}
           >
-            {obj.type === 'bomb' && '💣'}
-            {obj.type === 'rock' && '🪨'}
+            {obj.type === 'bomb' && (
+              <Image
+                src="/mini-game/bomb.svg"
+                alt="폭탄"
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain drop-shadow-md"
+              />
+            )}
+            {obj.type === 'rock' && (
+              <Image
+                src="/mini-game/rock.svg"
+                alt="바위"
+                width={40}
+                height={40}
+                className="h-10 w-10 object-contain drop-shadow-md"
+              />
+            )}
             {obj.type === 'coin' && (
               <Image
                 src="/mini-game/bone.svg"
@@ -280,7 +296,7 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
           transition={{ duration: 2, repeat: Infinity }}
         >
           <p className="text-white text-sm font-semibold drop-shadow-lg">
-            ← → 키 또는 클릭으로 이동 | 💣🪨 피하기 | 뼈다귀 모으기!
+            ← → 키 또는 클릭으로 이동 | 폭탄 운석 피하기 | 뼈다귀 모으기!
           </p>
         </motion.div>
       )}

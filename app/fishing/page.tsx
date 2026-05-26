@@ -7,6 +7,7 @@ import { Award, Clock, Gamepad2, PackageCheck, Settings, Star, Target, XCircle, 
 import QuizView from '@/components/QuizView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
+import PreStartQuizGate from '@/components/PreStartQuizGate'
 import FishingMachine from '@/components/FishingMachine'
 import {
   CollectionGrid,
@@ -30,7 +31,10 @@ export default function FishingPage() {
   const {
     roomCode, playerId, currentView, setCurrentView,
     showCountdown, players, room, roomLoading, playersLoading,
-    currentPlayer, currentQuestion, playSFX,
+    currentPlayer, currentQuestion, questionsLoading, questionsError,
+    preStartQuizQuestion, preStartSubmittedCount, preStartQuizTotal,
+    shouldShowPreStartQuiz, isPreStartQuizComplete,
+    playSFX, handlePreStartQuizAnswer,
     checkAnswer, handleWrongAnswer, handleCountdownComplete,
     goToNextQuestion, getElapsedSeconds,
   } = gameBase
@@ -59,10 +63,10 @@ export default function FishingPage() {
   const showResultCard = fishingState === 'release' && !!fishingResult?.doll
 
   useEffect(() => {
-    if (room?.status === 'playing' && currentView === 'lobby' && !showCountdown) {
+    if (room?.status === 'playing' && currentView === 'lobby' && !showCountdown && isPreStartQuizComplete) {
       setCurrentView('quiz')
     }
-  }, [currentView, room?.status, setCurrentView, showCountdown])
+  }, [currentView, isPreStartQuizComplete, room?.status, setCurrentView, showCountdown])
 
   if (!roomCode || !playerId) {
     return (
@@ -108,9 +112,6 @@ export default function FishingPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* 타이틀 */}
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white shadow-lg shadow-slate-200">
-                  <Gamepad2 size={24} />
-                </div>
                 <div className="min-w-0">
                   <Image
                     src="/title/fishing.svg"
@@ -120,7 +121,6 @@ export default function FishingPage() {
                     className="h-10 w-auto max-w-full object-contain sm:h-12"
                     priority
                   />
-                  <p className="text-xs font-bold text-slate-500">방 코드: {roomCode}</p>
                 </div>
               </div>
 
@@ -200,8 +200,20 @@ export default function FishingPage() {
           </div>
         </div>
 
-        {/* ── 메인 컨텐츠 ── */}
+          {/* ── 메인 컨텐츠 ── */}
         <div className="mx-auto max-w-7xl">
+          {shouldShowPreStartQuiz && (
+            <PreStartQuizGate
+              question={preStartQuizQuestion}
+              submittedCount={preStartSubmittedCount}
+              total={preStartQuizTotal}
+              onAnswer={handlePreStartQuizAnswer}
+              questionsLoading={questionsLoading}
+              questionsError={questionsError}
+              variant="fishing"
+            />
+          )}
+
           {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
 
           {/* 대기 로비 */}
@@ -230,6 +242,7 @@ export default function FishingPage() {
                   onAnswer={handleAnswerSubmit}
                   timeLimit={30}
                   onCorrectClick={handleOpenClaw}
+                  variant="fishing"
                   className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60"
                 />
 
