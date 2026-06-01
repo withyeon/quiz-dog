@@ -194,7 +194,7 @@ export default function CreateQuestionPage() {
 
   // ======= 메인 생성 화면 =======
   return (
-    <main className="min-h-screen bg-[#f5f7fb] px-4 py-5 text-black sm:px-6 lg:px-8">
+    <main className="min-h-dvh bg-[#f5f7fb] px-4 py-5 text-black sm:px-6 lg:px-8">
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>

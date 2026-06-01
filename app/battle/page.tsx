@@ -602,7 +602,7 @@ export default function BattlePage() {
 
   if (!roomCode || !playerId) {
     return (
-      <main className="battle-shell flex min-h-screen items-center justify-center p-4">
+      <main className="battle-shell flex min-h-dvh items-center justify-center p-4">
         <div className="battle-frost-panel max-w-md p-6 text-center">
           <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-amber-600" />
           <p className="font-bold text-slate-800">방 코드와 플레이어 ID가 필요합니다.</p>
@@ -613,7 +613,7 @@ export default function BattlePage() {
 
   if (roomLoading || playersLoading) {
     return (
-      <main className="battle-shell flex min-h-screen items-center justify-center p-4">
+      <main className="battle-shell flex min-h-dvh items-center justify-center p-4">
         <div className="battle-frost-panel px-6 py-5 text-xl font-black text-slate-800">
           로딩 중...
         </div>
@@ -647,7 +647,7 @@ export default function BattlePage() {
 
   return (
     <main
-      className="battle-shell relative min-h-screen overflow-x-hidden font-bitbit"
+      className="battle-shell relative min-h-dvh overflow-x-hidden font-bitbit"
     >
       <SnowEffect
         isActive={showSnowEffect}

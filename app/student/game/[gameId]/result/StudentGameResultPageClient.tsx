@@ -64,7 +64,7 @@ function StudentResultContent({ gameId }: { gameId: string }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff] p-6">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f7fbff] p-6">
         <p className="text-xl font-black text-slate-500">내 결과를 불러오는 중입니다...</p>
       </div>
     )
@@ -72,7 +72,7 @@ function StudentResultContent({ gameId }: { gameId: string }) {
 
   if (!room) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#f7fbff] p-6 text-center">
+      <div className="flex min-h-dvh items-center justify-center bg-[#f7fbff] p-6 text-center">
         <p className="text-xl font-black text-red-600">
           {errorMessage ? `결과를 불러오지 못했습니다. ${errorMessage}` : '게임 결과를 찾을 수 없습니다.'}
         </p>

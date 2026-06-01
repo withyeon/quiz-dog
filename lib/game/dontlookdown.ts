@@ -521,8 +521,8 @@ export function updatePlayerPhysics(
         updated.vy = PHYSICS.MAX_FALL_SPEED
     }
 
-    // 바람 효과 (Ghost 모드가 아닐 때만)
-    if (!updated.activePowerUps.has('ghost')) {
+    // 바람 효과 (Ghost/로켓 모드가 아닐 때만)
+    if (!updated.activePowerUps.has('ghost') && !rocketBoosting) {
         for (const obstacle of obstacles) {
             if (obstacle.type === 'wind' && obstacle.active && checkObstacleCollision(updated, obstacle)) {
                 const windForce = obstacle.direction === 'left' ? -PHYSICS.WIND_FORCE : PHYSICS.WIND_FORCE
@@ -577,7 +577,7 @@ export function updatePlayerPhysics(
             if (platform.type === 'disappearing' && !platform.disappearTime) {
                 platform.disappearTime = Date.now() + 2000
             }
-        } else if (player.vy < 0 && prevY >= platformBottom && updated.y < platformBottom) {
+        } else if (!rocketBoosting && player.vy < 0 && prevY >= platformBottom && updated.y < platformBottom) {
             // 천장 박치기: 이전엔 아래였는데 이번에 박스 안으로 들어옴
             if (updated.y + PLAYER_SIZE.HEIGHT > platform.y) {
                 updated.y = platformBottom
@@ -590,8 +590,8 @@ export function updatePlayerPhysics(
         updated.vx *= Math.pow(PHYSICS.AIR_RESISTANCE, dt * 60)
     }
 
-    // 레이저 충돌 체크 (Ghost 모드가 아닐 때만)
-    if (!updated.activePowerUps.has('ghost')) {
+    // 레이저 충돌 체크 (Ghost/로켓 모드가 아닐 때만)
+    if (!updated.activePowerUps.has('ghost') && !rocketBoosting) {
         for (const obstacle of obstacles) {
             if (obstacle.type === 'laser' && obstacle.active) {
                 if (checkObstacleCollision(updated, obstacle)) {

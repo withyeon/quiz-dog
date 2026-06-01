@@ -42,7 +42,7 @@ export default function StudentResultView({
 
   if (!student) {
     return (
-      <div className="min-h-screen bg-[#f7fbff] px-4 py-10">
+      <div className="min-h-dvh bg-[#f7fbff] px-4 py-10">
         <div className="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm">
           <h1 className="text-2xl font-black text-slate-950">내 결과를 찾을 수 없어요</h1>
           <p className="mt-2 text-slate-500">학생 결과 화면은 개인 식별용 playerId가 필요합니다.</p>
@@ -64,7 +64,7 @@ export default function StudentResultView({
   const isTopThree = student.rankByScore <= 3
 
   return (
-    <main className="min-h-screen bg-[#f7fbff] px-4 py-6 font-bitbit text-slate-900 sm:px-6">
+    <main className="min-h-dvh bg-[#f7fbff] px-4 py-6 font-bitbit text-slate-900 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-5">
         <section className={`overflow-hidden rounded-lg border p-6 shadow-sm ${
           isTopThree

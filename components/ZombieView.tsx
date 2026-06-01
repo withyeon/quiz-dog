@@ -217,7 +217,7 @@ export default function ZombieView({
 
   return (
     <div
-      className="relative h-screen w-full overflow-hidden"
+      className="relative h-dvh w-full overflow-hidden"
       style={{
         fontFamily: "'DNFBitBitv2', sans-serif",
         backgroundImage: `linear-gradient(${overlayColor}, rgba(0,0,0,0.7)), url('/zombie/background.png')`,

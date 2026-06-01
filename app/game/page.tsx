@@ -386,7 +386,7 @@ export default function GamePage() {
 
   if (!roomCode || !playerId) {
     return (
-      <div className="gold-quest-ambient min-h-screen flex items-center justify-center p-6">
+      <div className="gold-quest-ambient min-h-dvh flex items-center justify-center p-6">
         <div className="gold-quest-panel p-6">
           <p className="font-bold text-[#17262a]">방 코드와 플레이어 ID가 필요합니다.</p>
         </div>
@@ -396,7 +396,7 @@ export default function GamePage() {
 
   if (roomLoading || playersLoading) {
     return (
-      <div className="gold-quest-ambient min-h-screen flex items-center justify-center p-6">
+      <div className="gold-quest-ambient min-h-dvh flex items-center justify-center p-6">
         <div className="gold-quest-panel p-8 text-center">
           <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
           <div className="text-xl font-black text-[#17262a]">로딩 중</div>
@@ -406,7 +406,7 @@ export default function GamePage() {
   }
 
   return (
-    <main className="gold-quest-ambient min-h-screen p-4 sm:p-6 lg:p-8 relative overflow-hidden font-bitbit">
+    <main className="gold-quest-ambient min-h-dvh p-4 sm:p-6 lg:p-8 relative overflow-hidden font-bitbit">
       <div className="max-w-6xl mx-auto relative z-10">
         <motion.header
           initial={{ opacity: 0, y: -20 }}

@@ -134,7 +134,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
   if (!roomCode) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-dvh bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <p className="text-gray-800">유효하지 않은 방 코드입니다.</p>
         </div>
@@ -144,7 +144,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
   return (
     <>
-      <main className="min-h-screen bg-gray-50 p-8">
+      <main className="min-h-dvh bg-gray-50 p-8">
         <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4 text-gray-800 flex items-center justify-center gap-2">

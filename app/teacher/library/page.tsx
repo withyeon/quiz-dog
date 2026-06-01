@@ -762,7 +762,7 @@ function InfoTile({
 
 export default function LibraryPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">로딩 중...</div>}>
+    <Suspense fallback={<div className="min-h-dvh flex items-center justify-center">로딩 중...</div>}>
       <LibraryPageContent />
     </Suspense>
   )

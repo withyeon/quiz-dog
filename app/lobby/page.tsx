@@ -134,7 +134,7 @@ export default function LobbyPage() {
 
   return (
     <main
-      className="min-h-screen relative overflow-hidden font-bitbit"
+      className="min-h-dvh relative overflow-hidden font-bitbit"
       style={{ background: 'linear-gradient(160deg, #FFF3DC 0%, #FFE8C0 50%, #FFF0D0 100%)' }}
     >
       <div className="absolute inset-0">
@@ -164,7 +164,7 @@ export default function LobbyPage() {
         </div>
       </div>
 
-      <div className="relative z-10 min-h-[calc(100vh-72px)] flex items-center justify-center p-6">
+      <div className="relative z-10 min-h-[calc(100dvh-72px)] flex items-center justify-center p-6">
         <AnimatePresence mode="wait">
           {step === 'code' && (
             <motion.div

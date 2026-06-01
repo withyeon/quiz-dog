@@ -125,6 +125,18 @@
     background-attachment: fixed;
   }
 
+  /* 터치 기기(갤럭시 태블릿/폰)에서는 background-attachment: fixed가 스크롤마다 전체 리페인트를 유발해 끊김이 생기므로 scroll로 대체 (데스크탑/크롬북은 고정 배경 유지) */
+  @media (pointer: coarse) {
+    .gold-quest-ambient,
+    .factory-ambient,
+    .fishing-ambient,
+    .mafia-ambient,
+    .cafe-ambient,
+    .battle-shell {
+      background-attachment: scroll;
+    }
+  }
+
   .factory-ambient::before {
     content: '';
     position: fixed;

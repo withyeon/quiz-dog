@@ -358,7 +358,7 @@ export default function TowerPage() {
 
     if (!roomCode || !playerId) {
         return (
-            <div className="tower-command-screen flex min-h-screen items-center justify-center p-6">
+            <div className="tower-command-screen flex min-h-dvh items-center justify-center p-6">
                 <div className="relative z-10 rounded-lg border border-slate-200 bg-white px-6 py-5 shadow-xl">
                     <p className="font-bold text-slate-800">방 코드와 플레이어 ID가 필요합니다.</p>
                 </div>
@@ -368,7 +368,7 @@ export default function TowerPage() {
 
     if (roomLoading || playersLoading) {
         return (
-            <div className="tower-command-screen flex min-h-screen items-center justify-center p-6">
+            <div className="tower-command-screen flex min-h-dvh items-center justify-center p-6">
                 <div className="relative z-10 rounded-lg border border-slate-200 bg-white px-6 py-5 text-xl font-black text-slate-800 shadow-xl">
                     작전실 불러오는 중...
                 </div>
@@ -377,8 +377,8 @@ export default function TowerPage() {
     }
 
     return (
-        <main className="tower-command-screen min-h-screen overflow-x-hidden font-bitbit text-slate-900">
-            <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
+        <main className="tower-command-screen min-h-dvh overflow-x-hidden font-bitbit text-slate-900">
+            <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
                 {shouldShowPreStartQuiz && (
                     <PreStartQuizGate
                         question={preStartQuizQuestion}
@@ -397,7 +397,7 @@ export default function TowerPage() {
                 {showCountdown && <Countdown onComplete={handleTowerCountdownComplete} />}
 
                 {currentView === 'playing' && (
-                    <div className="flex min-h-[calc(100vh-40px)] flex-col">
+                    <div className="flex min-h-[calc(100dvh-40px)] flex-col">
                         <TowerBattleHeader
                             roomCode={roomCode}
                             selectedTowerType={selectedTowerType}

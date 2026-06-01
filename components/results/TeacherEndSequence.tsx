@@ -97,13 +97,13 @@ export default function TeacherEndSequence({
   }
 
   return (
-    <main className="min-h-screen overflow-hidden font-bitbit bg-[#102a43] text-white">
+    <main className="min-h-dvh overflow-hidden font-bitbit bg-[#102a43] text-white">
       {(stage === 0 || stage === 3 || stage === 4 || stage === 6) && (
         <Confetti recycle={stage !== 6} numberOfPieces={stage === 6 ? 120 : 260} />
       )}
 
       {stage === 0 && (
-        <section className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
+        <section className="flex min-h-dvh flex-col items-center justify-center p-8 text-center">
           <div className="mb-8 flex h-28 w-28 items-center justify-center rounded-full bg-white text-7xl shadow-2xl">
             🐶
           </div>
@@ -117,7 +117,7 @@ export default function TeacherEndSequence({
       )}
 
       {stage === 4 && (
-        <section className="flex min-h-screen flex-col justify-center p-10">
+        <section className="flex min-h-dvh flex-col justify-center p-10">
           <h1 className="mb-10 text-center text-[clamp(48px,7vw,96px)] font-black tracking-normal">오늘의 Top 3</h1>
           <div className="mx-auto grid w-full max-w-6xl grid-cols-3 items-end gap-5">
             <PodiumSpot rank={2} player={topThree[1]} gameMode={room.game_mode} height="h-72" tone="silver" />
@@ -137,7 +137,7 @@ export default function TeacherEndSequence({
       )}
 
       {stage === 6 && (
-        <section className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
+        <section className="flex min-h-dvh flex-col items-center justify-center p-8 text-center">
           <Image
             src="/quizdog-logo.svg"
             alt="퀴즈독"
@@ -184,7 +184,7 @@ function RevealStage({
   const scoreDisplay = getScoreDisplay({ score: player?.score ?? 0 }, gameMode)
 
   return (
-    <section className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
+    <section className="flex min-h-dvh flex-col items-center justify-center p-8 text-center">
       <div className={`mb-8 flex items-center gap-6 text-[clamp(48px,7vw,96px)] font-black ${color}`}>
         <Image
           src={rankIconSrc}
@@ -269,7 +269,7 @@ function ReviewQuestionStage({
 }) {
   if (!question) {
     return (
-      <section className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
+      <section className="flex min-h-dvh flex-col items-center justify-center p-8 text-center">
         <h1 className="text-[clamp(56px,8vw,120px)] font-black tracking-normal">복습할 문항이 없습니다</h1>
         <button onClick={onNext} className="mt-10 rounded-lg bg-white px-8 py-5 text-3xl font-black text-slate-900">
           마무리로
@@ -279,7 +279,7 @@ function ReviewQuestionStage({
   }
 
   return (
-    <section className="flex min-h-screen flex-col p-10">
+    <section className="flex min-h-dvh flex-col p-10">
       <div className="mb-8 text-[clamp(32px,4vw,56px)] font-black text-sky-100">
         가장 많이 틀린 문제 {index + 1}
       </div>

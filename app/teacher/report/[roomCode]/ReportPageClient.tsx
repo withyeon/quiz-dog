@@ -40,7 +40,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+            <div className="min-h-dvh bg-gray-50 flex items-center justify-center p-6">
                 <p className="text-xl font-bold text-gray-500">결과 데이터를 불러오는 중입니다...</p>
             </div>
         )
@@ -48,7 +48,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
 
     if (!room) {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 gap-4">
+            <div className="min-h-dvh bg-gray-50 flex flex-col items-center justify-center p-6 gap-4">
                 <p className="text-xl font-bold text-red-500">
                     {errorMessage ? `게임 방 정보를 불러오지 못했습니다. ${errorMessage}` : '게임 방 정보를 찾을 수 없습니다.'}
                 </p>
@@ -64,7 +64,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
 
     if (room.status !== 'finished') {
         return (
-            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6 gap-4">
+            <div className="min-h-dvh bg-gray-50 flex flex-col items-center justify-center p-6 gap-4">
                 <div className="bg-yellow-100 text-yellow-800 p-6 rounded-xl border border-yellow-200">
                     <p className="text-lg font-bold">아직 게임이 진행 중입니다!</p>
                     <p className="mt-2">결과 리포트는 게임이 완전히 종료된 후에 볼 수 있습니다.</p>
@@ -80,7 +80,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 p-6">
+        <div className="min-h-dvh bg-gray-50 p-6">
             <div className="max-w-7xl mx-auto">
                 <div className="flex items-center justify-between mb-8">
                     <div>

@@ -112,7 +112,7 @@ export default function ZombiePage() {
 
   if (!roomCode || !playerId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-6 text-white">
+      <div className="flex min-h-dvh items-center justify-center bg-black p-6 text-white">
         방 코드와 플레이어 정보가 필요합니다.
       </div>
     )
@@ -120,7 +120,7 @@ export default function ZombiePage() {
 
   if (roomLoading || playersLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black p-6 text-2xl font-black text-green-300">
+      <div className="flex min-h-dvh items-center justify-center bg-black p-6 text-2xl font-black text-green-300">
         좀비 모드를 준비하는 중...
       </div>
     )
@@ -128,7 +128,7 @@ export default function ZombiePage() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden"
+      className="relative min-h-dvh overflow-hidden"
       style={{
         fontFamily: "'DNFBitBitv2', sans-serif",
         backgroundImage: "linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.65)), url('/zombie/background.png')",
@@ -150,7 +150,7 @@ export default function ZombiePage() {
 
       <AnimatePresence mode="wait">
         {currentView === 'lobby' && (
-          <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-screen items-center justify-center p-4">
+          <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-4">
             <Card className="w-full max-w-2xl border-4 border-green-600 bg-black/90 shadow-2xl backdrop-blur-sm">
               <CardHeader className="pb-4 text-center">
                 <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 2, repeat: Infinity }} className="mb-4 flex justify-center">
@@ -197,7 +197,7 @@ export default function ZombiePage() {
         )}
 
         {currentView === 'playing' && showRoleReveal && myPlayer && (
-          <motion.div key="role_reveal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-screen items-center justify-center p-4">
+          <motion.div key="role_reveal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-4">
             <motion.div initial={{ scale: 0 }} animate={{ scale: [0, 1.2, 1] }} transition={{ duration: 0.8 }} className="text-center">
               <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 1, repeat: Infinity }} className="flex justify-center">
                 <ZombieIcon
@@ -218,7 +218,7 @@ export default function ZombiePage() {
 
         {currentView === 'playing' && !showRoleReveal && (
           hasAssignedRoles ? (
-            <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-screen w-full">
+            <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-dvh w-full">
               <ZombieView
                 roomCode={roomCode}
                 playerId={playerId}
@@ -241,7 +241,7 @@ export default function ZombiePage() {
               />
             </motion.div>
           ) : (
-            <motion.div key="assigning" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-screen items-center justify-center p-6 text-center">
+            <motion.div key="assigning" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-6 text-center">
               <div className="rounded-2xl border-4 border-green-600 bg-black/80 p-8 text-3xl font-black text-green-300">
                 역할을 배정하는 중...
               </div>
@@ -250,7 +250,7 @@ export default function ZombiePage() {
         )}
 
         {currentView === 'result' && (
-          <motion.div key="result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex min-h-screen items-center justify-center p-4">
+          <motion.div key="result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex min-h-dvh items-center justify-center p-4">
             <Card className={`w-full max-w-3xl border-4 ${winner === 'human' ? 'border-blue-500' : 'border-green-500'} bg-black/90 shadow-2xl backdrop-blur-sm`}>
               <CardHeader className="pb-4 text-center">
                 <div className="mb-4 flex justify-center">

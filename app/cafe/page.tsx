@@ -171,7 +171,7 @@ export default function CafePage() {
   const topMenuCount = topMenuEntry ? topMenuEntry[1] : 0
 
   return (
-    <div className="cafe-ambient min-h-screen relative overflow-hidden font-bitbit">
+    <div className="cafe-ambient min-h-dvh relative overflow-hidden font-bitbit">
       <AttackAlert attack={incomingAttack} />
       {shouldShowPreStartQuiz && (
         <PreStartQuizGate
@@ -191,7 +191,7 @@ export default function CafePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="min-h-screen flex items-center justify-center p-4"
+            className="min-h-dvh flex items-center justify-center p-4"
           >
             <Card className="w-full max-w-2xl border-4 border-amber-300 shadow-2xl bg-white/95 backdrop-blur-sm">
               <CardHeader className="text-center pb-4">
@@ -262,7 +262,7 @@ export default function CafePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="w-full h-screen"
+            className="w-full h-dvh"
           >
             <CafeView
               onGameEnd={() => setCurrentView('result')}
@@ -286,7 +286,7 @@ export default function CafePage() {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}
-            className="min-h-screen flex items-center justify-center p-4"
+            className="min-h-dvh flex items-center justify-center p-4"
           >
             <Card className="w-full max-w-3xl border-4 border-amber-300 shadow-2xl bg-white/95 backdrop-blur-sm">
               <CardHeader className="text-center pb-4">

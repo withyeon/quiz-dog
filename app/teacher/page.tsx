@@ -314,7 +314,7 @@ function TeacherPageContent() {
 
 export default function TeacherPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">로딩 중...</div>}>
+    <Suspense fallback={<div className="min-h-dvh flex items-center justify-center">로딩 중...</div>}>
       <TeacherPageContent />
     </Suspense>
   )

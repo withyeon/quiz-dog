@@ -71,7 +71,7 @@ export default function FishingPage() {
 
   if (!roomCode || !playerId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
         <p className="rounded-lg bg-white p-6 text-gray-800 shadow-lg">방 코드와 플레이어 ID가 필요합니다.</p>
       </div>
     )
@@ -79,7 +79,7 @@ export default function FishingPage() {
 
   if (roomLoading || playersLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+      <div className="flex min-h-dvh items-center justify-center bg-gray-50">
         <p className="text-2xl font-bold text-gray-800">로딩 중...</p>
       </div>
     )
@@ -87,7 +87,7 @@ export default function FishingPage() {
 
   return (
     <main
-      className={`fishing-ambient relative min-h-screen overflow-hidden font-bitbit text-slate-900 transition-colors duration-700 ${isFrenzyEvent ? 'bg-[#fffaf2]' : 'bg-[#f8fbff]'}`}
+      className={`fishing-ambient relative min-h-dvh overflow-hidden font-bitbit text-slate-900 transition-colors duration-700 ${isFrenzyEvent ? 'bg-[#fffaf2]' : 'bg-[#f8fbff]'}`}
     >
       <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(180deg,rgba(240,249,255,0.22)_0%,rgba(255,255,255,0.16)_44%,rgba(248,250,252,0.28)_100%)]" />
       <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-80 bg-[linear-gradient(135deg,rgba(224,242,254,0.28),rgba(255,255,255,0.22)_48%,rgba(254,249,195,0.18))]" />

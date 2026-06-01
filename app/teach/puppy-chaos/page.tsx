@@ -185,10 +185,10 @@ export default function PuppyChaosTeacherPage() {
     : ''
 
   return (
-    <main className="min-h-screen bg-[#E0F2FE] p-5 text-slate-950" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
+    <main className="min-h-dvh bg-[#E0F2FE] p-5 text-slate-950" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       <div className="mx-auto max-w-7xl">
         {!roomCode || !room ? (
-          <section className="grid min-h-[calc(100vh-40px)] place-items-center">
+          <section className="grid min-h-[calc(100dvh-40px)] place-items-center">
             <div className="w-full max-w-2xl rounded-[32px] border-4 border-slate-950 bg-white p-5 text-center shadow-[8px_8px_0_#0f172a] sm:p-8">
               <div className="mb-4 flex justify-center">
                 <div className="relative">
@@ -213,7 +213,7 @@ export default function PuppyChaosTeacherPage() {
             </div>
           </section>
         ) : room.status === 'waiting' ? (
-          <section className="grid min-h-[calc(100vh-40px)] place-items-center">
+          <section className="grid min-h-[calc(100dvh-40px)] place-items-center">
             <div className="w-full max-w-5xl rounded-[32px] border-4 border-slate-950 bg-white p-5 shadow-[8px_8px_0_#0f172a] sm:p-8">
               <div className="grid gap-8 md:grid-cols-[1fr_320px]">
                 <div>

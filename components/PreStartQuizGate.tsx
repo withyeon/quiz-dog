@@ -32,7 +32,7 @@ export default function PreStartQuizGate({
   const progressLabel = `${progress}/${total}`
 
   return (
-    <div className="fixed inset-0 z-[80] flex min-h-screen items-center justify-center overflow-y-auto bg-slate-950/82 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[80] flex min-h-dvh items-center justify-center overflow-y-auto bg-slate-950/82 p-4 backdrop-blur-md">
       <motion.section
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}

@@ -87,7 +87,7 @@ export default function MafiaPage() {
 
   if (!roomCode || !playerId) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-xl font-bold text-yellow-300">
+      <div className="flex min-h-dvh items-center justify-center bg-black text-xl font-bold text-yellow-300">
         방 코드와 플레이어 ID가 필요합니다.
       </div>
     )
@@ -95,14 +95,14 @@ export default function MafiaPage() {
 
   if (roomLoading || playersLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-xl font-bold text-yellow-300">
+      <div className="flex min-h-dvh items-center justify-center bg-black text-xl font-bold text-yellow-300">
         마피아 조직원 불러오는 중...
       </div>
     )
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
+    <div className="relative min-h-dvh overflow-hidden bg-gradient-to-b from-gray-900 via-black to-gray-900" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       <AnimatedBackground />
 
       {shouldShowPreStartQuiz && (
@@ -125,7 +125,7 @@ export default function MafiaPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 flex min-h-screen items-center justify-center p-4"
+            className="relative z-10 flex min-h-dvh items-center justify-center p-4"
           >
             <Card className="w-full max-w-2xl border-4 border-yellow-600 bg-black/90 shadow-2xl backdrop-blur-sm">
               <CardHeader className="pb-4 text-center">
@@ -181,7 +181,7 @@ export default function MafiaPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="relative z-10 h-screen w-full"
+            className="relative z-10 h-dvh w-full"
           >
             <MafiaView
               roomCode={roomCode}
@@ -204,7 +204,7 @@ export default function MafiaPage() {
             initial={{ opacity: 0, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
-            className="relative z-10 min-h-screen p-4"
+            className="relative z-10 min-h-dvh p-4"
           >
             <GameResult
               players={players}

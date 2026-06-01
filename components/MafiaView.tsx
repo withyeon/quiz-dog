@@ -269,14 +269,14 @@ export default function MafiaView({
 
   if (!player) {
     return (
-      <div className="flex h-screen items-center justify-center bg-black text-2xl font-black text-yellow-300">
+      <div className="flex h-dvh items-center justify-center bg-black text-2xl font-black text-yellow-300">
         플레이어 정보를 불러오는 중...
       </div>
     )
   }
 
   return (
-    <div className="mafia-ambient relative h-screen w-full overflow-hidden bg-slate-950" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
+    <div className="mafia-ambient relative h-dvh w-full overflow-hidden bg-slate-950" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
       <div className="absolute left-0 right-0 top-0 z-20 border-b-2 border-yellow-600 bg-black/85 shadow-lg backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 sm:px-4 sm:py-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-5">

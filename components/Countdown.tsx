@@ -13,6 +13,11 @@ export default function Countdown({ onComplete, duration = 3 }: CountdownProps) 
   const [count, setCount] = useState(duration)
   const [showStart, setShowStart] = useState(false)
   const { playSFX } = useAudioContext()
+  const outlineTextStyle = {
+    WebkitTextStroke: '4px #000',
+    paintOrder: 'stroke fill',
+    textShadow: '0 4px 0 #000',
+  }
 
   useEffect(() => {
     if (count > 0) {
@@ -40,7 +45,7 @@ export default function Countdown({ onComplete, duration = 3 }: CountdownProps) 
             transition={{ duration: 0.3 }}
             className="text-center"
           >
-            <div className="text-9xl font-bold text-white mb-4">{count}</div>
+            <div className="text-9xl font-bold text-white mb-4" style={outlineTextStyle}>{count}</div>
           </motion.div>
         ) : (
           <motion.div
@@ -50,7 +55,7 @@ export default function Countdown({ onComplete, duration = 3 }: CountdownProps) 
             transition={{ duration: 0.3 }}
             className="text-center"
           >
-            <div className="text-7xl font-bold text-green-400 mb-4 animate-pulse">
+            <div className="text-7xl font-bold text-green-400 mb-4 animate-pulse" style={outlineTextStyle}>
               시작!
             </div>
           </motion.div>

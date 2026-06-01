@@ -108,7 +108,7 @@ export default function GameResult({
   const accuracy = totalAnswered > 0 ? Math.round((correctCount / totalAnswered) * 100) : 0
 
   return (
-    <div className={`min-h-screen p-4 sm:p-8 relative overflow-hidden ${isGoldQuest ? 'gold-quest-ambient' : 'bg-gray-50'}`}>
+    <div className={`min-h-dvh p-4 sm:p-8 relative overflow-hidden ${isGoldQuest ? 'gold-quest-ambient' : 'bg-gray-50'}`}>
       {!isGoldQuest && <AnimatedBackground />}
       <div className="max-w-6xl mx-auto relative z-10">
         {/* 헤더 */}

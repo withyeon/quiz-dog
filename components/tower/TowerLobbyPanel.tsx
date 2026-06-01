@@ -18,7 +18,7 @@ export default function TowerLobbyPanel({ roomCode }: TowerLobbyPanelProps) {
         <motion.section
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex min-h-[calc(100vh-40px)] items-center justify-center"
+            className="flex min-h-[calc(100dvh-40px)] items-center justify-center"
         >
             <div className="grid w-full max-w-5xl overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl lg:grid-cols-[1.05fr_0.95fr]">
                 <div className="p-8 sm:p-10">

@@ -469,7 +469,7 @@ export default function PuppyChaosPage() {
 
   if (!roomCode || !playerId) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-sky-100 p-6">
+      <main className="flex min-h-dvh items-center justify-center bg-sky-100 p-6">
         <div className="rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center text-2xl font-black shadow-[6px_6px_0_#0f172a]">
           입장 정보가 없어요. QR로 다시 들어와 주세요.
         </div>
@@ -479,7 +479,7 @@ export default function PuppyChaosPage() {
 
   if (!currentPlayer) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-sky-100 p-6">
+      <main className="flex min-h-dvh items-center justify-center bg-sky-100 p-6">
         <div className="rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center text-2xl font-black shadow-[6px_6px_0_#0f172a]">
           강아지를 찾는 중...
         </div>
@@ -496,13 +496,13 @@ export default function PuppyChaosPage() {
 
   return (
     <main
-      className="min-h-screen bg-[#E0F2FE] bg-cover bg-center bg-no-repeat p-4 text-slate-950"
+      className="min-h-dvh bg-[#E0F2FE] bg-cover bg-center bg-no-repeat p-4 text-slate-950"
       style={{
         fontFamily: "'DNFBitBitv2', sans-serif",
         backgroundImage: "linear-gradient(180deg, rgba(224, 242, 254, 0.12), rgba(255, 255, 255, 0.16)), url('/background/puppy-chaos.png')",
       }}
     >
-      <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-3xl flex-col gap-4">
+      <div className="mx-auto flex min-h-[calc(100dvh-32px)] w-full max-w-3xl flex-col gap-4">
         {shouldShowPreStartQuiz && (
           <PreStartQuizGate
             question={preStartQuizQuestion}

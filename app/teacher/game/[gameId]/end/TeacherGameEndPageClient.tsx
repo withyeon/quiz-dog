@@ -54,7 +54,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#102a43] p-6">
+      <div className="flex min-h-dvh items-center justify-center bg-[#102a43] p-6">
         <p className="text-3xl font-black text-white">결과 발표를 준비하는 중입니다...</p>
       </div>
     )
@@ -62,7 +62,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
 
   if (!room) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
         <p className="text-xl font-black text-red-600">
           {errorMessage ? `종료 화면을 불러오지 못했습니다. ${errorMessage}` : '게임 결과를 찾을 수 없습니다.'}
         </p>

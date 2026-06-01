@@ -275,9 +275,9 @@ export default function DontLookDownPage() {
     // roomCode/playerId 없거나 로딩 중
     if (!roomCode || !playerId) {
         return (
-            <main className="min-h-screen relative overflow-hidden font-bitbit">
+            <main className="min-h-dvh relative overflow-hidden font-bitbit">
                 <AnimatedBackground />
-                <div className="relative z-10 flex items-center justify-center min-h-screen">
+                <div className="relative z-10 flex items-center justify-center min-h-dvh">
                     <div className="text-center text-white bg-black/50 backdrop-blur px-8 py-6 rounded-2xl">
                         <p className="text-xl font-bold mb-2">잘못된 접근입니다</p>
                         <p className="text-gray-300">방 코드와 플레이어 정보가 필요합니다. 로비에서 게임에 입장해주세요.</p>
@@ -290,9 +290,9 @@ export default function DontLookDownPage() {
 
     if (roomLoading) {
         return (
-            <main className="min-h-screen relative overflow-hidden font-bitbit">
+            <main className="min-h-dvh relative overflow-hidden font-bitbit">
                 <AnimatedBackground />
-                <div className="relative z-10 flex items-center justify-center min-h-screen">
+                <div className="relative z-10 flex items-center justify-center min-h-dvh">
                     <div className="text-center text-white">
                         <p className="text-2xl font-bold mb-2">방 정보 로딩 중...</p>
                         <p className="text-gray-300">잠시만 기다려주세요</p>
@@ -303,7 +303,7 @@ export default function DontLookDownPage() {
     }
 
     return (
-        <main className="min-h-screen relative overflow-hidden font-bitbit">
+        <main className="min-h-dvh relative overflow-hidden font-bitbit">
             <AnimatedBackground />
 
             {shouldShowPreStartQuiz && (
@@ -325,7 +325,7 @@ export default function DontLookDownPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="relative z-10 flex items-center justify-center min-h-screen p-8"
+                        className="relative z-10 flex items-center justify-center min-h-dvh p-8"
                     >
                         <div className="text-center max-w-2xl">
                             <div className="mb-8 flex justify-center">
@@ -382,7 +382,7 @@ export default function DontLookDownPage() {
                         key="game"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="relative z-10 w-full h-screen"
+                        className="relative z-10 w-full h-dvh"
                     >
                         <DontLookDownGame
                             playerId={playerId}

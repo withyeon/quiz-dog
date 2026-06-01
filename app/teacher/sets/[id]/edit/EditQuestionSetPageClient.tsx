@@ -161,7 +161,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <div className="text-2xl font-bold text-black">로딩 중...</div>
       </div>
     )

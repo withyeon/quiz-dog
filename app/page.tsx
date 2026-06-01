@@ -179,13 +179,13 @@ export default function LandingPage() {
 
   return (
     <div
-      className="min-h-screen relative overflow-hidden font-bitbit"
+      className="min-h-dvh relative overflow-hidden font-bitbit"
       style={{ backgroundColor: '#d9eef5' }}
     >
       <PawBackgroundDecor />
 
       {/* 분필 먼지 (Hero 섹션 안에서만 보임 — 아래 섹션에 영향 없게 absolute) */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 1, height: '100vh' }}>
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 1, height: '100dvh' }}>
         {chalkDust.map((p, i) => (
           <motion.div
             key={i}

@@ -115,7 +115,7 @@ export default function QuestionReviewEditor({
   const totalErrors = generatedQuestions.reduce((sum, q) => sum + getQuestionErrors(q).length, 0)
 
   return (
-    <main className="min-h-screen bg-[#f5f7fb] px-4 py-5 text-black sm:px-6 lg:px-8">
+    <main className="min-h-dvh bg-[#f5f7fb] px-4 py-5 text-black sm:px-6 lg:px-8">
       <div className="mx-auto max-w-5xl">
       <Button
         variant="ghost"

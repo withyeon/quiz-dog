@@ -140,7 +140,7 @@ export default function GansikRunPage() {
     : 0
 
   return (
-    <div className="min-h-screen relative overflow-hidden" style={{ fontFamily: "'DNFBitBitv2', sans-serif", background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 40%, #0f2027 100%)' }}>
+    <div className="min-h-dvh relative overflow-hidden" style={{ fontFamily: "'DNFBitBitv2', sans-serif", background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 40%, #0f2027 100%)' }}>
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
@@ -171,7 +171,7 @@ export default function GansikRunPage() {
         {/* ── LOBBY ── */}
         {pageView === 'lobby' && (
           <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="min-h-screen flex items-center justify-center p-4">
+            className="min-h-dvh flex items-center justify-center p-4">
             <Card className="w-full max-w-lg shadow-2xl border-0" style={{
               background: 'linear-gradient(135deg, rgba(15,15,35,0.95), rgba(25,15,50,0.95))',
               border: '2px solid rgba(139,92,246,0.3)',
@@ -253,7 +253,7 @@ export default function GansikRunPage() {
         {/* ── PLAYING ── */}
         {pageView === 'playing' && (
           <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="w-full h-screen">
+            className="w-full h-dvh">
             <GansikRunGame
               questions={gameQuestions}
               onGameEnd={handleGameEnd}
@@ -267,7 +267,7 @@ export default function GansikRunPage() {
         {/* ── RESULT ── */}
         {pageView === 'result' && gameResult && (
           <motion.div key="result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-            className="min-h-screen flex items-center justify-center p-4">
+            className="min-h-dvh flex items-center justify-center p-4">
             <Card className="w-full max-w-lg border-0 shadow-2xl" style={{
               background: 'linear-gradient(135deg, rgba(15,15,35,0.95), rgba(25,15,50,0.95))',
               border: '2px solid rgba(139,92,246,0.3)',

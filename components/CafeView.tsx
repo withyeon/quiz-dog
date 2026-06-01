@@ -363,7 +363,7 @@ export default function CafeView({
   const customersInLine = customers.slice(0, MAX_CUSTOMERS_IN_LINE)
 
   return (
-    <div className="cafe-ambient relative w-full h-screen overflow-hidden">
+    <div className="cafe-ambient relative w-full h-dvh overflow-hidden">
       {/* 상단 정보 */}
       <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between pointer-events-auto">

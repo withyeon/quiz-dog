@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }, [mobileNavOpen])
 
   return (
-    <div className="min-h-screen bg-[#f7f8fa] text-black">
+    <div className="min-h-dvh bg-[#f7f8fa] text-black">
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex">
         <div className="flex h-16 items-center px-5">
           <Link href="/" className="flex items-center">
@@ -269,7 +269,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
         </header>
 
-        <main className="min-h-[calc(100vh-64px)] px-4 py-6 sm:px-6 lg:px-8">
+        <main className="min-h-[calc(100dvh-64px)] px-4 py-6 sm:px-6 lg:px-8">
           {children}
         </main>
       </div>

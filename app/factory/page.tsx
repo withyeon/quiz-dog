@@ -437,7 +437,7 @@ export default function FactoryPage() {
 
   if (!roomCode || !playerId) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-dvh bg-gray-50 flex items-center justify-center">
         <div className="bg-white rounded-lg shadow-lg p-6">
           <p className="text-gray-800">방 코드와 플레이어 ID가 필요합니다.</p>
         </div>
@@ -447,14 +447,14 @@ export default function FactoryPage() {
 
   if (roomLoading || playersLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-dvh bg-gray-50 flex items-center justify-center">
         <div className="text-2xl font-bold text-gray-800">로딩 중...</div>
       </div>
     )
   }
 
   return (
-    <main className="factory-ambient relative min-h-screen overflow-hidden font-bitbit">
+    <main className="factory-ambient relative min-h-dvh overflow-hidden font-bitbit">
       <ScreenFlash show={showFlash} color="rgba(34, 197, 94, 0.3)" />
 
       {/* 속도 보너스 플로팅 표시 */}
@@ -580,7 +580,7 @@ export default function FactoryPage() {
               </div>
 
               {/* 오른쪽: 편의점 */}
-              <div className="w-full min-w-0 lg:flex-1 lg:overflow-y-auto lg:max-h-[calc(100vh-160px)]">
+              <div className="w-full min-w-0 lg:flex-1 lg:overflow-y-auto lg:max-h-[calc(100dvh-160px)]">
                 <ConvenienceStore
                   money={money}
                   onMoneyChange={handleMoneyChange}
