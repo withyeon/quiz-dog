@@ -41,6 +41,15 @@ CREATE TABLE IF NOT EXISTS public.questions (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Teacher library likes used for weekly/monthly popularity.
+CREATE TABLE IF NOT EXISTS public.question_set_likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  set_id TEXT NOT NULL REFERENCES public.question_sets(id) ON DELETE CASCADE,
+  client_id TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT question_set_likes_set_client_unique UNIQUE (set_id, client_id)
+);
+
 -- Rooms for live game sessions.
 CREATE TABLE IF NOT EXISTS public.rooms (
   room_code TEXT PRIMARY KEY,
@@ -211,6 +220,7 @@ ALTER TABLE public.players DISABLE ROW LEVEL SECURITY;
 
 GRANT USAGE ON SCHEMA public TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.question_sets TO anon, authenticated;
+GRANT SELECT, INSERT, DELETE ON TABLE public.question_set_likes TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.questions TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.rooms TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.players TO anon, authenticated;
@@ -249,6 +259,8 @@ END $$;
 
 -- Runtime/query indexes.
 CREATE INDEX IF NOT EXISTS idx_question_sets_created_at ON public.question_sets(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_question_set_likes_set_id ON public.question_set_likes(set_id);
+CREATE INDEX IF NOT EXISTS idx_question_set_likes_created_at ON public.question_set_likes(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_questions_set_id ON public.questions(set_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_game_mode ON public.rooms(game_mode);
 CREATE INDEX IF NOT EXISTS idx_rooms_set_id ON public.rooms(set_id);

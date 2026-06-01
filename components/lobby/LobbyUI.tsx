@@ -4,6 +4,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
+import { isAvatarPath } from '@/lib/utils/playerDisplay'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 
 /* ─────────────────────────────────────────────────────────────
@@ -139,7 +140,9 @@ export function GameModeButton({
    플레이어 아바타
 ───────────────────────────────────────────────────────────── */
 export function PlayerAvatar({ nickname, avatar, isReady = false }: { nickname: string; avatar: string; isReady?: boolean }) {
-  const hasImageAvatar = avatar.startsWith('/')
+  const normalizedAvatar = avatar.trim()
+  const hasImageAvatar = isAvatarPath(normalizedAvatar)
+  const avatarSrc = normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`
 
   return (
     <motion.div
@@ -157,14 +160,14 @@ export function PlayerAvatar({ nickname, avatar, isReady = false }: { nickname: 
       >
         {hasImageAvatar ? (
           <Image
-            src={avatar}
+            src={avatarSrc}
             alt={nickname}
             fill
             className="object-contain scale-125"
             sizes="56px"
           />
         ) : (
-          avatar
+          normalizedAvatar || '🐶'
         )}
         {isReady && (
           <div className="absolute -top-2 -right-2 text-xs bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center font-black">

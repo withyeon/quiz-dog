@@ -162,7 +162,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-2xl font-bold text-blue-900">로딩 중...</div>
+        <div className="text-2xl font-bold text-black">로딩 중...</div>
       </div>
     )
   }
@@ -186,7 +186,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   type="text"
                   value={setName}
                   onChange={(e) => setSetName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded font-bold text-blue-900"
+                  className="w-full px-3 py-2 border border-gray-300 rounded font-bold text-black"
                   placeholder="문제집 이름"
                 />
                 <div className="grid grid-cols-2 gap-3">
@@ -223,7 +223,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
             ) : (
               <div className="flex items-center gap-3 group">
                 <div>
-                  <h1 className="text-3xl font-bold text-blue-900 cursor-pointer hover:text-blue-800 transition-colors" onClick={() => setIsEditingInfo(true)}>{setName}</h1>
+                  <h1 className="text-3xl font-bold text-black cursor-pointer hover:text-neutral-800 transition-colors" onClick={() => setIsEditingInfo(true)}>{setName}</h1>
                   <div className="flex items-center gap-2 mt-1.5 cursor-pointer" onClick={() => setIsEditingInfo(true)}>
                     {subject ? <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold">{subject}</span> : ''}
                     {grade ? <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-xs font-semibold">{grade}</span> : ''}
@@ -357,7 +357,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-1 bg-sky-100 text-blue-900 rounded text-xs font-semibold">
+                          <span className="px-2 py-1 bg-sky-100 text-black rounded text-xs font-semibold">
                             {question.type === 'CHOICE' ? '객관식' :
                               question.type === 'OX' ? 'OX' :
                                 question.type === 'SHORT' ? '주관식' : '빈칸'}
@@ -383,7 +383,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                           </Button>
                         </div>
                       </div>
-                      <p className="text-lg font-medium text-blue-900">
+                      <p className="text-lg font-medium text-black">
                         {displayBlankText(question.question_text)}
                       </p>
                       {question.type === 'CHOICE' && Array.isArray(question.options) && (

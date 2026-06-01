@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import QuizView from './QuizView'
-import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
+import { isAvatarPath } from '@/lib/utils/playerDisplay'
 import {
     DB_THROTTLE_MS,
     POWERUP_COLLECT_RADIUS,
@@ -32,10 +32,12 @@ import {
     drawTrail,
 } from '@/components/dontlookdown/renderer'
 
+import PowerUpIcon from '@/components/dontlookdown/PowerUpIcon'
 import {
     type DLDPlayer,
     type Platform,
     type PowerUp,
+    type PowerUpType,
     type Obstacle,
     type GameSettings,
     PHYSICS,
@@ -46,7 +48,9 @@ import {
     WORLD,
     POWERUP_EFFECTS,
     PLATFORM_IMAGE_COUNT,
+    SPAWNABLE_POWERUP_TYPES,
     getPlatformImagePath,
+    getPowerUpImagePath,
     createPlayer,
     updatePlayerPhysics,
     movePlayer,
@@ -69,7 +73,7 @@ interface DontLookDownGameProps {
     onUpdatePlayer: (player: DLDPlayer) => void
     onCollectPowerUp: (powerUpId: string) => void
     currentQuestion: DontLookDownQuestion | null
-    onAnswerQuestion: (answer: string) => void
+    onAnswerQuestion: (answer: string) => boolean | Promise<boolean>
     onPlatformImageSizesLoaded?: (sizes: Record<number, { w: number; h: number }>) => void
     remainingTime?: number
 }
@@ -97,6 +101,7 @@ export default function DontLookDownGame({
     // 내 플레이어 - 클라이언트가 권위, 서버 값으로 덮어쓰지 않음
     const playerRef = useRef<DLDPlayer | null>(null)
     const cameraRef = useRef({ x: 0, y: 0 })
+    const showQuizRef = useRef(false)
 
     // 외부 상태 스냅샷 (props → ref, 게임 루프는 항상 최신 ref를 읽음)
     const otherPlayersRef = useRef<DLDPlayer[]>([])
@@ -107,6 +112,7 @@ export default function DontLookDownGame({
     const characterImageRef = useRef<string>(characterImage)
     const onUpdatePlayerRef = useRef(onUpdatePlayer)
     const onCollectPowerUpRef = useRef(onCollectPowerUp)
+    const activatePowerUpSlotRef = useRef<(index: number) => void>(() => {})
 
     // 입력
     const keysRef = useRef<Set<string>>(new Set())
@@ -128,6 +134,8 @@ export default function DontLookDownGame({
 
     // 플랫폼 이미지 캐시
     const platformImagesRef = useRef<Record<number, HTMLImageElement>>({})
+    const powerUpImagesRef = useRef<Partial<Record<PowerUpType, HTMLImageElement>>>({})
+    const avatarImagesRef = useRef<Record<string, HTMLImageElement>>({})
 
     // ============ React UI 상태 (저빈도 동기화) ============
     const [uiPlayer, setUiPlayer] = useState<DLDPlayer | null>(null)
@@ -135,6 +143,28 @@ export default function DontLookDownGame({
     const [showSummitAlert, setShowSummitAlert] = useState<number | null>(null)
     const [combo, setCombo] = useState(0)
     const [quizFeedback, setQuizFeedback] = useState<QuizFeedback | null>(null)
+    const [isTouch, setIsTouch] = useState(false)
+
+    // 터치 기기 감지 (태블릿/모바일에는 물리 키보드가 없으므로 화면 조작 버튼 제공)
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const coarse = window.matchMedia?.('(pointer: coarse)').matches
+        const forced = new URLSearchParams(window.location.search).get('touch') === '1'
+        setIsTouch(forced || Boolean(coarse) || (navigator.maxTouchPoints ?? 0) > 0)
+    }, [])
+
+    // 화면 버튼 → 키보드와 동일한 입력 모델(keysRef) 사용
+    const pressGameKey = (key: string) => {
+        keysRef.current.add(key)
+        if (key === 'jump') jumpBufferRef.current = PHYSICS.JUMP_BUFFER_TIME
+    }
+    const releaseGameKey = (key: string) => {
+        keysRef.current.delete(key)
+    }
+
+    useEffect(() => {
+        showQuizRef.current = showQuiz
+    }, [showQuiz])
 
     if (cloudsRef.current.length === 0) {
         cloudsRef.current = Array.from({ length: 24 }, (_, index) => ({
@@ -184,6 +214,52 @@ export default function DontLookDownGame({
         particlesRef.current = next.slice(-120)
     }
 
+    const spawnRocketExhaust = (player: DLDPlayer, dt: number) => {
+        const next = particlesRef.current.slice()
+        const count = Math.max(3, Math.ceil(dt * 260))
+        for (let i = 0; i < count; i += 1) {
+            const spread = (Math.random() - 0.5) * PLAYER_SIZE.WIDTH * 1.3
+            next.push({
+                x: player.x + PLAYER_SIZE.WIDTH / 2 + spread,
+                y: player.y + PLAYER_SIZE.HEIGHT - 2,
+                vx: (Math.random() - 0.5) * 120,
+                vy: 260 + Math.random() * 360,
+                life: 0.22 + Math.random() * 0.18,
+                maxLife: 0.4,
+                size: 4 + Math.random() * 8,
+                color: Math.random() > 0.35 ? '#fb923c' : '#fde047',
+            })
+        }
+        particlesRef.current = next.slice(-180)
+    }
+
+    activatePowerUpSlotRef.current = (index: number) => {
+        const current = playerRef.current
+        const powerUp = current?.powerUps[index]
+        if (!current || !powerUp) return
+
+        playerRef.current = applyPowerUp(current, index)
+        const color = powerUp.type === 'rocket' ? '#fb923c' : '#fde047'
+        const count = powerUp.type === 'rocket' ? 30 : 18
+        const speed = powerUp.type === 'rocket' ? 420 : 260
+        spawnBurst(
+            playerRef.current.x + PLAYER_SIZE.WIDTH / 2,
+            playerRef.current.y + PLAYER_SIZE.HEIGHT,
+            color,
+            count,
+            speed
+        )
+        shakeRef.current = Math.max(shakeRef.current, powerUp.type === 'rocket' ? 10 : 6)
+        setUiPlayer(playerRef.current)
+    }
+
+    const getAvatarImage = (avatar: string) => {
+        const normalized = avatar.trim()
+        if (!isAvatarPath(normalized)) return undefined
+        const avatarPath = normalized.startsWith('/') ? normalized : `/${normalized}`
+        return avatarImagesRef.current[avatarPath]
+    }
+
     // ============ props → refs 동기화 ============
     useEffect(() => { platformsRef.current = platforms }, [platforms])
     useEffect(() => { obstaclesRef.current = obstacles }, [obstacles])
@@ -192,6 +268,27 @@ export default function DontLookDownGame({
     useEffect(() => { characterImageRef.current = characterImage }, [characterImage])
     useEffect(() => { onUpdatePlayerRef.current = onUpdatePlayer }, [onUpdatePlayer])
     useEffect(() => { onCollectPowerUpRef.current = onCollectPowerUp }, [onCollectPowerUp])
+
+    useEffect(() => {
+        const avatarPaths = new Set<string>()
+        const normalizedCharacterImage = characterImage.trim()
+        if (isAvatarPath(normalizedCharacterImage)) {
+            avatarPaths.add(normalizedCharacterImage.startsWith('/') ? normalizedCharacterImage : `/${normalizedCharacterImage}`)
+        }
+        for (const player of players) {
+            const avatar = String(player.avatar || '').trim()
+            if (isAvatarPath(avatar)) {
+                avatarPaths.add(avatar.startsWith('/') ? avatar : `/${avatar}`)
+            }
+        }
+
+        avatarPaths.forEach((avatarPath) => {
+            if (avatarImagesRef.current[avatarPath]) return
+            const img = document.createElement('img')
+            img.src = avatarPath
+            avatarImagesRef.current[avatarPath] = img
+        })
+    }, [characterImage, players])
 
     // 다른 플레이어만 따로 보관 — 내 플레이어는 props에서 무시 (서버가 내 좌표를 덮어쓰지 않게)
     useEffect(() => {
@@ -207,7 +304,7 @@ export default function DontLookDownGame({
         if (initial) {
             playerRef.current = initial
             cameraRef.current = {
-                x: Math.max(0, Math.min(initial.x - WORLD.VIEW_WIDTH * 0.48, WORLD.WIDTH - WORLD.VIEW_WIDTH)),
+                x: Math.max(0, Math.min(initial.x - WORLD.VIEW_WIDTH * 0.34, WORLD.WIDTH - WORLD.VIEW_WIDTH)),
                 y: initial.y - WORLD.VIEW_HEIGHT * 0.68,
             }
             summitTrackRef.current = initial.currentSummit
@@ -248,6 +345,16 @@ export default function DontLookDownGame({
         }
     }, [onPlatformImageSizesLoaded])
 
+    useEffect(() => {
+        for (const type of SPAWNABLE_POWERUP_TYPES) {
+            const img = document.createElement('img')
+            img.onload = () => {
+                powerUpImagesRef.current[type] = img
+            }
+            img.src = getPowerUpImagePath(type)
+        }
+    }, [])
+
     // ============ 키보드 핸들러 (마운트 시 한 번) ============
     useEffect(() => {
         const getGameKey = (e: KeyboardEvent): string | null => {
@@ -282,14 +389,10 @@ export default function DontLookDownGame({
                 setShowQuiz(true)
             }
             if (gameKey === 'e' && playerRef.current && (playerRef.current.powerUps?.length ?? 0) > 0) {
-                playerRef.current = applyPowerUp(playerRef.current, 0)
-                spawnBurst(playerRef.current.x + PLAYER_SIZE.WIDTH / 2, playerRef.current.y + PLAYER_SIZE.HEIGHT / 2, '#fde047', 18, 260)
-                shakeRef.current = Math.max(shakeRef.current, 6)
+                activatePowerUpSlotRef.current(0)
             }
             if (gameKey === 'r' && playerRef.current && (playerRef.current.powerUps?.length ?? 0) > 1) {
-                playerRef.current = applyPowerUp(playerRef.current, 1)
-                spawnBurst(playerRef.current.x + PLAYER_SIZE.WIDTH / 2, playerRef.current.y + PLAYER_SIZE.HEIGHT / 2, '#fde047', 18, 260)
-                shakeRef.current = Math.max(shakeRef.current, 6)
+                activatePowerUpSlotRef.current(1)
             }
         }
 
@@ -362,17 +465,28 @@ export default function DontLookDownGame({
             })
 
             drawObstacles(ctx, obstaclesRef.current, now)
-            drawPowerUps(ctx, powerUpsRef.current, now)
+            drawPowerUps(ctx, powerUpsRef.current, powerUpImagesRef.current, now)
 
             // 다른 플레이어
             for (const op of otherPlayersRef.current) {
-                drawCharacter(ctx, { player: op, avatar: op.avatar || '🐕', isLocal: false })
+                const avatar = op.avatar || '🐕'
+                drawCharacter(ctx, {
+                    player: op,
+                    avatar,
+                    avatarImage: getAvatarImage(avatar),
+                    isLocal: false,
+                })
             }
 
             drawTrail(ctx, trailRef.current)
 
             // 내 플레이어
-            drawCharacter(ctx, { player, avatar: characterImageRef.current, isLocal: true })
+            drawCharacter(ctx, {
+                player,
+                avatar: characterImageRef.current,
+                avatarImage: getAvatarImage(characterImageRef.current),
+                isLocal: true,
+            })
 
             drawParticles(ctx, particlesRef.current)
 
@@ -394,6 +508,11 @@ export default function DontLookDownGame({
             const lastT = lastFrameTimeRef.current || now
             const dt = Math.min((now - lastT) / 1000, 0.05)
             lastFrameTimeRef.current = now
+
+            if (showQuizRef.current) {
+                drawScene()
+                return
+            }
 
             let player = player0
             const wasOnGround = player.isOnGround
@@ -474,6 +593,11 @@ export default function DontLookDownGame({
             // 물리 (초 단위 dt). updatePlayerPhysics가 sweep 충돌로 tunneling 방지.
             player = updatePlayerPhysics(player, platformsRef.current, obstaclesRef.current, dt)
 
+            if (player.activePowerUps.has('rocket')) {
+                spawnRocketExhaust(player, dt)
+                shakeRef.current = Math.max(shakeRef.current, 4)
+            }
+
             if (!wasOnGround && player.isOnGround) {
                 const landingForce = Math.min(1, Math.max(0.15, previousVy / PHYSICS.MAX_FALL_SPEED))
                 spawnBurst(
@@ -529,7 +653,7 @@ export default function DontLookDownGame({
             // 카메라 lerp (프레임레이트 독립적)
             const targetCamX = Math.max(
                 0,
-                Math.min(player.x - WORLD.VIEW_WIDTH * 0.48, WORLD.WIDTH - WORLD.VIEW_WIDTH)
+                Math.min(player.x - WORLD.VIEW_WIDTH * 0.34, WORLD.WIDTH - WORLD.VIEW_WIDTH)
             )
             const lookAhead = player.vy < 0 ? -70 : player.vy > 500 ? 35 : 0
             const targetCamY = player.y - WORLD.VIEW_HEIGHT * 0.68 + lookAhead
@@ -579,11 +703,10 @@ export default function DontLookDownGame({
     }, []) // ⚠ 빈 deps — 게임 루프는 마운트 시 한 번만 시작
 
     // ============ 퀴즈 답안 처리 ============
-    const handleAnswer = (answer: string) => {
-        onAnswerQuestion(answer)
+    const handleAnswer = async (answer: string) => {
+        const correct = await onAnswerQuestion(answer)
 
         if (playerRef.current && currentQuestion) {
-            const correct = isQuizAnswerMatch(answer, currentQuestion.answer)
             if (correct) {
                 const nextCombo = comboRef.current + 1
                 const comboBonus = Math.min(400, (nextCombo - 1) * 80)
@@ -601,7 +724,7 @@ export default function DontLookDownGame({
                 spawnBurst(
                     boosted.x + PLAYER_SIZE.WIDTH / 2,
                     boosted.y + PLAYER_SIZE.HEIGHT / 2,
-                    nextCombo >= 3 ? '#a78bfa' : '#22c55e',
+                    nextCombo >= 3 ? '#38bdf8' : '#22c55e',
                     nextCombo >= 3 ? 24 : 16,
                     nextCombo >= 3 ? 320 : 240
                 )
@@ -682,7 +805,7 @@ export default function DontLookDownGame({
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
                         <div
-                            className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                            className="bg-gradient-to-r from-sky-400 to-sky-600 h-2 rounded-full transition-all duration-300"
                             style={{ width: `${summitProgress}%` }}
                         />
                     </div>
@@ -727,13 +850,18 @@ export default function DontLookDownGame({
                         {[0, 1].map(index => {
                             const powerUp = uiPlayer.powerUps[index]
                             return (
-                                <div
+                                <button
+                                    type="button"
                                     key={index}
-                                    className={`w-12 h-12 rounded-lg border-2 flex items-center justify-center text-2xl ${powerUp ? 'bg-yellow-100 border-yellow-400' : 'bg-gray-100 border-gray-300'
+                                    onClick={() => activatePowerUpSlotRef.current(index)}
+                                    disabled={!powerUp}
+                                    aria-label={powerUp ? `${POWERUP_EFFECTS[powerUp.type].name} 사용` : `빈 파워업 슬롯 ${index + 1}`}
+                                    title={powerUp ? `${POWERUP_EFFECTS[powerUp.type].name} 사용` : '빈 파워업 슬롯'}
+                                    className={`flex h-12 w-12 touch-manipulation items-center justify-center rounded-lg border-2 text-2xl transition active:scale-95 disabled:active:scale-100 ${powerUp ? 'border-yellow-400 bg-yellow-100 hover:bg-yellow-200' : 'cursor-default border-gray-300 bg-gray-100'
                                         }`}
                                 >
-                                    {powerUp && POWERUP_EFFECTS[powerUp.type].icon}
-                                </div>
+                                    {powerUp && <PowerUpIcon type={powerUp.type} size={36} />}
+                                </button>
                             )
                         })}
                     </div>
@@ -741,8 +869,11 @@ export default function DontLookDownGame({
                     {uiPlayer.activePowerUps.size > 0 && (
                         <div className="mt-3 space-y-1">
                             {Array.from(uiPlayer.activePowerUps.entries()).map(([type, time]) => (
-                                <div key={type} className="text-xs bg-purple-100 px-2 py-1 rounded flex items-center justify-between">
-                                    <span>{POWERUP_EFFECTS[type].icon} {POWERUP_EFFECTS[type].name}</span>
+                                <div key={type} className="text-xs bg-sky-100 px-2 py-1 rounded flex items-center justify-between gap-2">
+                                    <span className="flex items-center gap-1.5">
+                                        <PowerUpIcon type={type} size={16} />
+                                        {POWERUP_EFFECTS[type].name}
+                                    </span>
                                     <span className="font-bold">{Math.ceil(time)}초</span>
                                 </div>
                             ))}
@@ -768,7 +899,7 @@ export default function DontLookDownGame({
                 </AnimatePresence>
 
                 {combo > 1 && (
-                    <div className="absolute top-20 right-4 rounded-xl bg-purple-600 px-5 py-2 font-black text-white shadow-lg">
+                    <div className="absolute top-20 right-4 rounded-xl bg-sky-500 px-5 py-2 font-black text-white shadow-lg">
                         🔥 {combo} 콤보
                     </div>
                 )}
@@ -789,20 +920,91 @@ export default function DontLookDownGame({
                     </div>
                 </div>
 
-                <motion.button
-                    onClick={() => setShowQuiz(true)}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="absolute bottom-4 left-4 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-lg pointer-events-auto"
-                >
-                    퀴즈 풀기 (Q)
-                </motion.button>
+                {isTouch ? (
+                    <div className="absolute inset-x-2 bottom-3 z-40 flex select-none items-end justify-between gap-2 pointer-events-none">
+                        {/* 좌우 이동 */}
+                        <div className="flex gap-2 pointer-events-auto">
+                            <button
+                                type="button"
+                                aria-label="왼쪽 이동"
+                                onContextMenu={(e) => e.preventDefault()}
+                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('left') }}
+                                onPointerUp={() => releaseGameKey('left')}
+                                onPointerLeave={() => releaseGameKey('left')}
+                                onPointerCancel={() => releaseGameKey('left')}
+                                className="flex h-16 w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
+                            >
+                                ←
+                            </button>
+                            <button
+                                type="button"
+                                aria-label="오른쪽 이동"
+                                onContextMenu={(e) => e.preventDefault()}
+                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('right') }}
+                                onPointerUp={() => releaseGameKey('right')}
+                                onPointerLeave={() => releaseGameKey('right')}
+                                onPointerCancel={() => releaseGameKey('right')}
+                                className="flex h-16 w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
+                            >
+                                →
+                            </button>
+                        </div>
 
-                <div className="absolute bottom-4 right-4 bg-black/70 text-white px-4 py-3 rounded-xl text-sm space-y-1">
-                    <div>←/→ 이동 · ↑/스페이스 점프</div>
-                    <div>⇧ 질주 · Q 퀴즈</div>
-                    <div>E/R 파워업 사용</div>
-                </div>
+                        {/* 퀴즈 */}
+                        <button
+                            type="button"
+                            onClick={() => setShowQuiz(true)}
+                            className="pointer-events-auto rounded-2xl bg-sky-500 px-4 py-3 text-sm font-black text-white shadow-lg active:bg-sky-600"
+                        >
+                            퀴즈 풀기
+                        </button>
+
+                        {/* 질주 + 점프 */}
+                        <div className="flex items-end gap-2 pointer-events-auto">
+                            <button
+                                type="button"
+                                aria-label="질주"
+                                onContextMenu={(e) => e.preventDefault()}
+                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('shift') }}
+                                onPointerUp={() => releaseGameKey('shift')}
+                                onPointerLeave={() => releaseGameKey('shift')}
+                                onPointerCancel={() => releaseGameKey('shift')}
+                                className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl bg-white/85 text-xs font-black text-slate-700 shadow-lg active:bg-white"
+                            >
+                                질주
+                            </button>
+                            <button
+                                type="button"
+                                aria-label="점프"
+                                onContextMenu={(e) => e.preventDefault()}
+                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('jump') }}
+                                onPointerUp={() => releaseGameKey('jump')}
+                                onPointerLeave={() => releaseGameKey('jump')}
+                                onPointerCancel={() => releaseGameKey('jump')}
+                                className="flex h-20 w-20 touch-none items-center justify-center rounded-full bg-amber-400 text-base font-black text-amber-950 shadow-xl active:bg-amber-500"
+                            >
+                                점프
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <motion.button
+                            onClick={() => setShowQuiz(true)}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="absolute bottom-4 left-4 bg-sky-500 hover:bg-sky-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg pointer-events-auto"
+                        >
+                            퀴즈 풀기
+                        </motion.button>
+
+                        <div className="absolute bottom-4 right-4 bg-black/70 text-white px-4 py-3 rounded-xl text-sm space-y-1">
+                            <div>←/→ 이동 · ↑/스페이스 점프</div>
+                            <div>⇧ 질주 · Q 퀴즈</div>
+                            <div>E/R 파워업 사용</div>
+                        </div>
+                    </>
+                )}
             </div>
 
             <AnimatePresence>
@@ -813,7 +1015,7 @@ export default function DontLookDownGame({
                         exit={{ opacity: 0, scale: 0.5, y: 50 }}
                         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
                     >
-                        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-12 py-6 rounded-2xl shadow-2xl">
+                        <div className="bg-gradient-to-r from-sky-500 to-sky-600 text-white px-12 py-6 rounded-2xl shadow-2xl">
                             <div className="text-4xl font-bold text-center mb-2">
                                 🏔️ 구역 {showSummitAlert} 도달!
                             </div>
@@ -837,11 +1039,11 @@ export default function DontLookDownGame({
                             initial={{ opacity: 0, x: 40, scale: 0.96 }}
                             animate={{ opacity: 1, x: 0, scale: 1 }}
                             exit={{ opacity: 0, x: 40, scale: 0.96 }}
-                            className="rounded-2xl border-4 border-purple-300 bg-white/95 p-3 shadow-2xl backdrop-blur pointer-events-auto"
+                            className="rounded-2xl border-4 border-sky-300 bg-white/95 p-3 shadow-2xl backdrop-blur pointer-events-auto"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="mb-2 flex items-center justify-between px-1">
-                                <div className="text-sm font-black text-purple-700">
+                                <div className="text-sm font-black text-sky-700">
                                     빠른 충전 퀴즈
                                 </div>
                                 <button

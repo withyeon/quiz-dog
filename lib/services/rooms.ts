@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/utils/gameCode'
 import { DEFAULT_GAME_MODE, getModeInitialPlayerState, isGameModeId, type GameModeId } from '@/lib/game/modes'
+import { createRoleAssignmentPatches } from '@/lib/game/zombie'
 import type { Database } from '@/types/database.types'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -81,6 +82,28 @@ export async function startRoom({ roomCode, gameMode, durationSeconds }: StartRo
       .eq('room_code', roomCode)
 
     if (healthResetError) throw healthResetError
+  }
+
+  if (gameMode === 'zombie') {
+    const { data: roomPlayers, error: listError } = await (supabase
+      .from('players') as any)
+      .select('id, nickname, is_kicked')
+      .eq('room_code', roomCode)
+
+    if (listError) throw listError
+
+    const activePlayers = ((roomPlayers ?? []) as Array<{
+      id: string
+      nickname: string
+      is_kicked: boolean | null
+    }>).filter((player) => !player.is_kicked)
+
+    const patches = createRoleAssignmentPatches(activePlayers)
+    await Promise.all(
+      patches.map(({ playerId, patch }) =>
+        (supabase.from('players') as any).update(patch).eq('id', playerId),
+      ),
+    )
   }
 
   const updatePayload: Record<string, unknown> = {

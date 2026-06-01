@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -8,11 +8,15 @@ import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useRoomResync } from '@/hooks/useRoomResync'
 import { filterNickname } from '@/lib/utils/profanityFilter'
 import CharacterSelector from '@/components/CharacterSelector'
+import GameStartTutorialModal from '@/components/GameStartTutorialModal'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { CHARACTERS, type Character } from '@/lib/utils/characters'
-import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
+import { DEFAULT_GAME_MODE, getGameModeUrl, isGameModeId, type GameModeId } from '@/lib/game/modes'
+import { isTerminalRoomStatus } from '@/lib/game/roomStatus'
+import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
+import { getScoreDisplay } from '@/lib/game/scoreDisplay'
 import { formatServiceError } from '@/lib/services/errors'
-import { createPlayerForRoom, ensureRoomExists } from '@/lib/services/rooms'
+import { createPlayerForRoom, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
 
 export default function PlayPageClient({ roomCode }: { roomCode: string }) {
   const router = useRouter()
@@ -21,6 +25,9 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [isJoined, setIsJoined] = useState(false)
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(CHARACTERS[0])
+  const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [tutorialGameMode, setTutorialGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
 
   const { players, loading, error, refreshPlayers } = usePlayersRealtime({
     roomCode,
@@ -31,13 +38,41 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
   const { room, refreshRoom } = useRoomRealtime({ roomCode })
   const resyncPlay = useRoomResync(refreshRoom, refreshPlayers)
-  const { status: realtimeStatus, onlineCount, sendEvent: sendRoomEvent } = useRoomChannel({
+  const handleRoomEvent = (event: RoomChannelEvent) => {
+    if (
+      event.type !== 'tutorial:show'
+      && event.type !== 'tutorial:slide'
+      && event.type !== 'tutorial:hide'
+    ) {
+      return
+    }
+
+    const payload = event.payload as { gameMode?: unknown; stepIndex?: unknown } | undefined
+    const nextMode = isGameModeId(payload?.gameMode) ? payload.gameMode : DEFAULT_GAME_MODE
+
+    if (event.type === 'tutorial:hide') {
+      setTutorialOpen(false)
+      return
+    }
+
+    setTutorialGameMode(nextMode)
+    setTutorialStepIndex(typeof payload?.stepIndex === 'number' ? payload.stepIndex : 0)
+    setTutorialOpen(true)
+  }
+
+  const { status: realtimeStatus, presence, onlineCount, sendEvent: sendRoomEvent } = useRoomChannel({
     roomCode,
     playerId,
     role: 'student',
     enabled: Boolean(roomCode),
+    onEvent: handleRoomEvent,
     onResyncNeeded: resyncPlay,
   })
+  const onlinePlayerIds = useMemo(() => new Set(
+    presence
+      .filter((meta) => meta.role === 'student' && meta.playerId)
+      .map((meta) => String(meta.playerId)),
+  ), [presence])
 
   // 게임 시작 감지 - 입장 후 로비에서 게임으로 이동
   useEffect(() => {
@@ -63,14 +98,23 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
     }
 
     try {
-      const roomData = await ensureRoomExists(roomCode)
-      if (roomData.status === 'finished') {
+      const roomData = await getRoomByCode(roomCode)
+      if (!roomData) {
+        alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        return
+      }
+      if (isTerminalRoomStatus(roomData.status)) {
         alert('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
+        return
+      }
+      const finalNickname = nicknameCheck.filtered || nickname.trim()
+      if (await nicknameExists(roomCode, finalNickname)) {
+        alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         return
       }
       const playerData = await createPlayerForRoom({
         roomCode,
-        nickname: nicknameCheck.filtered || nickname.trim(),
+        nickname: finalNickname,
         avatar: selectedCharacter.imagePath || selectedCharacter.emoji,
         gameMode: roomData.game_mode,
       })
@@ -99,8 +143,9 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
+    <>
+      <main className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-4 text-gray-800 flex items-center justify-center gap-2">
             <span className="text-5xl">🐶</span>
@@ -196,53 +241,68 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {players.map((player) => (
-                    <div
-                      key={player.id}
-                      className={`flex items-center justify-between p-4 rounded-lg border-2 ${
-                        player.id === playerId
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <PlayerAvatarDisplay
-                          avatar={player.avatar}
-                          nickname={player.nickname}
-                          fallback="🎮"
-                          className="relative h-10 w-10 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-gray-200"
-                          sizes="40px"
-                        />
-                        <div>
-                          <div className="font-semibold text-gray-800">
-                            {player.nickname}
-                            {player.id === playerId && (
-                              <span className="ml-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
-                                나
-                              </span>
-                            )}
+                  {players.map((player) => {
+                    const scoreDisplay = getScoreDisplay(player, room?.game_mode || DEFAULT_GAME_MODE)
+                    const isOnline = onlinePlayerIds.has(player.id)
+
+                    return (
+                      <div
+                        key={player.id}
+                        className={`flex items-center justify-between p-4 rounded-lg border-2 ${
+                          player.id === playerId
+                            ? 'border-indigo-500 bg-indigo-50'
+                            : 'border-gray-200 bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <PlayerAvatarDisplay
+                            avatar={player.avatar}
+                            nickname={player.nickname}
+                            fallback="🎮"
+                            className="relative h-10 w-10 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-gray-200"
+                            sizes="40px"
+                          />
+                          <div>
+                            <div className="font-semibold text-gray-800">
+                              {player.nickname}
+                              {player.id === playerId && (
+                                <span className="ml-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                                  나
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              {isOnline ? '🟢 온라인' : '🔴 오프라인'}
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500">
-                            {player.is_online ? '🟢 온라인' : '🔴 오프라인'}
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-lg font-bold ${
+                            scoreDisplay.tone === 'money'
+                              ? 'text-emerald-600'
+                              : scoreDisplay.tone === 'gold'
+                                ? 'text-yellow-600'
+                                : 'text-gray-800'
+                          }`}>
+                            {scoreDisplay.text}
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold text-gray-800">
-                          {player.score}점
-                        </div>
-                        <div className="text-sm text-yellow-600">
-                          💰 {player.gold} Gold
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </>
           )}
         </div>
-      </div>
-    </main>
+        </div>
+      </main>
+      <GameStartTutorialModal
+        gameMode={tutorialGameMode}
+        isOpen={tutorialOpen}
+        stepIndex={tutorialStepIndex}
+        role="student"
+      />
+    </>
   )
 }

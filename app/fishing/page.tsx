@@ -399,23 +399,26 @@ export default function FishingPage() {
                   </h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center gap-2 rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2">
-                      <span className="text-yellow-700 font-black">PERFECT</span>
-                      <span className="text-slate-600 text-xs">전설 확률 증가</span>
+                      <span className="text-yellow-700 font-black">전설</span>
+                      <span className="text-slate-600 text-xs">노란 구간, 목표선에 가까울수록 최고</span>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
-                      <span className="text-violet-700 font-black">GREAT</span>
-                      <span className="text-slate-600 text-xs">영웅 확률 증가</span>
+                      <span className="text-violet-700 font-black">영웅</span>
+                      <span className="text-slate-600 text-xs">보라 구간 · 높은 점수 확률 증가</span>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
-                      <span className="text-sky-700 font-black">GOOD</span>
-                      <span className="text-slate-600 text-xs">희귀 확률 증가</span>
+                      <span className="text-sky-700 font-black">희귀</span>
+                      <span className="text-slate-600 text-xs">하늘 구간 · 희귀 인형 확률 증가</span>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
-                      <span className="text-green-700 font-black">SAFE</span>
-                      <span className="text-slate-600 text-xs">일반 인형 위주</span>
+                      <span className="text-green-700 font-black">일반</span>
+                      <span className="text-slate-600 text-xs">구간 밖 · 일반 인형 위주</span>
                     </div>
                   </div>
                   <p className="mt-3 text-xs text-slate-500">
+                    목표는 매번 다른 위치에 나타납니다. 노란 구간 안의 목표선에 가까울수록 높은 등급입니다.
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
                     Rank {machineRank}에서는 집게가 {machineRank >= 4 ? '빠르게' : machineRank >= 3 ? '적당히' : '천천히'} 움직입니다.
                   </p>
                 </div>

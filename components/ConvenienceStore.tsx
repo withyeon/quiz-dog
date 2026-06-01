@@ -1,10 +1,13 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import Image from 'next/image'
-import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Coins, Zap, Store, Sparkles, PackagePlus, Replace, TrendingUp } from 'lucide-react'
+import { Coins, Zap, Store, Sparkles, PackagePlus, Replace, TrendingUp, BarChart3 } from 'lucide-react'
 import type { Product, Customer, StoreEvent, ProductCategory } from '@/lib/game/convenienceStore'
+import StoreProductIcon from '@/components/store/StoreProductIcon'
+import StoreCategoryIcon from '@/components/store/StoreCategoryIcon'
+import { STORE_BRAND_ICON } from '@/lib/game/storeAssets'
 import {
   generateProductOptions,
   calculateTotalCPS,
@@ -17,7 +20,6 @@ import {
   calculateProductIncome,
   calculateTickIncome,
   getCategorySynergy,
-  getCategoryEmoji,
   formatMoney,
   formatProductIncomeRate,
   roundMoney,
@@ -61,6 +63,12 @@ export default function ConvenienceStore({
   const [pendingProductToPlace, setPendingProductToPlace] = useState<Product | null>(null)
   const [, setIncomeTick] = useState(0)
   const [paidProductIds, setPaidProductIds] = useState<Set<string>>(new Set())
+  const moneyRef = useRef(money)
+  const incomeTickRef = useRef(0)
+
+  useEffect(() => {
+    moneyRef.current = money
+  }, [money])
 
   // CPS 계산
   useEffect(() => {
@@ -85,36 +93,36 @@ export default function ConvenienceStore({
     if (products.length === 0) return
 
     const interval = setInterval(() => {
-      setIncomeTick((prevTick) => {
-        const nextTick = prevTick + 1
-        const baseIncome = calculateTickIncome(products, nextTick)
-        let multiplier = 1.0
+      const nextTick = incomeTickRef.current + 1
+      incomeTickRef.current = nextTick
+      setIncomeTick(nextTick)
 
-        if (currentEvent) multiplier *= currentEvent.multiplier
-        if (currentCustomer) multiplier *= currentCustomer.bonusMultiplier
+      const baseIncome = calculateTickIncome(products, nextTick)
+      let multiplier = 1.0
 
-        const paidIds = new Set(
-          products
-            .filter((product) => shouldProductPayOnTick(product, nextTick))
-            .map((product) => product.id)
-        )
-        const tickIncome = roundMoney(baseIncome * multiplier)
+      if (currentEvent) multiplier *= currentEvent.multiplier
+      if (currentCustomer) multiplier *= currentCustomer.bonusMultiplier
 
-        setPaidProductIds(paidIds)
-        if (paidIds.size > 0) {
-          setTimeout(() => setPaidProductIds(new Set()), 850)
-        }
-        if (tickIncome > 0) {
-          onMoneyChange(roundMoney(money + tickIncome))
-        }
+      const paidIds = new Set(
+        products
+          .filter((product) => shouldProductPayOnTick(product, nextTick))
+          .map((product) => product.id)
+      )
+      const tickIncome = roundMoney(baseIncome * multiplier)
 
-        return nextTick
-      })
+      setPaidProductIds(paidIds)
+      if (paidIds.size > 0) {
+        window.setTimeout(() => setPaidProductIds(new Set()), 850)
+      }
+      if (tickIncome > 0) {
+        onMoneyChange(roundMoney(moneyRef.current + tickIncome))
+      }
+
       setLastTick(Date.now())
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [currentCustomer, currentEvent, money, onMoneyChange, products])
+  }, [currentCustomer, currentEvent, onMoneyChange, products])
 
   // 고객 방문 시스템 (30초마다)
   useEffect(() => {
@@ -376,15 +384,20 @@ export default function ConvenienceStore({
 
             {/* 시너지 표시 */}
             <div className="mt-3 pt-3 border-t border-slate-200">
-              <h4 className="text-xs font-bold text-slate-500 mb-2">📊 카테고리 시너지</h4>
+              <h4 className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+                <BarChart3 size={14} /> 카테고리 시너지
+              </h4>
               <div className="space-y-1">
                 {(['음료', '식품', '간식', '프리미엄'] as ProductCategory[]).map(category => {
                   const count = products.filter(p => p.category === category).length
                   if (count === 0) return null
                   const synergy = getCategorySynergy(category, products)
                   return (
-                    <div key={category} className="flex justify-between text-xs">
-                      <span>{getCategoryEmoji(category)} {category}</span>
+                    <div key={category} className="flex justify-between text-xs items-center">
+                      <span className="flex items-center gap-1">
+                        <StoreCategoryIcon category={category} size={14} />
+                        {category}
+                      </span>
                       <span className="font-bold text-blue-600">
                         {count}개 × {synergy.toFixed(1)}
                       </span>
@@ -399,7 +412,8 @@ export default function ConvenienceStore({
         {/* 오른쪽: 진열대 (Grid) */}
         <div className="md:w-2/3 bg-gradient-to-b from-white to-slate-50 rounded-3xl border-4 border-emerald-200 p-5 shadow-inner relative">
           <h2 className="text-xl font-extrabold mb-4 flex items-center gap-2">
-            🏪 나의 편의점 생산 라인
+            <Image src={STORE_BRAND_ICON} alt="편의점" width={28} height={28} unoptimized className="object-contain" />
+            나의 편의점 생산 라인
           </h2>
 
           <div className="grid grid-cols-3 gap-4 max-w-[680px] mx-auto">
@@ -439,26 +453,14 @@ export default function ConvenienceStore({
                           </span>
                         )}
 
-                        <div className="flex-1 flex items-center justify-center text-5xl filter drop-shadow-md">
-                          {slot.image ? (
-                            <Image
-                              src={slot.image}
-                              alt={slot.name}
-                              width={80}
-                              height={80}
-                              unoptimized
-                              className="pixelated h-20 w-20 object-contain"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.style.display = 'none'
-                                if (target.parentElement) {
-                                  target.parentElement.innerHTML = `<span class="text-4xl">${slot.emoji}</span>`
-                                }
-                              }}
-                            />
-                          ) : (
-                            slot.emoji
-                          )}
+                        <div className="flex-1 flex items-center justify-center filter drop-shadow-md">
+                          <StoreProductIcon
+                            src={slot.image}
+                            alt={slot.name}
+                            emoji={slot.emoji}
+                            baseId={slot.baseId}
+                            size={80}
+                          />
                         </div>
 
                         <div className="w-full bg-white/60 backdrop-blur-sm rounded-md py-1 text-center">
@@ -579,30 +581,19 @@ export default function ConvenienceStore({
                     </div>
 
                     {/* 카테고리 표시 */}
-                    <div className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold">
-                      {getCategoryEmoji(item.category)} {item.category}
+                    <div className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold flex items-center gap-1">
+                      <StoreCategoryIcon category={item.category} size={14} />
+                      {item.category}
                     </div>
 
-                    <div className="text-7xl drop-shadow-md group-hover:scale-110 transition-transform duration-300">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          width={96}
-                          height={96}
-                          unoptimized
-                          className="pixelated w-24 h-24 object-contain"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
-                            if (target.parentElement) {
-                              target.parentElement.innerHTML = `<span class="text-7xl">${item.emoji}</span>`
-                            }
-                          }}
-                        />
-                      ) : (
-                        item.emoji
-                      )}
+                    <div className="drop-shadow-md group-hover:scale-110 transition-transform duration-300">
+                      <StoreProductIcon
+                        src={item.image}
+                        alt={item.name}
+                        emoji={item.emoji}
+                        baseId={item.baseId}
+                        size={96}
+                      />
                     </div>
                     <div className="text-xl font-bold text-slate-800">{item.name}</div>
                     <div className="font-mono text-lg font-bold text-slate-600 bg-white/60 px-4 py-1 rounded-lg">
@@ -631,26 +622,14 @@ export default function ConvenienceStore({
               className="bg-white rounded-2xl p-6 max-w-md w-full"
             >
               <div className="text-center mb-4">
-                <div className="text-6xl mb-2 flex justify-center">
-                  {selectedProductToSell.image ? (
-                    <Image
-                      src={selectedProductToSell.image}
-                      alt={selectedProductToSell.name}
-                      width={96}
-                      height={96}
-                      unoptimized
-                      className="pixelated w-24 h-24 object-contain"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.style.display = 'none'
-                        if (target.parentElement) {
-                          target.parentElement.innerHTML = `<span class="text-6xl">${selectedProductToSell.emoji}</span>`
-                        }
-                      }}
-                    />
-                  ) : (
-                    selectedProductToSell.emoji
-                  )}
+                <div className="mb-2 flex justify-center">
+                  <StoreProductIcon
+                    src={selectedProductToSell.image}
+                    alt={selectedProductToSell.name}
+                    emoji={selectedProductToSell.emoji}
+                    baseId={selectedProductToSell.baseId}
+                    size={96}
+                  />
                 </div>
                 <h3 className="text-2xl font-bold mb-2">{selectedProductToSell.name}</h3>
                 <p className="text-gray-600">

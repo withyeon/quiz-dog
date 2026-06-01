@@ -56,6 +56,7 @@ export default function TowerPage() {
         questionStartTime,
         showCountdown,
         setShowCountdown,
+        commitPlayerPatch,
     } = useGameBase({ expectedGameMode: 'tower' })
     const isPaused = room?.status === 'paused'
 
@@ -332,6 +333,20 @@ export default function TowerPage() {
         setCurrentView('playing')
         playBGM('game')
     }, [playBGM, setCurrentView, setShowCountdown])
+
+    useEffect(() => {
+        if (!playerId || (currentView !== 'playing' && currentView !== 'result')) return
+
+        const score = Math.max(0, Math.floor(totalGoldEarned))
+        const timer = window.setTimeout(() => {
+            void commitPlayerPatch(playerId, {
+                score,
+                gold: Math.max(0, Math.floor(gold)),
+            }, 'tower_score_sync')
+        }, 350)
+
+        return () => window.clearTimeout(timer)
+    }, [commitPlayerPatch, currentView, gold, playerId, totalGoldEarned])
 
     useEffect(() => {
         return () => {

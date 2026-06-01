@@ -5,6 +5,8 @@ import Image from 'next/image'
 import type { Database } from '@/types/database.types'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { getPlayerDisplayNickname } from '@/lib/utils/playerDisplay'
+import { getPrimaryScoreValue, getScoreDisplay } from '@/lib/game/scoreDisplay'
+import { DEFAULT_GAME_MODE, type GameModeId } from '@/lib/game/modes'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -12,6 +14,7 @@ interface LeaderboardProps {
   players: Player[]
   currentPlayerId?: string | null
   sortBy?: 'score' | 'gold'
+  gameMode?: GameModeId | string | null
   title?: string
   titleIcon?: string
 }
@@ -20,6 +23,7 @@ export default function Leaderboard({
   players,
   currentPlayerId,
   sortBy = 'score',
+  gameMode = DEFAULT_GAME_MODE,
   title = '실시간 순위',
   titleIcon,
 }: LeaderboardProps) {
@@ -34,12 +38,11 @@ export default function Leaderboard({
           return b.gold - a.gold
         }
         return b.score - a.score
-      } else {
-        if (b.score !== a.score) {
-          return b.score - a.score
-        }
-        return b.gold - a.gold
       }
+
+      const scoreCompare = getPrimaryScoreValue(b, gameMode) - getPrimaryScoreValue(a, gameMode)
+      if (scoreCompare !== 0) return scoreCompare
+      return (b.score ?? 0) - (a.score ?? 0)
     })
 
     const newPreviousRanks = new Map<string, number>()
@@ -53,7 +56,7 @@ export default function Leaderboard({
 
     prevSortedRef.current = sorted
     setSortedPlayers(sorted)
-  }, [players, sortBy])
+  }, [gameMode, players, sortBy])
 
   const getRankChange = (playerId: string, currentIndex: number): number | null => {
     const previousRank = previousRanks.get(playerId)
@@ -92,6 +95,7 @@ export default function Leaderboard({
             const rankChange = getRankChange(player.id, index)
             const isCurrentPlayer = player.id === currentPlayerId
             const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
+            const scoreDisplay = getScoreDisplay(player, gameMode)
 
             return (
               <div
@@ -155,16 +159,25 @@ export default function Leaderboard({
                     <>
                       <div className="text-3xl font-bold text-yellow-600 flex items-center justify-end gap-2">
                         <Image src="/gold-quest/gold-stack.svg" alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" />
-                        <span>{player.gold.toLocaleString()}</span>
+                        <span>{(player.gold ?? 0).toLocaleString()}</span>
                         <span className="text-xl">골드</span>
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="text-2xl font-bold text-gray-800">{player.score}점</div>
-                      <div className="text-sm text-yellow-600 font-semibold flex items-center justify-end gap-1.5">
-                        <Image src="/gold-quest/gold-stack.svg" alt="" width={16} height={16} className="h-4 w-4 object-contain" />
-                        {player.gold.toLocaleString()} 골드
+                      <div className={`text-2xl font-bold ${
+                        scoreDisplay.tone === 'money'
+                          ? 'text-emerald-600'
+                          : scoreDisplay.tone === 'gold'
+                            ? 'text-yellow-600'
+                            : scoreDisplay.tone === 'health'
+                              ? 'text-red-600'
+                              : 'text-gray-800'
+                      } flex items-center justify-end gap-1.5`}>
+                        {scoreDisplay.icon && (
+                          <Image src={scoreDisplay.icon} alt="" width={24} height={24} className="h-6 w-6 object-contain" />
+                        )}
+                        {scoreDisplay.text}
                       </div>
                     </>
                   )}

@@ -32,7 +32,6 @@ import {
 } from '@/lib/game/dontlookdown'
 import { useGameBase } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
-import { updatePlayer } from '@/lib/services/players'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -67,6 +66,7 @@ export default function DontLookDownPage() {
         goToNextQuestion,
         isRoomHost,
         finishGame,
+        commitPlayerPatch,
     } = useGameBase({ expectedGameMode: 'dontlookdown' })
 
     const [gameSettings, setGameSettings] = useState<GameSettings>(DEFAULT_SETTINGS)
@@ -88,6 +88,18 @@ export default function DontLookDownPage() {
     const resolvedGameStartTime = room?.started_at
         ? gameStartTime || new Date(room.started_at).getTime()
         : gameStartTime
+    const roomDurationSeconds = typeof room?.duration_seconds === 'number'
+        ? room.duration_seconds
+        : null
+
+    useEffect(() => {
+        if (!roomDurationSeconds) return
+        setGameSettings(prev => (
+            prev.duration === roomDurationSeconds
+                ? prev
+                : { ...prev, duration: roomDurationSeconds }
+        ))
+    }, [roomDurationSeconds])
 
     // 플랫폼 이미지 로드 시 크기로 박스 갱신 (이미지 크기 = 플랫폼 박스)
     const handlePlatformImageSizesLoaded = useCallback((sizes: Record<number, { w: number; h: number }>) => {
@@ -205,7 +217,7 @@ export default function DontLookDownPage() {
             score: Math.floor(player.height),
             gold: Math.floor(player.energy),
         }
-        await updatePlayer(player.id, updateData)
+        await commitPlayerPatch(player.id, updateData, 'dontlookdown_score_sync')
     }
 
     // 파워업 수집
@@ -221,11 +233,14 @@ export default function DontLookDownPage() {
         const correct = await checkAnswer(answer)
         if (correct) {
             playSFX('correct')
-            window.setTimeout(goToNextQuestion, 250)
         } else {
             playSFX('incorrect')
-            window.setTimeout(goToNextQuestion, 250)
         }
+        window.setTimeout(() => {
+            goToNextQuestion()
+            setCurrentView('game')
+        }, 250)
+        return correct
     }
 
     // 게임 시간 체크 (제한 시간 종료 시 가장 높은 height = 승자)
@@ -335,7 +350,7 @@ export default function DontLookDownPage() {
                                         <div className="font-bold mb-1">⚡ 파워업</div>
                                         <div className="text-xs text-gray-600">실드, 로켓, 에너지 등</div>
                                     </div>
-                                    <div className="bg-purple-50 p-3 rounded">
+                                    <div className="bg-sky-50 p-3 rounded">
                                         <div className="font-bold mb-1">🏔️ {SUMMITS.length}개 구역</div>
                                         <div className="text-xs text-gray-600">난이도가 점점 증가</div>
                                     </div>

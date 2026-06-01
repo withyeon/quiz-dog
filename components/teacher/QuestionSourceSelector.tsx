@@ -42,36 +42,36 @@ export default function QuestionSourceSelector({
   }> = [
     {
       id: 'topic' as const,
-      title: '주제 입력',
-      description: '수업 주제만 적고 초안을 빠르게 만듭니다',
-      helper: '예: 초5 도형의 넓이',
+      title: '오늘 배울 내용',
+      description: '단원이나 활동명을 적으면 바로 퀴즈 초안을 잡아줘요',
+      helper: '예: 초4 물의 상태 변화',
       icon: Pencil,
       tone: 'sky',
       badge: null,
     },
     {
       id: 'file' as const,
-      title: '자료 파일',
-      description: 'PDF, 문서, PPT, 텍스트 자료를 문제로 바꿉니다',
-      helper: 'PDF, DOCX, PPTX, PPT, TXT, CSV',
+      title: '수업 자료 넣기',
+      description: '학습지, 안내문, 발표 자료에서 낼 만한 문제를 골라요',
+      helper: 'PDF · DOCX · PPTX · PPT · TXT · CSV',
       icon: FileText,
       tone: 'cyan',
       badge: null,
     },
     {
       id: 'youtube' as const,
-      title: '영상 자막',
-      description: '자막이 있는 영상에서 핵심 내용을 뽑습니다',
-      helper: '자막 있는 영상 지원',
+      title: '영상으로 만들기',
+      description: '영상 속 설명을 바탕으로 확인 문제를 구성해요',
+      helper: '자막을 읽을 수 있는 영상',
       icon: Youtube,
       tone: 'rose',
       badge: 'Beta',
     },
     {
       id: 'exam' as const,
-      title: '시험지 스캔',
-      description: '시험지나 문제지 이미지를 그대로 가져옵니다',
-      helper: 'PDF, JPG, PNG',
+      title: '종이 문제 가져오기',
+      description: '스캔한 활동지나 사진 속 문제를 편집 가능한 형태로 옮겨요',
+      helper: 'PDF · JPG · PNG',
       icon: ScanLine,
       tone: 'amber',
       badge: 'New',
@@ -81,10 +81,10 @@ export default function QuestionSourceSelector({
   const toneClasses = {
     sky: {
       active: 'border-sky-400 bg-sky-50',
-      icon: 'bg-sky-100 text-blue-900',
+      icon: 'bg-sky-100 text-black',
       focus: 'focus:border-sky-400 focus:ring-sky-100',
       selected: 'bg-sky-500',
-      text: 'text-blue-900',
+      text: 'text-black',
     },
     cyan: {
       active: 'border-cyan-400 bg-cyan-50',
@@ -116,8 +116,8 @@ export default function QuestionSourceSelector({
           type="text"
           value={topic}
           onChange={(e) => setTopic(e.target.value)}
-          placeholder="예: 초5 도형의 넓이"
-          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-blue-900 outline-none ring-2 ring-transparent transition ${toneClasses.sky.focus}`}
+          placeholder="예: 초4 물의 상태 변화"
+          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-black outline-none ring-2 ring-transparent transition ${toneClasses.sky.focus}`}
           onClick={(e) => e.stopPropagation()}
         />
       )
@@ -145,7 +145,7 @@ export default function QuestionSourceSelector({
           value={youtubeUrl}
           onChange={(e) => setYoutubeUrl(e.target.value)}
           placeholder="https://youtube.com/watch?v=..."
-          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-blue-900 outline-none ring-2 ring-transparent transition ${toneClasses.rose.focus}`}
+          className={`mt-4 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-black outline-none ring-2 ring-transparent transition ${toneClasses.rose.focus}`}
           onClick={(e) => e.stopPropagation()}
         />
       )
@@ -196,7 +196,7 @@ export default function QuestionSourceSelector({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-black text-blue-900">{option.title}</h3>
+                  <h3 className="text-lg font-black text-black">{option.title}</h3>
                   {option.badge && (
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-black text-white ${tone.selected}`}>
                       {option.badge}

@@ -158,13 +158,13 @@ export const METERS_PER_PIXEL = 0.1 // 10픽셀 = 1미터
 
 // 월드 크기 (수직 절벽 등반 맵)
 export const WORLD = {
-    WIDTH: 1800,   // 절벽 양쪽 벽이 보이는 폭
+    WIDTH: 4200,   // 우상향 진행감을 위해 넓은 가로 월드 사용
     HEIGHT: 7200,  // 세로 여유
     VIEW_WIDTH: 800,
     VIEW_HEIGHT: 600,
 } as const
 
-export const CLIMB_START_X = WORLD.WIDTH / 2 - 80
+export const CLIMB_START_X = 320
 
 // 플랫폼 크기 (narrow = 한 칸, 아슬아슬)
 export const PLATFORM = {
@@ -198,12 +198,24 @@ export const SUMMITS = [
 // 파워업 효과
 export const POWERUP_EFFECTS = {
     shield: { duration: Infinity, icon: '🛡️', name: '실드' },
-    rocket: { duration: 0, icon: '🚀', name: '로켓 부스트' },
+    rocket: { duration: 0.8, icon: '🚀', name: '로켓 부스트' },
     energy: { duration: 0, icon: '⚡', name: '에너지 충전' },
     double_points: { duration: 30, icon: '🌟', name: '2배 점수' },
     ghost: { duration: 5, icon: '👻', name: '유령 모드' },
     time_freeze: { duration: 3, icon: '⏱️', name: '시간 정지' },
 } as const
+
+export const SPAWNABLE_POWERUP_TYPES = [
+    'shield',
+    'rocket',
+    'energy',
+    'double_points',
+    'ghost',
+] as const satisfies readonly PowerUpType[]
+
+export function getPowerUpImagePath(type: PowerUpType): string {
+    return `/dontlookdown/powerup/${type}.svg`
+}
 
 // 기본 설정
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -270,11 +282,14 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
             const difficulty = maxSummitIndex <= 0 ? 0 : summitIndex / maxSummitIndex
             const rowIndex = Math.floor((summitStartY - summitCurrentY) / Y_STEP)
 
-            // 절벽 루트: 가운데 축을 기준으로 좌우로 흔들리는 switchback.
-            const routeAmplitude = 170 + difficulty * 220
-            const switchback = rowIndex % 2 === 0 ? -110 : 110
-            const wave = Math.sin((rowIndex + summitIndex * 1.7) * 0.82) * routeAmplitude
-            const baseX = Math.max(260, Math.min(WORLD.WIDTH - 420, CLIMB_START_X + wave + switchback))
+            // 우상향 루트: 높이가 올라갈수록 화면 오른쪽으로 전진한다.
+            const climbMeters = summit.startHeight + ((summitStartY - summitCurrentY) * METERS_PER_PIXEL)
+            const routeProgress = Math.min(1, Math.max(0, climbMeters / summitGoal))
+            const routeEndX = WORLD.WIDTH - 720
+            const rightwardBase = CLIMB_START_X + routeProgress * (routeEndX - CLIMB_START_X)
+            const switchback = rowIndex % 2 === 0 ? -70 : 70
+            const wave = Math.sin((rowIndex + summitIndex * 1.7) * 0.82) * (70 + difficulty * 90)
+            const baseX = Math.max(220, Math.min(WORLD.WIDTH - 420, rightwardBase + wave + switchback))
             lastRouteX = baseX
 
             // === 메인 루트 플랫폼 (항상 올라갈 수 있는 안전 발판) ===
@@ -292,7 +307,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
 
             platforms.push({
                 id: `platform_${platformId++}`,
-                x: baseX,                   // 메인 루트는 랜덤 없이 일정하게 우상향
+                x: baseX,
                 y: summitCurrentY,
                 width: mainWidth,
                 height: 24,
@@ -387,7 +402,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
     const lastSummitId = SUMMITS[SUMMITS.length - 1].id
     platforms.push({
         id: 'peak',
-        x: Math.max(280, Math.min(WORLD.WIDTH - 460, currentX - 80)),
+        x: Math.max(280, Math.min(WORLD.WIDTH - 460, currentX + 120)),
         y: currentY - 80,
         width: 200,
         height: 40,
@@ -494,7 +509,12 @@ export function updatePlayerPhysics(
     const updated = { ...player }
 
     // 가변 중력: 올라갈 땐 가볍게, 떨어질 땐 무겁게 (점프 느낌 강화)
-    const gravityMult = updated.vy < 0 ? PHYSICS.GRAVITY_UP_MULTIPLIER : PHYSICS.GRAVITY_DOWN_MULTIPLIER
+    const rocketBoosting = updated.activePowerUps.has('rocket')
+    const gravityMult = rocketBoosting
+        ? 0.28
+        : updated.vy < 0
+            ? PHYSICS.GRAVITY_UP_MULTIPLIER
+            : PHYSICS.GRAVITY_DOWN_MULTIPLIER
     updated.vy += PHYSICS.GRAVITY * gravityMult * dt
 
     if (updated.vy > PHYSICS.MAX_FALL_SPEED) {
@@ -764,8 +784,11 @@ export function applyPowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer
             updated.hasShield = true
             break
         case 'rocket':
-            updated.y -= 200
-            updated.vy = 0
+            updated.y -= 24
+            updated.vy = Math.min(updated.vy, -1280)
+            updated.isOnGround = false
+            updated.canDoubleJump = true
+            updated.activePowerUps.set('rocket', POWERUP_EFFECTS.rocket.duration)
             break
         case 'energy':
             updated.energy = Math.min(ENERGY.MAX, updated.energy + 350)

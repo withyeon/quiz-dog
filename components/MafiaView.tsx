@@ -1,371 +1,328 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useMafiaStore } from '@/store/mafiaStore'
-import { formatTime, calculateLaunderedCash, calculateTotalMultiplier, SafeVault } from '@/lib/game/mafia'
-import { Eye, DollarSign, AlertTriangle, CheckCircle, XCircle, Lock, Unlock } from 'lucide-react'
+import { Eye, DollarSign, Gem, Radio, ShieldAlert, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import QuizView from '@/components/QuizView'
-import { useAudioContext } from '@/components/AudioProvider'
-import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
+import {
+  applyCheat,
+  attemptInvestigate,
+  calculateLaunderedCash,
+  calculateTotalMultiplier,
+  formatTime,
+  generateSafeVaults,
+  openSafeVault,
+  type MultiplierType,
+  type Player as MafiaPlayer,
+  type SafeVault,
+} from '@/lib/game/mafia'
+import { subscribeRoomRuntimeEvent, type RoomEventType } from '@/lib/realtime/roomChannel'
+import type { Database, Json } from '@/types/database.types'
+import type { Question } from '@/hooks/useGameBase'
 
+type PlayerRow = Database['public']['Tables']['players']['Row']
+type PlayerPatch = Partial<PlayerRow> & Record<string, unknown>
 
-interface MafiaViewProps {
-  onGameEnd?: () => void
-  roomCode?: string
-  playerId?: string
+type MafiaRuntime = {
+  isCheating?: boolean
+  cheatEndTime?: number
+  multipliers?: MultiplierType[]
 }
 
-// 더미 문제 데이터
-const DUMMY_QUESTIONS = [
-  {
-    id: '1',
-    question_text: '한국의 수도는?',
-    options: ['서울', '부산', '대구', '인천'],
-    answer: '서울',
-  },
-  {
-    id: '2',
-    question_text: '태양계에서 가장 큰 행성은?',
-    options: ['지구', '목성', '토성', '화성'],
-    answer: '목성',
-  },
-  {
-    id: '3',
-    question_text: '2 + 2는?',
-    options: ['3', '4', '5', '6'],
-    answer: '4',
-  },
-  {
-    id: '4',
-    question_text: '한국의 독립기념일은?',
-    options: ['3월 1일', '8월 15일', '10월 3일', '12월 25일'],
-    answer: '8월 15일',
-  },
-  {
-    id: '5',
-    question_text: '지구의 위성은?',
-    options: ['화성', '금성', '달', '태양'],
-    answer: '달',
-  },
-]
+type GameLog = {
+  id: string
+  message: string
+  type: 'info' | 'warning' | 'success' | 'danger'
+  timestamp: number
+}
 
-type MafiaViewType = 'quiz' | 'actionSelect' | 'vaultSelection' | 'vaultResult' | 'investigation' | 'wrong' | 'result'
+interface MafiaViewProps {
+  roomCode: string
+  playerId: string
+  players: PlayerRow[]
+  currentQuestion: Question | null
+  timeRemaining: number
+  checkAnswer: (answer: string) => Promise<boolean>
+  goToNextQuestion: () => void
+  commitPlayerPatch: (playerId: string, patch: PlayerPatch, reason?: string) => Promise<void>
+  sendRoomEvent: (type: RoomEventType, payload?: unknown) => Promise<unknown> | { ok: boolean; reason?: string }
+  playSFX: (sound: 'correct' | 'incorrect' | 'item' | 'click') => void
+}
 
-export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewProps) {
-  const {
-    status,
-    timeRemaining,
-    players,
-    currentVaults,
-    gameLog,
-    pendingAction,
-    showVaultSelection,
-    showInvestigation,
-    cheatVaultContents,
-    investigatingPlayer,
-    investigationResult,
-    selectedVaultResult,
-    actions,
-  } = useMafiaStore()
+type MafiaViewType = 'quiz' | 'actionSelect' | 'vaultSelection' | 'vaultResult' | 'investigation' | 'wrong'
 
+function parseRuntime(value: Json | null | undefined): MafiaRuntime {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const source = 'mafia' in value && value.mafia && typeof value.mafia === 'object'
+    ? value.mafia
+    : value
+  if (!source || typeof source !== 'object' || Array.isArray(source)) return {}
+  const raw = source as Record<string, unknown>
+  return {
+    isCheating: raw.isCheating === true,
+    cheatEndTime: typeof raw.cheatEndTime === 'number' ? raw.cheatEndTime : undefined,
+    multipliers: Array.isArray(raw.multipliers)
+      ? raw.multipliers.filter((item): item is MultiplierType => item === 1.5 || item === 2)
+      : [],
+  }
+}
+
+function toMafiaPlayer(player: PlayerRow): MafiaPlayer {
+  const runtime = parseRuntime(player.active_item)
+  return {
+    id: player.id,
+    name: player.nickname,
+    isAi: false,
+    cash: player.mafia_cash ?? player.score ?? 0,
+    diamonds: player.mafia_diamonds ?? 0,
+    status: 'active',
+    isCheating: Boolean(runtime.isCheating && runtime.cheatEndTime && runtime.cheatEndTime > Date.now()),
+    cheatEndTime: runtime.cheatEndTime,
+    multipliers: runtime.multipliers ?? [],
+  }
+}
+
+function createPatch(player: MafiaPlayer): PlayerPatch {
+  const score = calculateLaunderedCash(player)
+  return {
+    mafia_cash: player.cash,
+    mafia_diamonds: player.diamonds,
+    score,
+    gold: player.cash,
+    active_item: {
+      mafia: {
+        isCheating: player.isCheating,
+        cheatEndTime: player.cheatEndTime,
+        multipliers: player.multipliers,
+      },
+    },
+  }
+}
+
+export default function MafiaView({
+  roomCode,
+  playerId,
+  players,
+  currentQuestion,
+  timeRemaining,
+  checkAnswer,
+  goToNextQuestion,
+  commitPlayerPatch,
+  sendRoomEvent,
+  playSFX,
+}: MafiaViewProps) {
   const [currentView, setCurrentView] = useState<MafiaViewType>('quiz')
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [selectedAnswer, setSelectedAnswer] = useState<string>('')
-  const [isCorrect, setIsCorrect] = useState(false)
+  const [currentVaults, setCurrentVaults] = useState<SafeVault[]>([])
+  const [cheatVaultContents, setCheatVaultContents] = useState<SafeVault[] | null>(null)
+  const [selectedVaultResult, setSelectedVaultResult] = useState<{ vault: SafeVault; log: string } | null>(null)
+  const [investigatingPlayer, setInvestigatingPlayer] = useState<string | null>(null)
+  const [investigationResult, setInvestigationResult] = useState<'CHEATER' | 'CLEAR' | null>(null)
+  const [gameLog, setGameLog] = useState<GameLog[]>([])
   const [showCheatCaught, setShowCheatCaught] = useState(false)
-
-  const aiActionInterval = useRef<NodeJS.Timeout | null>(null)
-  const timerInterval = useRef<NodeJS.Timeout | null>(null)
   const logEndRef = useRef<HTMLDivElement>(null)
-  const questionStartTime = useRef<number>(Date.now())
 
-  const { playBGM, playSFX } = useAudioContext()
-  const player = players.find((p) => !p.isAi)
-  const aiPlayers = players.filter((p) => p.isAi)
-  const currentQuestion = DUMMY_QUESTIONS[currentQuestionIndex % DUMMY_QUESTIONS.length]
+  const mafiaPlayers = useMemo(() => players.map(toMafiaPlayer), [players])
+  const player = mafiaPlayers.find((p) => p.id === playerId) ?? null
+  const otherPlayers = mafiaPlayers.filter((p) => p.id !== playerId)
+  const sortedPlayers = useMemo(
+    () => [...mafiaPlayers].sort((a, b) => calculateLaunderedCash(b) - calculateLaunderedCash(a)),
+    [mafiaPlayers],
+  )
 
-  // 타이머
+  const addLog = useCallback((message: string, type: GameLog['type'] = 'info') => {
+    setGameLog((prev) => [
+      ...prev.slice(-24),
+      { id: `${Date.now()}-${Math.random()}`, message, type, timestamp: Date.now() },
+    ])
+  }, [])
+
+  const broadcastLog = useCallback((message: string, type: GameLog['type'] = 'info') => {
+    addLog(message, type)
+    void sendRoomEvent('game:effect', {
+      kind: 'mafia:log',
+      message,
+      logType: type,
+    })
+  }, [addLog, sendRoomEvent])
+
   useEffect(() => {
-    if (status === 'playing') {
-      timerInterval.current = setInterval(() => {
-        actions.tickTimer()
-      }, 1000)
-    } else {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current)
-      }
-    }
+    addLog('게임이 시작되었습니다. 정답을 맞히고 금고를 열거나 친구를 조사하세요.', 'info')
+  }, [addLog])
 
-    return () => {
-      if (timerInterval.current) {
-        clearInterval(timerInterval.current)
-      }
-    }
-  }, [status, actions])
-
-  // AI 자동 행동
   useEffect(() => {
-    if (status === 'playing' && currentView === 'quiz') {
-      aiActionInterval.current = setInterval(() => {
-        actions.aiAction()
-      }, 3000) // 3초마다 AI 행동
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.roomCode !== roomCode || event.type !== 'game:effect') return
+      const payload = event.payload as { kind?: string; message?: string; logType?: GameLog['type'] } | undefined
+      if (payload?.kind !== 'mafia:log' || !payload.message) return
+      addLog(payload.message, payload.logType ?? 'info')
+    })
+  }, [addLog, roomCode])
 
-      return () => {
-        if (aiActionInterval.current) {
-          clearInterval(aiActionInterval.current)
-        }
-      }
-    }
-  }, [status, currentView, actions])
-
-  // 게임 종료 처리
-  useEffect(() => {
-    if (status === 'ended' && onGameEnd) {
-      onGameEnd()
-    }
-  }, [status, onGameEnd])
-
-  // 로그 자동 스크롤
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [gameLog])
 
-  // 치팅 발각 효과 감지
   useEffect(() => {
-    const lastLog = gameLog[gameLog.length - 1]
-    if (lastLog?.message.includes('치팅이 발각되었습니다')) {
-      setShowCheatCaught(true)
-      setTimeout(() => {
-        setShowCheatCaught(false)
-      }, 3000)
-    }
-  }, [gameLog])
+    if (!player?.isCheating || !player.cheatEndTime) return
+    const delay = Math.max(0, player.cheatEndTime - Date.now())
+    const timer = window.setTimeout(() => {
+      void commitPlayerPatch(player.id, createPatch({ ...player, isCheating: false, cheatEndTime: undefined }), 'mafia_cheat_expired')
+    }, delay + 150)
+    return () => window.clearTimeout(timer)
+  }, [commitPlayerPatch, player])
 
-  // 정답 후 액션 선택 화면으로 (클릭 시 즉시 이동)
-  const goToActionSelect = () => {
-    setCurrentView('actionSelect')
-    setSelectedAnswer('')
-    setIsCorrect(false)
-  }
+  const goToQuiz = useCallback(() => {
+    setCurrentView('quiz')
+    setCurrentVaults([])
+    setCheatVaultContents(null)
+    setSelectedVaultResult(null)
+    setInvestigatingPlayer(null)
+    setInvestigationResult(null)
+    goToNextQuestion()
+  }, [goToNextQuestion])
 
-  // 정답 제출 처리
-  const handleAnswerSubmit = (answer: string) => {
-    if (!answer) {
-      // 시간 초과
-      playSFX('incorrect')
-      setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
-      }, 2000)
-      return false
-    }
-
-    setSelectedAnswer(answer)
-    const correct = isQuizAnswerMatch(answer, currentQuestion.answer)
-    setIsCorrect(correct)
-
+  const handleAnswerSubmit = async (answer: string) => {
+    const correct = await checkAnswer(answer)
     if (correct) {
       playSFX('correct')
-
-      // 정답 시 1.5초 후 자동 또는 정답 클릭 시 즉시 액션 선택으로
-      setTimeout(goToActionSelect, 1500)
+      window.setTimeout(() => setCurrentView('actionSelect'), 600)
     } else {
       playSFX('incorrect')
       setCurrentView('wrong')
-      setTimeout(() => {
-        setCurrentView('quiz')
-        setSelectedAnswer('')
-        setIsCorrect(false)
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
-      }, 2000)
+      window.setTimeout(goToQuiz, 1300)
     }
     return correct
   }
 
-  // 금고 열기 선택
-  const handleExcavate = () => {
-    actions.setPendingAction('excavate')
+  const handleOpenVaultChoice = () => {
+    setCurrentVaults(generateSafeVaults())
+    setCheatVaultContents(null)
+    setSelectedVaultResult(null)
     setCurrentView('vaultSelection')
+    playSFX('click')
   }
 
-  // 조사 선택
-  const handleInvestigate = () => {
-    actions.setPendingAction('investigate')
-    setCurrentView('investigation')
-  }
-
-  // 금고 선택
-  const handleVaultSelect = (vaultId: string) => {
-    actions.selectVault(vaultId)
+  const handleVaultSelect = async (vaultId: string) => {
+    if (!player) return
+    const vault = currentVaults.find((v) => v.id === vaultId)
+    if (!vault) return
+    const result = openSafeVault(vault, player)
+    setSelectedVaultResult({ vault, log: result.log })
     setCurrentView('vaultResult')
+    await commitPlayerPatch(player.id, createPatch(result.newPlayer), 'mafia_vault_opened')
+    broadcastLog(result.log, vault.reward === 'empty' ? 'info' : 'success')
+    playSFX('item')
+    window.setTimeout(goToQuiz, 1800)
   }
 
-  // Cheat 버튼 클릭
-  const handleCheat = () => {
-    actions.useCheatButton()
+  const handleCheat = async () => {
+    if (!player || currentVaults.length === 0) return
+    const result = applyCheat(currentVaults, player, Date.now())
+    setCheatVaultContents(result.vaultContents)
+    await commitPlayerPatch(player.id, createPatch(result.newPlayer), 'mafia_cheat_started')
+    broadcastLog(`${player.name}가 금고 쪽에서 수상한 움직임을 보였습니다.`, 'warning')
+    playSFX('click')
   }
 
-  // 조사 시작
-  const handleStartInvestigation = (targetId: string) => {
-    actions.startInvestigation(targetId)
+  const handleInvestigate = () => {
+    setCurrentView('investigation')
+    setInvestigationResult(null)
+    setInvestigatingPlayer(null)
+    playSFX('click')
   }
 
-  // 조사 완료 후 다음 문제로
-  useEffect(() => {
-    if (investigationResult && showInvestigation) {
-      setTimeout(() => {
-        actions.completeInvestigation()
-        setCurrentView('quiz')
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
-      }, 2000)
-    }
-  }, [investigationResult, showInvestigation, actions])
+  const handleStartInvestigation = async (targetId: string) => {
+    if (!player) return
+    const target = mafiaPlayers.find((p) => p.id === targetId)
+    if (!target) return
 
-  // 금고 선택 화면이 열리면 자동으로 vaultSelection 뷰로 전환
-  useEffect(() => {
-    if (showVaultSelection && currentVaults && currentView !== 'vaultSelection') {
-      setCurrentView('vaultSelection')
-    }
-  }, [showVaultSelection, currentVaults, currentView])
+    setInvestigatingPlayer(targetId)
+    setInvestigationResult(null)
+    window.setTimeout(async () => {
+      const result = attemptInvestigate(player, target, Date.now())
+      setInvestigationResult(result.result)
+      await Promise.all([
+        commitPlayerPatch(player.id, createPatch(result.newInvestigator), 'mafia_investigator_reward'),
+        commitPlayerPatch(target.id, createPatch(result.newTarget), 'mafia_target_investigated'),
+      ])
+      broadcastLog(result.log, result.success ? 'danger' : 'info')
+      if (result.success) {
+        setShowCheatCaught(true)
+        window.setTimeout(() => setShowCheatCaught(false), 2400)
+      }
+      window.setTimeout(goToQuiz, 1800)
+    }, 1400)
+  }
 
-  // 금고 결과 화면에서 2초 후 퀴즈로
-  useEffect(() => {
-    if (selectedVaultResult && currentView === 'vaultResult') {
-      playSFX('correct')
-      const timer = setTimeout(() => {
-        setCurrentView('quiz')
-        setCurrentQuestionIndex((prev) => prev + 1)
-        questionStartTime.current = Date.now()
-        // 결과 초기화
-        actions.setPendingAction(null)
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [selectedVaultResult, currentView, actions, playSFX])
-
-  const isUrgent = timeRemaining <= 30 && status === 'playing'
-
-  // 금고 보상 아이콘 및 텍스트
   const getVaultDisplay = (vault: SafeVault, isRevealed: boolean) => {
-    if (!isRevealed) {
-      return { icon: '🔒', text: '???' }
-    }
+    if (!isRevealed) return { icon: '🔒', text: '???' }
+    if (vault.reward === 'cash') return { icon: '💵', text: `$${vault.amount}` }
+    if (vault.reward === 'diamond') return { icon: '💎', text: `${vault.amount}개` }
+    if (vault.reward === 'multiplier_1.5') return { icon: '⚡', text: 'x1.5' }
+    if (vault.reward === 'multiplier_2') return { icon: '⚡⚡', text: 'x2' }
+    return { icon: '❌', text: '빈 금고' }
+  }
 
-    switch (vault.reward) {
-      case 'cash':
-        return { icon: '💵', text: `$${vault.amount}` }
-      case 'diamond':
-        return { icon: '💎', text: `${vault.amount}개` }
-      case 'multiplier_1.5':
-        return { icon: '⚡', text: 'x1.5 배수' }
-      case 'multiplier_2':
-        return { icon: '⚡⚡', text: 'x2 배수' }
-      case 'empty':
-        return { icon: '❌', text: '빈 금고' }
-      default:
-        return { icon: '🔒', text: '???' }
-    }
+  const isUrgent = timeRemaining <= 30
+
+  if (!player) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-black text-2xl font-black text-yellow-300">
+        플레이어 정보를 불러오는 중...
+      </div>
+    )
   }
 
   return (
-    <div className="mafia-ambient relative w-full h-screen overflow-hidden" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
-      {/* 상단 정보 바 */}
-      <div className="absolute top-0 left-0 right-0 z-20 bg-black/80 backdrop-blur-sm border-b-2 border-yellow-600 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <span className="text-3xl">⏰</span>
-              <span
-                className={`text-4xl font-bold ${isUrgent ? 'text-red-500 animate-pulse' : 'text-yellow-400'
-                  }`}
-              >
-                {formatTime(timeRemaining)}
-              </span>
+    <div className="mafia-ambient relative h-screen w-full overflow-hidden bg-slate-950" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
+      <div className="absolute left-0 right-0 top-0 z-20 border-b-2 border-yellow-600 bg-black/85 shadow-lg backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 sm:px-4 sm:py-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 sm:gap-5">
+            <span className={`whitespace-nowrap text-2xl font-bold tabular-nums sm:text-4xl ${isUrgent ? 'animate-pulse text-red-500' : 'text-yellow-400'}`}>
+              {formatTime(timeRemaining)}
+            </span>
+            <div className="flex items-center gap-1.5 whitespace-nowrap text-xl font-bold text-yellow-400 sm:gap-2 sm:text-3xl">
+              <DollarSign className="h-5 w-5 shrink-0 sm:h-8 sm:w-8" />
+              {calculateLaunderedCash(player).toLocaleString()}
             </div>
-            {player && (
-              <>
-                <div className="flex items-center gap-2">
-                  <span className="text-3xl">💰</span>
-                  <span className="text-4xl font-bold text-yellow-400">
-                    ${calculateLaunderedCash(player).toLocaleString()}
-                  </span>
-                </div>
-                {player.multipliers.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-3xl">⚡</span>
-                    <span className="text-2xl font-bold text-yellow-400">
-                      x{calculateTotalMultiplier(player.multipliers).toFixed(1)}
-                    </span>
-                  </div>
-                )}
-              </>
+            <div className="flex items-center gap-1.5 whitespace-nowrap text-lg font-bold text-cyan-300 sm:gap-2 sm:text-2xl">
+              <Gem className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" />
+              {player.diamonds}
+            </div>
+            {player.multipliers.length > 0 && (
+              <div className="whitespace-nowrap rounded bg-yellow-500 px-2 py-0.5 text-base font-black text-black sm:px-3 sm:py-1 sm:text-xl">
+                x{calculateTotalMultiplier(player.multipliers).toFixed(1)}
+              </div>
             )}
+          </div>
+          <div className="flex items-center gap-2 whitespace-nowrap text-base font-bold text-white sm:text-lg">
+            <Users className="h-5 w-5 shrink-0 text-yellow-300" />
+            {players.length}명
           </div>
         </div>
       </div>
 
-      {/* 메인 컨텐츠 */}
-      <div className="absolute top-16 left-0 right-0 bottom-20 flex items-center justify-center">
+      <div className="absolute bottom-36 left-0 right-0 top-16 flex items-center justify-center p-3 sm:p-5 md:right-80">
         <AnimatePresence mode="wait">
-          {currentView === 'quiz' && (
-            <motion.div
-              key="quiz"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-4xl px-4"
-            >
-              <QuizView
-                question={currentQuestion}
-                onAnswer={handleAnswerSubmit}
-                onCorrectClick={goToActionSelect}
-                timeLimit={30}
-              />
+          {currentView === 'quiz' && currentQuestion && (
+            <motion.div key="quiz" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-4xl">
+              <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} onCorrectClick={() => setCurrentView('actionSelect')} timeLimit={30} />
             </motion.div>
           )}
 
           {currentView === 'actionSelect' && (
-            <motion.div
-              key="actionSelect"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="w-full max-w-2xl px-4"
-            >
-              <Card className="border-4 border-yellow-600 bg-black/90 backdrop-blur-sm">
-                <CardContent className="p-8 text-center">
-                  <h2 className="text-4xl font-bold text-yellow-400 mb-6">
-                    정답입니다! 무엇을 하시겠습니까?
-                  </h2>
-                  <div className="grid grid-cols-2 gap-6">
-                    <Button
-                      onClick={handleExcavate}
-                      size="lg"
-                      className="h-32 bg-gradient-to-br from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-black font-bold text-2xl"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <span className="text-5xl">🔐</span>
-                        <span>금고 열기</span>
-                      </div>
+            <motion.div key="action" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -18 }} className="w-full max-w-2xl">
+              <Card className="border-4 border-yellow-600 bg-black/90">
+                <CardContent className="p-4 text-center sm:p-8">
+                  <h2 className="mb-4 text-2xl font-bold text-yellow-400 sm:mb-6 sm:text-4xl">정답입니다. 다음 행동을 고르세요.</h2>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-5">
+                    <Button onClick={handleOpenVaultChoice} className="h-28 bg-yellow-500 text-xl font-black text-black hover:bg-yellow-400 sm:h-32 sm:text-2xl">
+                      <span className="flex flex-col items-center gap-2"><span className="text-4xl sm:text-5xl">🔐</span>금고 열기</span>
                     </Button>
-                    <Button
-                      onClick={handleInvestigate}
-                      size="lg"
-                      className="h-32 bg-gradient-to-br from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-bold text-2xl"
-                    >
-                      <div className="flex flex-col items-center gap-2">
-                        <Eye className="h-8 w-8" />
-                        <span>조사하기</span>
-                      </div>
+                    <Button onClick={handleInvestigate} className="h-28 bg-blue-600 text-xl font-black text-white hover:bg-blue-500 sm:h-32 sm:text-2xl" disabled={otherPlayers.length === 0}>
+                      <span className="flex flex-col items-center gap-2"><Eye className="h-8 w-8 sm:h-9 sm:w-9" />친구 조사</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -373,59 +330,30 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
             </motion.div>
           )}
 
-          {showVaultSelection && currentVaults && (
-            <motion.div
-              key="vaultSelection"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-4xl px-4"
-            >
-              <Card className="border-4 border-yellow-600 bg-black/90 backdrop-blur-sm shadow-2xl">
-                <CardContent className="p-8">
-                  <h2 className="text-4xl font-bold text-yellow-400 mb-6 text-center">
-                    금고를 선택하세요
-                  </h2>
-                  <div className="grid grid-cols-3 gap-6 mb-6">
-                    {currentVaults.map((vault, index) => {
-                      const isRevealed = cheatVaultContents !== null
-                      // cheatVaultContents가 있으면 해당 금고의 내용을 사용, 없으면 원본 vault 사용
-                      const vaultToDisplay = isRevealed && cheatVaultContents
-                        ? cheatVaultContents.find(v => v.id === vault.id) || vault
-                        : vault
-                      const display = getVaultDisplay(vaultToDisplay, isRevealed)
+          {currentView === 'vaultSelection' && (
+            <motion.div key="vault" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-4xl">
+              <Card className="border-4 border-yellow-600 bg-black/90 shadow-2xl">
+                <CardContent className="p-4 sm:p-8">
+                  <h2 className="mb-4 text-center text-2xl font-bold text-yellow-400 sm:mb-6 sm:text-4xl">금고를 선택하세요</h2>
+                  <div className="mb-4 grid grid-cols-3 gap-2 sm:mb-6 sm:gap-5">
+                    {currentVaults.map((vault) => {
+                      const revealed = cheatVaultContents !== null
+                      const shownVault = revealed ? cheatVaultContents?.find((item) => item.id === vault.id) ?? vault : vault
+                      const display = getVaultDisplay(shownVault, revealed)
                       return (
-                        <motion.button
+                        <button
                           key={vault.id}
-                          onClick={() => handleVaultSelect(vault.id)}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          disabled={false}
-                          className={`aspect-square rounded-xl border-4 ${
-                            isRevealed 
-                              ? 'border-blue-500 bg-gradient-to-br from-blue-900 to-blue-700' 
-                              : 'border-yellow-600 bg-gradient-to-br from-yellow-900 to-yellow-700'
-                          } hover:border-yellow-400 p-6 flex flex-col items-center justify-center gap-4 cursor-pointer transition-all`}
+                          onClick={() => void handleVaultSelect(vault.id)}
+                          className={`aspect-square rounded-xl border-4 p-2 transition hover:scale-105 sm:p-5 ${revealed ? 'border-cyan-400 bg-cyan-900' : 'border-yellow-600 bg-yellow-900'}`}
                         >
-                          <div className="text-7xl">{display.icon}</div>
-                          <div className="text-2xl font-bold text-white">{display.text}</div>
-                          {isRevealed && (
-                            <div className="text-sm text-blue-300 mt-1">X-Ray</div>
-                          )}
-                        </motion.button>
+                          <div className="text-4xl sm:text-7xl">{display.icon}</div>
+                          <div className="mt-1.5 text-base font-black text-white sm:mt-3 sm:text-2xl">{display.text}</div>
+                        </button>
                       )
                     })}
                   </div>
-                  <Button
-                    onClick={handleCheat}
-                    size="lg"
-                    disabled={false}
-                    className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white font-bold text-2xl py-6 shadow-lg border-2 border-red-400"
-                  >
-                    <div className="flex items-center justify-center gap-2">
-                      <Eye className="h-6 w-6" />
-                      <span>금고 몰래보기</span>
-                    </div>
+                  <Button onClick={() => void handleCheat()} className="w-full bg-red-600 py-4 text-lg font-black text-white hover:bg-red-500 sm:py-6 sm:text-2xl">
+                    <Eye className="mr-2 h-5 w-5 sm:h-6 sm:w-6" /> 금고 몰래보기
                   </Button>
                 </CardContent>
               </Card>
@@ -433,64 +361,35 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
           )}
 
           {currentView === 'investigation' && (
-            <motion.div
-              key="investigation"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-3xl px-4"
-            >
-              <Card className="border-4 border-blue-600 bg-black/90 backdrop-blur-sm">
+            <motion.div key="investigation" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-3xl">
+              <Card className="border-4 border-blue-600 bg-black/90">
                 <CardContent className="p-8">
-                  <h2 className="text-4xl font-bold text-blue-400 mb-6 text-center">
-                    누구를 조사하시겠습니까?
-                  </h2>
+                  <h2 className="mb-6 text-center text-4xl font-bold text-blue-300">누구를 조사할까요?</h2>
                   {investigatingPlayer ? (
-                    <div className="text-center py-12">
-                      {investigationResult === null ? (
+                    <div className="py-12 text-center">
+                      {investigationResult ? (
                         <>
-                          <div className="text-7xl mb-4 animate-spin">🔍</div>
-                          <p className="text-3xl text-gray-300">조사 중...</p>
-                        </>
-                      ) : investigationResult === 'CHEATER' ? (
-                        <>
-                          <div className="text-7xl mb-4">🚨</div>
-                          <p className="text-4xl font-bold text-red-400 mb-2">CHEATER!</p>
-                          <p className="text-2xl text-gray-300">
-                            {aiPlayers.find((p) => p.id === investigatingPlayer)?.name}가 치팅 중이었습니다!
+                          <div className="mb-4 text-7xl">{investigationResult === 'CHEATER' ? '🚨' : '✅'}</div>
+                          <p className={`text-4xl font-black ${investigationResult === 'CHEATER' ? 'text-red-400' : 'text-green-400'}`}>
+                            {investigationResult}
                           </p>
                         </>
                       ) : (
                         <>
-                          <div className="text-7xl mb-4">✅</div>
-                          <p className="text-4xl font-bold text-green-400 mb-2">CLEAR</p>
-                          <p className="text-2xl text-gray-300">
-                            {aiPlayers.find((p) => p.id === investigatingPlayer)?.name}는 결백했습니다.
-                          </p>
+                          <div className="mb-4 text-7xl">🔍</div>
+                          <p className="text-3xl text-gray-200">조사 중...</p>
                         </>
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {aiPlayers.map((ai) => (
-                        <Button
-                          key={ai.id}
-                          onClick={() => handleStartInvestigation(ai.id)}
-                          size="lg"
-                          className="w-full bg-gray-800 hover:bg-gray-700 text-white font-bold text-xl py-6 justify-between"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-3xl">🕴️</span>
-                            <span>{ai.name}</span>
-                            {ai.isCheating && (
-                              <span className="text-sm bg-red-600 text-white px-2 py-1 rounded">
-                                치팅 중
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-yellow-400">
-                            ${calculateLaunderedCash(ai).toLocaleString()}
-                          </div>
+                    <div className="space-y-3">
+                      {otherPlayers.map((target) => (
+                        <Button key={target.id} onClick={() => void handleStartInvestigation(target.id)} className="w-full justify-between bg-gray-800 px-5 py-6 text-xl font-bold text-white hover:bg-gray-700">
+                          <span className="flex items-center gap-3">
+                            <ShieldAlert className={target.isCheating ? 'h-6 w-6 text-orange-400' : 'h-6 w-6 text-gray-400'} />
+                            {target.name}
+                          </span>
+                          <span className="text-yellow-300">${calculateLaunderedCash(target).toLocaleString()}</span>
                         </Button>
                       ))}
                     </div>
@@ -501,123 +400,50 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
           )}
 
           {currentView === 'vaultResult' && selectedVaultResult && (
-            <motion.div
-              key="vaultResult"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="w-full max-w-2xl px-4"
-            >
-              <Card className="border-4 border-yellow-600 bg-black/90 backdrop-blur-sm shadow-2xl">
-                <CardContent className="p-8 text-center">
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: 'spring', stiffness: 200 }}
-                    className="mb-6"
-                  >
-                    <div className="text-9xl mb-4">
-                      {getVaultDisplay(selectedVaultResult.vault, true).icon}
-                    </div>
-                    <h2 className="text-5xl font-bold text-yellow-400 mb-4">
-                      {selectedVaultResult.vault.reward === 'empty'
-                        ? '빈 금고'
-                        : selectedVaultResult.vault.reward === 'cash'
-                          ? `$${selectedVaultResult.vault.amount} 획득!`
-                          : selectedVaultResult.vault.reward === 'diamond'
-                            ? `다이아몬드 ${selectedVaultResult.vault.amount}개 획득!`
-                            : selectedVaultResult.vault.reward === 'multiplier_1.5'
-                              ? '배수 x1.5 획득!'
-                              : '배수 x2 획득!'}
-                    </h2>
-                    <p className="text-2xl text-gray-300">{selectedVaultResult.log}</p>
-                  </motion.div>
-                </CardContent>
-              </Card>
+            <motion.div key="vaultResult" initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="text-center">
+              <div className="mb-4 text-8xl">{getVaultDisplay(selectedVaultResult.vault, true).icon}</div>
+              <div className="max-w-2xl rounded-xl border-4 border-yellow-600 bg-black/90 p-8 text-3xl font-black text-yellow-300">
+                {selectedVaultResult.log}
+              </div>
             </motion.div>
           )}
 
           {currentView === 'wrong' && (
-            <motion.div
-              key="wrong"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="text-center"
-            >
-              <div className="text-7xl mb-4">❌</div>
-              <p className="text-4xl font-bold text-red-400">틀렸습니다!</p>
+            <motion.div key="wrong" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center text-4xl font-black text-red-400">
+              <div className="mb-4 text-7xl">❌</div>
+              틀렸습니다
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* 우측: 조직원 리스트 */}
-      <div className="absolute top-16 right-0 w-80 bottom-20 p-6 border-l-2 border-yellow-600 bg-black/50 overflow-y-auto">
-        <h2 className="text-3xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
-          <span>👥</span> 조직원
+      <aside className="absolute bottom-36 right-0 top-16 hidden w-80 overflow-y-auto border-l-2 border-yellow-600 bg-black/60 p-5 md:block">
+        <h2 className="mb-4 flex items-center gap-2 text-3xl font-bold text-yellow-400">
+          <Users className="h-7 w-7" /> 조직원
         </h2>
         <div className="space-y-3">
-          {aiPlayers.map((ai) => (
-            <Card
-              key={ai.id}
-              className={`border-2 ${ai.status === 'jailed'
-                  ? 'border-red-600 bg-red-900/30'
-                  : ai.isCheating
-                    ? 'border-orange-500 bg-orange-900/30 animate-pulse'
-                    : 'border-gray-600 bg-gray-800/50'
-                }`}
-            >
+          {sortedPlayers.map((member, index) => (
+            <Card key={member.id} className={`border-2 ${member.id === playerId ? 'border-yellow-400 bg-yellow-950/40' : member.isCheating ? 'border-orange-500 bg-orange-950/40' : 'border-gray-700 bg-gray-900/70'}`}>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">🕴️</span>
-                    <span className="font-bold text-white text-lg">{ai.name}</span>
-                    {ai.isCheating && (
-                      <span className="text-sm bg-orange-600 text-white px-2 py-1 rounded">
-                        치팅 중
-                      </span>
-                    )}
-                    {ai.status === 'jailed' && (
-                      <span className="text-sm bg-red-600 text-white px-2 py-1 rounded">
-                        감옥
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between">
+                  <div className="font-bold text-white">#{index + 1} {member.name}</div>
+                  {member.isCheating && <span className="rounded bg-orange-600 px-2 py-1 text-xs font-bold text-white">수상함</span>}
                 </div>
-                <div className="text-yellow-400 font-semibold text-lg">
-                  ${calculateLaunderedCash(ai).toLocaleString()}
-                </div>
-                {ai.multipliers.length > 0 && (
-                  <div className="text-sm text-blue-400 mt-1">
-                    배수: x{calculateTotalMultiplier(ai.multipliers).toFixed(1)}
-                  </div>
-                )}
+                <div className="mt-2 text-xl font-black text-yellow-300">${calculateLaunderedCash(member).toLocaleString()}</div>
               </CardContent>
             </Card>
           ))}
         </div>
-      </div>
+      </aside>
 
-      {/* 하단: 로그 창 */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 bg-black/90 backdrop-blur-sm border-t-2 border-yellow-600 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <h3 className="text-xl font-bold text-yellow-400 mb-2 flex items-center gap-2">
-            <span>📡</span> 도청 장치
+      <div className="absolute bottom-0 left-0 right-0 z-20 border-t-2 border-yellow-600 bg-black/90 shadow-lg backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 py-3">
+          <h3 className="mb-2 flex items-center gap-2 text-xl font-bold text-yellow-400">
+            <Radio className="h-5 w-5" /> 도청 장치
           </h3>
-          <div className="h-32 overflow-y-auto bg-black/50 rounded-lg p-3 font-mono text-base space-y-1">
+          <div className="h-28 overflow-y-auto rounded-lg bg-black/55 p-3 font-mono text-base">
             {gameLog.map((log) => (
-              <div
-                key={log.id}
-                className={`${log.type === 'success'
-                    ? 'text-green-400'
-                    : log.type === 'warning'
-                      ? 'text-yellow-400'
-                      : log.type === 'danger'
-                        ? 'text-red-400'
-                        : 'text-gray-300'
-                  }`}
-              >
+              <div key={log.id} className={log.type === 'success' ? 'text-green-400' : log.type === 'warning' ? 'text-yellow-400' : log.type === 'danger' ? 'text-red-400' : 'text-gray-300'}>
                 [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}
               </div>
             ))}
@@ -626,27 +452,11 @@ export default function MafiaView({ onGameEnd, roomCode, playerId }: MafiaViewPr
         </div>
       </div>
 
-
-
-      {/* 치팅 발각 효과 */}
       <AnimatePresence>
         {showCheatCaught && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5 }}
-            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
-          >
-            <div className="absolute inset-0 bg-red-600/50 animate-pulse" />
-            <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-                rotate: [0, 5, -5, 0],
-              }}
-              className="relative text-9xl font-bold text-white drop-shadow-2xl"
-            >
-              🚨 발각! 🚨
-            </motion.div>
+          <motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }} className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-red-600/50" />
+            <div className="relative text-8xl font-black text-white drop-shadow-2xl">🚨 발각!</div>
           </motion.div>
         )}
       </AnimatePresence>

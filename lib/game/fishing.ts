@@ -231,6 +231,15 @@ export function getSpeedMultiplier(answerTime: number): number {
   return multipliers[grade]
 }
 
+export const AIM_ACCURACY_SCALE = 36
+
+/** 조준 바 등급 구간 너비 (% 단위, 목표 중심 기준 전체 폭) */
+export const AIM_GRADE_ZONE_WIDTH = {
+  good: (1 - 0.48) * AIM_ACCURACY_SCALE * 2,
+  great: (1 - 0.72) * AIM_ACCURACY_SCALE * 2,
+  perfect: (1 - 0.92) * AIM_ACCURACY_SCALE * 2,
+} as const
+
 export function getAimGrade(accuracy: number): AimGrade {
   if (accuracy >= 0.92) return 'perfect'
   if (accuracy >= 0.72) return 'great'

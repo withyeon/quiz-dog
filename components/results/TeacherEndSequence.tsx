@@ -6,6 +6,7 @@ import Image from 'next/image'
 import Confetti from 'react-confetti'
 import { ArrowRight } from 'lucide-react'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import { useAudioContext } from '@/components/AudioProvider'
 import type { AnalyticsQuestion } from '@/lib/services/questions'
 import {
   buildResultAnalytics,
@@ -13,6 +14,7 @@ import {
   type QuestionAnalysis,
   type Room,
 } from './resultAnalytics'
+import { getScoreDisplay } from '@/lib/game/scoreDisplay'
 
 type TeacherEndSequenceProps = {
   room: Room
@@ -34,6 +36,12 @@ const STAGE_DELAYS: Record<Stage, number> = {
   6: 0,
 }
 
+const RESULT_ANNOUNCEMENT_TRACK = {
+  id: 'result-announcement',
+  title: 'Funky Victory Loop',
+  src: '/audio/bgm/result-announcement.mp3',
+}
+
 export default function TeacherEndSequence({
   room,
   players,
@@ -47,6 +55,7 @@ export default function TeacherEndSequence({
   )
   const [stage, setStage] = useState<Stage>(0)
   const [reviewIndex, setReviewIndex] = useState(0)
+  const { playBGM, stopBGM } = useAudioContext()
   const topThree = analytics.players.slice(0, 3)
   const reviewQuestions = analytics.hardestQuestions.slice(0, 3)
 
@@ -55,17 +64,35 @@ export default function TeacherEndSequence({
     if (!delay) return
 
     const timer = window.setTimeout(() => {
-      setStage((current) => Math.min(6, current + 1) as Stage)
+      setStage((current) => {
+        const nextStage = Math.min(6, current + 1) as Stage
+        if (nextStage >= 5) stopBGM()
+        return nextStage
+      })
     }, delay)
 
     return () => window.clearTimeout(timer)
-  }, [stage])
+  }, [stage, stopBGM])
+
+  useEffect(() => {
+    if (stage <= 4) {
+      playBGM('result', RESULT_ANNOUNCEMENT_TRACK)
+      return
+    }
+
+    stopBGM()
+  }, [playBGM, stage, stopBGM])
+
+  useEffect(() => {
+    return () => stopBGM()
+  }, [stopBGM])
 
   const nextReview = () => {
     if (reviewIndex < reviewQuestions.length - 1) {
       setReviewIndex((value) => value + 1)
       return
     }
+    stopBGM()
     setStage(6)
   }
 
@@ -86,16 +113,16 @@ export default function TeacherEndSequence({
       )}
 
       {(stage === 1 || stage === 2 || stage === 3) && (
-        <RevealStage stage={stage} player={topThree[3 - stage]} />
+        <RevealStage stage={stage} player={topThree[3 - stage]} gameMode={room.game_mode} />
       )}
 
       {stage === 4 && (
         <section className="flex min-h-screen flex-col justify-center p-10">
           <h1 className="mb-10 text-center text-[clamp(48px,7vw,96px)] font-black tracking-normal">오늘의 Top 3</h1>
           <div className="mx-auto grid w-full max-w-6xl grid-cols-3 items-end gap-5">
-            <PodiumSpot rank={2} player={topThree[1]} height="h-72" tone="silver" />
-            <PodiumSpot rank={1} player={topThree[0]} height="h-96" tone="gold" />
-            <PodiumSpot rank={3} player={topThree[2]} height="h-60" tone="bronze" />
+            <PodiumSpot rank={2} player={topThree[1]} gameMode={room.game_mode} height="h-72" tone="silver" />
+            <PodiumSpot rank={1} player={topThree[0]} gameMode={room.game_mode} height="h-96" tone="gold" />
+            <PodiumSpot rank={3} player={topThree[2]} gameMode={room.game_mode} height="h-60" tone="bronze" />
           </div>
         </section>
       )}
@@ -144,14 +171,17 @@ export default function TeacherEndSequence({
 function RevealStage({
   stage,
   player,
+  gameMode,
 }: {
   stage: 1 | 2 | 3
   player: ReturnType<typeof buildResultAnalytics>['players'][number] | undefined
+  gameMode?: string | null
 }) {
   const rank = 4 - stage
   const label = rank === 1 ? '1등은...' : rank === 2 ? '2등은...' : '3등은...'
   const color = rank === 1 ? 'text-amber-300' : rank === 2 ? 'text-slate-200' : 'text-orange-300'
   const rankIconSrc = rank === 1 ? '/trophy.svg' : rank === 2 ? '/silver.svg' : '/bronze.svg'
+  const scoreDisplay = getScoreDisplay({ score: player?.score ?? 0 }, gameMode)
 
   return (
     <section className="flex min-h-screen flex-col items-center justify-center p-8 text-center">
@@ -177,7 +207,7 @@ function RevealStage({
           <span>{player?.nickname || '참가자'}</span>
         </div>
         <div className={`mt-6 text-[clamp(44px,6vw,84px)] font-black ${rank === 1 ? 'text-amber-500' : 'text-slate-700'}`}>
-          {player?.score.toLocaleString() ?? 0}점
+          {scoreDisplay.text}
         </div>
       </div>
     </section>
@@ -187,11 +217,13 @@ function RevealStage({
 function PodiumSpot({
   rank,
   player,
+  gameMode,
   height,
   tone,
 }: {
   rank: 1 | 2 | 3
   player: ReturnType<typeof buildResultAnalytics>['players'][number] | undefined
+  gameMode?: string | null
   height: string
   tone: 'gold' | 'silver' | 'bronze'
 }) {
@@ -200,6 +232,7 @@ function PodiumSpot({
     silver: 'from-slate-200 to-slate-400 text-slate-950',
     bronze: 'from-orange-300 to-orange-600 text-orange-950',
   }[tone]
+  const scoreDisplay = getScoreDisplay({ score: player?.score ?? 0 }, gameMode)
 
   return (
     <div className="flex flex-col items-center">
@@ -214,7 +247,7 @@ function PodiumSpot({
           />
           <span>{player?.nickname || '-'}</span>
         </div>
-        <div className="mt-2 text-[clamp(24px,3vw,42px)] font-black text-slate-600">{player?.score.toLocaleString() ?? 0}점</div>
+        <div className="mt-2 text-[clamp(24px,3vw,42px)] font-black text-slate-600">{scoreDisplay.text}</div>
       </div>
       <div className={`${height} flex w-full items-center justify-center rounded-t-3xl bg-gradient-to-b ${toneClass} text-[clamp(72px,8vw,128px)] font-black shadow-2xl`}>
         {rank}

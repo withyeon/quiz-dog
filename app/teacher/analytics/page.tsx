@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
+import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
@@ -25,7 +26,7 @@ import {
   getGameReportById,
   listRecentGameReports,
   parseReportPlayers,
-  type GameReportRow,
+  type GameReportWithQuestionSetTitle,
 } from '@/lib/services/reports'
 import { formatServiceError } from '@/lib/services/errors'
 import {
@@ -38,7 +39,7 @@ import type { Database } from '@/types/database.types'
 
 type ReportRoom = Database['public']['Tables']['rooms']['Row']
 
-const LEGACY_REPORT_MODE_CONFIG: Record<string, { label: string; emoji: string }> = {
+const LEGACY_REPORT_MODE_CONFIG: Record<string, { label: string; emoji: string; image?: string }> = {
   racing: { label: '미션: 등교 임파서블', emoji: '🏃' },
   pool: { label: '포켓볼 게임', emoji: '🎱' },
   allin: { label: '올인 퀴즈', emoji: '💎' },
@@ -56,13 +57,42 @@ function getReportModeConfig(mode: string | null | undefined) {
   return LEGACY_REPORT_MODE_CONFIG[mode] ?? { label: mode, emoji: '🎮' }
 }
 
+function getReportTitle(report: GameReportWithQuestionSetTitle, fallback: string): string {
+  return report.question_set_title?.trim() || fallback
+}
+
+function GameTitleImage({
+  mode,
+  size = 'md',
+}: {
+  mode: { label: string; emoji: string; image?: string }
+  size?: 'sm' | 'md'
+}) {
+  const imageSize = size === 'sm' ? 44 : 56
+  const className = size === 'sm' ? 'h-10 w-10' : 'h-12 w-12'
+
+  if (!mode.image) {
+    return <span className="text-2xl">{mode.emoji}</span>
+  }
+
+  return (
+    <Image
+      src={mode.image}
+      alt={mode.label}
+      width={imageSize}
+      height={imageSize}
+      className={`${className} object-contain drop-shadow-sm`}
+    />
+  )
+}
+
 function AnalyticsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedReportId = searchParams?.get('report')
 
-  const [reports, setReports] = useState<GameReportRow[]>([])
-  const [selectedReport, setSelectedReport] = useState<GameReportRow | null>(null)
+  const [reports, setReports] = useState<GameReportWithQuestionSetTitle[]>([])
+  const [selectedReport, setSelectedReport] = useState<GameReportWithQuestionSetTitle | null>(null)
   const [selectedQuestions, setSelectedQuestions] = useState<AnalyticsQuestion[]>([])
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -131,6 +161,7 @@ function AnalyticsPageContent() {
 
     const players = parseReportPlayers(report.players_data)
     const modeCfg = getReportModeConfig(report.game_mode)
+    const reportTitle = getReportTitle(report, modeCfg.label)
     const roomForReport: ReportRoom = {
       room_code: report.room_code,
       status: 'finished',
@@ -155,8 +186,11 @@ function AnalyticsPageContent() {
         </Button>
 
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-blue-900 mb-2">
-            {modeCfg.emoji} 게임 결과 리포트
+          <h1 className="mb-2 flex items-center gap-3 text-2xl font-bold text-black">
+            <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-gray-50">
+              <GameTitleImage mode={modeCfg} />
+            </span>
+            {reportTitle} 결과 리포트
           </h1>
           <div className="flex items-center gap-4 text-sm text-gray-500">
             <span>방 코드: <span className="font-mono font-bold">{report.room_code}</span></span>
@@ -192,7 +226,7 @@ function AnalyticsPageContent() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-blue-900 mb-2">📊 게임 히스토리</h1>
+        <h1 className="text-3xl font-bold text-black mb-2">📊 게임 히스토리</h1>
         <p className="text-gray-600">지난 게임 결과를 다시 확인하세요</p>
         {errorMessage && (
           <p className="mt-3 text-sm text-red-500">리포트를 불러오는 중 문제가 발생했습니다: {errorMessage}</p>
@@ -217,6 +251,7 @@ function AnalyticsPageContent() {
         <div className="space-y-3">
           {reports.map((report, index) => {
             const modeCfg = getReportModeConfig(report.game_mode)
+            const reportTitle = getReportTitle(report, modeCfg.label)
             const dateStr = new Date(report.created_at).toLocaleString('ko-KR', {
               month: 'short',
               day: 'numeric',
@@ -234,22 +269,22 @@ function AnalyticsPageContent() {
                 className="w-full bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4 hover:shadow-md hover:border-gray-300 transition-all text-left group"
               >
                 {/* 게임 모드 아이콘 */}
-                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-2xl">
-                  {modeCfg.emoji}
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gray-50">
+                  <GameTitleImage mode={modeCfg} size="sm" />
                 </div>
 
                 {/* 정보 */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-blue-900">{modeCfg.label}</span>
+                    <span className="truncate font-bold text-black">{reportTitle}</span>
                     <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{report.room_code}</span>
                   </div>
-                  <div className="flex items-center gap-3 text-sm text-gray-500">
-                    <span className="flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" /> {report.player_count}명
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                    <span className="flex items-center gap-1 whitespace-nowrap">
+                      <Users className="h-3.5 w-3.5 shrink-0" /> {report.player_count}명
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" /> {dateStr}
+                    <span className="flex items-center gap-1 whitespace-nowrap">
+                      <Clock className="h-3.5 w-3.5 shrink-0" /> {dateStr}
                     </span>
                   </div>
                 </div>
@@ -291,7 +326,7 @@ function HistoryReportDetail({
               <span className="text-sm font-bold text-slate-500">{item.label}</span>
               <item.icon className="h-5 w-5 text-slate-400" />
             </div>
-            <div className="mt-4 text-3xl font-black text-blue-900">{item.value}</div>
+            <div className="mt-4 text-3xl font-black text-black">{item.value}</div>
           </div>
         ))}
       </section>
@@ -303,7 +338,7 @@ function HistoryReportDetail({
               <ListChecks className="h-4 w-4" />
               그때 플레이했던 문제
             </div>
-            <h2 className="mt-2 text-2xl font-black text-blue-900">{questions.length}개 문항</h2>
+            <h2 className="mt-2 text-2xl font-black text-black">{questions.length}개 문항</h2>
           </div>
           <p className="text-sm font-medium text-slate-500">정답과 당시 학생들의 정답률을 함께 봅니다.</p>
         </div>
@@ -326,7 +361,7 @@ function HistoryReportDetail({
                         {question.type}
                       </span>
                     </div>
-                    <h3 className="text-lg font-black leading-relaxed text-blue-900">{question.text}</h3>
+                    <h3 className="text-lg font-black leading-relaxed text-black">{question.text}</h3>
                     {question.options.length > 0 && (
                       <div className="mt-4 grid gap-2 md:grid-cols-2">
                         {question.options.map((option, index) => {
@@ -350,11 +385,11 @@ function HistoryReportDetail({
                   <div className="grid min-w-44 grid-cols-2 gap-2 lg:grid-cols-1">
                     <div className="rounded-lg bg-slate-50 p-3">
                       <div className="text-xs font-bold text-slate-400">정답</div>
-                      <div className="mt-1 text-sm font-black text-blue-900">{question.answer}</div>
+                      <div className="mt-1 text-sm font-black text-black">{question.answer}</div>
                     </div>
                     <div className="rounded-lg bg-slate-50 p-3">
                       <div className="text-xs font-bold text-slate-400">정답률</div>
-                      <div className="mt-1 text-sm font-black text-blue-900">
+                      <div className="mt-1 text-sm font-black text-black">
                         {question.accuracy}% · {question.correctCount}/{question.totalCount}명
                       </div>
                     </div>
@@ -373,7 +408,7 @@ function HistoryReportDetail({
               <Users className="h-4 w-4" />
               그때 아이들 결과
             </div>
-            <h2 className="mt-2 text-2xl font-black text-blue-900">{students.length}명 결과</h2>
+            <h2 className="mt-2 text-2xl font-black text-black">{students.length}명 결과</h2>
           </div>
           <p className="text-sm font-medium text-slate-500">점수 순위와 문항별 답안을 같이 확인합니다.</p>
         </div>
@@ -395,8 +430,8 @@ function HistoryReportDetail({
               {students.map((student) => (
                 <tr key={student.id} className="hover:bg-slate-50">
                   <td className="px-4 py-4 font-black text-slate-500">{student.rankByScore}</td>
-                  <td className="px-4 py-4 font-black text-blue-900">{student.nickname}</td>
-                  <td className="px-4 py-4 text-right font-black text-blue-900">{student.score.toLocaleString()}</td>
+                  <td className="px-4 py-4 font-black text-black">{student.nickname}</td>
+                  <td className="px-4 py-4 text-right font-black text-black">{student.score.toLocaleString()}</td>
                   <td className="px-4 py-4 text-right font-bold text-slate-700">
                     {student.correctCount}/{student.totalCount}
                   </td>

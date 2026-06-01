@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import ZombieView from '@/components/ZombieView'
@@ -11,10 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Heart, Trophy } from 'lucide-react'
 import ZombieIcon from '@/components/zombie/ZombieIcon'
 import {
-  createZombieMeta,
-  createRoleAssignmentPatches,
   getZombieMeta,
-  GAME_CONSTANTS,
   roomPlayerToZombiePlayer,
 } from '@/lib/game/zombie'
 import { updatePlayer } from '@/lib/services/players'
@@ -38,16 +35,16 @@ export default function ZombiePage() {
     preStartQuizTotal,
     shouldShowPreStartQuiz,
     isPreStartQuizComplete,
-    isRoomHost,
     handlePreStartQuizAnswer,
     checkAnswer,
     goToNextQuestion,
     finishGame,
     sendRoomEvent,
     applyPlayerPatch,
+    isRoomHost,
     roomLoading,
     playersLoading,
-  } = useGameBase({ expectedGameMode: 'zombie' })
+  } = useGameBase({ expectedGameMode: 'zombie', preStartQuizTotal: 0 })
   const [showRoleReveal, setShowRoleReveal] = useState(false)
 
   const activeRoomPlayers = useMemo(
@@ -67,6 +64,10 @@ export default function ZombiePage() {
     : `${humanSurvivors.length}명의 인간이 생존했습니다! 인간 팀 승리!`
   const myWon = myPlayer ? myPlayer.role === winner : false
   const hasAssignedRoles = activeRoomPlayers.length > 0 && activeRoomPlayers.every((player) => getZombieMeta(player))
+  const finishRoomAsHost = useCallback(async () => {
+    if (!isRoomHost) return false
+    return finishGame()
+  }, [finishGame, isRoomHost])
 
   useEffect(() => {
     if (room?.status === 'waiting' && currentView !== 'lobby') {
@@ -86,68 +87,28 @@ export default function ZombiePage() {
     }
   }, [currentView, isPreStartQuizComplete, room?.status, setCurrentView])
 
-  useEffect(() => {
-    if (
-      !isRoomHost
-      || !room?.started_at
-      || room.status !== 'playing'
-      || !isPreStartQuizComplete
-      || activeRoomPlayers.length === 0
-      || hasAssignedRoles
-    ) {
-      return
-    }
-
-    const hasAnyAssignedRole = activeRoomPlayers.some((player) => getZombieMeta(player))
-    const patches = hasAnyAssignedRole
-      ? activeRoomPlayers
-        .filter((player) => !getZombieMeta(player))
-        .map((player) => ({
-          playerId: player.id,
-          patch: {
-            active_item: createZombieMeta('human'),
-            health: GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
-            attack_power: 0,
-            score: GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
-          },
-        }))
-      : createRoleAssignmentPatches(activeRoomPlayers)
-
-    patches.forEach(({ playerId: targetPlayerId, patch }) => {
-      applyPlayerPatch(targetPlayerId, patch)
-      void sendRoomEvent('player:patch', {
-        playerId: targetPlayerId,
-        patch,
-        reason: 'zombie_role_assignment',
-      })
-      void updatePlayer(targetPlayerId, patch).catch((error) => {
-        console.error('좀비 역할 배정 실패:', error)
-      })
-    })
-    void sendRoomEvent('room:snapshot-hint', { reason: 'zombie_role_assignment' })
-  }, [
-    activeRoomPlayers,
-    applyPlayerPatch,
-    hasAssignedRoles,
-    isPreStartQuizComplete,
-    isRoomHost,
-    room?.started_at,
-    room?.status,
-    sendRoomEvent,
-  ])
+  const roleRevealKey = useMemo(() => {
+    if (!roomCode || !playerId || !room?.started_at) return null
+    return `zombie_role_reveal_${roomCode}_${playerId}_${room.started_at}`
+  }, [playerId, room?.started_at, roomCode])
 
   useEffect(() => {
-    if (room?.status !== 'playing' || !isPreStartQuizComplete || !hasAssignedRoles || !myPlayer) return
+    if (room?.status !== 'playing' || !myPlayer || !hasAssignedRoles || !roleRevealKey) return
+    if (typeof window === 'undefined') return
+    if (window.sessionStorage.getItem(roleRevealKey) === '1') return
+
     setShowRoleReveal(true)
+    window.sessionStorage.setItem(roleRevealKey, '1')
     const timer = window.setTimeout(() => setShowRoleReveal(false), 3000)
     return () => window.clearTimeout(timer)
-  }, [hasAssignedRoles, isPreStartQuizComplete, myPlayer, room?.started_at, room?.status])
+  }, [hasAssignedRoles, myPlayer, roleRevealKey, room?.status])
 
   useEffect(() => {
     if (room?.status !== 'playing' || !hasAssignedRoles || zombiePlayers.length === 0) return
     if (humanSurvivors.length > 0) return
-    void finishGame()
-  }, [finishGame, hasAssignedRoles, humanSurvivors.length, room?.status, zombiePlayers.length])
+    setCurrentView('result')
+    void finishRoomAsHost()
+  }, [finishRoomAsHost, hasAssignedRoles, humanSurvivors.length, room?.status, setCurrentView, zombiePlayers.length])
 
   if (!roomCode || !playerId) {
     return (
@@ -262,12 +223,14 @@ export default function ZombiePage() {
                 roomCode={roomCode}
                 playerId={playerId}
                 roomStatus={room?.status ?? 'waiting'}
+                roomStartedAt={room?.started_at ?? null}
+                roomDurationSeconds={room?.duration_seconds ?? null}
                 roomPlayers={activeRoomPlayers}
                 currentQuestion={currentQuestion}
                 onAnswer={checkAnswer}
                 onNextQuestion={goToNextQuestion}
                 onGameEnd={() => setCurrentView('result')}
-                onFinishRoom={finishGame}
+                onFinishRoom={finishRoomAsHost}
                 onPlayerPatch={(targetPlayerId, patch, reason) => {
                   applyPlayerPatch(targetPlayerId, patch)
                   void sendRoomEvent('player:patch', { playerId: targetPlayerId, patch, reason })

@@ -9,18 +9,20 @@ import {
   Copy,
   FileQuestion,
   GraduationCap,
+  Heart,
   Library,
   Play,
   Plus,
   Search,
   SlidersHorizontal,
+  Trophy,
 } from 'lucide-react'
-import GameTypeSelector, { type GameType } from '@/components/GameTypeSelector'
-import { DEFAULT_GAME_MODE, type GameModeId } from '@/lib/game/modes'
+import type { LucideIcon } from 'lucide-react'
 import { formatServiceError } from '@/lib/services/errors'
 import {
   copyQuestionSetFromQuestionsOnly,
   listQuestionSetIndexFromQuestions,
+  toggleQuestionSetLike,
 } from '@/lib/services/questionSets'
 import { ELEMENTARY_GRADE_NUMBERS, formatGradeLabel } from '@/lib/constants/grades'
 
@@ -33,18 +35,93 @@ type QuestionSet = {
   grade: string
   creator: string
   tags: string[]
+  like_count: number
+  weekly_like_count: number
+  monthly_like_count: number
+  liked_by_client: boolean
 }
+
+const BASE_SUBJECTS = [
+  { id: 'korean', name: '국어' },
+  { id: 'math', name: '수학' },
+  { id: 'english', name: '영어' },
+  { id: 'social', name: '사회' },
+  { id: 'science', name: '과학' },
+  { id: 'ethics', name: '도덕' },
+  { id: 'pe', name: '체육' },
+  { id: 'music', name: '음악' },
+  { id: 'art', name: '미술' },
+]
+
+const SUBJECTS_BY_LEVEL = {
+  elementary: [
+    { id: 'integrated', name: '통합교과' },
+    ...BASE_SUBJECTS,
+    { id: 'practical_arts', name: '실과' },
+    { id: 'creative', name: '창체' },
+  ],
+  middle: [
+    ...BASE_SUBJECTS,
+    { id: 'history', name: '역사' },
+    { id: 'tech_home', name: '기술·가정' },
+    { id: 'information', name: '정보' },
+    { id: 'creative', name: '창체' },
+  ],
+  high: [
+    ...BASE_SUBJECTS,
+    { id: 'history', name: '한국사' },
+    { id: 'tech_home', name: '기술·가정' },
+    { id: 'information', name: '정보' },
+    { id: 'second_language', name: '제2외국어/한문' },
+    { id: 'career', name: '진로와 직업' },
+    { id: 'creative', name: '창체' },
+  ],
+} as const
 
 const SUBJECTS = [
   { id: 'integrated', name: '통합교과' },
+  ...BASE_SUBJECTS,
+  { id: 'practical_arts', name: '실과' },
+  { id: 'history', name: '역사/한국사' },
+  { id: 'tech_home', name: '기술·가정' },
+  { id: 'information', name: '정보' },
+  { id: 'second_language', name: '제2외국어/한문' },
+  { id: 'career', name: '진로와 직업' },
   { id: 'creative', name: '창체' },
-  { id: 'korean', name: '국어' },
-  { id: 'math', name: '수학' },
-  { id: 'social', name: '사회' },
-  { id: 'science', name: '과학' },
-  { id: 'english', name: '영어' },
-  { id: 'ethics', name: '도덕' },
 ]
+
+const SUBJECT_ALIASES: Record<string, string> = {
+  통합교과: 'integrated',
+  바른생활: 'integrated',
+  '바른 생활': 'integrated',
+  슬기로운생활: 'integrated',
+  '슬기로운 생활': 'integrated',
+  즐거운생활: 'integrated',
+  '즐거운 생활': 'integrated',
+  창체: 'creative',
+  창의적체험활동: 'creative',
+  '창의적 체험활동': 'creative',
+  국어: 'korean',
+  수학: 'math',
+  사회: 'social',
+  과학: 'science',
+  영어: 'english',
+  도덕: 'ethics',
+  체육: 'pe',
+  음악: 'music',
+  미술: 'art',
+  실과: 'practical_arts',
+  기술가정: 'tech_home',
+  '기술·가정': 'tech_home',
+  '기술ㆍ가정': 'tech_home',
+  정보: 'information',
+  한국사: 'history',
+  제2외국어: 'second_language',
+  한문: 'second_language',
+  '진로와 직업': 'career',
+  기타: 'integrated',
+  역사: 'history',
+}
 
 const SCHOOL_LEVELS = [
   { id: 'all', name: '전체' },
@@ -60,14 +137,47 @@ const GRADE_GROUPS = {
 } as const
 
 type SchoolLevel = keyof typeof GRADE_GROUPS
-type SortType = 'recommended' | 'recent' | 'name' | 'question_count'
+type SortType = 'likes' | 'recent'
 
-const extractSubject = (setId: string): string => {
+const LIBRARY_CLIENT_ID_KEY = 'quizdog_library_client_id'
+
+function getLibraryClientId(): string {
+  if (typeof window === 'undefined') return 'server'
+
+  const existing = window.localStorage.getItem(LIBRARY_CLIENT_ID_KEY)
+  if (existing) return existing
+
+  const nextId = typeof window.crypto?.randomUUID === 'function'
+    ? window.crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  window.localStorage.setItem(LIBRARY_CLIENT_ID_KEY, nextId)
+  return nextId
+}
+
+const normalizeSubject = (subjectValue: string | null | undefined, setId: string): string => {
+  if (subjectValue) {
+    if (SUBJECTS.some((item) => item.id === subjectValue)) return subjectValue
+    if (SUBJECT_ALIASES[subjectValue]) return SUBJECT_ALIASES[subjectValue]
+  }
+
   const subject = SUBJECTS.find((item) => setId.includes(item.id))
   return subject?.id || 'integrated'
 }
 
-const extractGrade = (setId: string): string => {
+const normalizeGrade = (gradeValue: string | null | undefined, setId: string): string => {
+  const value = gradeValue?.trim()
+  if (value) {
+    const gradeMatch = value.match(/(초|중|고)\s*(\d)/)
+    if (gradeMatch) {
+      const level = gradeMatch[1] === '초' ? 'elementary' : gradeMatch[1] === '중' ? 'middle' : 'high'
+      return `${level}-${gradeMatch[2]}`
+    }
+
+    if (value === '중학교') return 'middle-1'
+    if (value === '고등학교') return 'high-1'
+    if (value.includes('-')) return value
+  }
+
   const gradeMatch = setId.match(/(초|중|고)\s*(\d)/)
   if (gradeMatch) {
     const level = gradeMatch[1] === '초' ? 'elementary' : gradeMatch[1] === '중' ? 'middle' : 'high'
@@ -82,9 +192,24 @@ const getSubjectName = (subjectId: string) => (
 
 const getGradeLabel = (grade: string) => formatGradeLabel(grade)
 
-const generateTags = (setId: string): string[] => {
-  const grade = extractGrade(setId)
-  return [getGradeLabel(grade), getSubjectName(extractSubject(setId))]
+const isGeneratedLibraryTitle = (title: string, setId: string): boolean => {
+  const normalizedTitle = title.trim()
+  if (!normalizedTitle) return true
+  if (normalizedTitle === setId) return true
+  if (normalizedTitle === setId.replace(/^set-/, '문제집 ')) return true
+  if (/^(library-)?문제집\s+\d{10,}-[a-z0-9]+$/i.test(normalizedTitle)) return true
+  if (/^library-문제집\s+\d{10,}-[a-z0-9]+$/i.test(normalizedTitle)) return true
+
+  return false
+}
+
+const normalizeTags = (tags: unknown, grade: string, subject: string): string[] => {
+  if (Array.isArray(tags)) {
+    const values = tags.map((tag) => String(tag).trim()).filter(Boolean)
+    if (values.length > 0) return values
+  }
+
+  return [getGradeLabel(grade), getSubjectName(subject)]
 }
 
 function LibraryPageContent() {
@@ -96,23 +221,32 @@ function LibraryPageContent() {
   const [selectedSchoolLevel, setSelectedSchoolLevel] = useState<string>('all')
   const [selectedGrade, setSelectedGrade] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortType, setSortType] = useState<SortType>('recommended')
+  const [sortType, setSortType] = useState<SortType>('likes')
   const [previewSetId, setPreviewSetId] = useState<string | null>(null)
-  const [showGameTypeSelector, setShowGameTypeSelector] = useState(false)
-  const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
 
   const loadQuestionSets = useCallback(async () => {
     try {
       setLoading(true)
-      const indexItems = await listQuestionSetIndexFromQuestions()
-      const sets = indexItems.map((item) => ({
-        ...item,
-        name: item.set_id.replace('set-', '문제집 '),
-        subject: extractSubject(item.set_id),
-        grade: extractGrade(item.set_id),
-        creator: '퀴즈독 자료실',
-        tags: generateTags(item.set_id),
-      }))
+      const clientId = getLibraryClientId()
+      const indexItems = await listQuestionSetIndexFromQuestions(clientId)
+      const sets = indexItems.map((item, index) => {
+        const subject = normalizeSubject(item.subject, item.set_id)
+        const grade = normalizeGrade(item.grade, item.set_id)
+        const title = item.title?.trim() ?? ''
+
+        return {
+          ...item,
+          name: isGeneratedLibraryTitle(title, item.set_id) ? `문제집 ${index + 1}` : title,
+          subject,
+          grade,
+          creator: '퀴즈독 자료실',
+          tags: normalizeTags(item.tags, grade, subject),
+          like_count: item.like_count,
+          weekly_like_count: item.weekly_like_count,
+          monthly_like_count: item.monthly_like_count,
+          liked_by_client: item.liked_by_client,
+        }
+      })
 
       setAllQuestionSets(sets)
       setPreviewSetId(sets[0]?.set_id ?? null)
@@ -141,24 +275,33 @@ function LibraryPageContent() {
       return matchesSubject && matchesLevel && matchesGrade && matchesQuery
     })
 
-    if (sortType === 'recent') {
-      return filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    }
-
-    if (sortType === 'name') {
-      return filtered.sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'))
-    }
-
-    if (sortType === 'question_count') {
-      return filtered.sort((a, b) => b.question_count - a.question_count)
-    }
-
-    return filtered.sort((a, b) => {
-      const questionDelta = b.question_count - a.question_count
-      if (questionDelta !== 0) return questionDelta
+    return [...filtered].sort((a, b) => {
+      if (sortType === 'likes') {
+        const likeDelta = b.like_count - a.like_count
+        if (likeDelta !== 0) return likeDelta
+      }
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
   }, [allQuestionSets, searchQuery, selectedGrade, selectedSchoolLevel, selectedSubject, sortType])
+
+  const currentSubjectOptions = useMemo(() => {
+    if (selectedSchoolLevel === 'all') return SUBJECTS
+    return SUBJECTS_BY_LEVEL[selectedSchoolLevel as SchoolLevel]
+  }, [selectedSchoolLevel])
+
+  const weeklyPopularSets = useMemo(() => (
+    [...allQuestionSets]
+      .filter((set) => set.weekly_like_count > 0)
+      .sort((a, b) => b.weekly_like_count - a.weekly_like_count || b.like_count - a.like_count)
+      .slice(0, 5)
+  ), [allQuestionSets])
+
+  const monthlyPopularSets = useMemo(() => (
+    [...allQuestionSets]
+      .filter((set) => set.monthly_like_count > 0)
+      .sort((a, b) => b.monthly_like_count - a.monthly_like_count || b.like_count - a.like_count)
+      .slice(0, 5)
+  ), [allQuestionSets])
 
   const selectedSet = useMemo(() => {
     return filteredSets.find((set) => set.set_id === previewSetId) ?? filteredSets[0] ?? null
@@ -176,7 +319,46 @@ function LibraryPageContent() {
     setSelectedSchoolLevel('all')
     setSelectedGrade('all')
     setSearchQuery('')
-    setSortType('recommended')
+    setSortType('likes')
+  }
+
+  const handleToggleLike = async (setId: string) => {
+    const target = allQuestionSets.find((set) => set.set_id === setId)
+    if (!target) return
+
+    const nextLiked = !target.liked_by_client
+    const delta = nextLiked ? 1 : -1
+    const now = new Date()
+    const weekAgo = new Date(now)
+    weekAgo.setDate(now.getDate() - 7)
+    const monthAgo = new Date(now)
+    monthAgo.setMonth(now.getMonth() - 1)
+    const createdAt = new Date(target.created_at)
+    const affectsWeekly = nextLiked || createdAt >= weekAgo
+    const affectsMonthly = nextLiked || createdAt >= monthAgo
+
+    setAllQuestionSets((prev) => prev.map((set) => (
+      set.set_id === setId
+        ? {
+            ...set,
+            liked_by_client: nextLiked,
+            like_count: Math.max(0, set.like_count + delta),
+            weekly_like_count: affectsWeekly ? Math.max(0, set.weekly_like_count + delta) : set.weekly_like_count,
+            monthly_like_count: affectsMonthly ? Math.max(0, set.monthly_like_count + delta) : set.monthly_like_count,
+          }
+        : set
+    )))
+
+    try {
+      await toggleQuestionSetLike(setId, getLibraryClientId(), nextLiked)
+      await loadQuestionSets()
+    } catch (error) {
+      setAllQuestionSets((prev) => prev.map((set) => (
+        set.set_id === setId ? target : set
+      )))
+      console.error('Error toggling question set like:', error)
+      alert('좋아요를 반영하지 못했습니다: ' + formatServiceError(error))
+    }
   }
 
   const handleCopySet = async (setId: string) => {
@@ -191,22 +373,7 @@ function LibraryPageContent() {
   }
 
   const handleStartGame = (setId: string) => {
-    setSelectedSetId(setId)
-    setShowGameTypeSelector(true)
-  }
-
-  const handleGameTypeSelect = (gameType: GameType) => {
-    if (!selectedSetId) return
-
-    const modeByType: Record<GameType, GameModeId> = {
-      sequential: DEFAULT_GAME_MODE,
-      free: 'dontlookdown',
-      round: 'battle_royale',
-      team: 'gold_quest',
-    }
-    const gameMode = modeByType[gameType]
-
-    router.push(`/teacher/dashboard?set=${selectedSetId}&gameType=${gameType}&gameMode=${gameMode}`)
+    router.push(`/teacher/dashboard?set=${encodeURIComponent(setId)}`)
   }
 
   return (
@@ -218,7 +385,7 @@ function LibraryPageContent() {
               <Library className="h-4 w-4" />
               수업 준비 라이브러리
             </div>
-            <h1 className="text-3xl font-black tracking-normal text-blue-900 sm:text-4xl">
+            <h1 className="text-3xl font-black tracking-normal text-black sm:text-4xl">
               바로 수업에 쓸 퀴즈 세트를 찾아보세요
             </h1>
             <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500">
@@ -237,7 +404,7 @@ function LibraryPageContent() {
                   <span className="text-xs font-bold text-slate-500">{item.label}</span>
                   <item.icon className="h-4 w-4 text-slate-400" />
                 </div>
-                <div className="mt-3 text-2xl font-black text-blue-900">{item.value}</div>
+                <div className="mt-3 text-2xl font-black text-black">{item.value}</div>
               </div>
             ))}
           </div>
@@ -253,7 +420,7 @@ function LibraryPageContent() {
               placeholder="단원명, 과목, 학년으로 검색"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-12 pr-4 text-base font-bold text-blue-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+              className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-12 pr-4 text-base font-bold text-black outline-none transition placeholder:text-slate-400 focus:border-slate-400"
             />
           </label>
           <div className="flex items-center gap-2">
@@ -262,15 +429,13 @@ function LibraryPageContent() {
               onChange={(event) => setSortType(event.target.value as SortType)}
               className="h-12 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-slate-400"
             >
-              <option value="recommended">추천순</option>
-              <option value="recent">최근 추가순</option>
-              <option value="question_count">문항 많은순</option>
-              <option value="name">이름순</option>
+              <option value="likes">좋아요순</option>
+              <option value="recent">최신순</option>
             </select>
             {activeFilterCount > 0 && (
               <button
                 onClick={resetFilters}
-                className="h-12 rounded-lg px-4 text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-blue-900"
+                className="h-12 rounded-lg px-4 text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-black"
               >
                 초기화
               </button>
@@ -286,6 +451,7 @@ function LibraryPageContent() {
             onChange={(value) => {
               setSelectedSchoolLevel(value)
               setSelectedGrade('all')
+              setSelectedSubject('all')
             }}
           />
 
@@ -306,11 +472,28 @@ function LibraryPageContent() {
 
           <FilterRow
             label="과목"
-            items={[{ id: 'all', name: '전체' }, ...SUBJECTS]}
+            items={[{ id: 'all', name: '전체' }, ...currentSubjectOptions]}
             value={selectedSubject}
             onChange={setSelectedSubject}
           />
         </div>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-2">
+        <PopularPanel
+          title="주간 인기글"
+          metricLabel="이번 주"
+          sets={weeklyPopularSets}
+          metric={(set) => set.weekly_like_count}
+          onSelect={setPreviewSetId}
+        />
+        <PopularPanel
+          title="월간 인기글"
+          metricLabel="이번 달"
+          sets={monthlyPopularSets}
+          metric={(set) => set.monthly_like_count}
+          onSelect={setPreviewSetId}
+        />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -324,32 +507,32 @@ function LibraryPageContent() {
 
           {loading ? (
             <div className="flex min-h-80 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-900" />
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-black" />
             </div>
           ) : filteredSets.length === 0 ? (
             <div className="rounded-lg bg-white p-12 text-center ring-1 ring-slate-200">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
                 <Search className="h-6 w-6 text-slate-400" />
               </div>
-              <h2 className="mt-4 text-lg font-black text-blue-900">맞는 자료가 없습니다</h2>
+              <h2 className="mt-4 text-lg font-black text-black">맞는 자료가 없습니다</h2>
               <p className="mt-2 text-sm font-medium text-slate-500">검색어나 필터를 조금 넓혀보세요.</p>
               <button
                 onClick={resetFilters}
-                className="mt-5 rounded-lg bg-blue-900 px-4 py-2.5 text-sm font-black text-white transition hover:bg-blue-800"
+                className="mt-5 rounded-lg bg-black px-4 py-2.5 text-sm font-black text-white transition hover:bg-neutral-800"
               >
                 필터 초기화
               </button>
             </div>
           ) : (
             filteredSets.map((set) => (
-              <button
+              <article
                 key={set.set_id}
                 onClick={() => setPreviewSetId(set.set_id)}
                 className={`w-full rounded-lg bg-white p-5 text-left shadow-sm ring-1 transition ${
                   selectedSet?.set_id === set.set_id
-                    ? 'ring-blue-900'
+                    ? 'ring-black'
                     : 'ring-slate-200 hover:bg-slate-50'
-                }`}
+                } cursor-pointer`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
@@ -363,7 +546,7 @@ function LibraryPageContent() {
                         </span>
                       ))}
                     </div>
-                    <h3 className="truncate text-lg font-black text-blue-900">{set.name}</h3>
+                    <h3 className="truncate text-lg font-black text-black">{set.name}</h3>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500">
                       <span>{set.creator}</span>
                       <span>·</span>
@@ -372,9 +555,27 @@ function LibraryPageContent() {
                       <span>{new Date(set.created_at).toLocaleDateString('ko-KR')}</span>
                     </div>
                   </div>
-                  <ArrowRight className="hidden h-5 w-5 text-slate-300 sm:block" />
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        void handleToggleLike(set.set_id)
+                      }}
+                      className={`inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-black transition ${
+                        set.liked_by_client
+                          ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-100'
+                          : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600'
+                      }`}
+                      aria-label={`${set.name} 좋아요`}
+                    >
+                      <Heart className={`h-4 w-4 ${set.liked_by_client ? 'fill-current' : ''}`} />
+                      {set.like_count.toLocaleString()}
+                    </button>
+                    <ArrowRight className="hidden h-5 w-5 text-slate-300 sm:block" />
+                  </div>
                 </div>
-              </button>
+              </article>
             ))
           )}
         </div>
@@ -393,25 +594,36 @@ function LibraryPageContent() {
                   </div>
                 </div>
 
-                <h2 className="mt-5 text-xl font-black leading-snug text-blue-900">{selectedSet.name}</h2>
+                <h2 className="mt-5 text-xl font-black leading-snug text-black">{selectedSet.name}</h2>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <InfoTile label="문항 수" value={`${selectedSet.question_count}개`} icon={FileQuestion} />
+                  <InfoTile label="좋아요" value={`${selectedSet.like_count.toLocaleString()}개`} icon={Heart} />
                   <InfoTile label="대상" value={getGradeLabel(selectedSet.grade)} icon={GraduationCap} />
                   <InfoTile label="과목" value={getSubjectName(selectedSet.subject)} icon={BookOpen} />
-                  <InfoTile label="출처" value="자료실" icon={Library} />
                 </div>
 
                 <div className="mt-5 space-y-2">
                   <button
+                    onClick={() => void handleToggleLike(selectedSet.set_id)}
+                    className={`flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-black transition ${
+                      selectedSet.liked_by_client
+                        ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-100 hover:bg-rose-100'
+                        : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-rose-600'
+                    }`}
+                  >
+                    <Heart className={`h-4 w-4 ${selectedSet.liked_by_client ? 'fill-current' : ''}`} />
+                    {selectedSet.liked_by_client ? '좋아요 취소' : '좋아요'}
+                  </button>
+                  <button
                     onClick={() => handleCopySet(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-blue-900 text-sm font-black text-white transition hover:bg-blue-800"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-black text-sm font-black text-white transition hover:bg-neutral-800"
                   >
                     <Plus className="h-4 w-4" />
                     내 문제집에 담기
                   </button>
                   <button
                     onClick={() => handleStartGame(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-white text-sm font-black text-blue-900 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-white text-sm font-black text-black ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
                     <Play className="h-4 w-4 fill-current" />
                     바로 게임 시작
@@ -421,7 +633,7 @@ function LibraryPageContent() {
                       await navigator.clipboard.writeText(`${window.location.origin}/teacher/library?set=${selectedSet.set_id}`)
                       alert('링크가 복사되었습니다.')
                     }}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-blue-900"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-black"
                   >
                     <Copy className="h-4 w-4" />
                     링크 복사
@@ -437,16 +649,62 @@ function LibraryPageContent() {
           </div>
         </aside>
       </section>
+    </div>
+  )
+}
 
-      <GameTypeSelector
-        isOpen={showGameTypeSelector}
-        onClose={() => {
-          setShowGameTypeSelector(false)
-          setSelectedSetId(null)
-        }}
-        onSelect={handleGameTypeSelect}
-        questionSetName={selectedSetId ? allQuestionSets.find((set) => set.set_id === selectedSetId)?.name : undefined}
-      />
+function PopularPanel({
+  title,
+  metricLabel,
+  sets,
+  metric,
+  onSelect,
+}: {
+  title: string
+  metricLabel: string
+  sets: QuestionSet[]
+  metric: (set: QuestionSet) => number
+  onSelect: (setId: string) => void
+}) {
+  return (
+    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="grid h-9 w-9 place-items-center rounded-lg bg-amber-50 text-amber-600">
+          <Trophy className="h-5 w-5" />
+        </div>
+        <h2 className="text-lg font-black text-black">{title}</h2>
+      </div>
+
+      {sets.length === 0 ? (
+        <div className="rounded-lg bg-slate-50 p-5 text-sm font-bold text-slate-500">
+          아직 집계된 좋아요가 없습니다.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {sets.map((set, index) => (
+            <button
+              key={set.set_id}
+              type="button"
+              onClick={() => onSelect(set.set_id)}
+              className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-slate-50"
+            >
+              <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-slate-100 text-sm font-black text-slate-700">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-black text-black">{set.name}</span>
+                <span className="mt-1 block text-xs font-bold text-slate-400">
+                  {getGradeLabel(set.grade)} · {getSubjectName(set.subject)}
+                </span>
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-600">
+                <Heart className="h-3.5 w-3.5 fill-current" />
+                {metric(set).toLocaleString()} {metricLabel}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -472,7 +730,7 @@ function FilterRow({
             onClick={() => onChange(item.id)}
             className={`rounded-full px-3 py-1.5 text-sm font-black transition ${
               value === item.id
-                ? 'bg-blue-900 text-white'
+                ? 'bg-black text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -491,13 +749,13 @@ function InfoTile({
 }: {
   label: string
   value: string
-  icon: typeof BookOpen
+  icon: LucideIcon
 }) {
   return (
     <div className="rounded-lg bg-slate-50 p-3">
       <Icon className="h-4 w-4 text-slate-400" />
       <div className="mt-2 text-xs font-bold text-slate-400">{label}</div>
-      <div className="mt-1 truncate text-sm font-black text-blue-900">{value}</div>
+      <div className="mt-1 truncate text-sm font-black text-black">{value}</div>
     </div>
   )
 }

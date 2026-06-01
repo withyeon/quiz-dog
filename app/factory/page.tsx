@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
+import { XCircle, Zap } from 'lucide-react'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
@@ -17,8 +18,10 @@ import ScreenFlash from '@/components/ScreenFlash'
 import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
 import { formatMoney, getAnswerSpeed, getSpeedBonus, roundMoney } from '@/lib/game/convenienceStore'
+import { STORE_BRAND_ICON } from '@/lib/game/storeAssets'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
-import { isRoomHostPlayer } from '@/lib/realtime/roomChannel'
+import { isTerminalRoomStatus, type RoomStatus } from '@/lib/game/roomStatus'
+import { isRoomHostPlayer, subscribeRoomRuntimeEvent, type RoomPatchPayload } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
 import { finishRoom } from '@/lib/services/rooms'
@@ -61,7 +64,6 @@ export default function FactoryPage() {
   const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
   const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
   const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
-  const [localGameStartedAt, setLocalGameStartedAt] = useState<number | null>(null)
 
   const questionStartTime = useRef<number>(0)
   const autoFinishRequestedRef = useRef(false)
@@ -121,6 +123,35 @@ export default function FactoryPage() {
   const currentPlayer = players.find((p) => p.id === playerId) as Player | undefined
   const isRoomHost = useMemo(() => isRoomHostPlayer(playerId, players, []), [playerId, players])
   const isPaused = room?.status === 'paused'
+
+  const forceFinishForStudent = useCallback((reason = 'forced_finish') => {
+    setCurrentView('result')
+    setShowCountdown(false)
+    if (roomCode && playerId) {
+      router.replace(`/student/game/${roomCode}/result?playerId=${playerId}&reason=${encodeURIComponent(reason)}`)
+    }
+  }, [playerId, roomCode, router])
+
+  useEffect(() => {
+    if (!roomCode) return
+
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.roomCode !== roomCode) return
+
+      if (event.type === 'game:finished') {
+        const payload = event.payload as { reason?: string } | undefined
+        forceFinishForStudent(payload?.reason || 'game_finished_event')
+        return
+      }
+
+      if (event.type === 'room:patch') {
+        const payload = event.payload as RoomPatchPayload | undefined
+        if (isTerminalRoomStatus(payload?.patch?.status as RoomStatus | undefined)) {
+          forceFinishForStudent(payload?.reason || 'room_finished_patch')
+        }
+      }
+    })
+  }, [forceFinishForStudent, roomCode])
 
   // 문제 데이터 가져오기 (로드 후 한 번 셔플하여 랜덤 순서)
   useEffect(() => {
@@ -183,7 +214,6 @@ export default function FactoryPage() {
       setPreStartSubmittedCount(0)
       setPreStartQuestionIndex(0)
       setIsPreStartAnswerLocked(false)
-      setLocalGameStartedAt(null)
     }
   }, [currentView, isPreStartQuizComplete, playBGM, room])
 
@@ -191,7 +221,6 @@ export default function FactoryPage() {
   const handleCountdownComplete = () => {
     setShowCountdown(false)
     setCurrentView('quiz')
-    setLocalGameStartedAt(Date.now())
     questionStartTime.current = Date.now()
   }
 
@@ -227,7 +256,7 @@ export default function FactoryPage() {
   }
 
   // 돈 변경 핸들러
-  const handleMoneyChange = async (newMoney: number) => {
+  const handleMoneyChange = useCallback(async (newMoney: number) => {
     const roundedMoney = roundMoney(newMoney)
     setMoney(roundedMoney)
     if (!playerId) return
@@ -241,10 +270,10 @@ export default function FactoryPage() {
     } catch (error) {
       console.error('Error updating money:', error)
     }
-  }
+  }, [commitPlayerPatch, playerId])
 
   // 상품 변경 핸들러
-  const handleProductsChange = async (newProducts: Product[]) => {
+  const handleProductsChange = useCallback(async (newProducts: Product[]) => {
     setProducts(newProducts)
     if (!playerId) return
 
@@ -255,7 +284,7 @@ export default function FactoryPage() {
     } catch (error) {
       console.error('Error updating products:', error)
     }
-  }
+  }, [commitPlayerPatch, playerId])
 
   // 퀴즈 시작
   const handleQuizStart = () => {
@@ -364,10 +393,7 @@ export default function FactoryPage() {
   const startedAt = (room as { started_at?: string | null } | null)?.started_at ?? null
 
   useEffect(() => {
-    const fallbackStartedAt = currentView !== 'prestartQuiz' && currentView !== 'countdown' && startedAt
-      ? new Date(startedAt).getTime()
-      : null
-    const timerStartMs = localGameStartedAt ?? fallbackStartedAt
+    const timerStartMs = startedAt ? new Date(startedAt).getTime() : null
 
     if (room?.status !== 'playing' || durationSeconds == null || !timerStartMs) {
       setRemainingSeconds(null)
@@ -400,14 +426,14 @@ export default function FactoryPage() {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [currentView, durationSeconds, isRoomHost, localGameStartedAt, playerId, room?.status, roomCode, sendRoomEvent, startedAt])
+  }, [durationSeconds, isRoomHost, playerId, room?.status, roomCode, sendRoomEvent, startedAt])
 
   // 게임 종료 감지
   useEffect(() => {
-    if (room && room.status === 'finished' && currentView !== 'result') {
-      setCurrentView('result')
+    if (room && isTerminalRoomStatus(room.status) && currentView !== 'result') {
+      forceFinishForStudent(`room_status_${room.status}`)
     }
-  }, [room, currentView])
+  }, [currentView, forceFinishForStudent, room])
 
   if (!roomCode || !playerId) {
     return (
@@ -439,8 +465,9 @@ export default function FactoryPage() {
           transition={{ duration: 1.5 }}
           className="fixed top-1/3 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
         >
-          <div className="bg-yellow-400 text-gray-900 font-black text-3xl px-6 py-3 rounded-2xl shadow-2xl border-4 border-yellow-600">
-            ⚡ +{formatMoney(speedBonusDisplay)} 속도 보너스!
+          <div className="bg-yellow-400 text-gray-900 font-black text-3xl px-6 py-3 rounded-2xl shadow-2xl border-4 border-yellow-600 flex items-center gap-2">
+            <Zap size={28} className="fill-current" />
+            +{formatMoney(speedBonusDisplay)} 속도 보너스!
           </div>
         </motion.div>
       )}
@@ -449,52 +476,52 @@ export default function FactoryPage() {
         {/* 헤더 */}
         <div className="max-w-6xl mx-auto mb-4">
           <div className="rounded-xl border-2 border-emerald-200/90 bg-white/92 p-4 shadow-xl shadow-emerald-900/10 backdrop-blur-md">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <Image src="/store/store.svg" alt="편의점" fill className="object-contain" />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative h-12 w-12 flex-shrink-0 sm:h-16 sm:w-16">
+                  <Image src={STORE_BRAND_ICON} alt="편의점" fill className="object-contain" />
                 </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-emerald-950">전설의 편의점</h1>
+                <div className="min-w-0">
+                  <h1 className="truncate text-xl font-bold text-emerald-950 sm:text-2xl">전설의 편의점</h1>
                   <p className="text-xs font-bold text-emerald-700">방 코드: {roomCode}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {/* 남은 시간 (선생님이 설정한 제한 시간) */}
                 {remainingSeconds != null && (
-                  <div className="rounded-lg border-2 border-amber-300 bg-amber-50 px-4 py-2">
-                    <div className="mb-1 text-xs font-semibold text-amber-800">남은 시간</div>
-                    <div className="text-center text-2xl font-bold tabular-nums text-amber-950">
+                  <div className="rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-1.5 sm:px-4 sm:py-2">
+                    <div className="mb-0.5 whitespace-nowrap text-xs font-semibold text-amber-800 sm:mb-1">남은 시간</div>
+                    <div className="text-center text-xl font-bold tabular-nums text-amber-950 sm:text-2xl">
                       {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
                     </div>
                   </div>
                 )}
                 {/* 정답 카운터 */}
-                <div className="rounded-lg border-2 border-sky-300 bg-sky-50 px-4 py-2">
-                  <div className="mb-1 text-xs font-semibold text-sky-800">
+                <div className="rounded-lg border-2 border-sky-300 bg-sky-50 px-3 py-1.5 sm:px-4 sm:py-2">
+                  <div className="mb-0.5 whitespace-nowrap text-xs font-semibold text-sky-800 sm:mb-1">
                     다음 상품까지
                   </div>
                   <motion.div
                     key={correctAnswersCount}
                     initial={{ scale: 1.2 }}
                     animate={{ scale: 1 }}
-                    className="text-center text-2xl font-bold text-sky-950"
+                    className="whitespace-nowrap text-center text-xl font-bold text-sky-950 sm:text-2xl"
                   >
                     {3 - (correctAnswersCount % 3)} 문제
                   </motion.div>
                 </div>
 
                 {currentPlayer && (
-                  <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-4 py-2">
-                    <div className="mb-1 text-sm font-semibold text-emerald-800">
+                  <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-3 py-1.5 sm:px-4 sm:py-2">
+                    <div className="mb-0.5 max-w-[120px] truncate text-sm font-semibold text-emerald-800 sm:mb-1">
                       {currentPlayer.nickname}
                     </div>
                     <motion.div
                       key={money}
                       initial={{ scale: 1.2 }}
                       animate={{ scale: 1 }}
-                      className="text-2xl font-bold text-emerald-950"
+                      className="whitespace-nowrap text-xl font-bold text-emerald-950 sm:text-2xl"
                     >
                       {formatMoney(money)}
                     </motion.div>
@@ -528,29 +555,32 @@ export default function FactoryPage() {
               animate={{ opacity: 1 }}
               className="bg-white/90 backdrop-blur-sm rounded-xl p-8 shadow-lg text-center"
             >
-              <h2 className="text-3xl font-bold mb-4">🏪 전설의 편의점</h2>
+              <div className="mb-4 flex items-center justify-center gap-3">
+                <Image src={STORE_BRAND_ICON} alt="편의점" width={48} height={48} unoptimized className="object-contain" />
+                <h2 className="text-3xl font-bold">전설의 편의점</h2>
+              </div>
               <p className="text-gray-600">3문제마다 상품을 받고, 9칸을 채운 뒤 더 좋은 상품으로 교체하세요!</p>
               <p className="text-sm text-gray-500 mt-2">선생님이 게임을 시작할 때까지 기다려주세요.</p>
             </motion.div>
           )}
 
-          {/* 퀴즈 + 편의점 — 좌우 분리 레이아웃 */}
+          {/* 퀴즈 + 편의점 — 좌우 분리 레이아웃 (모바일은 세로 스택) */}
           {currentView === 'quiz' && !showCountdown && currentQuestion && (
-            <div className="flex gap-4 items-start">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
               {/* 왼쪽: 퀴즈 */}
-              <div className="flex-1 min-w-0 sticky top-4">
+              <div className="w-full min-w-0 lg:flex-1 lg:sticky lg:top-4">
                 <QuizView
                   question={currentQuestion}
                   onAnswer={handleAnswerSubmit}
                   onCorrectClick={goToNextQuiz}
                   timeLimit={30}
                   paused={isPaused}
-                  className="bg-white rounded-xl shadow-2xl p-8 w-full border-2 border-gray-200"
+                  className="bg-white rounded-xl shadow-2xl p-5 w-full border-2 border-gray-200 sm:p-8"
                 />
               </div>
 
               {/* 오른쪽: 편의점 */}
-              <div className="flex-1 min-w-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 160px)' }}>
+              <div className="w-full min-w-0 lg:flex-1 lg:overflow-y-auto lg:max-h-[calc(100vh-160px)]">
                 <ConvenienceStore
                   money={money}
                   onMoneyChange={handleMoneyChange}
@@ -574,7 +604,9 @@ export default function FactoryPage() {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-red-100 border-4 border-red-500 rounded-xl p-8 shadow-lg text-center"
             >
-              <div className="text-6xl mb-4">❌</div>
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-xl bg-red-50 text-red-500 ring-1 ring-red-100">
+                <XCircle size={48} />
+              </div>
               <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다!</h2>
               {wrongPenalty ? (
                 <motion.p

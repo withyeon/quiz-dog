@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState, useEffect, useRef } from 'react'
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
@@ -10,10 +10,14 @@ import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useRoomResync } from '@/hooks/useRoomResync'
 import { useAudioContext } from '@/components/AudioProvider'
 import GameCodeModal from '@/components/GameCodeModal'
+import GameStartTutorialModal from '@/components/GameStartTutorialModal'
 import GameModeSelector from '@/components/dashboards/GameModeSelector'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
+import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
 import QRCodeSVG from 'react-qr-code'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
+import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
+import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
 import {
   assertQuestionSetHasQuestions,
@@ -28,7 +32,6 @@ import {
 } from '@/lib/services/rooms'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
 import { getPlayerDisplayNickname, isAvatarPath } from '@/lib/utils/playerDisplay'
-import { PUPPY_CHAOS_BONUS_GRACE_SECONDS } from '@/lib/game/강아지대소동'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -38,7 +41,15 @@ export default function TeacherDashboard() {
   const [showLargeQrModal, setShowLargeQrModal] = useState(false)
   const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [timedDurationMinutes, setTimedDurationMinutes] = useState(5)
+  const [showStartTutorial, setShowStartTutorial] = useState(false)
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
+  const [hideTutorialNextTime, setHideTutorialNextTime] = useState(false)
   const autoFinishRequestedRef = useRef(false)
+  const tutorialStateRef = useRef({
+    isOpen: false,
+    gameMode: DEFAULT_GAME_MODE,
+    stepIndex: 0,
+  })
 
   const { players, refreshPlayers } = usePlayersRealtime({ roomCode })
   const { room, refreshRoom } = useRoomRealtime({ roomCode })
@@ -53,8 +64,13 @@ export default function TeacherDashboard() {
   })
   const roomStatus = room?.status
   const activeModeConfig = getGameModeConfig(gameMode)
+  const activeBgmTrack = useMemo(() => ({
+    id: activeModeConfig.id,
+    title: activeModeConfig.bgm.title,
+    src: activeModeConfig.bgm.src,
+  }), [activeModeConfig])
   const inviteUrl = typeof window !== 'undefined' && roomCode ? `${window.location.origin}/play/${roomCode}` : ''
-  const { playSFX } = useAudioContext()
+  const { playBGM, pauseBGM, playSFX, stopBGM } = useAudioContext()
 
   const broadcastRoomPatch = useCallback((
     patch: Record<string, unknown>,
@@ -63,6 +79,54 @@ export default function TeacherDashboard() {
     void sendRoomEvent('room:patch', { patch, reason })
     void sendRoomEvent('room:snapshot-hint', { reason })
   }, [sendRoomEvent])
+
+  const broadcastTutorialState = useCallback((
+    isOpen: boolean,
+    stepIndex = tutorialStepIndex,
+    nextMode = gameMode,
+  ) => {
+    tutorialStateRef.current = {
+      isOpen,
+      gameMode: nextMode,
+      stepIndex,
+    }
+
+    if (!roomCode) return
+    if (isOpen) {
+      void sendRoomEvent('tutorial:show', { gameMode: nextMode, stepIndex })
+    } else {
+      void sendRoomEvent('tutorial:hide', { gameMode: nextMode })
+    }
+  }, [gameMode, roomCode, sendRoomEvent, tutorialStepIndex])
+
+  const setTutorialStep = useCallback((nextStepIndex: number) => {
+    setTutorialStepIndex(nextStepIndex)
+    tutorialStateRef.current = {
+      isOpen: true,
+      gameMode,
+      stepIndex: nextStepIndex,
+    }
+    if (roomCode) {
+      void sendRoomEvent('tutorial:slide', { gameMode, stepIndex: nextStepIndex })
+    }
+  }, [gameMode, roomCode, sendRoomEvent])
+
+  useEffect(() => {
+    if (!roomCode) return
+
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.roomCode !== roomCode || event.type !== 'room:snapshot-hint') return
+      const payload = event.payload as { reason?: string } | undefined
+      if (payload?.reason !== 'player_joined') return
+
+      const tutorialState = tutorialStateRef.current
+      if (!tutorialState.isOpen) return
+      void sendRoomEvent('tutorial:show', {
+        gameMode: tutorialState.gameMode,
+        stepIndex: tutorialState.stepIndex,
+      })
+    })
+  }, [roomCode, sendRoomEvent])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -101,6 +165,31 @@ export default function TeacherDashboard() {
   }, [roomStatus])
 
   useEffect(() => {
+    if (!roomCode) {
+      stopBGM()
+      return
+    }
+
+    if (!roomStatus) return
+
+    if (roomStatus === 'waiting' || roomStatus === 'playing') {
+      playBGM('game', activeBgmTrack)
+      return
+    }
+
+    if (roomStatus === 'paused') {
+      pauseBGM()
+      return
+    }
+
+    stopBGM()
+  }, [activeBgmTrack, pauseBGM, playBGM, roomCode, roomStatus, stopBGM])
+
+  useEffect(() => {
+    return () => stopBGM()
+  }, [stopBGM])
+
+  useEffect(() => {
     if (
       !roomCode
       || !room
@@ -130,6 +219,7 @@ export default function TeacherDashboard() {
         } catch (reportError) {
           console.error('Error saving timed game report snapshot:', reportError)
         }
+        stopBGM()
         router.push(`/teacher/game/${roomCode}/end`)
       } catch (error) {
         autoFinishRequestedRef.current = false
@@ -139,7 +229,6 @@ export default function TeacherDashboard() {
 
     const started = new Date(room.started_at).getTime()
     const totalSeconds = Number(room.duration_seconds)
-      + (room.game_mode === 'poop_dodge' ? PUPPY_CHAOS_BONUS_GRACE_SECONDS : 0)
     const tick = () => {
       const elapsedSeconds = Math.floor((Date.now() - started) / 1000)
       if (elapsedSeconds >= totalSeconds) {
@@ -150,7 +239,7 @@ export default function TeacherDashboard() {
     tick()
     const interval = window.setInterval(tick, 1000)
     return () => window.clearInterval(interval)
-  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent])
+  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
   // 게임 모드 변경 핸들러 (방이 있으면 DB도 업데이트)
   const handleGameModeChange = async (newMode: GameModeId) => {
@@ -188,7 +277,10 @@ export default function TeacherDashboard() {
           alert('이 게임은 문제집이 필요합니다. 문제집을 선택한 뒤 새 게임을 만들어주세요.')
           return
         }
+        playBGM('game', activeBgmTrack)
         await assertQuestionSetHasQuestions(setId)
+      } else {
+        playBGM('game', activeBgmTrack)
       }
 
       const createdRoom = await createRoom({ setId, gameMode })
@@ -198,6 +290,7 @@ export default function TeacherDashboard() {
       setShowGameCodeModal(false)
       setIsGameStarted(false)
     } catch (error) {
+      stopBGM()
       console.error('Error creating room:', error)
       const errorMessage = formatServiceError(error)
 
@@ -242,10 +335,40 @@ export default function TeacherDashboard() {
 
       setIsGameStarted(true)
       setShowGameCodeModal(false)
+      setShowStartTutorial(false)
+      broadcastTutorialState(false)
+      playBGM('game', activeBgmTrack)
     } catch (error) {
       console.error('Error starting game:', error)
       alert('게임 시작에 실패했습니다: ' + formatServiceError(error))
     }
+  }
+
+  const handleStartButtonClick = () => {
+    if (!roomCode) return
+    const shouldHideTutorial = window.localStorage.getItem(getTutorialHiddenStorageKey(gameMode)) === 'true'
+    if (shouldHideTutorial) {
+      void handleConfirmStart()
+      return
+    }
+
+    setTutorialStepIndex(0)
+    setHideTutorialNextTime(false)
+    setShowStartTutorial(true)
+    broadcastTutorialState(true, 0, gameMode)
+  }
+
+  const handleStartFromTutorial = () => {
+    if (hideTutorialNextTime) {
+      window.localStorage.setItem(getTutorialHiddenStorageKey(gameMode), 'true')
+    }
+    broadcastTutorialState(false)
+    void handleConfirmStart()
+  }
+
+  const handleCloseStartTutorial = () => {
+    setShowStartTutorial(false)
+    broadcastTutorialState(false)
   }
 
   // 게임 종료
@@ -269,6 +392,7 @@ export default function TeacherDashboard() {
       }
 
       setIsGameStarted(false)
+      stopBGM()
       router.push(`/teacher/game/${roomCode}/end`)
     } catch (error) {
       console.error('Error ending game:', error)
@@ -293,6 +417,7 @@ export default function TeacherDashboard() {
         status: 'paused',
         ...(remaining != null ? { duration_seconds: remaining } : {}),
       }, 'teacher_pause')
+      pauseBGM()
     } catch (error) {
       console.error('Error pausing game:', error)
       alert('게임 일시정지에 실패했습니다: ' + formatServiceError(error))
@@ -311,6 +436,7 @@ export default function TeacherDashboard() {
         started_at: startedAt,
         ...(room.duration_seconds != null ? { duration_seconds: room.duration_seconds } : {}),
       }, 'teacher_resume')
+      playBGM('game', activeBgmTrack)
     } catch (error) {
       console.error('Error resuming game:', error)
       alert('게임 재개에 실패했습니다: ' + formatServiceError(error))
@@ -332,6 +458,7 @@ export default function TeacherDashboard() {
       }, 'teacher_reset')
 
       setIsGameStarted(false)
+      stopBGM()
       alert('게임이 초기화되었습니다.')
     } catch (error) {
       console.error('Error resetting game:', error)
@@ -372,7 +499,7 @@ export default function TeacherDashboard() {
   return (
     <div className="font-bitbit">
       {/* 페이지 제목 - 블루킷 스타일 */}
-      <h1 className="text-4xl font-bold text-blue-900 mb-8">게임 시작</h1>
+      <h1 className="text-4xl font-bold text-black mb-8">게임 시작</h1>
 
       {/* 방 설정 */}
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
@@ -406,12 +533,12 @@ export default function TeacherDashboard() {
                   ))}
                 </div>
                 <p className="text-sm text-amber-700 mt-2">
-                  {gameMode === 'poop_dodge'
-                    ? '시간이 되면 보너스 라운드 한 판 후 자동 종료되고 순위를 공개해요.'
-                    : '시간이 되면 자동 종료되고 순위를 공개해요.'}
+                  시간이 되면 자동 종료되고 순위를 공개해요.
                 </p>
               </div>
             )}
+
+            {roomStatus !== 'finished' && <TeacherBgmControl />}
 
             {roomStatus === 'waiting' ? (
               <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -467,7 +594,7 @@ export default function TeacherDashboard() {
               <div className="mx-auto flex w-full max-w-2xl items-center justify-center gap-5 rounded-3xl border border-sky-100 bg-white px-6 py-4 text-center shadow-xl shadow-sky-100">
                 <div>
                   <p className="text-xs font-black text-sky-500">참가코드</p>
-                  <div className="text-4xl font-black tracking-wider text-blue-900">{roomCode}</div>
+                  <div className="text-4xl font-black tracking-wider text-black">{roomCode}</div>
                 </div>
                 <button
                   type="button"
@@ -488,10 +615,10 @@ export default function TeacherDashboard() {
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="mt-1 text-2xl font-black text-blue-900">학생들이 입장하고 있어요</h2>
+                    <h2 className="mt-1 text-2xl font-black text-black">학생들이 입장하고 있어요</h2>
                   </div>
                   <button
-                    onClick={handleConfirmStart}
+                    onClick={handleStartButtonClick}
                     disabled={players.length === 0}
                     className="rounded-xl bg-blue-600 px-6 py-4 text-lg font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                   >
@@ -513,7 +640,7 @@ export default function TeacherDashboard() {
                             {renderPlayerAvatar(player.avatar, displayNickname)}
                           </div>
                           <div className="min-w-0">
-                            <div className="truncate text-base font-black text-blue-900">{displayNickname}</div>
+                            <div className="truncate text-base font-black text-black">{displayNickname}</div>
                             <div className="mt-1 text-xs font-bold text-emerald-600">준비 완료</div>
                           </div>
                         </div>
@@ -527,7 +654,7 @@ export default function TeacherDashboard() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowGameCodeModal(true)}
-                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-black text-blue-900 shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-xl"
+                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-black text-black shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-xl"
               >
                 코드 크게 보기
               </button>
@@ -599,11 +726,23 @@ export default function TeacherDashboard() {
         }}
       />
 
+      <GameStartTutorialModal
+        gameMode={gameMode}
+        isOpen={showStartTutorial}
+        stepIndex={tutorialStepIndex}
+        role="teacher"
+        hideNextTime={hideTutorialNextTime}
+        onHideNextTimeChange={setHideTutorialNextTime}
+        onStepChange={setTutorialStep}
+        onStart={handleStartFromTutorial}
+        onClose={handleCloseStartTutorial}
+      />
+
       {showLargeQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-900/70 p-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
           <div className="w-full max-w-xl rounded-3xl bg-white p-8 text-center shadow-2xl">
             <p className="text-base font-black text-sky-500">참가코드</p>
-            <div className="mt-1 text-6xl font-black tracking-wider text-blue-900">{roomCode}</div>
+            <div className="mt-1 text-6xl font-black tracking-wider text-black">{roomCode}</div>
             <div className="mx-auto mt-6 inline-block rounded-3xl border-4 border-sky-100 bg-white p-6 shadow-lg">
               <QRCodeSVG
                 value={inviteUrl}

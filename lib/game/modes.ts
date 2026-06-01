@@ -12,6 +12,10 @@ export type GameModeConfig = {
   description: string
   image?: string
   fontFamily?: string
+  bgm: {
+    title: string
+    src: string
+  }
   leaderboardSort: 'score' | 'gold' | 'position' | 'health' | 'factory_money' | 'claw_points' | 'zombie_survived' | 'treat_rush_score'
   requiresQuestionSet: boolean
 }
@@ -25,6 +29,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '🏴‍☠️',
     image: '/title/gold-quest.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Chiptune: Exploration',
+      src: '/audio/bgm/gold-quest.mp3',
+    },
     description: '황금빛 보물이 잠든 섬, 지도를 따라 모험을 떠나는 해적 어드벤처',
     leaderboardSort: 'gold',
     requiresQuestionSet: true,
@@ -37,6 +45,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '❄️',
     image: '/title/battle-royale.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Battle',
+      src: '/audio/bgm/battle-royale.mp3',
+    },
     description: '던지고 피하고 명중시키는 설원 위 스노우 액션',
     leaderboardSort: 'health',
     requiresQuestionSet: true,
@@ -49,6 +61,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '🕹️',
     image: '/title/fishing.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Chiptune 2',
+      src: '/audio/bgm/fishing.mp3',
+    },
     description: '손끝에 집중해 희귀 인형을 노리는 행운의 뽑기 한판',
     leaderboardSort: 'claw_points',
     requiresQuestionSet: true,
@@ -61,6 +77,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '🏪',
     image: '/title/factory.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Action A',
+      src: '/audio/bgm/factory.mp3',
+    },
     description: '진열부터 계산까지 운영하며 최고의 매장을 만드는 경영 게임',
     leaderboardSort: 'factory_money',
     requiresQuestionSet: true,
@@ -73,6 +93,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '☕',
     image: '/title/cafe.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
     description: '손님에게 음식을 서빙하고 카페를 성장시키는 경영 게임',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
@@ -85,6 +109,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '🕴️',
     image: '/title/mafia.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Horror B',
+      src: '/audio/bgm/mafia.mp3',
+    },
     description: '금고를 털고 배신과 조사를 오가는 심리전 게임',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
@@ -97,6 +125,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '⛰️',
     image: '/title/jump_jump.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Chiptune 1B2',
+      src: '/audio/bgm/dontlookdown.mp3',
+    },
     description: '플랫폼을 점프하며 정상까지 오르는 등반 게임',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
@@ -109,6 +141,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '🏰',
     image: '/title/tower-defense.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: "Chiptune Medieval: The Bard's Tale",
+      src: '/audio/bgm/tower.mp3',
+    },
     description: '퀴즈를 풀어 타워를 설치하고 몰려오는 적을 막는 게임',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
@@ -121,6 +157,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '🧟',
     image: '/title/zombie.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Horror',
+      src: '/audio/bgm/zombie.mp3',
+    },
     description: '좀비 감염을 피해 10분간 생존하는 서바이벌 퀴즈 게임',
     leaderboardSort: 'zombie_survived',
     requiresQuestionSet: true,
@@ -133,6 +173,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '🐕',
     image: '/title/gansik-run.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Chiptune 1C2',
+      src: '/audio/bgm/treat-rush.mp3',
+    },
     description: '달리며 퀴즈 풀고 아이템 박스 획득!',
     leaderboardSort: 'treat_rush_score',
     requiresQuestionSet: true,
@@ -145,6 +189,10 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     emoji: '☂️',
     image: '/title/puppy-chaos.svg',
     fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: '8-bit Battle Loop',
+      src: '/audio/bgm/poop-dodge.mp3',
+    },
     description: '퀴즈를 풀고 카드를 뽑아 강아지들의 대소동을 버티는 라이브 교실 게임',
     leaderboardSort: 'score',
     requiresQuestionSet: true,

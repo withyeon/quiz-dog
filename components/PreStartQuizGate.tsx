@@ -58,9 +58,6 @@ export default function PreStartQuizGate({
               />
             ))}
           </div>
-          <p className="mt-3 text-sm font-bold text-slate-600">
-            오답이어도 괜찮아요. {total}문제를 제출하면 게임이 시작됩니다.
-          </p>
         </div>
 
         {question ? (

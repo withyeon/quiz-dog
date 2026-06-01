@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Heart } from 'lucide-react'
 import QuizView from '@/components/QuizView'
@@ -32,6 +32,8 @@ type ZombieViewProps = {
   roomCode: string
   playerId: string
   roomStatus: string
+  roomStartedAt?: string | null
+  roomDurationSeconds?: number | null
   roomPlayers: RoomZombiePlayer[]
   currentQuestion: Question | null
   onAnswer: (answer: string) => Promise<boolean>
@@ -55,6 +57,8 @@ function addLog(logs: ZombieGameLog[], message: string, type: ZombieGameLog['typ
 
 export default function ZombieView({
   roomStatus,
+  roomStartedAt,
+  roomDurationSeconds,
   roomPlayers,
   playerId,
   currentQuestion,
@@ -63,8 +67,17 @@ export default function ZombieView({
   onFinishRoom,
   onPlayerPatch,
 }: ZombieViewProps) {
+  const startedAtMs = roomStartedAt ? new Date(roomStartedAt).getTime() : null
+  const totalDurationSec = roomDurationSeconds ?? GAME_CONSTANTS.GAME_DURATION
+
+  const computeRemaining = useCallback(() => {
+    if (!startedAtMs) return totalDurationSec
+    const elapsedSec = Math.floor((Date.now() - startedAtMs) / 1000)
+    return Math.max(0, totalDurationSec - elapsedSec)
+  }, [startedAtMs, totalDurationSec])
+
   const [currentView, setCurrentView] = useState<ViewState>('quiz')
-  const [timeRemaining, setTimeRemaining] = useState(GAME_CONSTANTS.GAME_DURATION)
+  const [timeRemaining, setTimeRemaining] = useState(computeRemaining)
   const [gameLog, setGameLog] = useState<ZombieGameLog[]>([])
   const [lastScanResult, setLastScanResult] = useState<{ playerId: string; isZombie: boolean } | null>(null)
   const [lastAttackResult, setLastAttackResult] = useState<{ targetId: string; damage: number; infected: boolean; log: string } | null>(null)
@@ -85,12 +98,13 @@ export default function ZombieView({
   }
 
   useEffect(() => {
+    setTimeRemaining(computeRemaining())
     if (roomStatus !== 'playing' || isPaused) return
     const timer = window.setInterval(() => {
-      setTimeRemaining((value) => Math.max(0, value - 1))
+      setTimeRemaining(computeRemaining())
     }, 1000)
     return () => window.clearInterval(timer)
-  }, [isPaused, roomStatus])
+  }, [computeRemaining, isPaused, roomStatus])
 
   useEffect(() => {
     const winCheck = checkWinCondition(players, timeRemaining)
@@ -212,25 +226,25 @@ export default function ZombieView({
       }}
     >
       <div className={`absolute left-0 right-0 top-0 z-20 border-b-2 ${borderColor} bg-black/80 shadow-lg backdrop-blur-sm`}>
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-4">
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <ZombieIcon name="timer" size={28} alt="" />
-              <span className={`text-3xl font-bold tabular-nums ${isUrgent ? 'animate-pulse text-red-500' : 'text-white'}`}>
+              <span className={`text-2xl font-bold tabular-nums sm:text-3xl ${isUrgent ? 'animate-pulse text-red-500' : 'text-white'}`}>
                 {formatTime(timeRemaining)}
               </span>
             </div>
           </div>
-          <div className={`rounded-full border-2 px-4 py-1 ${isZombie ? 'border-green-500 bg-green-950/80' : 'border-blue-500 bg-blue-950/80'}`}>
+          <div className={`flex shrink-0 items-center whitespace-nowrap rounded-full border-2 px-3 py-1 sm:px-4 ${isZombie ? 'border-green-500 bg-green-950/80' : 'border-blue-500 bg-blue-950/80'}`}>
             <ZombieIcon
               name={isZombie ? 'zombie' : 'human'}
-              size={28}
-              className="mr-2 inline-block align-middle"
+              size={24}
+              className="mr-1.5 inline-block shrink-0 align-middle sm:mr-2"
               alt={isZombie ? '좀비' : '인간'}
             />
-            <span className={`text-lg font-bold ${accentColor}`}>{isZombie ? '좀비' : '인간'}</span>
+            <span className={`text-base font-bold sm:text-lg ${accentColor}`}>{isZombie ? '좀비' : '인간'}</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             <span className="inline-flex items-center gap-1 font-bold text-green-400">
               <ZombieIcon name="human" size={22} alt="인간" />
               {humanCount}
@@ -260,7 +274,7 @@ export default function ZombieView({
         </div>
       </div>
 
-      <div className="absolute bottom-36 left-0 right-80 top-14 flex items-center justify-center">
+      <div className="absolute bottom-36 left-0 right-0 top-14 flex items-center justify-center md:right-80">
         <AnimatePresence mode="wait">
           {currentView === 'quiz' && (
             <motion.div key="quiz" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-3xl px-4">
@@ -283,25 +297,25 @@ export default function ZombieView({
           {currentView === 'actionSelect' && myPlayer && (
             <motion.div key="actionSelect" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-2xl px-4">
               <Card className={`border-4 ${borderColor} bg-black/90 backdrop-blur-sm`}>
-                <CardContent className="p-8 text-center">
-                  <h2 className={`mb-6 text-3xl font-bold ${accentColor}`}>정답! 행동을 선택하세요</h2>
+                <CardContent className="p-4 text-center sm:p-8">
+                  <h2 className={`mb-4 text-2xl font-bold sm:mb-6 sm:text-3xl ${accentColor}`}>정답! 행동을 선택하세요</h2>
                   {isZombie ? (
                     <Button onClick={() => setCurrentView('targetSelect')} size="lg" className="h-24 w-full bg-gradient-to-br from-red-700 to-red-600 text-xl font-bold text-white hover:from-red-800 hover:to-red-700">
                       <ZombieIcon name="attack" size={32} className="mr-3" alt="" />
                       인간 공격하기
                     </Button>
                   ) : (
-                    <div className="grid grid-cols-3 gap-4">
-                      <Button onClick={() => handleHumanAction('heal')} size="lg" className="flex h-28 flex-col items-center justify-center bg-gradient-to-br from-emerald-700 to-emerald-600 text-lg font-bold text-white">
-                        <ZombieIcon name="heal" size={28} className="mb-2" alt="" />
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                      <Button onClick={() => handleHumanAction('heal')} size="lg" className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-emerald-700 to-emerald-600 text-base font-bold text-white sm:h-28 sm:text-lg">
+                        <ZombieIcon name="heal" size={28} className="mb-1.5 sm:mb-2" alt="" />
                         치료
                       </Button>
-                      <Button onClick={() => handleHumanAction('shield')} size="lg" className="flex h-28 flex-col items-center justify-center bg-gradient-to-br from-cyan-700 to-cyan-600 text-lg font-bold text-white">
-                        <ZombieIcon name="shield" size={28} className="mb-2" alt="" />
+                      <Button onClick={() => handleHumanAction('shield')} size="lg" className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-cyan-700 to-cyan-600 text-base font-bold text-white sm:h-28 sm:text-lg">
+                        <ZombieIcon name="shield" size={28} className="mb-1.5 sm:mb-2" alt="" />
                         방어막
                       </Button>
-                      <Button onClick={() => setCurrentView('targetSelect')} size="lg" className="flex h-28 flex-col items-center justify-center bg-gradient-to-br from-purple-700 to-purple-600 text-lg font-bold text-white">
-                        <ZombieIcon name="scan" size={28} className="mb-2" alt="" />
+                      <Button onClick={() => setCurrentView('targetSelect')} size="lg" className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-purple-700 to-purple-600 text-base font-bold text-white sm:h-28 sm:text-lg">
+                        <ZombieIcon name="scan" size={28} className="mb-1.5 sm:mb-2" alt="" />
                         스캔
                       </Button>
                     </div>
@@ -383,7 +397,7 @@ export default function ZombieView({
         </AnimatePresence>
       </div>
 
-      <div className={`absolute bottom-36 right-0 top-14 w-80 overflow-y-auto border-l-2 ${borderColor} bg-black/50 p-4`}>
+      <div className={`absolute bottom-36 right-0 top-14 hidden w-80 overflow-y-auto border-l-2 ${borderColor} bg-black/50 p-4 md:block`}>
           <h3 className={`mb-3 flex items-center gap-2 text-xl font-bold ${accentColor}`}>
             <ZombieIcon name="player" size={22} alt="" />
             플레이어 ({humanCount} 인간 / {zombieCount} 좀비)

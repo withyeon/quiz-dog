@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 import { PLAYER_CLASSES, TEAM_INFO, type PlayerClass, type Team } from '@/lib/game/battleRoyale'
+import { isAvatarPath } from '@/lib/utils/playerDisplay'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
@@ -71,7 +72,9 @@ function getRankTone(index: number, isAlive: boolean) {
 }
 
 function PlayerAvatar({ avatar, nickname, isAlive }: { avatar: string | null; nickname: string; isAlive: boolean }) {
-  const isImageAvatar = typeof avatar === 'string' && avatar.startsWith('/')
+  const normalizedAvatar = String(avatar || '').trim()
+  const isImageAvatar = isAvatarPath(normalizedAvatar)
+  const avatarSrc = normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`
 
   return (
     <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border bg-white shadow-sm ${
@@ -79,14 +82,14 @@ function PlayerAvatar({ avatar, nickname, isAlive }: { avatar: string | null; ni
     }`}>
       {isImageAvatar ? (
         <Image
-          src={avatar}
+          src={avatarSrc}
           alt={nickname}
           fill
           sizes="48px"
           className="object-contain p-1"
         />
       ) : (
-        <span className="text-2xl">{isAlive ? avatar || '❄️' : '⛄'}</span>
+        <span className="text-2xl">{isAlive ? normalizedAvatar || '❄️' : '⛄'}</span>
       )}
     </div>
   )

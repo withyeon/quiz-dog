@@ -7,6 +7,33 @@ import type { Json } from '@/types/database.types'
 type RoomRow = Database['public']['Tables']['rooms']['Row']
 type PlayerRow = Database['public']['Tables']['players']['Row']
 export type GameReportRow = Database['public']['Tables']['game_reports']['Row']
+export type GameReportWithQuestionSetTitle = GameReportRow & {
+  question_set_title?: string | null
+}
+
+async function hydrateReportsWithQuestionSetTitles(
+  reports: GameReportRow[],
+): Promise<GameReportWithQuestionSetTitle[]> {
+  const setIds = [...new Set(reports.map((report) => report.set_id).filter(Boolean) as string[])]
+  if (setIds.length === 0) return reports
+
+  const { data, error } = await (supabase
+    .from('question_sets') as any)
+    .select('id, title')
+    .in('id', setIds)
+
+  if (error) throw error
+
+  const titleBySetId = new Map(
+    ((data ?? []) as Array<{ id: string; title: string | null }>)
+      .map((set) => [set.id, set.title]),
+  )
+
+  return reports.map((report) => ({
+    ...report,
+    question_set_title: report.set_id ? titleBySetId.get(report.set_id) ?? null : null,
+  }))
+}
 
 export async function saveGameReportSnapshot(room: RoomRow, players: PlayerRow[]): Promise<void> {
   const { error } = await supabase.from('game_reports').insert({
@@ -20,7 +47,7 @@ export async function saveGameReportSnapshot(room: RoomRow, players: PlayerRow[]
   if (error) throw error
 }
 
-export async function listRecentGameReports(limit = 50): Promise<GameReportRow[]> {
+export async function listRecentGameReports(limit = 50): Promise<GameReportWithQuestionSetTitle[]> {
   const { data, error } = await ((supabase
     .from('game_reports') as any)
     .select('*')
@@ -28,10 +55,10 @@ export async function listRecentGameReports(limit = 50): Promise<GameReportRow[]
     .limit(limit))
 
   if (error) throw error
-  return (data ?? []) as GameReportRow[]
+  return hydrateReportsWithQuestionSetTitles((data ?? []) as GameReportRow[])
 }
 
-export async function getGameReportById(reportId: string): Promise<GameReportRow | null> {
+export async function getGameReportById(reportId: string): Promise<GameReportWithQuestionSetTitle | null> {
   const { data, error } = await ((supabase
     .from('game_reports') as any)
     .select('*')
@@ -39,7 +66,10 @@ export async function getGameReportById(reportId: string): Promise<GameReportRow
     .maybeSingle())
 
   if (error) throw error
-  return data as GameReportRow | null
+  if (!data) return null
+
+  const [report] = await hydrateReportsWithQuestionSetTitles([data as GameReportRow])
+  return report
 }
 
 export function parseReportPlayers(playersData: Json): PlayerRow[] {

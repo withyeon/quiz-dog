@@ -17,6 +17,7 @@ import {
   type Room,
 } from './resultAnalytics'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import { getScoreDisplay } from '@/lib/game/scoreDisplay'
 
 type StudentResultViewProps = {
   room: Room
@@ -37,6 +38,7 @@ export default function StudentResultView({
   )
   const student = analytics.players.find((player) => player.id === playerId) ?? null
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionAnalysis | null>(null)
+  const studentScoreDisplay = student ? getScoreDisplay({ score: student.score }, room.game_mode) : null
 
   if (!student) {
     return (
@@ -73,7 +75,7 @@ export default function StudentResultView({
             <div>
               <p className="text-sm font-black text-slate-500">내 최종 결과</p>
               <h1 className="mt-2 text-5xl font-black tracking-normal text-slate-950">
-                {student.rankByScore}등 · {student.score.toLocaleString()}점
+                {student.rankByScore}등 · {studentScoreDisplay?.text}
               </h1>
               <p className="mt-3 text-lg font-bold text-slate-600">
                 {student.totalCount}문제 중 {student.correctCount}개 정답
@@ -88,7 +90,7 @@ export default function StudentResultView({
             />
           </div>
           <p className="mt-5 rounded-md bg-white/80 px-4 py-3 text-base font-bold text-slate-700">
-            {isTopThree ? '멋진 집중력이었어요. 오늘 배운 것도 한 번 더 확인해볼까요?' : '좋아요. 틀린 문제만 차근차근 다시 보면 다음 게임은 훨씬 가벼워질 거예요.'}
+            {isTopThree ? '멋진 집중력이었어요. 오늘 배운 것도 한 번 더 확인해볼까요?' : '좋아요. 틀린 문제를 다시 한 번 확인해 봅시다.'}
           </p>
         </section>
 

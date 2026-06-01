@@ -4,6 +4,8 @@ import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Crosshair, Gamepad2, Gift, Zap } from 'lucide-react'
 import {
+  AIM_ACCURACY_SCALE,
+  AIM_GRADE_ZONE_WIDTH,
   getAimGrade,
   getAimGradeLabel,
   type Doll,
@@ -37,10 +39,10 @@ const ITEM_BADGES: Record<SpecialItemType, { icon: string; label: string; color:
 }
 
 const AIM_STYLE = {
-  perfect: { label: '훌륭함', textColor: 'text-amber-700', barColor: 'bg-amber-400', glow: 'shadow-[0_0_14px_rgba(251,191,36,0.58)]' },
-  great: { label: '좋음', textColor: 'text-violet-700', barColor: 'bg-violet-400', glow: 'shadow-[0_0_12px_rgba(167,139,250,0.48)]' },
-  good: { label: '보통', textColor: 'text-sky-700', barColor: 'bg-sky-400', glow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]' },
-  safe: { label: '아슬아슬', textColor: 'text-emerald-700', barColor: 'bg-emerald-500', glow: '' },
+  perfect: { label: '전설 목표', textColor: 'text-amber-700', barColor: 'bg-amber-500', glow: 'shadow-[0_0_14px_rgba(251,191,36,0.58)]' },
+  great: { label: '영웅 구간', textColor: 'text-violet-700', barColor: 'bg-violet-500', glow: 'shadow-[0_0_12px_rgba(167,139,250,0.48)]' },
+  good: { label: '희귀 구간', textColor: 'text-sky-700', barColor: 'bg-sky-500', glow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]' },
+  safe: { label: '일반 구간', textColor: 'text-emerald-700', barColor: 'bg-emerald-500', glow: '' },
 }
 
 const TIER_GLOW: Record<string, string> = {
@@ -92,7 +94,7 @@ export default function FishingMachine({
   isFrenzy = false,
 }: FishingMachineProps) {
   const currentAccuracy = fishingState === 'aim'
-    ? Math.max(0, Math.min(1, 1 - Math.abs(aimPosition - targetPosition) / 36))
+    ? Math.max(0, Math.min(1, 1 - Math.abs(aimPosition - targetPosition) / AIM_ACCURACY_SCALE))
     : (fishingResult?.accuracy ?? 0)
   const aimGrade = getAimGrade(currentAccuracy)
   const aimStyle = AIM_STYLE[aimGrade]
@@ -136,33 +138,32 @@ export default function FishingMachine({
         <div className="absolute bottom-0 left-0 right-0 top-0">
           <div className="absolute bottom-0 top-0 left-12 right-12 sm:left-14 sm:right-14">
             <div
-              className="absolute inset-x-0 top-0 z-30 overflow-hidden rounded-b-lg border-x border-b border-slate-200 bg-white/75 shadow-sm"
+              className="absolute inset-x-0 top-0 z-30 overflow-hidden rounded-b-lg border-x border-b border-slate-200 bg-slate-100/90 shadow-sm"
               style={{ height: AIM_TRACK_H }}
             >
-              <div className="absolute inset-0 flex">
-                <div className="flex-[2] bg-gradient-to-r from-emerald-50 to-emerald-100" />
-                <div className="flex-[1.5] bg-gradient-to-r from-sky-50 to-sky-100" />
-                <div className="flex-1 bg-gradient-to-r from-violet-50 to-violet-100" />
-                <div className="w-10 flex-none bg-amber-200" />
-                <div className="flex-1 bg-gradient-to-l from-violet-50 to-violet-100" />
-                <div className="flex-[1.5] bg-gradient-to-l from-sky-50 to-sky-100" />
-                <div className="flex-[2] bg-gradient-to-l from-emerald-50 to-emerald-100" />
-              </div>
-
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-around text-[9px] font-extrabold text-slate-500">
-                <span>SAFE</span>
-                <span className="text-sky-700">GOOD</span>
-                <span className="text-violet-700">GREAT</span>
-                <span className="text-amber-700">PERFECT</span>
-                <span className="text-violet-700">GREAT</span>
-                <span className="text-sky-700">GOOD</span>
-                <span>SAFE</span>
-              </div>
-
+              {/* 등급 구간 — 목표 위치를 따라 이동 */}
               <div
-                className="pointer-events-none absolute bottom-0 top-0 w-[14%] -translate-x-1/2 border-x-2 border-amber-500/70 bg-amber-200/20"
+                className="pointer-events-none absolute bottom-0 top-0 -translate-x-1/2 border border-sky-200/70 bg-sky-100/45"
+                style={{ left: `${targetPosition}%`, width: `${AIM_GRADE_ZONE_WIDTH.good}%` }}
+              />
+              <div
+                className="pointer-events-none absolute bottom-0 top-0 -translate-x-1/2 border border-violet-200/70 bg-violet-100/50"
+                style={{ left: `${targetPosition}%`, width: `${AIM_GRADE_ZONE_WIDTH.great}%` }}
+              />
+              <div
+                className="pointer-events-none absolute bottom-0 top-0 -translate-x-1/2 border-x-2 border-amber-500/80 bg-amber-200/55"
+                style={{ left: `${targetPosition}%`, width: `${AIM_GRADE_ZONE_WIDTH.perfect}%` }}
+              />
+              <div
+                className="pointer-events-none absolute inset-y-0 w-[3px] -translate-x-1/2 rounded-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.7)]"
                 style={{ left: `${targetPosition}%` }}
               />
+              <div
+                className="pointer-events-none absolute top-1 flex -translate-x-1/2 items-center justify-center rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-950 shadow-sm"
+                style={{ left: `${targetPosition}%` }}
+              >
+                PERFECT
+              </div>
 
               <motion.div
                 className={`absolute bottom-0 top-0 w-[3px] ${aimStyle.barColor} ${aimStyle.glow}`}

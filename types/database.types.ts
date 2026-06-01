@@ -157,6 +157,26 @@ export interface Database {
           updated_at?: string
         }
       }
+      question_set_likes: {
+        Row: {
+          id: string
+          set_id: string
+          client_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          set_id: string
+          client_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          set_id?: string
+          client_id?: string
+          created_at?: string
+        }
+      }
       rooms: {
         Row: {
           room_code: string

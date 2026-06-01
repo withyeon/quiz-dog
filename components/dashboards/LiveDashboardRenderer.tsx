@@ -53,7 +53,7 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
                 <h2 className="text-2xl font-semibold mb-4 text-gray-900" style={{ fontFamily: modeConfig.fontFamily }}>🕹️ 인형뽑기 현황</h2>
                 <FishingPond players={players as any} currentPlayerId={null} />
                 <div className="mt-6">
-                    <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="🕹️ 인형뽑기 순위" />
+                    <Leaderboard players={players} currentPlayerId={null} sortBy="score" gameMode={mode} title="🕹️ 인형뽑기 순위" />
                 </div>
             </div>
         )
@@ -68,7 +68,7 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
         return (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
                 <h2 className="text-2xl font-semibold mb-4 text-gray-900">{modeConfig.emoji} {modeConfig.shortLabel} 현황</h2>
-                <Leaderboard players={players} currentPlayerId={null} sortBy="score" title="⛰️ 높이 순위" />
+                <Leaderboard players={players} currentPlayerId={null} sortBy="score" gameMode={mode} title="⛰️ 높이 순위" />
             </div>
         )
     }
@@ -79,6 +79,7 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
             players={players}
             currentPlayerId={null}
             sortBy={modeConfig.leaderboardSort === 'gold' ? 'gold' : 'score'}
+            gameMode={mode}
             title={mode === 'gold_quest' ? '골드 순위' : `${modeConfig.emoji} ${modeConfig.shortLabel} 순위`}
             titleIcon={mode === 'gold_quest' ? '/gold-quest/quest.svg' : undefined}
         />

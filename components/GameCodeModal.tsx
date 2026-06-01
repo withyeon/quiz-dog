@@ -69,7 +69,7 @@ export default function GameCodeModal({
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative font-bitbit w-full max-w-md rounded-3xl border border-sky-100 bg-white p-8 shadow-2xl shadow-sky-200"
+          className="relative font-bitbit w-full max-w-md rounded-3xl border border-slate-200 bg-white p-8 shadow-sm"
         >
           {/* 닫기 버튼 */}
           <button
@@ -82,7 +82,7 @@ export default function GameCodeModal({
 
           <div className="space-y-5 text-center">
             {/* 방 코드 카드 */}
-            <div className="rounded-3xl bg-gradient-to-br from-sky-400 via-sky-500 to-cyan-500 p-6 text-white shadow-xl shadow-sky-200">
+            <div className="rounded-3xl bg-gradient-to-br from-sky-400 via-sky-500 to-cyan-500 p-6 text-white">
               <p className="text-sm font-black text-sky-50">참가코드</p>
               <motion.div
                 initial={{ scale: 0.9 }}
@@ -111,7 +111,7 @@ export default function GameCodeModal({
 
             {/* QR 코드 */}
             <div className="flex justify-center">
-              <div className="rounded-2xl border-2 border-sky-100 bg-white p-4 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
                 <QRCodeSVG
                   value={inviteUrl}
                   size={220}
@@ -121,7 +121,7 @@ export default function GameCodeModal({
             </div>
 
             {/* 참가 링크 */}
-            <div className="flex items-center gap-2 rounded-2xl border border-sky-100 bg-slate-50 p-3">
+            <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">
               <input
                 type="text"
                 value={inviteUrl}
@@ -131,7 +131,7 @@ export default function GameCodeModal({
               <Button
                 size="sm"
                 onClick={handleCopy}
-                className="shrink-0 rounded-lg bg-sky-500 font-black text-white shadow-sm transition hover:bg-sky-600"
+                className="shrink-0 rounded-lg bg-sky-500 font-black text-white transition hover:bg-sky-600"
               >
                 {copied ? (
                   <>

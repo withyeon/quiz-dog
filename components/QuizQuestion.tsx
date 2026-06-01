@@ -134,7 +134,8 @@ export default function QuizQuestion({
                           value={selectedAnswer}
                           onChange={(e) => setSelectedAnswer(e.target.value)}
                           disabled={isAnswered}
-                          className="inline-block min-w-[120px] rounded-md border-2 border-indigo-400 bg-white px-3 py-1.5 text-center focus:border-indigo-600 focus:outline-none"
+                          size={8}
+                          className="inline-block w-36 max-w-full rounded-md border-2 border-indigo-400 bg-white px-3 py-1.5 text-center focus:border-indigo-600 focus:outline-none"
                           placeholder=""
                           aria-label="빈칸 정답 입력"
                         />

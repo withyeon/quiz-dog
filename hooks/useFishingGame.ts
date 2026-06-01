@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  AIM_ACCURACY_SCALE,
   calculateTotalPoints,
   checkFrenzyEvent,
   getAimGrade,
@@ -55,7 +56,7 @@ function createTargetPosition() {
 
 function calculateAimAccuracy(aimPosition: number, targetPosition: number) {
   const distance = Math.abs(aimPosition - targetPosition)
-  return Math.max(0, Math.min(1, 1 - distance / 36))
+  return Math.max(0, Math.min(1, 1 - distance / AIM_ACCURACY_SCALE))
 }
 
 export function useFishingGame({

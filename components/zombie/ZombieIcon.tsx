@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Image from 'next/image'
 import {
   ZOMBIE_ICON,
-  ZOMBIE_ICON_EMOJI_FALLBACK,
   type ZombieIconName,
 } from '@/lib/game/zombieAssets'
 
@@ -21,20 +20,17 @@ export default function ZombieIcon({
   className = '',
   alt = '',
 }: ZombieIconProps) {
-  const emojiFallback = ZOMBIE_ICON_EMOJI_FALLBACK[name]
   const [failed, setFailed] = useState(false)
 
-  if (failed && emojiFallback) {
+  if (failed) {
     return (
       <span
         className={`inline-flex items-center justify-center leading-none ${className}`}
-        style={{ fontSize: Math.round(size * 0.9), width: size, height: size }}
+        style={{ width: size, height: size }}
         aria-hidden={!alt}
         role={alt ? 'img' : undefined}
         aria-label={alt || undefined}
-      >
-        {emojiFallback}
-      </span>
+      />
     )
   }
 
@@ -45,9 +41,7 @@ export default function ZombieIcon({
       width={size}
       height={size}
       unoptimized
-      onError={() => {
-        if (emojiFallback) setFailed(true)
-      }}
+      onError={() => setFailed(true)}
       className={`object-contain ${className}`}
     />
   )

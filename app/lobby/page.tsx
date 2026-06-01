@@ -13,8 +13,9 @@ import { CHARACTERS, type Character } from '@/lib/utils/characters'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl } from '@/lib/game/modes'
+import { isTerminalRoomStatus } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
-import { createPlayerForRoom, ensureRoomExists, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
+import { createPlayerForRoom, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
 import { ShibaDog, DogGroup } from '@/components/PixelDogs'
 import { PixelBtn, PixelInput, PixelPanel, PlayerAvatar } from '@/components/lobby/LobbyUI'
 import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
@@ -69,7 +70,7 @@ export default function LobbyPage() {
         alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
         return
       }
-      if (roomData.status === 'finished') {
+      if (isTerminalRoomStatus(roomData.status)) {
         alert('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
         return
       }
@@ -91,8 +92,13 @@ export default function LobbyPage() {
   const handleCharacterSelect = async (character: Character) => {
     setSelectedCharacter(character)
     try {
-      const roomData = await ensureRoomExists(roomCode)
-      if (roomData.status === 'finished') {
+      const roomData = await getRoomByCode(roomCode)
+      if (!roomData) {
+        alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        setStep('code')
+        return
+      }
+      if (isTerminalRoomStatus(roomData.status)) {
         alert('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
         setStep('code')
         return

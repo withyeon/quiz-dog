@@ -16,13 +16,13 @@ export default function HudMetric({
   tone,
 }: HudMetricProps) {
   return (
-    <div className="min-w-[108px] rounded-lg border border-white/70 bg-white/72 px-3 py-2 shadow-sm backdrop-blur">
-      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-bold tracking-[0.08em] text-slate-500">
-        <Icon className={`h-3.5 w-3.5 ${tone}`} />
-        {label}
+    <div className="min-w-0 rounded-lg border border-white/70 bg-white/72 px-2.5 py-1.5 shadow-sm backdrop-blur sm:min-w-[108px] sm:px-3 sm:py-2">
+      <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-bold tracking-[0.08em] text-slate-500 sm:mb-1 sm:text-[11px]">
+        <Icon className={`h-3 w-3 shrink-0 ${tone} sm:h-3.5 sm:w-3.5`} />
+        <span className="truncate">{label}</span>
       </div>
-      <div className="text-xl font-black leading-none text-slate-950 tabular-nums">{value}</div>
-      {detail && <div className="mt-1 text-[11px] font-semibold text-slate-500">{detail}</div>}
+      <div className="text-lg font-black leading-none text-slate-950 tabular-nums sm:text-xl">{value}</div>
+      {detail && <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-500 sm:mt-1 sm:text-[11px]">{detail}</div>}
     </div>
   )
 }

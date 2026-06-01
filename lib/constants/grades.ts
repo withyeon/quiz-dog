@@ -1,4 +1,6 @@
 export const TARGET_GRADE_OPTIONS = [
+  '초1',
+  '초2',
   '초3',
   '초4',
   '초5',

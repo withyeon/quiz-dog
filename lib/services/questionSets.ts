@@ -15,6 +15,15 @@ export type QuestionSetIndexItem = {
   set_id: string
   question_count: number
   created_at: string
+  title?: string | null
+  description?: string | null
+  subject?: string | null
+  grade?: string | null
+  tags?: Json
+  like_count: number
+  weekly_like_count: number
+  monthly_like_count: number
+  liked_by_client: boolean
 }
 
 export type QuestionDraft = {
@@ -37,8 +46,26 @@ export type QuestionSetWithQuestions = {
   questions: QuestionRow[]
 }
 
+export type QuestionSetLikeSummary = {
+  setId: string
+  likeCount: number
+  weeklyLikeCount: number
+  monthlyLikeCount: number
+  likedByClient: boolean
+}
+
 export function createQuestionSetId(prefix = 'set'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+}
+
+function isGeneratedQuestionSetTitle(title: string, setId: string): boolean {
+  const normalizedTitle = title.trim()
+  if (!normalizedTitle) return true
+  if (normalizedTitle === setId) return true
+  if (normalizedTitle === setId.replace(/^set-/, '문제집 ')) return true
+  if (/^(library-)?문제집\s+\d{10,}-[a-z0-9]+$/i.test(normalizedTitle)) return true
+
+  return false
 }
 
 export function normalizeQuestionOptions(options: QuestionDraft['options']): string[] {
@@ -120,7 +147,7 @@ export async function listQuestionSetsWithCounts(): Promise<QuestionSetSummary[]
   return summaries
 }
 
-export async function listQuestionSetIndexFromQuestions(): Promise<QuestionSetIndexItem[]> {
+export async function listQuestionSetIndexFromQuestions(clientId?: string | null): Promise<QuestionSetIndexItem[]> {
   const { data, error } = await (supabase
     .from('questions') as any)
     .select('set_id, created_at')
@@ -135,6 +162,10 @@ export async function listQuestionSetIndexFromQuestions(): Promise<QuestionSetIn
           set_id: item.set_id,
           question_count: 0,
           created_at: item.created_at,
+          like_count: 0,
+          weekly_like_count: 0,
+          monthly_like_count: 0,
+          liked_by_client: false,
         }
       }
 
@@ -144,7 +175,117 @@ export async function listQuestionSetIndexFromQuestions(): Promise<QuestionSetIn
     {} as Record<string, QuestionSetIndexItem>,
   )
 
-  return Object.values(grouped)
+  const items = Object.values(grouped)
+  const setIds = items.map((item) => item.set_id)
+
+  if (setIds.length === 0) return items
+
+  const { data: sets, error: setError } = await (supabase
+    .from('question_sets') as any)
+    .select('id, title, description, subject, grade, tags')
+    .in('id', setIds)
+
+  if (setError) throw setError
+
+  const setById = new Map(
+    ((sets ?? []) as Pick<QuestionSetRow, 'id' | 'title' | 'description' | 'subject' | 'grade' | 'tags'>[])
+      .map((set) => [set.id, set]),
+  )
+
+  const likeSummaryById = await getQuestionSetLikeSummaries(setIds, clientId)
+
+  return items.map((item) => {
+    const set = setById.get(item.set_id)
+    const likeSummary = likeSummaryById.get(item.set_id)
+    return {
+      ...item,
+      title: set?.title ?? null,
+      description: set?.description ?? null,
+      subject: set?.subject ?? null,
+      grade: set?.grade ?? null,
+      tags: set?.tags ?? [],
+      like_count: likeSummary?.likeCount ?? 0,
+      weekly_like_count: likeSummary?.weeklyLikeCount ?? 0,
+      monthly_like_count: likeSummary?.monthlyLikeCount ?? 0,
+      liked_by_client: likeSummary?.likedByClient ?? false,
+    }
+  })
+}
+
+function isMissingLikesTableError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const message = String((error as { message?: unknown }).message ?? '')
+  const code = String((error as { code?: unknown }).code ?? '')
+  return code === '42P01' || message.includes('question_set_likes')
+}
+
+export async function getQuestionSetLikeSummaries(
+  setIds: string[],
+  clientId?: string | null,
+): Promise<Map<string, QuestionSetLikeSummary>> {
+  const summaries = new Map<string, QuestionSetLikeSummary>(
+    setIds.map((setId) => [setId, {
+      setId,
+      likeCount: 0,
+      weeklyLikeCount: 0,
+      monthlyLikeCount: 0,
+      likedByClient: false,
+    } satisfies QuestionSetLikeSummary]),
+  )
+
+  if (setIds.length === 0) return summaries
+
+  const now = new Date()
+  const weekAgo = new Date(now)
+  weekAgo.setDate(now.getDate() - 7)
+  const monthAgo = new Date(now)
+  monthAgo.setMonth(now.getMonth() - 1)
+
+  const { data, error } = await (supabase
+    .from('question_set_likes') as any)
+    .select('set_id, client_id, created_at')
+    .in('set_id', setIds)
+
+  if (error) {
+    if (isMissingLikesTableError(error)) return summaries
+    throw error
+  }
+
+  ;((data ?? []) as Array<{ set_id: string; client_id: string; created_at: string }>).forEach((like) => {
+    const summary = summaries.get(like.set_id)
+    if (!summary) return
+
+    const likedAt = new Date(like.created_at)
+    summary.likeCount += 1
+    if (likedAt >= weekAgo) summary.weeklyLikeCount += 1
+    if (likedAt >= monthAgo) summary.monthlyLikeCount += 1
+    if (clientId && like.client_id === clientId) summary.likedByClient = true
+  })
+
+  return summaries
+}
+
+export async function toggleQuestionSetLike(
+  setId: string,
+  clientId: string,
+  liked: boolean,
+): Promise<void> {
+  if (liked) {
+    const { error } = await (supabase
+      .from('question_set_likes') as any)
+      .insert({ set_id: setId, client_id: clientId })
+
+    if (error && !String(error.code ?? '').startsWith('23')) throw error
+    return
+  }
+
+  const { error } = await (supabase
+    .from('question_set_likes') as any)
+    .delete()
+    .eq('set_id', setId)
+    .eq('client_id', clientId)
+
+  if (error) throw error
 }
 
 export async function listQuestionSetsExcept(excludedSetId: string): Promise<QuestionSetRow[]> {
@@ -369,6 +510,14 @@ export async function deleteQuestionSet(setId: string): Promise<void> {
 }
 
 export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Promise<string> {
+  const { data: sourceSet, error: setError } = await (supabase
+    .from('question_sets') as any)
+    .select('title, description, subject, grade, tags')
+    .eq('id', sourceSetId)
+    .maybeSingle()
+
+  if (setError) throw setError
+
   const { data: questions, error } = await (supabase
     .from('questions') as any)
     .select('type, question_text, options, answer')
@@ -380,10 +529,18 @@ export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Pro
   }
 
   const newSetId = createQuestionSetId('library-set')
+  const sourceTitle = (sourceSet as Pick<QuestionSetRow, 'title'> | null)?.title?.trim()
+  const copyTitle = sourceTitle && !isGeneratedQuestionSetTitle(sourceTitle, sourceSetId)
+    ? sourceTitle
+    : '자료실 문제집'
+
   await createQuestionSet({
     id: newSetId,
-    title: sourceSetId.replace(/^set-/, '문제집 '),
-    description: '라이브러리에서 가져온 문제집',
+    title: copyTitle,
+    description: (sourceSet as Pick<QuestionSetRow, 'description'> | null)?.description ?? '라이브러리에서 가져온 문제집',
+    subject: (sourceSet as Pick<QuestionSetRow, 'subject'> | null)?.subject ?? null,
+    grade: (sourceSet as Pick<QuestionSetRow, 'grade'> | null)?.grade ?? null,
+    tags: (sourceSet as Pick<QuestionSetRow, 'tags'> | null)?.tags ?? [],
   } as QuestionSetInsert)
 
   await insertQuestions(

@@ -43,7 +43,7 @@ export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
   { baseId: 'p4', name: '초콜릿', emoji: '🍫', image: '/store/chocolate.svg', tier: '일반', income: 500, incomeSeconds: 3, orderSeconds: 3, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
 
   // 희귀 (Rare) - 30%
-  { baseId: 'p5', name: '음료수', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 300, incomeSeconds: 2, orderSeconds: 3, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
+  { baseId: 'p5', name: '바나나 우유', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 300, incomeSeconds: 2, orderSeconds: 3, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
   { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.svg', tier: '희귀', income: 700, incomeSeconds: 4, orderSeconds: 4, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
   { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.svg', tier: '희귀', income: 900, incomeSeconds: 5, orderSeconds: 4, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
 

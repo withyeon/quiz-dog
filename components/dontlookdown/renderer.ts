@@ -10,6 +10,7 @@ import {
   WORLD,
   type DLDPlayer,
   type GameSettings,
+  type PowerUpType,
 } from '@/lib/game/dontlookdown'
 import type {
   BackgroundCloud,
@@ -17,16 +18,18 @@ import type {
   GameParticle,
   TrailPoint,
 } from '@/components/dontlookdown/types'
+import { isAvatarPath } from '@/lib/utils/playerDisplay'
 
 type DrawCharacterOptions = {
   player: DLDPlayer
   avatar: string
+  avatarImage?: HTMLImageElement
   isLocal: boolean
 }
 
 export function drawCharacter(
   ctx: CanvasRenderingContext2D,
-  { player, avatar, isLocal }: DrawCharacterOptions,
+  { player, avatar, avatarImage, isLocal }: DrawCharacterOptions,
 ) {
   const cx = player.x + PLAYER_SIZE.WIDTH / 2
   const cy = player.y + PLAYER_SIZE.HEIGHT / 2
@@ -45,15 +48,25 @@ export function drawCharacter(
 
   ctx.save()
   if (ghostActive) ctx.globalAlpha = 0.55
-  ctx.font = '34px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",Arial'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  if (!player.facingRight) {
+
+  if (avatarImage?.complete && avatarImage.naturalWidth > 0) {
+    const drawHeight = 50
+    const drawWidth = drawHeight * (avatarImage.naturalWidth / avatarImage.naturalHeight || 1)
     ctx.translate(cx, cy)
-    ctx.scale(-1, 1)
-    ctx.fillText(avatar, 0, 0)
+    if (!player.facingRight) ctx.scale(-1, 1)
+    ctx.drawImage(avatarImage, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight)
   } else {
-    ctx.fillText(avatar, cx, cy)
+    const fallbackAvatar = isAvatarPath(avatar) ? '🐕' : avatar || '🐕'
+    ctx.font = '34px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",Arial'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    if (!player.facingRight) {
+      ctx.translate(cx, cy)
+      ctx.scale(-1, 1)
+      ctx.fillText(fallbackAvatar, 0, 0)
+    } else {
+      ctx.fillText(fallbackAvatar, cx, cy)
+    }
   }
   ctx.restore()
 
@@ -256,7 +269,7 @@ export function drawClimbAxis(
   ctx.setLineDash([4, 16])
   ctx.beginPath()
   ctx.moveTo(CLIMB_START_X + 80, 700)
-  ctx.lineTo(CLIMB_START_X + 80, -summitGoal / 0.1)
+  ctx.lineTo(WORLD.WIDTH - 640, -summitGoal / 0.1)
   ctx.stroke()
   ctx.setLineDash([])
   ctx.restore()
@@ -395,23 +408,36 @@ export function drawObstacles(
 export function drawPowerUps(
   ctx: CanvasRenderingContext2D,
   powerUps: PowerUp[],
+  powerUpImages: Partial<Record<PowerUpType, HTMLImageElement>>,
   now: number,
 ) {
   const pulse = Math.sin(now / 200) * 0.2 + 0.8
+  const drawSize = 40
+
   for (const powerUp of powerUps) {
     if (!powerUp.active) continue
+    const cx = powerUp.x + POWERUP_SIZE.WIDTH / 2
+    const cy = powerUp.y + POWERUP_SIZE.HEIGHT / 2
+    const img = powerUpImages[powerUp.type]
     const icon = POWERUP_EFFECTS[powerUp.type].icon
+
     ctx.globalAlpha = pulse
-    ctx.fillStyle = '#FFD700'
-    ctx.beginPath()
-    ctx.arc(powerUp.x + POWERUP_SIZE.WIDTH / 2, powerUp.y + POWERUP_SIZE.HEIGHT / 2, 15, 0, Math.PI * 2)
-    ctx.fill()
+
+    if (img?.complete && img.naturalWidth > 0) {
+      ctx.drawImage(img, cx - drawSize / 2, cy - drawSize / 2, drawSize, drawSize)
+    } else {
+      ctx.fillStyle = '#FFD700'
+      ctx.beginPath()
+      ctx.arc(cx, cy, 15, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = 1
+      ctx.font = 'bold 20px DNFBitBitv2, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(icon, cx, cy + 7)
+    }
+
     ctx.globalAlpha = 1
-    ctx.font = 'bold 20px DNFBitBitv2, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(icon, powerUp.x + POWERUP_SIZE.WIDTH / 2, powerUp.y + POWERUP_SIZE.HEIGHT / 2 + 7)
   }
-  ctx.globalAlpha = 1
 }
 
 export function drawTrail(

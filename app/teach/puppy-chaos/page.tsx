@@ -12,10 +12,9 @@ import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomResync } from '@/hooks/useRoomResync'
 import { formatServiceError } from '@/lib/services/errors'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
-import { assertQuestionSetHasQuestions, createRoom, endRoom, finishRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
+import { assertQuestionSetHasQuestions, createRoom, finishRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
 import { updatePlayer } from '@/lib/services/players'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
-import { PUPPY_CHAOS_BONUS_GRACE_SECONDS } from '@/lib/game/강아지대소동'
 
 export default function PuppyChaosTeacherPage() {
   const router = useRouter()
@@ -123,7 +122,7 @@ export default function PuppyChaosTeacherPage() {
     }
 
     const started = new Date(room.started_at).getTime()
-    const totalSeconds = Number(room.duration_seconds) + PUPPY_CHAOS_BONUS_GRACE_SECONDS
+    const totalSeconds = Number(room.duration_seconds)
     const tick = () => {
       const elapsedSeconds = Math.floor((Date.now() - started) / 1000)
       if (elapsedSeconds >= totalSeconds) void finishByTimeLimit()
@@ -160,9 +159,15 @@ export default function PuppyChaosTeacherPage() {
 
   const handleEnd = async () => {
     if (!roomCode) return
-    await endRoom(roomCode)
-    broadcastRoomPatch({ status: 'ended' }, 'poop_dodge_end')
+    await finishRoom(roomCode)
+    broadcastRoomPatch({ status: 'finished' }, 'poop_dodge_end')
     void sendEvent('game:finished', { finishedBy: 'teacher', reason: 'poop_dodge_end' })
+    try {
+      if (room) await saveGameReportSnapshot(room, players)
+    } catch (reportError) {
+      console.error('강아지 대소동 결과 저장 실패:', reportError)
+    }
+    router.push(`/teacher/game/${roomCode}/end`)
   }
 
   const handleKick = async (playerId: string) => {
@@ -255,7 +260,7 @@ export default function PuppyChaosTeacherPage() {
                       ))}
                     </div>
                     <p className="mt-3 text-center text-sm font-black text-slate-500">
-                      시간 종료 후 보너스 한 판을 하고 순위를 공개해요.
+                      시간이 되면 자동 종료되고 순위를 공개해요.
                     </p>
                   </div>
                   <div className="rounded-3xl border-4 border-slate-950 bg-white p-4 shadow-[4px_4px_0_#0f172a]">

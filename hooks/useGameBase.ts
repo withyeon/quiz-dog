@@ -8,7 +8,12 @@ import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useRoomResync } from '@/hooks/useRoomResync'
 import { useAudioContext } from '@/components/AudioProvider'
 import { getGameModeUrl } from '@/lib/game/modes'
-import { isRoomHostPlayer } from '@/lib/realtime/roomChannel'
+import { isTerminalRoomStatus, type RoomStatus } from '@/lib/game/roomStatus'
+import {
+    isRoomHostPlayer,
+    subscribeRoomRuntimeEvent,
+    type RoomPatchPayload,
+} from '@/lib/realtime/roomChannel'
 import { finishRoom } from '@/lib/services/rooms'
 import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
@@ -87,6 +92,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
 
     const questionStartTime = useRef<number>(Date.now())
+    const autoFinishRequestedRef = useRef(false)
     const [hasRestoredData, setHasRestoredData] = useState(false)
     const [canSyncAnswerHistory, setCanSyncAnswerHistory] = useState(true)
 
@@ -139,6 +145,16 @@ export function useGameBase(options: UseGameBaseOptions) {
     const roomStatus = room?.status
     const { playBGM, playSFX } = useAudioContext()
 
+    const forceFinishForStudent = useCallback((reason = 'forced_finish') => {
+        setShowCountdown(false)
+        setCurrentView('result')
+        playBGM('result')
+
+        if (roomCode && playerId) {
+            router.replace(`/student/game/${roomCode}/result?playerId=${playerId}&reason=${encodeURIComponent(reason)}`)
+        }
+    }, [playBGM, playerId, roomCode, router])
+
     // ─── 현재 플레이어 & 문제 ───
     const currentPlayer = players.find((p) => p.id === playerId) || null
     const currentQuestion = questions.length > 0
@@ -158,6 +174,27 @@ export function useGameBase(options: UseGameBaseOptions) {
         () => isRoomHostPlayer(playerId, players, presence),
         [playerId, players, presence],
     )
+
+    useEffect(() => {
+        if (!roomCode) return
+
+        return subscribeRoomRuntimeEvent((event) => {
+            if (event.roomCode !== roomCode) return
+
+            if (event.type === 'game:finished') {
+                const payload = event.payload as { reason?: string } | undefined
+                forceFinishForStudent(payload?.reason || 'game_finished_event')
+                return
+            }
+
+            if (event.type === 'room:patch') {
+                const payload = event.payload as RoomPatchPayload | undefined
+                if (isTerminalRoomStatus(payload?.patch?.status as RoomStatus | undefined)) {
+                    forceFinishForStudent(payload?.reason || 'room_finished_patch')
+                }
+            }
+        })
+    }, [forceFinishForStudent, roomCode])
 
     const commitPlayerPatch = useCallback(async (
         targetPlayerId: string,
@@ -307,17 +344,74 @@ export function useGameBase(options: UseGameBaseOptions) {
                 setCurrentView('lobby')
                 setShowCountdown(false)
             }
-        } else if (roomStatus === 'finished') {
-            if (roomCode && playerId) {
-                router.replace(`/student/game/${roomCode}/result?playerId=${playerId}`)
-                return
-            }
-            if (currentView !== 'result') {
-                setCurrentView('result')
-                playBGM('result')
+        } else if (isTerminalRoomStatus(roomStatus)) {
+            forceFinishForStudent(`room_status_${roomStatus}`)
+        }
+    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room, playerId, router, isPreStartQuizComplete, forceFinishForStudent])
+
+    useEffect(() => {
+        if (roomStatus !== 'playing') {
+            autoFinishRequestedRef.current = false
+        }
+    }, [roomStatus])
+
+    useEffect(() => {
+        if (
+            !isRoomHost
+            || !roomCode
+            || !room
+            || room.status !== 'playing'
+            || !room.started_at
+            || !room.duration_seconds
+        ) {
+            return
+        }
+
+        const finishByDeadline = async () => {
+            if (autoFinishRequestedRef.current) return
+            autoFinishRequestedRef.current = true
+
+            try {
+                await finishRoom(roomCode)
+                const reason = `${expectedGameMode}_time_up_backup`
+                void sendRoomEvent('room:patch', {
+                    patch: { status: 'finished' },
+                    reason,
+                })
+                void sendRoomEvent('game:finished', {
+                    finishedBy: playerId,
+                    reason,
+                })
+                forceFinishForStudent(reason)
+            } catch (error) {
+                autoFinishRequestedRef.current = false
+                console.error('제한 시간 종료 처리 실패:', error)
             }
         }
-    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room, playerId, router, isPreStartQuizComplete])
+
+        const startedMs = new Date(room.started_at).getTime()
+        const durationSeconds = Number(room.duration_seconds)
+        if (!Number.isFinite(startedMs) || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return
+
+        const tick = () => {
+            const elapsedSeconds = Math.floor((Date.now() - startedMs) / 1000)
+            if (elapsedSeconds >= durationSeconds) {
+                void finishByDeadline()
+            }
+        }
+
+        tick()
+        const interval = window.setInterval(tick, 1000)
+        return () => window.clearInterval(interval)
+    }, [
+        expectedGameMode,
+        forceFinishForStudent,
+        isRoomHost,
+        playerId,
+        room,
+        roomCode,
+        sendRoomEvent,
+    ])
 
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {
@@ -471,7 +565,7 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 게임 종료 (모든 문제 풀었을 때) ───
     const finishGame = useCallback(async (): Promise<boolean> => {
-        if (!roomCode || !room || room.status === 'finished') return false
+        if (!roomCode || !room || isTerminalRoomStatus(room.status)) return false
         try {
             await finishRoom(roomCode)
             void sendRoomEvent('room:patch', {

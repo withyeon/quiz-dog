@@ -205,7 +205,8 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                             }
                           }}
                           disabled={paused || !!submittedAnswer || isSubmitting}
-                          className={`inline-block px-4 py-2 border bg-white min-w-[150px] text-center font-semibold rounded-md shadow-sm focus:outline-none focus:bg-white ${
+                          size={8}
+                          className={`inline-block px-4 py-2 border bg-white w-40 max-w-full text-center font-semibold rounded-md shadow-sm focus:outline-none focus:bg-white ${
                             isGoldQuest
                               ? 'border-amber-400 text-[#7a4b14] focus:border-amber-600'
                               : isBattle

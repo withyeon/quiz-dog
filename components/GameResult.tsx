@@ -23,6 +23,7 @@ import type { GameModeId } from '@/lib/game/modes'
 import { displayBlankText } from '@/lib/quiz/blankText'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { checkWinningTeam, TEAM_INFO, type Team } from '@/lib/game/battleRoyale'
+import { getScoreDisplay, getScoreDisplayLabel } from '@/lib/game/scoreDisplay'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -93,11 +94,12 @@ export default function GameResult({
     { range: '300+', count: players.filter((p) => p.score > 300).length },
   ]
 
-  // Gold 분포 데이터
-  const goldData = sortedPlayers.slice(0, 5).map((p) => ({
+  // 게임별 Top 5 데이터
+  const rankChartData = sortedPlayers.slice(0, 5).map((p) => ({
     name: p.nickname,
-    gold: p.gold,
+    value: getScoreDisplay(p, gameMode).value,
   }))
+  const rankChartLabel = `${getScoreDisplayLabel(gameMode)} Top 5`
 
   // 내 퀴즈 결과 통계
   const totalAnswered = answerHistory.length
@@ -175,6 +177,7 @@ export default function GameResult({
             const rank = index + 1
             const isCurrentPlayer = player.id === currentPlayerId
             const colors = ['text-yellow-500', 'text-gray-400', 'text-amber-600']
+            const scoreDisplay = getScoreDisplay(player, gameMode)
 
             return (
               <motion.div
@@ -248,15 +251,10 @@ export default function GameResult({
                       ) : (
                         <>
                           <div className="text-4xl font-bold text-gray-900">
-                            {player.score}점
-                          </div>
-                          <div className="text-xl text-yellow-600 font-bold flex items-center gap-1.5">
-                            {gameMode === 'gold_quest' ? (
-                              <Image src="/gold-quest/gold-stack.svg" alt="골드" width={24} height={24} className="w-6 h-6" />
-                            ) : (
-                              <span>💰</span>
+                            {scoreDisplay.text}
+                            {scoreDisplay.icon && (
+                              <Image src={scoreDisplay.icon} alt="" width={28} height={28} className="ml-2 inline-block h-7 w-7 object-contain align-middle" />
                             )}
-                            {player.gold} 골드
                           </div>
                         </>
                       )}
@@ -281,6 +279,7 @@ export default function GameResult({
               <div className="space-y-3 max-h-96 overflow-y-auto">
                 {sortedPlayers.map((player, index) => {
                   const isCurrentPlayer = player.id === currentPlayerId
+                  const scoreDisplay = getScoreDisplay(player, gameMode)
                   return (
                     <motion.div
                       key={player.id}
@@ -322,17 +321,12 @@ export default function GameResult({
                             </div>
                           </>
                         ) : (
-                          <>
-                            <div className="font-bold text-gray-800">{player.score}점</div>
-                            <div className="text-sm text-yellow-600 flex items-center gap-1">
-                              {gameMode === 'gold_quest' ? (
-                                <Image src="/gold-quest/gold-stack.svg" alt="골드" width={16} height={16} className="w-4 h-4" />
-                              ) : (
-                                <span>💰</span>
-                              )}
-                              {player.gold}
-                            </div>
-                          </>
+                          <div className="font-bold text-gray-800">
+                            {scoreDisplay.text}
+                            {scoreDisplay.icon && (
+                              <Image src={scoreDisplay.icon} alt="" width={16} height={16} className="ml-1 inline-block h-4 w-4 object-contain align-middle" />
+                            )}
+                          </div>
                         )}
                       </div>
                     </motion.div>
@@ -364,25 +358,23 @@ export default function GameResult({
                     </div>
                   </div>
                   <div className="p-4 bg-purple-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-1">{isDontLookDown ? '내 높이' : '내 점수'}</div>
+                    <div className="text-sm text-gray-600 mb-1">내 {getScoreDisplayLabel(gameMode)}</div>
                     <div className="text-3xl font-bold text-purple-600">
-                      {isDontLookDown ? `${currentPlayer?.score || 0}m` : `${currentPlayer?.score || 0}점`}
+                      {getScoreDisplay(currentPlayer ?? {}, gameMode).text}
                     </div>
                   </div>
                   <div className="p-4 bg-yellow-50 rounded-lg">
-                    <div className="text-sm text-gray-600 mb-1">{isDontLookDown ? '내 에너지' : '내 골드'}</div>
+                    <div className="text-sm text-gray-600 mb-1">{isDontLookDown ? '내 에너지' : '정답 보상'}</div>
                     <div className="text-3xl font-bold text-yellow-600 flex items-center gap-2">
-                      {gameMode === 'gold_quest' ? (
-                        <Image src="/gold-quest/gold-stack.svg" alt="골드" width={28} height={28} className="w-7 h-7" />
-                      ) : isDontLookDown ? (
-                        <span>⚡</span>
+                      {isDontLookDown ? (
+                        <>
+                          <span>⚡</span>
+                          {(currentPlayer?.gold || 0).toLocaleString()}
+                          <span className="text-lg">에너지</span>
+                        </>
                       ) : (
-                        <span>💰</span>
+                        <span className="text-lg">게임별 점수에 반영됨</span>
                       )}
-                      {isDontLookDown
-                        ? (currentPlayer?.gold || 0).toLocaleString()
-                        : (currentPlayer?.gold || 0)}
-                      {isDontLookDown && <span className="text-lg">에너지</span>}
                     </div>
                   </div>
                 </div>
@@ -463,22 +455,22 @@ export default function GameResult({
           </Card>
         )}
 
-        {/* Gold Top 5 차트 */}
+        {/* 게임별 Top 5 차트 */}
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Trophy className="h-5 w-5" />
-              Gold Top 5
+              {rankChartLabel}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={goldData}>
+              <BarChart data={rankChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="gold" fill="#f59e0b" />
+                <Bar dataKey="value" fill="#f59e0b" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

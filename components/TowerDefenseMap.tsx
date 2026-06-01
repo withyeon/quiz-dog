@@ -66,6 +66,84 @@ function getCanvasPoint(canvas: HTMLCanvasElement, event: MouseEvent<HTMLCanvasE
     }
 }
 
+function traceEnemyPath(ctx: CanvasRenderingContext2D) {
+    ctx.beginPath()
+    PATH_POINTS.forEach((point, index) => {
+        if (index === 0) ctx.moveTo(point.x, point.y)
+        else ctx.lineTo(point.x, point.y)
+    })
+}
+
+function drawEnemyPath(ctx: CanvasRenderingContext2D) {
+    ctx.save()
+
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+
+    traceEnemyPath(ctx)
+    ctx.strokeStyle = 'rgba(5, 7, 12, 0.76)'
+    ctx.lineWidth = 78
+    ctx.stroke()
+
+    traceEnemyPath(ctx)
+    ctx.strokeStyle = 'rgba(81, 30, 44, 0.72)'
+    ctx.lineWidth = 62
+    ctx.stroke()
+
+    traceEnemyPath(ctx)
+    ctx.strokeStyle = 'rgba(31, 37, 49, 0.94)'
+    ctx.lineWidth = 48
+    ctx.stroke()
+
+    traceEnemyPath(ctx)
+    ctx.strokeStyle = 'rgba(101, 116, 139, 0.34)'
+    ctx.lineWidth = 24
+    ctx.stroke()
+
+    ctx.setLineDash([18, 18])
+    traceEnemyPath(ctx)
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.3)'
+    ctx.lineWidth = 5
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    ctx.setLineDash([5, 22])
+    traceEnemyPath(ctx)
+    ctx.strokeStyle = 'rgba(248, 113, 113, 0.42)'
+    ctx.lineWidth = 2
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    const start = PATH_POINTS[0]
+    const end = PATH_POINTS[PATH_POINTS.length - 1]
+
+    ctx.font = 'bold 18px DNFBitBitv2, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+
+    ctx.fillStyle = 'rgba(8, 13, 24, 0.92)'
+    ctx.beginPath()
+    ctx.arc(start.x + 28, start.y, 24, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(34, 197, 94, 0.85)'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    ctx.fillStyle = 'white'
+    ctx.fillText('입구', start.x + 28, start.y)
+
+    ctx.fillStyle = 'rgba(8, 13, 24, 0.92)'
+    ctx.beginPath()
+    ctx.arc(end.x - 30, end.y, 24, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.9)'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    ctx.fillStyle = 'white'
+    ctx.fillText('출구', end.x - 30, end.y)
+
+    ctx.restore()
+}
+
 export default function TowerDefenseMap({
     towers,
     enemies,
@@ -143,7 +221,7 @@ export default function TowerDefenseMap({
         backgroundImage.onload = () => {
             if (alive) backgroundImageRef.current = backgroundImage
         }
-        backgroundImage.src = '/tower/ui/background.svg'
+        backgroundImage.src = '/tower/ui/background.png'
 
         Object.entries(towerImagePaths).forEach(([type, path]) => {
             const img = new Image()
@@ -201,17 +279,15 @@ export default function TowerDefenseMap({
                 ctx.fillRect(0, 0, MAP_WIDTH, MAP_HEIGHT)
             }
 
+            drawEnemyPath(ctx)
+
             if (selectedTowerType) {
                 ctx.save()
                 ctx.strokeStyle = 'rgba(239, 68, 68, 0.2)'
                 ctx.lineWidth = PATH_BUILD_BLOCK_RADIUS * 2
                 ctx.lineCap = 'round'
                 ctx.lineJoin = 'round'
-                ctx.beginPath()
-                PATH_POINTS.forEach((point, index) => {
-                    if (index === 0) ctx.moveTo(point.x, point.y)
-                    else ctx.lineTo(point.x, point.y)
-                })
+                traceEnemyPath(ctx)
                 ctx.stroke()
                 ctx.restore()
             }
@@ -504,21 +580,8 @@ export default function TowerDefenseMap({
                 className={`block aspect-[4/3] h-auto w-full rounded-lg border-4 border-gray-800 bg-white shadow-2xl ${selectedTowerType ? 'cursor-crosshair' : 'cursor-pointer'}`}
             />
 
-            <div className="absolute right-4 top-4 rounded-lg border border-slate-200 bg-white/90 p-3 shadow-lg backdrop-blur-sm">
-                <div className="mb-2 flex items-center justify-between gap-4 text-xs font-black text-slate-700">
-                    <span>자유 배치</span>
-                    <span>{towers.length}개 설치</span>
-                </div>
-                <div className="space-y-1 text-xs">
-                    <div className="flex items-center gap-2">
-                        <div className="h-4 w-4 rounded-full border-2 border-emerald-500 bg-emerald-100" />
-                        <span className="font-semibold text-slate-600">설치 가능</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="h-4 w-4 rounded-full border-2 border-red-500 bg-red-100" />
-                        <span className="font-semibold text-slate-600">길 위는 불가</span>
-                    </div>
-                </div>
+            <div className="absolute right-4 top-4 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-lg backdrop-blur-sm">
+                <span className="text-xs font-black text-slate-700">{towers.length}개 설치</span>
             </div>
         </div>
     )

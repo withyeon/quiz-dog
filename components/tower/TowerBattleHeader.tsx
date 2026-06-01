@@ -93,7 +93,7 @@ export default function TowerBattleHeader({
                     </div>
                 </div>
 
-                <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:flex">
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:flex">
                     <HudMetric icon={HeartPulse} label="코어" value={hp} detail="체력" tone="text-red-500" />
                     <HudMetric icon={Coins} label="골드" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
                     <HudMetric icon={Target} label="웨이브" value={`${Math.min(currentWave + 1, WAVES.length)} / ${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining}마리 남음` : `${waveProgress}% 클리어`} tone="text-indigo-500" />

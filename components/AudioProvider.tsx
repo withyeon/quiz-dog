@@ -1,13 +1,16 @@
 'use client'
 
-import { createContext, useContext, ReactNode, useMemo } from 'react'
-import { useAudio, type AudioType, type SFXType } from '@/hooks/useAudio'
+import { createContext, useContext, ReactNode } from 'react'
+import { useAudio, type AudioType, type BGMTrack, type SFXType } from '@/hooks/useAudio'
 
 interface AudioContextType {
   isMuted: boolean
   volume: number
   currentBGM: AudioType | null
-  playBGM: (type: AudioType) => void
+  currentTrack: BGMTrack | null
+  isBGMPlaying: boolean
+  playBGM: (type: AudioType, track?: BGMTrack) => void
+  pauseBGM: () => void
   stopBGM: () => void
   playSFX: (type: SFXType) => void
   toggleMute: () => void
@@ -18,11 +21,12 @@ const AudioContext = createContext<AudioContextType | undefined>(undefined)
 
 interface AudioProviderProps {
   children: ReactNode
+  enabled?: boolean
   initialMuted?: boolean
 }
 
-export function AudioProvider({ children, initialMuted = true }: AudioProviderProps) {
-  const audio = useAudio({ initialMuted, initialVolume: 0.5 })
+export function AudioProvider({ children, enabled = false, initialMuted = true }: AudioProviderProps) {
+  const audio = useAudio({ enabled, initialMuted, initialVolume: 0.5 })
 
   return <AudioContext.Provider value={audio}>{children}</AudioContext.Provider>
 }
