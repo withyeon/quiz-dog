@@ -25,6 +25,11 @@ import {
   toggleQuestionSetLike,
 } from '@/lib/services/questionSets'
 import { ELEMENTARY_GRADE_NUMBERS, formatGradeLabel } from '@/lib/constants/grades'
+import {
+  getLocalLikedQuestionSetIds,
+  getLibraryClientId,
+  setLocalQuestionSetLiked,
+} from '@/lib/utils/libraryClientId'
 
 type QuestionSet = {
   set_id: string
@@ -139,21 +144,6 @@ const GRADE_GROUPS = {
 type SchoolLevel = keyof typeof GRADE_GROUPS
 type SortType = 'likes' | 'recent'
 
-const LIBRARY_CLIENT_ID_KEY = 'quizdog_library_client_id'
-
-function getLibraryClientId(): string {
-  if (typeof window === 'undefined') return 'server'
-
-  const existing = window.localStorage.getItem(LIBRARY_CLIENT_ID_KEY)
-  if (existing) return existing
-
-  const nextId = typeof window.crypto?.randomUUID === 'function'
-    ? window.crypto.randomUUID()
-    : `${Date.now()}-${Math.random().toString(36).slice(2)}`
-  window.localStorage.setItem(LIBRARY_CLIENT_ID_KEY, nextId)
-  return nextId
-}
-
 const normalizeSubject = (subjectValue: string | null | undefined, setId: string): string => {
   if (subjectValue) {
     if (SUBJECTS.some((item) => item.id === subjectValue)) return subjectValue
@@ -228,11 +218,13 @@ function LibraryPageContent() {
     try {
       setLoading(true)
       const clientId = getLibraryClientId()
+      const localLikedSetIds = getLocalLikedQuestionSetIds()
       const indexItems = await listQuestionSetIndexFromQuestions(clientId)
       const sets = indexItems.map((item, index) => {
         const subject = normalizeSubject(item.subject, item.set_id)
         const grade = normalizeGrade(item.grade, item.set_id)
         const title = item.title?.trim() ?? ''
+        const likedByClient = item.liked_by_client || localLikedSetIds.has(item.set_id)
 
         return {
           ...item,
@@ -244,7 +236,7 @@ function LibraryPageContent() {
           like_count: item.like_count,
           weekly_like_count: item.weekly_like_count,
           monthly_like_count: item.monthly_like_count,
-          liked_by_client: item.liked_by_client,
+          liked_by_client: likedByClient,
         }
       })
 
@@ -349,15 +341,13 @@ function LibraryPageContent() {
         : set
     )))
 
+    setLocalQuestionSetLiked(setId, nextLiked)
+
     try {
       await toggleQuestionSetLike(setId, getLibraryClientId(), nextLiked)
       await loadQuestionSets()
     } catch (error) {
-      setAllQuestionSets((prev) => prev.map((set) => (
-        set.set_id === setId ? target : set
-      )))
-      console.error('Error toggling question set like:', error)
-      alert('좋아요를 반영하지 못했습니다: ' + formatServiceError(error))
+      console.warn('좋아요를 서버에 저장하지 못해 브라우저에만 보관했습니다:', formatServiceError(error))
     }
   }
 

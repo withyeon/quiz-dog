@@ -265,12 +265,46 @@ export async function getQuestionSetLikeSummaries(
   return summaries
 }
 
+async function ensureQuestionSetLikeTarget(setId: string): Promise<void> {
+  const { data: existingSet, error: setError } = await (supabase
+    .from('question_sets') as any)
+    .select('id')
+    .eq('id', setId)
+    .maybeSingle()
+
+  if (setError) throw setError
+  if (existingSet) return
+
+  const { count, error: countError } = await supabase
+    .from('questions')
+    .select('id', { count: 'exact', head: true })
+    .eq('set_id', setId)
+
+  if (countError) throw countError
+  if (!count) {
+    throw new Error('좋아요할 문제집을 찾을 수 없습니다.')
+  }
+
+  const { error: insertError } = await (supabase
+    .from('question_sets') as any)
+    .insert({
+      id: setId,
+      title: '자료실 문제집',
+      description: '자료실 좋아요를 위해 자동 등록된 문제집',
+      tags: [],
+    } satisfies QuestionSetInsert)
+
+  if (insertError && !String(insertError.code ?? '').startsWith('23')) throw insertError
+}
+
 export async function toggleQuestionSetLike(
   setId: string,
   clientId: string,
   liked: boolean,
 ): Promise<void> {
   if (liked) {
+    await ensureQuestionSetLikeTarget(setId)
+
     const { error } = await (supabase
       .from('question_set_likes') as any)
       .insert({ set_id: setId, client_id: clientId })

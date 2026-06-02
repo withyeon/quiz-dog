@@ -209,11 +209,13 @@ GRANT EXECUTE ON FUNCTION public.check_question_answer(UUID, TEXT) TO authentica
 -- New Supabase projects or pre-created tables can have RLS enabled, so force the
 -- expected app behavior explicitly.
 ALTER TABLE public.question_sets NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.question_set_likes NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.questions NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.rooms NO FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.players NO FORCE ROW LEVEL SECURITY;
 
 ALTER TABLE public.question_sets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.question_set_likes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.questions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rooms DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.players DISABLE ROW LEVEL SECURITY;

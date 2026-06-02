@@ -15,4 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_question_set_likes_set_id
 CREATE INDEX IF NOT EXISTS idx_question_set_likes_created_at
   ON public.question_set_likes(created_at DESC);
 
+ALTER TABLE public.question_set_likes NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.question_set_likes DISABLE ROW LEVEL SECURITY;
+
 GRANT SELECT, INSERT, DELETE ON TABLE public.question_set_likes TO anon, authenticated;

@@ -8,6 +8,7 @@ import {
   BookOpen,
   Copy,
   FileQuestion,
+  Heart,
   Library,
   Pencil,
   Play,
@@ -17,15 +18,39 @@ import {
   Wand2,
 } from 'lucide-react'
 import {
+  copyQuestionSetFromQuestionsOnly,
   deleteQuestionSet,
   duplicateQuestionSet,
+  listQuestionSetIndexFromQuestions,
   listQuestionSetsWithCounts,
+  type QuestionSetIndexItem,
   type QuestionSetSummary,
 } from '@/lib/services/questionSets'
+import { formatServiceError } from '@/lib/services/errors'
+import { getLocalLikedQuestionSetIds, getLibraryClientId } from '@/lib/utils/libraryClientId'
 
 type QuestionSet = QuestionSetSummary
+type LikedQuestionSet = QuestionSetIndexItem & {
+  name: string
+}
 
 type SourceType = 'topic' | 'youtube' | 'text' | 'pdf'
+
+function isGeneratedLibraryTitle(title: string, setId: string): boolean {
+  const normalizedTitle = title.trim()
+  if (!normalizedTitle) return true
+  if (normalizedTitle === setId) return true
+  if (normalizedTitle === setId.replace(/^set-/, '문제집 ')) return true
+  if (/^(library-)?문제집\s+\d{10,}-[a-z0-9]+$/i.test(normalizedTitle)) return true
+  if (/^library-문제집\s+\d{10,}-[a-z0-9]+$/i.test(normalizedTitle)) return true
+
+  return false
+}
+
+function getLikedQuestionSetName(item: QuestionSetIndexItem, index: number): string {
+  const title = item.title?.trim() ?? ''
+  return isGeneratedLibraryTitle(title, item.set_id) ? `좋아요한 문제집 ${index + 1}` : title
+}
 
 function TeacherPageContent() {
   const router = useRouter()
@@ -33,6 +58,7 @@ function TeacherPageContent() {
   const createType = searchParams?.get('create') as SourceType | null
 
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([])
+  const [likedQuestionSets, setLikedQuestionSets] = useState<LikedQuestionSet[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -44,12 +70,36 @@ function TeacherPageContent() {
   const loadQuestionSets = async () => {
     try {
       setLoading(true)
-      const sets = await listQuestionSetsWithCounts()
+      const [sets, likedIndexItems] = await Promise.all([
+        listQuestionSetsWithCounts(),
+        listQuestionSetIndexFromQuestions(getLibraryClientId()),
+      ])
+      const localLikedSetIds = getLocalLikedQuestionSetIds()
       setQuestionSets(sets)
+      setLikedQuestionSets(
+        likedIndexItems
+          .filter((item) => item.liked_by_client || localLikedSetIds.has(item.set_id))
+          .map((item, index) => ({
+            ...item,
+            liked_by_client: true,
+            name: getLikedQuestionSetName(item, index),
+          })),
+      )
     } catch (error) {
       console.error('Error loading question sets:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleCopyLikedSet = async (setId: string) => {
+    try {
+      await copyQuestionSetFromQuestionsOnly(setId)
+      alert('내 문제집에 담았습니다.')
+      void loadQuestionSets()
+    } catch (error) {
+      console.error('Error copying liked question set:', error)
+      alert('문제집을 담지 못했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -156,6 +206,12 @@ function TeacherPageContent() {
               </div>
             </div>
           </section>
+
+          <LikedQuestionSetsPanel
+            likedQuestionSets={likedQuestionSets}
+            onStartGame={handleStartGame}
+            onCopySet={handleCopyLikedSet}
+          />
         </div>
       ) : (
         <div className="space-y-7">
@@ -189,10 +245,11 @@ function TeacherPageContent() {
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-3">
+          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
               { icon: BookOpen, label: '내 문제집', value: questionSets.length.toLocaleString(), tone: 'bg-slate-100 text-black' },
               { icon: FileQuestion, label: '총 문제 수', value: totalQuestions.toLocaleString(), tone: 'bg-slate-100 text-black' },
+              { icon: Heart, label: '좋아요한 문제집', value: likedQuestionSets.length.toLocaleString(), tone: 'bg-rose-50 text-rose-600' },
               { icon: Play, label: '최근 문제집', value: recentSets.length.toLocaleString(), tone: 'bg-slate-100 text-black' },
             ].map((item) => (
               <div key={item.label} className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
@@ -274,6 +331,13 @@ function TeacherPageContent() {
             </div>
 
             <aside className="space-y-4">
+              <LikedQuestionSetsPanel
+                likedQuestionSets={likedQuestionSets}
+                onStartGame={handleStartGame}
+                onCopySet={handleCopyLikedSet}
+                compact
+              />
+
               <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
                 <h2 className="text-lg font-black text-black">최근 문제집</h2>
                 <div className="mt-4 space-y-3">
@@ -306,6 +370,95 @@ function TeacherPageContent() {
               </Link>
             </aside>
           </section>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LikedQuestionSetsPanel({
+  likedQuestionSets,
+  onStartGame,
+  onCopySet,
+  compact = false,
+}: {
+  likedQuestionSets: LikedQuestionSet[]
+  onStartGame: (setId: string) => void
+  onCopySet: (setId: string) => Promise<void>
+  compact?: boolean
+}) {
+  const visibleSets = compact ? likedQuestionSets.slice(0, 5) : likedQuestionSets
+
+  return (
+    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-black text-black">좋아요한 문제집</h2>
+          <p className="mt-1 text-sm font-bold text-slate-500">
+            자료실에서 눌러둔 문제집을 모아봅니다.
+          </p>
+        </div>
+        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+          <Heart className="h-5 w-5 fill-current" />
+        </span>
+      </div>
+
+      {likedQuestionSets.length === 0 ? (
+        <div className="mt-4 rounded-lg bg-slate-50 p-4">
+          <p className="text-sm font-bold leading-6 text-slate-500">
+            아직 좋아요한 문제집이 없습니다.
+          </p>
+          <Link
+            href="/teacher/library"
+            className="mt-3 inline-flex items-center gap-2 text-sm font-black text-black"
+          >
+            자료실에서 찾아보기
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {visibleSets.map((set) => (
+            <div
+              key={set.set_id}
+              className="flex items-center gap-2 rounded-lg border border-slate-200 p-3"
+            >
+              <button
+                type="button"
+                onClick={() => onStartGame(set.set_id)}
+                className="min-w-0 flex-1 text-left"
+              >
+                <span className="block truncate text-sm font-black text-black">{set.name}</span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-400">
+                  <span>{set.question_count}문제</span>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1 text-rose-500">
+                    <Heart className="h-3 w-3 fill-current" />
+                    {set.like_count.toLocaleString()}
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => void onCopySet(set.set_id)}
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition hover:bg-black hover:text-white"
+                aria-label={`${set.name} 내 문제집에 담기`}
+                title="내 문제집에 담기"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+
+          {compact && likedQuestionSets.length > visibleSets.length && (
+            <Link
+              href="/teacher/library"
+              className="flex items-center justify-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-100 hover:text-black"
+            >
+              전체 보기
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          )}
         </div>
       )}
     </div>
