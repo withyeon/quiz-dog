@@ -14,6 +14,7 @@ const VALID_SOURCE_TYPES: SourceType[] = ['topic', 'youtube', 'text', 'pdf', 'fi
 
 // 한 번에 생성 가능한 최대 문제 수 (호출당 AI 비용 상한)
 const MAX_QUESTION_COUNT = 20
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 
 // 간단한 IP 레이트리밋 (인스턴스 메모리 기준 — 서버리스에서는 인스턴스마다 별도이나
 // 단순 연타/스크립트 남용을 막는 비용 0짜리 속도 제한)
@@ -53,6 +54,14 @@ function getFileExtension(filename: string): string {
 
 function isImageFile(filename: string): boolean {
   return ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(getFileExtension(filename))
+}
+
+function validateUploadSize(file: File): NextResponse | null {
+  if (file.size <= MAX_UPLOAD_BYTES) return null
+  return NextResponse.json(
+    { error: '파일이 너무 큽니다. 12MB 이하 파일만 업로드해주세요.' },
+    { status: 413 },
+  )
 }
 
 export async function POST(request: NextRequest) {
@@ -113,12 +122,14 @@ export async function POST(request: NextRequest) {
     if (sourceType === 'exam') {
       const file = formData.get('file') as File
       if (!file) return NextResponse.json({ error: '시험지 파일을 업로드해주세요.' }, { status: 400 })
+      const sizeError = validateUploadSize(file)
+      if (sizeError) return sizeError
 
       const ext = getFileExtension(file.name)
 
       if (isImageFile(file.name)) {
         const visionText = await extractQuestionsFromImage(file, questionCount)
-        const questions = parseExamVisionResponse(visionText)
+        const questions = parseExamVisionResponse(visionText).slice(0, questionCount)
         return NextResponse.json({ questions })
       }
 
@@ -127,7 +138,7 @@ export async function POST(request: NextRequest) {
         const extractedText = await extractTextFromPDF(file)
         if (isLikelyScannedPDF(extractedText)) {
           const visionText = await extractQuestionsFromImage(file, questionCount)
-          const questions = parseExamVisionResponse(visionText)
+          const questions = parseExamVisionResponse(visionText).slice(0, questionCount)
           return NextResponse.json({ questions })
         }
         // 텍스트가 충분하면 AI로 문제 구조 파싱
@@ -142,6 +153,8 @@ export async function POST(request: NextRequest) {
     if (sourceType === 'file' || sourceType === 'pdf') {
       const file = formData.get('file') as File
       if (!file) return NextResponse.json({ error: '파일을 업로드해주세요.' }, { status: 400 })
+      const sizeError = validateUploadSize(file)
+      if (sizeError) return sizeError
 
       const ext = getFileExtension(file.name)
       let text = ''
@@ -152,7 +165,7 @@ export async function POST(request: NextRequest) {
           if (isLikelyScannedPDF(text)) {
             // 스캔 PDF인 경우 Vision으로 텍스트 추출 후 문제 생성
             const visionText = await extractQuestionsFromImage(file, questionCount)
-            const questions = parseExamVisionResponse(visionText)
+            const questions = parseExamVisionResponse(visionText).slice(0, questionCount)
             return NextResponse.json({ questions })
           }
           break

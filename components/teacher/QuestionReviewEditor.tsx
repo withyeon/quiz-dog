@@ -22,13 +22,16 @@ function getQuestionErrors(q: GeneratedQuestion): string[] {
   if (!q.answer.trim()) errors.push('정답이 비어 있습니다')
   if (q.type === 'CHOICE') {
     const filledOptions = (q.options || []).filter((o: string) => o.trim())
-    if (filledOptions.length < 2) errors.push('보기가 2개 이상 필요합니다')
+    if (filledOptions.length !== 4) errors.push('객관식 보기는 정확히 4개가 필요합니다')
     if (q.answer.trim() && !filledOptions.includes(q.answer.trim())) {
       errors.push('정답이 보기에 포함되어 있지 않습니다')
     }
   }
   if (q.type === 'OX' && q.answer.trim() && q.answer !== 'O' && q.answer !== 'X') {
     errors.push('OX 문제의 정답은 O 또는 X여야 합니다')
+  }
+  if (q.type === 'BLANK' && !(/\[\s*\]|\{\{blank\}\}/.test(q.question_text))) {
+    errors.push('빈칸 문제에는 [            ] 표시가 필요합니다')
   }
   return errors
 }
@@ -384,12 +387,13 @@ export default function QuestionReviewEditor({
             onClick={() => {
               if (isSaving) return
               if (totalErrors > 0) {
-                if (!confirm(`수정이 필요한 항목이 ${totalErrors}개 있습니다. 그래도 저장하시겠습니까?`)) return
+                alert(`수정이 필요한 항목이 ${totalErrors}개 있습니다. 빨간 경고를 먼저 고쳐주세요.`)
+                return
               }
               onSave()
             }}
             disabled={isSaving}
-            className={`h-11 flex-1 rounded-lg font-black ${totalErrors > 0 ? 'bg-amber-500 hover:bg-amber-600' : 'bg-sky-500 hover:bg-sky-600'} text-white`}
+            className={`h-11 flex-1 rounded-lg font-black ${totalErrors > 0 ? 'bg-slate-300 text-slate-600 hover:bg-slate-300' : 'bg-sky-500 text-white hover:bg-sky-600'}`}
           >
             {isSaving
               ? '저장 중...'

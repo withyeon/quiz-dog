@@ -16,6 +16,7 @@ import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
 
 type SourceType = 'topic' | 'youtube' | 'file' | 'exam'
 type ManualQuestionType = 'CHOICE' | 'SHORT' | 'OX' | 'MIXED'
+const MAX_AI_QUESTION_COUNT = 20
 
 function createBlankQuestion(type: Exclude<ManualQuestionType, 'MIXED'>): GeneratedQuestion {
   return {
@@ -65,7 +66,7 @@ export default function CreateQuestionPage() {
     try {
       const formData = new FormData()
       formData.append('sourceType', sourceType!)
-      const normalizedQuestionCount = Math.min(30, Math.max(1, Number(questionCount) || 5))
+      const normalizedQuestionCount = Math.min(MAX_AI_QUESTION_COUNT, Math.max(1, Number(questionCount) || 5))
       formData.append('questionCount', normalizedQuestionCount.toString())
       if (subject) formData.append('subject', subject)
       if (grade) formData.append('grade', grade)
@@ -408,7 +409,7 @@ export default function CreateQuestionPage() {
                     <input
                       type="number"
                       min="1"
-                      max="30"
+                      max={MAX_AI_QUESTION_COUNT}
                       value={questionCount}
                       onChange={(e) => {
                         const nextValue = e.target.value
@@ -418,6 +419,9 @@ export default function CreateQuestionPage() {
                       }}
                       className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     />
+                    <p className="mt-1 text-xs font-bold text-slate-400">
+                      한 번에 최대 {MAX_AI_QUESTION_COUNT}문제까지 생성합니다.
+                    </p>
                   </div>
                 </div>
                 <Button
