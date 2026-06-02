@@ -355,10 +355,24 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
     }, [roomStatus])
 
+    // 주기적 정합성 보정: 실시간 채널이 '구독됨'이지만 조용히 이벤트를 놓치는 경우에도
+    // 시작/종료/점수 상태가 일정 주기로 다시 맞춰지도록 방·플레이어 스냅샷을 silent 재동기화한다.
+    // (실시간=즉시성, 폴링=정합성 보정. 교실 라이브 게임에서 '멈춤' 방지의 안전망)
+    useEffect(() => {
+        if (!roomCode) return
+        const interval = window.setInterval(() => {
+            void resyncRoomSnapshot('periodic')
+        }, 30000)
+        return () => window.clearInterval(interval)
+    }, [roomCode, resyncRoomSnapshot])
+
+    // 제한 시간 종료(학생 측). 학생은 세션 권한이 없으므로 DB에 쓰지 않는다.
+    // 종료 시각(started_at + duration_seconds)에 도달하면 '자기 화면만' 결과로 전환한다(로컬 표시).
+    // 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당하며, 학생은 그 신호를 받아
+    // 결과 페이지로 이동한다. 이 로컬 종료는 신호가 늦어도 학생이 멈추지 않게 하는 안전망이다.
     useEffect(() => {
         if (
-            !isRoomHost
-            || !roomCode
+            !roomCode
             || !room
             || room.status !== 'playing'
             || !room.started_at
@@ -367,51 +381,23 @@ export function useGameBase(options: UseGameBaseOptions) {
             return
         }
 
-        const finishByDeadline = async () => {
-            if (autoFinishRequestedRef.current) return
-            autoFinishRequestedRef.current = true
-
-            try {
-                await finishRoom(roomCode)
-                const reason = `${expectedGameMode}_time_up_backup`
-                void sendRoomEvent('room:patch', {
-                    patch: { status: 'finished' },
-                    reason,
-                })
-                void sendRoomEvent('game:finished', {
-                    finishedBy: playerId,
-                    reason,
-                })
-                forceFinishForStudent(reason)
-            } catch (error) {
-                autoFinishRequestedRef.current = false
-                console.error('제한 시간 종료 처리 실패:', error)
-            }
-        }
-
         const startedMs = new Date(room.started_at).getTime()
         const durationSeconds = Number(room.duration_seconds)
         if (!Number.isFinite(startedMs) || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return
 
         const tick = () => {
+            if (autoFinishRequestedRef.current) return
             const elapsedSeconds = Math.floor((Date.now() - startedMs) / 1000)
             if (elapsedSeconds >= durationSeconds) {
-                void finishByDeadline()
+                autoFinishRequestedRef.current = true
+                forceFinishForStudent(`${expectedGameMode}_time_up_local`)
             }
         }
 
         tick()
         const interval = window.setInterval(tick, 1000)
         return () => window.clearInterval(interval)
-    }, [
-        expectedGameMode,
-        forceFinishForStudent,
-        isRoomHost,
-        playerId,
-        room,
-        roomCode,
-        sendRoomEvent,
-    ])
+    }, [expectedGameMode, forceFinishForStudent, room, roomCode])
 
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {

@@ -46,6 +46,12 @@ interface GameResultProps {
   gameMode?: GameModeId
   answerHistory?: AnswerRecord[]
   questions?: QuestionInfo[]
+  /**
+   * 'student'(기본): 본인 결과만 표시. Top3 공개·전체 순위·학급 오답 분석 등 집계 정보는 숨김.
+   * 'teacher': 교사 통제 화면 전용. Top3·전체 순위·차트 등 전체 결과 표시.
+   * 초등 교실 운영 원칙상 학생 화면은 본인 결과 중심으로 제한하고, 집계/공개는 선생님 화면에서만 한다.
+   */
+  audience?: 'student' | 'teacher'
 }
 
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981']
@@ -58,7 +64,9 @@ export default function GameResult({
   gameMode = 'gold_quest',
   answerHistory = [],
   questions = [],
+  audience = 'student',
 }: GameResultProps) {
+  const showFullResults = audience === 'teacher'
   // Battle Royale 모드일 경우 체력 기반 정렬, 그 외에는 점수 기반
   const sortedPlayers = gameMode === 'battle_royale'
     ? [...players].sort((a, b) => {
@@ -129,6 +137,19 @@ export default function GameResult({
           </p>
         </motion.div>
 
+        {/* 학생 화면: 본인 결과 요약만 (Top3 공개·전체 순위는 선생님 화면 전용) */}
+        {!showFullResults && currentPlayer && (
+          <div className={`mb-8 rounded-2xl border p-6 text-center shadow-sm ${isGoldQuest ? 'border-amber-200/70 bg-white/85 text-[#17262a]' : 'border-sky-200 bg-white text-slate-900'}`}>
+            <div className="text-sm font-black text-slate-500">내 결과</div>
+            <div className="mt-2 text-4xl font-black">
+              {currentPlayerRank}등 · {getScoreDisplay(currentPlayer ?? {}, gameMode).text}
+            </div>
+            <p className="mt-3 text-sm font-bold text-slate-500">전체 순위와 다른 친구들의 결과는 선생님 화면에서 함께 확인해요.</p>
+          </div>
+        )}
+
+        {/* 아래 집계·공개 결과(승리 명단·Top3·전체 순위·차트)는 교사 통제 화면에서만 표시 */}
+        {showFullResults && (<>
         {/* 팀전 승리 배너 */}
         {winningTeam && (
           <motion.div
@@ -304,9 +325,6 @@ export default function GameResult({
                         />
                         <div>
                           <div className="font-semibold text-gray-800">{player.nickname}</div>
-                          <div className="text-sm text-gray-500">
-                            {player.is_online ? '🟢' : '🔴'}
-                          </div>
                         </div>
                       </div>
                       <div className="text-right">
@@ -396,8 +414,9 @@ export default function GameResult({
             </CardContent>
           </Card>
         </div>
+        </>)}
 
-        {/* 내 퀴즈 결과 (답안 기록이 있을 때만 표시) */}
+        {/* 내 퀴즈 결과 (답안 기록이 있을 때만 표시) — 본인 결과라 학생도 표시 */}
         {totalAnswered > 0 && (
           <Card className="mb-8">
             <CardHeader>
@@ -455,7 +474,8 @@ export default function GameResult({
           </Card>
         )}
 
-        {/* 게임별 Top 5 차트 */}
+        {/* 게임별 Top 5 차트 (교사 화면 전용) */}
+        {showFullResults && (
         <Card className="mb-8">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -475,6 +495,7 @@ export default function GameResult({
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        )}
 
         {/* 액션 버튼 */}
         <motion.div

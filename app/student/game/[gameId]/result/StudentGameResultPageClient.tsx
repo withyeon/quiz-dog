@@ -56,11 +56,18 @@ function StudentResultContent({ gameId }: { gameId: string }) {
 
   useEffect(() => {
     if (liveRoom?.status !== 'playing' || !playerId) return
+    // 제한 시간이 이미 지난 게임이면 결과 화면을 유지한다. 학생은 로컬에서 시간 종료로
+    // 넘어왔고 교사의 finished 기록이 약간 늦을 수 있는데, 여기서 되돌리면 결과↔게임
+    // 무한 루프가 생긴다. (교사가 새 게임을 시작한 경우엔 started_at이 갱신돼 통과)
+    if (liveRoom.started_at && liveRoom.duration_seconds) {
+      const elapsed = (Date.now() - new Date(liveRoom.started_at).getTime()) / 1000
+      if (elapsed >= Number(liveRoom.duration_seconds)) return
+    }
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(`quiz_index_${gameId}`)
     }
     router.replace(getGameModeUrl(liveRoom.game_mode || DEFAULT_GAME_MODE, gameId, playerId))
-  }, [gameId, liveRoom?.game_mode, liveRoom?.status, playerId, router])
+  }, [gameId, liveRoom?.game_mode, liveRoom?.status, liveRoom?.started_at, liveRoom?.duration_seconds, playerId, router])
 
   if (loading) {
     return (

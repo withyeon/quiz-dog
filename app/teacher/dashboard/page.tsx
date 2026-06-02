@@ -626,7 +626,15 @@ export default function TeacherDashboard() {
                   </button>
                 </div>
 
-                {players.length > 0 && (
+                {players.length === 0 ? (
+                  <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center">
+                    <div className="mb-3 text-4xl">🐶</div>
+                    <p className="text-lg font-black text-slate-700">아직 참가한 학생이 없어요</p>
+                    <p className="mt-1 text-sm font-bold text-slate-500">
+                      학생들이 게임 코드를 입력하면 여기에 표시됩니다.
+                    </p>
+                  </div>
+                ) : (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                     {players.map((player) => {
                       const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)

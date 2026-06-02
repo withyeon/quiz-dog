@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -42,12 +42,9 @@ export default function MafiaPage() {
     goToNextQuestion,
     commitPlayerPatch,
     sendRoomEvent,
-    finishGame,
-    isRoomHost,
   } = useGameBase({ expectedGameMode: 'mafia', preStartQuizTotal: 0 })
 
   const [remainingTime, setRemainingTime] = useState(room?.duration_seconds ?? 420)
-  const hasFinishedRef = useRef(false)
   const duration = room?.duration_seconds ?? 420
 
   useEffect(() => {
@@ -58,26 +55,20 @@ export default function MafiaPage() {
   }, [currentView, playBGM, room?.status, setCurrentView, shouldShowPreStartQuiz])
 
   useEffect(() => {
-    if (room?.status !== 'playing' || !room.started_at) {
-      hasFinishedRef.current = false
-      return
-    }
+    // 카운트다운 표시만 담당한다. 시간 종료 시 학생 화면 전환은 useGameBase의 로컬 종료가,
+    // 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당한다. 학생은 DB에 쓰지 않는다.
+    if (room?.status !== 'playing' || !room.started_at) return
 
     const startedAt = new Date(room.started_at).getTime()
     const tick = () => {
       const elapsed = Math.floor((Date.now() - startedAt) / 1000)
-      const nextRemaining = Math.max(0, duration - elapsed)
-      setRemainingTime(nextRemaining)
-      if (nextRemaining <= 0 && isRoomHost && !hasFinishedRef.current) {
-        hasFinishedRef.current = true
-        void finishGame()
-      }
+      setRemainingTime(Math.max(0, duration - elapsed))
     }
 
     tick()
     const timer = window.setInterval(tick, 1000)
     return () => window.clearInterval(timer)
-  }, [duration, finishGame, isRoomHost, room?.started_at, room?.status])
+  }, [duration, room?.started_at, room?.status])
 
   const sortedPlayers = useMemo(
     () => [...players].sort((a, b) => (b.score ?? 0) - (a.score ?? 0)),

@@ -21,10 +21,9 @@ import { formatMoney, getAnswerSpeed, getSpeedBonus, roundMoney } from '@/lib/ga
 import { STORE_BRAND_ICON } from '@/lib/game/storeAssets'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 import { isTerminalRoomStatus, type RoomStatus } from '@/lib/game/roomStatus'
-import { isRoomHostPlayer, subscribeRoomRuntimeEvent, type RoomPatchPayload } from '@/lib/realtime/roomChannel'
+import { subscribeRoomRuntimeEvent, type RoomPatchPayload } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
-import { finishRoom } from '@/lib/services/rooms'
 import {
   checkQuestionAnswer,
   listQuestionsForGame,
@@ -66,7 +65,6 @@ export default function FactoryPage() {
   const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
 
   const questionStartTime = useRef<number>(0)
-  const autoFinishRequestedRef = useRef(false)
 
   // URL에서 roomCode와 playerId 가져오기
   useEffect(() => {
@@ -121,7 +119,6 @@ export default function FactoryPage() {
 
   // 현재 플레이어 정보
   const currentPlayer = players.find((p) => p.id === playerId) as Player | undefined
-  const isRoomHost = useMemo(() => isRoomHostPlayer(playerId, players, []), [playerId, players])
   const isPaused = room?.status === 'paused'
 
   const forceFinishForStudent = useCallback((reason = 'forced_finish') => {
@@ -399,34 +396,16 @@ export default function FactoryPage() {
       setRemainingSeconds(null)
       return
     }
+    // 카운트다운 표시만 담당한다. 시간 종료 시 학생 화면 전환은 useGameBase의 로컬 종료가,
+    // 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당한다. 학생은 DB에 쓰지 않는다.
     const tick = () => {
       const elapsed = (Date.now() - timerStartMs) / 1000
-      const remaining = Math.max(0, Math.ceil(durationSeconds - elapsed))
-      setRemainingSeconds(remaining)
-      if (remaining <= 0 && isRoomHost && !autoFinishRequestedRef.current) {
-        autoFinishRequestedRef.current = true
-        ; (async () => {
-          try {
-            await finishRoom(roomCode)
-            void sendRoomEvent('room:patch', {
-              patch: { status: 'finished' },
-              reason: 'factory_time_up',
-            })
-            void sendRoomEvent('game:finished', {
-              finishedBy: playerId,
-              reason: 'factory_time_up',
-            })
-          } catch (e) {
-            console.error('편의점 시간 종료 업데이트 실패:', e)
-            autoFinishRequestedRef.current = false
-          }
-        })()
-      }
+      setRemainingSeconds(Math.max(0, Math.ceil(durationSeconds - elapsed)))
     }
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [durationSeconds, isRoomHost, playerId, room?.status, roomCode, sendRoomEvent, startedAt])
+  }, [durationSeconds, room?.status, startedAt])
 
   // 게임 종료 감지
   useEffect(() => {

@@ -141,9 +141,6 @@ export default function Leaderboard({
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-500">
-                      {player.is_online ? '🟢 온라인' : '🔴 오프라인'}
-                    </div>
                   </div>
                   {rankChange !== null && rankChange !== 0 && (
                     <div

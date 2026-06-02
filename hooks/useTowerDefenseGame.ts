@@ -315,7 +315,8 @@ export function useTowerDefenseGame({
         setTotalTowersPlaced(prev => prev + 1)
         setSelectedTowerType(null)
         playSFX('click')
-    }, [gold, playSFX, selectedTowerType, towers])
+        // towersRef.current로 최신 값을 읽으므로 towers는 의존성에 불필요
+    }, [gold, playSFX, selectedTowerType])
 
     const handleUpgradeTower = useCallback(() => {
         if (!selectedTower) return

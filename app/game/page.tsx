@@ -74,6 +74,34 @@ export default function GamePage() {
   const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
   const hasShieldRef = useRef(false)
   const attackResolversRef = useRef(new Map<string, (blocked: boolean) => void>())
+  // 정답 후 상자 화면 자동 전환 타이머 (수동 클릭과 중복 실행 방지)
+  const correctTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 상자/플레이어 선택 후 다음 문제 자동 이동 타이머 (중복 점프 방지)
+  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearCorrectTimer = () => {
+    if (correctTimerRef.current) {
+      clearTimeout(correctTimerRef.current)
+      correctTimerRef.current = null
+    }
+  }
+
+  // 다음 문제 이동 예약: 항상 기존 타이머를 먼저 정리해 중복 점프를 막는다.
+  const scheduleAdvance = (action: () => void, delay: number) => {
+    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+    advanceTimerRef.current = setTimeout(() => {
+      advanceTimerRef.current = null
+      action()
+    }, delay)
+  }
+
+  // 언마운트 시 남은 타이머 정리
+  useEffect(() => {
+    return () => {
+      clearCorrectTimer()
+      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
+    }
+  }, [])
 
   // 가져오기(엘프/마법사)인데 대상이 없으면 2초 후 다음 문제로
   const selectableForSteal = pendingEvent && (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD')
@@ -199,7 +227,10 @@ export default function GamePage() {
   }
 
   // 정답 후 상자 선택 화면으로 이동 (제출 후 자동/클릭 공용)
+  // 자동(1.5초)과 수동 클릭이 모두 이 함수를 호출하므로, 예약된 자동
+  // 타이머를 먼저 정리해 상자를 고른 뒤 뒤늦게 화면이 리셋되는 일을 막는다.
   const goToChestView = () => {
+    clearCorrectTimer()
     setCurrentView('chest')
     setSelectedChest(null)
     setBoxEvent(null)
@@ -219,7 +250,9 @@ export default function GamePage() {
         playSFX('item')
       }
       // 정답: 상자 선택 화면으로 (1.5초 후 자동 이동)
-      setTimeout(goToChestView, 1500)
+      // 배너를 직접 클릭해 먼저 넘어가면 goToChestView가 이 타이머를 정리한다.
+      clearCorrectTimer()
+      correctTimerRef.current = setTimeout(goToChestView, 1500)
     } else {
       playSFX('incorrect')
       handleWrongAnswer() // 공통 오답 처리 (wrong 뷰 -> 다음 문제)
@@ -270,7 +303,7 @@ export default function GamePage() {
           }
           setBoxEvent(blockedEvent)
 
-          setTimeout(() => {
+          scheduleAdvance(() => {
             setSelectedChest(null)
             setBoxEvent(null)
             setIsProcessingReward(false)
@@ -299,7 +332,7 @@ export default function GamePage() {
       void sendRoomEvent('room:snapshot-hint', { reason: 'gold_quest_reward' })
 
       // 3초 후 다음 문제로
-      setTimeout(() => {
+      scheduleAdvance(() => {
         setSelectedChest(null)
         setBoxEvent(null)
         setIsProcessingReward(false)
@@ -352,7 +385,7 @@ export default function GamePage() {
         }
         setBoxEvent(blockedEvent)
 
-        setTimeout(() => {
+        scheduleAdvance(() => {
           setSelectedChest(null)
           setBoxEvent(null)
           setPendingEvent(null)
@@ -371,7 +404,7 @@ export default function GamePage() {
       setBoxEvent(event)
 
       // 3초 후 다음 문제로
-      setTimeout(() => {
+      scheduleAdvance(() => {
         setSelectedChest(null)
         setBoxEvent(null)
         setPendingEvent(null)
@@ -718,10 +751,6 @@ export default function GamePage() {
                                 나
                               </span>
                             )}
-                          </div>
-                          <div className="mt-1 flex items-center gap-2 text-xs font-bold text-slate-500">
-                            <span className={`h-2 w-2 rounded-full ${player.is_online ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                            {player.is_online ? '온라인' : '오프라인'}
                           </div>
                         </div>
                       </div>

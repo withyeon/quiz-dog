@@ -31,9 +31,6 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
   const { players, loading, error, refreshPlayers } = usePlayersRealtime({
     roomCode,
-    onPlayerUpdate: (player) => {
-      console.log('Player updated:', player)
-    },
   })
 
   const { room, refreshRoom } = useRoomRealtime({ roomCode })

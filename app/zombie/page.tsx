@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import ZombieView from '@/components/ZombieView'
@@ -38,10 +38,8 @@ export default function ZombiePage() {
     handlePreStartQuizAnswer,
     checkAnswer,
     goToNextQuestion,
-    finishGame,
     sendRoomEvent,
     applyPlayerPatch,
-    isRoomHost,
     roomLoading,
     playersLoading,
   } = useGameBase({ expectedGameMode: 'zombie', preStartQuizTotal: 0 })
@@ -64,10 +62,6 @@ export default function ZombiePage() {
     : `${humanSurvivors.length}명의 인간이 생존했습니다! 인간 팀 승리!`
   const myWon = myPlayer ? myPlayer.role === winner : false
   const hasAssignedRoles = activeRoomPlayers.length > 0 && activeRoomPlayers.every((player) => getZombieMeta(player))
-  const finishRoomAsHost = useCallback(async () => {
-    if (!isRoomHost) return false
-    return finishGame()
-  }, [finishGame, isRoomHost])
 
   useEffect(() => {
     if (room?.status === 'waiting' && currentView !== 'lobby') {
@@ -106,9 +100,9 @@ export default function ZombiePage() {
   useEffect(() => {
     if (room?.status !== 'playing' || !hasAssignedRoles || zombiePlayers.length === 0) return
     if (humanSurvivors.length > 0) return
+    // 학생은 자기 화면만 로컬 종료. 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당.
     setCurrentView('result')
-    void finishRoomAsHost()
-  }, [finishRoomAsHost, hasAssignedRoles, humanSurvivors.length, room?.status, setCurrentView, zombiePlayers.length])
+  }, [hasAssignedRoles, humanSurvivors.length, room?.status, setCurrentView, zombiePlayers.length])
 
   if (!roomCode || !playerId) {
     return (
@@ -230,7 +224,9 @@ export default function ZombiePage() {
                 onAnswer={checkAnswer}
                 onNextQuestion={goToNextQuestion}
                 onGameEnd={() => setCurrentView('result')}
-                onFinishRoom={finishRoomAsHost}
+                // 학생은 방을 종료(DB 기록)할 권한이 없다. 자기 화면만 로컬 종료하고,
+                // 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당한다.
+                onFinishRoom={async () => { setCurrentView('result'); return false }}
                 onPlayerPatch={(targetPlayerId, patch, reason) => {
                   applyPlayerPatch(targetPlayerId, patch)
                   void sendRoomEvent('player:patch', { playerId: targetPlayerId, patch, reason })

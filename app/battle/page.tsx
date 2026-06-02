@@ -97,7 +97,6 @@ export default function BattlePage() {
     handleCountdownComplete,
     goToNextQuestion,
     isRoomHost,
-    finishGame,
     questionStartTime,
     consecutiveCorrect,
     sendRoomEvent,
@@ -349,15 +348,13 @@ export default function BattlePage() {
       const winningTeam = checkWinningTeam(players as Player[])
       const winner = checkWinner(players as Player[])
       if (winningTeam || winner || isGameOver(players as Player[])) {
+        // 학생은 자기 화면만 로컬 종료한다. 방의 finished 기록은 교사 대시보드(유일한 권위자)가
+        // 담당한다(시간 종료 또는 교사의 수동 종료). 학생은 세션 제어 권한이 없다.
         setCurrentView('result')
         playSFX('item')
-        if (isRoomHost && !hasFinishedGameRef.current) {
-          hasFinishedGameRef.current = true
-          void finishGame()
-        }
       }
     }
-  }, [finishGame, isPreStartQuizComplete, isRoomHost, players, room?.status, playSFX, setCurrentView])
+  }, [isPreStartQuizComplete, players, room?.status, playSFX, setCurrentView])
 
   const handleBattleCountdownComplete = () => {
     setGameStartTime(Date.now())

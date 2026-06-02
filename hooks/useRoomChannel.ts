@@ -249,6 +249,21 @@ export function useRoomChannel({
     }
   }, [requestResync])
 
+  // 네트워크가 끊겼다 돌아오면(교실 와이파이 흔들림 등) 소켓 라이브러리의
+  // 재연결 감지를 기다리지 않고 즉시 REST 스냅샷을 다시 받아 누락된 변경을 복구한다.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const handleOnline = () => {
+      requestResync('network_online')
+    }
+
+    window.addEventListener('online', handleOnline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+    }
+  }, [requestResync])
+
   const onlineCount = presence.length
 
   return useMemo(() => ({

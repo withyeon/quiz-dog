@@ -12,6 +12,41 @@ import { extractQuestionsFromImage, isLikelyScannedPDF } from '@/lib/extractors/
 
 const VALID_SOURCE_TYPES: SourceType[] = ['topic', 'youtube', 'text', 'pdf', 'file', 'exam']
 
+// 한 번에 생성 가능한 최대 문제 수 (호출당 AI 비용 상한)
+const MAX_QUESTION_COUNT = 20
+
+// 간단한 IP 레이트리밋 (인스턴스 메모리 기준 — 서버리스에서는 인스턴스마다 별도이나
+// 단순 연타/스크립트 남용을 막는 비용 0짜리 속도 제한)
+const RATE_LIMIT_WINDOW_MS = 60_000
+const RATE_LIMIT_MAX = 10
+const rateLimitBucket = new Map<string, number[]>()
+
+function getClientIp(request: NextRequest): string {
+  const forwarded = request.headers.get('x-forwarded-for')
+  if (forwarded) return forwarded.split(',')[0].trim()
+  return request.headers.get('x-real-ip') || 'unknown'
+}
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const recent = (rateLimitBucket.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
+  recent.push(now)
+  rateLimitBucket.set(ip, recent)
+  return recent.length > RATE_LIMIT_MAX
+}
+
+// 같은 사이트(브라우저)에서 온 요청만 허용 — 외부 사이트/스크립트의 무단 호출 차단
+function isSameOriginRequest(request: NextRequest): boolean {
+  const host = request.headers.get('host') ?? ''
+  const source = request.headers.get('origin') ?? request.headers.get('referer') ?? ''
+  if (!host || !source) return false
+  try {
+    return new URL(source).host === host
+  } catch {
+    return false
+  }
+}
+
 function getFileExtension(filename: string): string {
   return filename.split('.').pop()?.toLowerCase() || ''
 }
@@ -22,9 +57,23 @@ function isImageFile(filename: string): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    // 외부 사이트/스크립트의 무단 호출 차단 (브라우저 동일 출처만 허용)
+    if (!isSameOriginRequest(request)) {
+      return NextResponse.json({ error: '허용되지 않은 요청입니다.' }, { status: 403 })
+    }
+
+    // 연타/스크립트 남용으로 인한 AI 비용 폭탄 방지
+    if (isRateLimited(getClientIp(request))) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429 },
+      )
+    }
+
     const formData = await request.formData()
     const sourceType = formData.get('sourceType') as SourceType
-    const questionCount = parseInt(formData.get('questionCount') as string) || 5
+    const requestedCount = parseInt(formData.get('questionCount') as string) || 5
+    const questionCount = Math.min(MAX_QUESTION_COUNT, Math.max(1, requestedCount))
     const subject = formData.get('subject') as string | undefined
     const grade = formData.get('grade') as string | undefined
 

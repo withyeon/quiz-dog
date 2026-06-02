@@ -42,6 +42,7 @@ export type RoomResyncReason =
   | 'subscribed'
   | 'reconnected'
   | 'tab_visible'
+  | 'network_online'
   | 'broadcast_hint'
   | 'manual'
 

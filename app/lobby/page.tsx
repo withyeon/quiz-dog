@@ -35,7 +35,6 @@ export default function LobbyPage() {
 
   const { players, refreshPlayers } = usePlayersRealtime({
     roomCode: step !== 'code' ? roomCode : '',
-    onPlayerUpdate: (player) => { console.log('Player updated:', player) },
   })
 
   const { room, refreshRoom } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })

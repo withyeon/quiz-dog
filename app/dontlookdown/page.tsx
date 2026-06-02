@@ -4,8 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
-import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useAudioContext } from '@/components/AudioProvider'
 import DontLookDownGame from '@/components/DontLookDownGame'
 import GameResult from '@/components/GameResult'
@@ -64,8 +62,6 @@ export default function DontLookDownPage() {
         handlePreStartQuizAnswer,
         checkAnswer,
         goToNextQuestion,
-        isRoomHost,
-        finishGame,
         commitPlayerPatch,
     } = useGameBase({ expectedGameMode: 'dontlookdown' })
 
@@ -162,7 +158,6 @@ export default function DontLookDownPage() {
 
         // 파워업 생성 타이머 시작 (10초마다)
         if (gameSettings.powerUpsEnabled) {
-            console.log('[DLD] Powerup system enabled, starting spawn timer')
             powerUpTimerRef.current = setInterval(() => {
                 const currentPlatforms = platformsRef.current
                 const newPowerUp = spawnPowerUp(currentPlatforms)
@@ -255,22 +250,15 @@ export default function DontLookDownPage() {
             if (elapsed >= gameSettings.duration) {
                 const leaderboard = getLeaderboard(dldPlayersRef.current)
                 if (leaderboard.length > 0) {
+                    // 학생은 자기 화면만 로컬 종료. 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당.
                     setWinner(leaderboard[0].id)
                     setCurrentView('result')
-                    if (isRoomHost && !hasFinishedGameRef.current) {
-                        hasFinishedGameRef.current = true
-                        void finishGame().then((didFinish) => {
-                            if (!didFinish) {
-                                hasFinishedGameRef.current = false
-                            }
-                        })
-                    }
                 }
             }
         }, 1000)
 
         return () => clearInterval(interval)
-    }, [currentView, finishGame, gameSettings.duration, isRoomHost, resolvedGameStartTime, setCurrentView])
+    }, [currentView, gameSettings.duration, resolvedGameStartTime, setCurrentView])
 
     // roomCode/playerId 없거나 로딩 중
     if (!roomCode || !playerId) {
