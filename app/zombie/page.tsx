@@ -42,7 +42,11 @@ export default function ZombiePage() {
     applyPlayerPatch,
     roomLoading,
     playersLoading,
-  } = useGameBase({ expectedGameMode: 'zombie', preStartQuizTotal: 0 })
+  } = useGameBase({
+    expectedGameMode: 'zombie',
+    preStartQuizTotal: 0,
+    redirectToResultPage: false,
+  })
   const [showRoleReveal, setShowRoleReveal] = useState(false)
 
   const activeRoomPlayers = useMemo(

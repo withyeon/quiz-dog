@@ -42,6 +42,8 @@ export const DEFAULT_PRE_START_QUIZ_TOTAL = 3
 interface UseGameBaseOptions {
     /** 이 게임 페이지가 어떤 게임 모드인지 (리다이렉트용) */
     expectedGameMode: string
+    /** 종료 시 공용 학생 결과 페이지로 이동할지. 기본값: true */
+    redirectToResultPage?: boolean
     /** 오답 후 대기 시간 (ms). 기본값: 2000 */
     wrongAnswerDelay?: number
     /** 퀴즈 제한 시간 (초). 기본값: 30 */
@@ -66,6 +68,7 @@ interface UseGameBaseOptions {
 export function useGameBase(options: UseGameBaseOptions) {
     const {
         expectedGameMode,
+        redirectToResultPage = true,
         wrongAnswerDelay = 2000,
         timeLimit = 30,
         preStartQuizTotal = DEFAULT_PRE_START_QUIZ_TOTAL,
@@ -150,10 +153,10 @@ export function useGameBase(options: UseGameBaseOptions) {
         setCurrentView('result')
         playBGM('result')
 
-        if (roomCode && playerId) {
+        if (redirectToResultPage && roomCode && playerId) {
             router.replace(`/student/game/${roomCode}/result?playerId=${playerId}&reason=${encodeURIComponent(reason)}`)
         }
-    }, [playBGM, playerId, roomCode, router])
+    }, [playBGM, playerId, redirectToResultPage, roomCode, router])
 
     // ─── 현재 플레이어 & 문제 ───
     const currentPlayer = players.find((p) => p.id === playerId) || null

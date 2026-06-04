@@ -17,6 +17,7 @@ import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
 import QRCodeSVG from 'react-qr-code'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
+import { getZombieMeta, roomPlayerToZombiePlayer } from '@/lib/game/zombie'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
 import {
@@ -239,6 +240,54 @@ export default function TeacherDashboard() {
     tick()
     const interval = window.setInterval(tick, 1000)
     return () => window.clearInterval(interval)
+  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
+
+  useEffect(() => {
+    if (
+      !roomCode
+      || !room
+      || room.status !== 'playing'
+      || room.game_mode !== 'zombie'
+      || autoFinishRequestedRef.current
+    ) {
+      return
+    }
+
+    const activePlayers = players.filter((player) => !player.is_kicked)
+    const hasAssignedRoles = activePlayers.length > 0
+      && activePlayers.every((player) => getZombieMeta(player))
+    if (!hasAssignedRoles) return
+
+    const zombiePlayers = activePlayers.map(roomPlayerToZombiePlayer)
+    const humans = zombiePlayers.filter((player) => player.role === 'human')
+    if (humans.length > 0) return
+
+    const finishByZombieWin = async () => {
+      if (autoFinishRequestedRef.current) return
+      autoFinishRequestedRef.current = true
+
+      try {
+        await finishRoom(roomCode)
+        const reason = 'zombie_all_humans_infected'
+        broadcastRoomPatch({ status: 'finished' }, reason)
+        void sendRoomEvent('game:finished', {
+          finishedBy: 'teacher',
+          reason,
+        })
+        try {
+          await saveGameReportSnapshot(room, players)
+        } catch (reportError) {
+          console.error('Error saving zombie game report snapshot:', reportError)
+        }
+        stopBGM()
+        router.push(`/teacher/game/${roomCode}/end`)
+      } catch (error) {
+        autoFinishRequestedRef.current = false
+        console.error('좀비 조기 종료 실패:', error)
+      }
+    }
+
+    void finishByZombieWin()
   }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
   // 게임 모드 변경 핸들러 (방이 있으면 DB도 업데이트)
