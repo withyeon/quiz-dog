@@ -4,6 +4,8 @@ import Image from 'next/image'
 import { ArrowLeft, ArrowRight, Check, EyeOff, Play, X } from 'lucide-react'
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
 import { getGameTutorial } from '@/lib/game/tutorials'
+import GoldQuestTutorialDemo from '@/components/GoldQuestTutorialDemo'
+import { GAME_DEMO_REGISTRY } from '@/components/tutorial/gameDemos'
 
 type GameStartTutorialModalProps = {
   gameMode: GameModeId
@@ -40,6 +42,99 @@ export default function GameStartTutorialModal({
 
   const goToStep = (nextStep: number) => {
     onStepChange?.(Math.min(Math.max(nextStep, 0), tutorial.slides.length - 1))
+  }
+
+  // 전체화면 + 자동 재생 플레이 영상 데모 (게임별)
+  const DemoComponent = gameMode === 'gold_quest' ? GoldQuestTutorialDemo : GAME_DEMO_REGISTRY[gameMode]
+  if (DemoComponent) {
+    return (
+      <div className="fixed inset-0 z-[60] flex flex-col bg-[#071821] text-white">
+        {/* 헤더 */}
+        <div className="flex items-center justify-between gap-4 border-b border-white/10 px-5 py-4 sm:px-8">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="relative flex h-14 w-20 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/5 ring-1 ring-white/10">
+              {mode.image ? (
+                <Image src={mode.image} alt={mode.label} fill className="object-contain p-1.5" sizes="80px" />
+              ) : (
+                <span className="text-3xl">{mode.emoji}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-black tracking-wide text-amber-400 sm:text-sm">
+                {isTeacher ? '게임 시작 전 — 이렇게 플레이해요' : '선생님이 플레이 방법을 보여주는 중'}
+              </p>
+              <h2 className="mt-0.5 truncate text-2xl font-black tracking-normal text-white sm:text-3xl">
+                {tutorial.title}
+              </h2>
+              <p className="hidden text-sm font-bold text-white/60 sm:block">{tutorial.subtitle}</p>
+            </div>
+          </div>
+          {isTeacher && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white/60 transition hover:bg-white/10 hover:text-white"
+              aria-label="튜토리얼 닫기"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+
+        {/* 본문: 좌측 플레이 영상 / 우측 규칙 요약 */}
+        <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5 sm:p-8 lg:flex-row lg:overflow-hidden">
+          <div className="relative min-h-[560px] flex-1 lg:min-h-0">
+            <DemoComponent />
+          </div>
+
+          <div className="flex w-full flex-col gap-3 lg:w-[320px] lg:shrink-0 lg:overflow-y-auto">
+            <p className="text-sm font-black text-amber-400">핵심 규칙</p>
+            {tutorial.slides.map((item, index) => (
+              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400 text-sm font-black text-[#17262a]">
+                    {index + 1}
+                  </span>
+                  <h3 className="text-base font-black text-white">{item.title}</h3>
+                </div>
+                <p className="mt-2 text-sm font-bold leading-6 text-white/70">{item.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* 푸터 컨트롤 */}
+        <div className="flex flex-col gap-4 border-t border-white/10 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
+          {isTeacher ? (
+            <label className="flex cursor-pointer items-center gap-3 text-sm font-bold text-white/70">
+              <input
+                type="checkbox"
+                checked={hideNextTime}
+                onChange={(event) => onHideNextTimeChange?.(event.target.checked)}
+                className="h-4 w-4 rounded border-white/30 bg-transparent text-amber-400 focus:ring-amber-400"
+              />
+              앞으로 이 게임은 튜토리얼 안보기
+            </label>
+          ) : (
+            <div className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm font-black text-white/70">
+              <EyeOff className="h-4 w-4" />
+              선생님이 시작할 때까지 기다려주세요
+            </div>
+          )}
+
+          {isTeacher && (
+            <button
+              type="button"
+              onClick={onStart}
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 text-base font-black text-[#17262a] shadow-lg shadow-amber-500/20 transition hover:bg-amber-300"
+            >
+              <Play className="h-5 w-5" fill="currentColor" />
+              게임 시작
+            </button>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (
