@@ -27,7 +27,7 @@ type PlayerPatch = Partial<PlayerRow> & Record<string, unknown>
 
 type MafiaRuntime = {
   isCheating?: boolean
-  cheatEndTime?: number
+  cheatPendingVault?: boolean
   multipliers?: MultiplierType[]
 }
 
@@ -62,7 +62,7 @@ function parseRuntime(value: Json | null | undefined): MafiaRuntime {
   const raw = source as Record<string, unknown>
   return {
     isCheating: raw.isCheating === true,
-    cheatEndTime: typeof raw.cheatEndTime === 'number' ? raw.cheatEndTime : undefined,
+    cheatPendingVault: raw.cheatPendingVault === true,
     multipliers: Array.isArray(raw.multipliers)
       ? raw.multipliers.filter((item): item is MultiplierType => item === 1.5 || item === 2)
       : [],
@@ -78,8 +78,9 @@ function toMafiaPlayer(player: PlayerRow): MafiaPlayer {
     cash: player.mafia_cash ?? player.score ?? 0,
     diamonds: player.mafia_diamonds ?? 0,
     status: 'active',
-    isCheating: Boolean(runtime.isCheating && runtime.cheatEndTime && runtime.cheatEndTime > Date.now()),
-    cheatEndTime: runtime.cheatEndTime,
+    // 라운드 기반 수상함: 시간 만료 없이 플래그가 그대로 유지된다.
+    isCheating: runtime.isCheating === true,
+    cheatPendingVault: runtime.cheatPendingVault === true,
     multipliers: runtime.multipliers ?? [],
   }
 }
@@ -94,7 +95,7 @@ function createPatch(player: MafiaPlayer): PlayerPatch {
     active_item: {
       mafia: {
         isCheating: player.isCheating,
-        cheatEndTime: player.cheatEndTime,
+        cheatPendingVault: player.cheatPendingVault ?? false,
         multipliers: player.multipliers,
       },
     },
@@ -164,15 +165,6 @@ export default function MafiaView({
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [gameLog])
 
-  useEffect(() => {
-    if (!player?.isCheating || !player.cheatEndTime) return
-    const delay = Math.max(0, player.cheatEndTime - Date.now())
-    const timer = window.setTimeout(() => {
-      void commitPlayerPatch(player.id, createPatch({ ...player, isCheating: false, cheatEndTime: undefined }), 'mafia_cheat_expired')
-    }, delay + 150)
-    return () => window.clearTimeout(timer)
-  }, [commitPlayerPatch, player])
-
   const goToQuiz = useCallback(() => {
     setCurrentView('quiz')
     setCurrentVaults([])
@@ -209,6 +201,14 @@ export default function MafiaView({
     const vault = currentVaults.find((v) => v.id === vaultId)
     if (!vault) return
     const result = openSafeVault(vault, player)
+    // 라운드 기반 수상함 처리:
+    // - 방금 몰래본 그 라운드의 금고 열기(cheatPendingVault)는 수상함을 해제하지 않는다.
+    // - 그 외(이전 라운드에 몰래보고 이번 라운드에 다시 금고를 여는 경우)는 '다음 행동'이므로 해제한다.
+    if (result.newPlayer.cheatPendingVault) {
+      result.newPlayer.cheatPendingVault = false
+    } else if (result.newPlayer.isCheating) {
+      result.newPlayer.isCheating = false
+    }
     setSelectedVaultResult({ vault, log: result.log })
     setCurrentView('vaultResult')
     await commitPlayerPatch(player.id, createPatch(result.newPlayer), 'mafia_vault_opened')
@@ -243,8 +243,10 @@ export default function MafiaView({
     window.setTimeout(async () => {
       const result = attemptInvestigate(player, target, Date.now())
       setInvestigationResult(result.result)
+      // 친구 조사는 본인의 '다음 라운드 행동'이므로, 조사하는 순간 본인의 수상함은 해제된다.
+      const clearedInvestigator = { ...result.newInvestigator, isCheating: false, cheatPendingVault: false }
       await Promise.all([
-        commitPlayerPatch(player.id, createPatch(result.newInvestigator), 'mafia_investigator_reward'),
+        commitPlayerPatch(player.id, createPatch(clearedInvestigator), 'mafia_investigator_reward'),
         commitPlayerPatch(target.id, createPatch(result.newTarget), 'mafia_target_investigated'),
       ])
       broadcastLog(result.log, result.success ? 'danger' : 'info')
@@ -308,7 +310,7 @@ export default function MafiaView({
         <AnimatePresence mode="wait">
           {currentView === 'quiz' && currentQuestion && (
             <motion.div key="quiz" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-4xl">
-              <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} onCorrectClick={() => setCurrentView('actionSelect')} timeLimit={30} />
+              <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} onCorrectClick={() => setCurrentView('actionSelect')} timeLimit={30} variant="glass" />
             </motion.div>
           )}
 

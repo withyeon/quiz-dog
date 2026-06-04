@@ -9,8 +9,9 @@ export interface Player {
   cash: number
   diamonds: number
   status: 'active' | 'jailed' | 'investigating'
-  isCheating: boolean // 치팅 중인지
-  cheatEndTime?: number // 치팅 종료 시간
+  isCheating: boolean // 수상함(몰래보기) 상태 — 조사로 발각될 수 있음
+  cheatEndTime?: number // (구) 치팅 시간 만료. 멀티플레이에서는 사용하지 않음(라운드 기반)
+  cheatPendingVault?: boolean // 몰래본 직후 같은 라운드의 금고 열기는 수상함을 해제하지 않음
   multipliers: MultiplierType[] // 보유한 배수들 (스택 가능)
 }
 
@@ -215,18 +216,20 @@ export function openSafeVault(
   return { newPlayer, log }
 }
 
-// Cheat 버튼 사용 (모든 금고 내용 보기)
+// 금고 몰래보기 (모든 금고 내용 보기)
+// 라운드 기반: 시간으로 만료되지 않는다. 몰래본 순간부터 '수상함'이 되고,
+// (1) 누군가 친구조사로 발각하거나 (2) 본인이 다음 라운드에 다시 행동(금고 열기/친구 조사)할 때까지 유지된다.
+// cheatPendingVault: 몰래본 직후 같은 라운드에서 여는 금고는 수상함을 해제하지 않도록 표시.
 export function applyCheat(
   vaults: SafeVault[],
   player: Player,
-  currentTime: number
+  _currentTime: number
 ): { newPlayer: Player; log: string; vaultContents: SafeVault[] } {
-  // 치팅 시작 (5초간 지속)
-  const cheatDuration = 5000
   const newPlayer = {
     ...player,
     isCheating: true,
-    cheatEndTime: currentTime + cheatDuration,
+    cheatPendingVault: true,
+    cheatEndTime: undefined,
   }
 
   // 모든 금고 내용 반환
@@ -234,7 +237,7 @@ export function applyCheat(
 
   return {
     newPlayer,
-    log: `${player.name}가 치팅을 시작했습니다... (5초간 지속)`,
+    log: `${player.name}가 금고를 몰래 들여다봅니다...`,
     vaultContents,
   }
 }
@@ -291,7 +294,7 @@ export function calculateLaunderedCash(player: Player): number {
 export function attemptInvestigate(
   investigator: Player,
   target: Player,
-  currentTime: number
+  _currentTime: number
 ): {
   success: boolean
   newInvestigator: Player
@@ -310,9 +313,9 @@ export function attemptInvestigate(
     }
   }
 
-  // 치팅 중이면 검거 성공
-  if (target.isCheating && target.cheatEndTime && currentTime < target.cheatEndTime) {
-    // 치팅 중인 플레이어의 자금 일부 획득 (30%)
+  // 수상함(몰래보기) 상태면 발각 성공 — 라운드 기반이라 시간 만료 없이 유지된다.
+  if (target.isCheating) {
+    // 발각된 플레이어의 자금 일부 환수 (30%)
     const recovered = Math.floor(target.cash * 0.3)
     const newInvestigator = {
       ...investigator,
@@ -322,6 +325,7 @@ export function attemptInvestigate(
       ...target,
       cash: Math.max(0, target.cash - recovered),
       isCheating: false,
+      cheatPendingVault: false,
       cheatEndTime: undefined,
     }
 
@@ -329,7 +333,7 @@ export function attemptInvestigate(
       success: true,
       newInvestigator,
       newTarget,
-      log: `🚨 CHEATER! ${target.name}가 치팅 중이었습니다! ${investigator.name}는 $${recovered}를 획득했습니다.`,
+      log: `🚨 CHEATER! ${target.name}가 금고를 몰래봤습니다! ${investigator.name}가 $${recovered}를 환수했습니다.`,
       result: 'CHEATER',
       recovered,
     }

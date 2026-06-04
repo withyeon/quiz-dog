@@ -557,7 +557,8 @@ export default function PuppyChaosPage() {
                 onAnswer={handleAnswer}
                 timeLimit={30}
                 paused={isPaused}
-                className="font-bitbit rounded-[24px] bg-white p-0 shadow-none"
+                variant="glass"
+                className="lg-panel lg-ink-outline font-bitbit p-6 sm:p-8"
               />
             </motion.section>
           )}

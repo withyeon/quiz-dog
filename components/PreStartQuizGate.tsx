@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import type { Question } from '@/hooks/useGameBase'
 
-type QuizVariant = 'default' | 'goldQuest' | 'battle' | 'fishing'
+type QuizVariant = 'default' | 'goldQuest' | 'battle' | 'fishing' | 'glass'
 
 interface PreStartQuizGateProps {
   question: Question | null
@@ -25,7 +25,6 @@ export default function PreStartQuizGate({
   onAnswer,
   questionsLoading = false,
   questionsError = null,
-  variant = 'default',
   title = '시작 전 퀴즈',
 }: PreStartQuizGateProps) {
   const progress = Math.min(submittedCount, total)
@@ -66,8 +65,8 @@ export default function PreStartQuizGate({
             question={question}
             onAnswer={onAnswer}
             timeLimit={30}
-            variant={variant}
-            className="rounded-lg border border-slate-200 bg-white p-6 shadow-2xl"
+            variant="glass"
+            className="lg-panel lg-ink-outline font-bitbit p-6 sm:p-8"
           />
         ) : (
           <div className="rounded-lg border border-slate-200 bg-white p-8 text-center shadow-2xl">

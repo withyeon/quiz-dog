@@ -1058,6 +1058,7 @@ export default function DontLookDownGame({
                                 question={currentQuestion}
                                 onAnswer={handleAnswer}
                                 timeLimit={30}
+                                variant="glass"
                             />
                         </motion.div>
                     </motion.div>

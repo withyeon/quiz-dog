@@ -20,7 +20,7 @@ interface QuizViewProps {
   timeLimit?: number
   onCorrectClick?: () => void // 정답 확인 후 클릭 시 호출
   className?: string // 외부에서 스타일 오버라이드 가능
-  variant?: 'default' | 'goldQuest' | 'battle' | 'fishing'
+  variant?: 'default' | 'goldQuest' | 'battle' | 'fishing' | 'glass'
   paused?: boolean
 }
 
@@ -37,6 +37,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
   const isGoldQuest = variant === 'goldQuest'
   const isBattle = variant === 'battle'
   const isFishing = variant === 'fishing'
+  const isGlass = variant === 'glass'
 
   const handleAnswerSelect = useCallback(async (answer: string) => {
     if (paused || submittedAnswer || isSubmitting) return
@@ -111,27 +112,31 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         ? "gold-quest-panel font-bitbit p-5 sm:p-7 max-w-3xl mx-auto"
         : isBattle
           ? "battle-frost-panel font-bitbit p-5 sm:p-7 max-w-3xl mx-auto"
+        : isGlass
+          ? "lg-panel lg-ink-outline font-bitbit p-6 sm:p-8 max-w-2xl mx-auto"
         : "font-bitbit bg-white rounded-xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-gray-200")}
     >
       <div className="mb-6">
         {timeLimit && (
-          <div className={`flex justify-between items-center mb-4 rounded-lg p-3 ${
+          <div className={`flex justify-between items-center mb-4 p-3 ${
             isGoldQuest
-              ? 'border border-teal-900/10 bg-[#0c3b42] text-white shadow-lg shadow-teal-950/10'
+              ? 'rounded-lg border border-teal-900/10 bg-[#0c3b42] text-white shadow-lg shadow-teal-950/10'
               : isBattle
-                ? 'border border-slate-200/70 bg-[#13202b] text-white shadow-lg shadow-slate-900/10'
+                ? 'rounded-lg border border-slate-200/70 bg-[#13202b] text-white shadow-lg shadow-slate-900/10'
               : isFishing
-                ? 'border border-pink-200 bg-pink-100 text-pink-900'
-              : 'bg-blue-600 text-white'
+                ? 'rounded-lg border border-pink-200 bg-pink-100 text-pink-900'
+              : isGlass
+                ? 'lg-chip px-5 text-white'
+              : 'rounded-lg bg-blue-600 text-white'
           }`}>
             <div className="text-sm font-semibold">남은 시간</div>
             <div className={`text-3xl font-black tabular-nums ${
-              isGoldQuest ? 'text-amber-200' : isBattle ? 'text-cyan-100' : isFishing ? 'text-pink-700' : ''
+              isGoldQuest ? 'text-amber-200' : isBattle ? 'text-cyan-100' : isFishing ? 'text-pink-700' : isGlass ? 'text-white drop-shadow' : ''
             }`}>{timeLeft}초</div>
           </div>
         )}
         <h2 className={`gold-quest-title text-2xl sm:text-3xl font-black leading-tight mb-4 ${
-          isGoldQuest ? 'text-[#17262a]' : isBattle ? 'text-[#13202b]' : 'text-gray-900'
+          isGoldQuest ? 'text-[#17262a]' : isBattle ? 'text-[#13202b]' : isGlass ? 'lg-question-title' : 'text-gray-900'
         }`}>
           {displayBlankText(question.question_text)}
         </h2>
@@ -153,12 +158,14 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               }}
               disabled={paused || !!submittedAnswer || isSubmitting}
               placeholder="답을 입력하세요"
-              className={`w-full px-6 py-4 text-lg border rounded-lg bg-white/90 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                isGoldQuest
-                  ? 'border-amber-300/70 focus:ring-2 focus:ring-amber-400 focus:border-transparent'
+              className={`w-full px-6 py-4 text-lg disabled:cursor-not-allowed ${
+                isGlass
+                  ? 'lg-input text-white disabled:opacity-60'
+                  : isGoldQuest
+                  ? 'border rounded-lg bg-white/90 disabled:bg-gray-100 border-amber-300/70 focus:ring-2 focus:ring-amber-400 focus:border-transparent'
                   : isBattle
-                    ? 'border-slate-200 focus:ring-2 focus:ring-teal-400 focus:border-transparent'
-                  : 'border-2 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                    ? 'border rounded-lg bg-white/90 disabled:bg-gray-100 border-slate-200 focus:ring-2 focus:ring-teal-400 focus:border-transparent'
+                  : 'border-2 rounded-lg bg-white/90 disabled:bg-gray-100 border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
               }`}
               autoFocus
             />
@@ -168,8 +175,8 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               disabled={paused || !inputValue.trim() || !!submittedAnswer || isSubmitting}
               whileHover={!paused && inputValue.trim() && !submittedAnswer ? { scale: 1.02 } : {}}
               whileTap={!paused && inputValue.trim() && !submittedAnswer ? { scale: 0.98 } : {}}
-              className={`w-full text-white py-4 px-6 rounded-lg transition-colors font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-                isGoldQuest ? 'bg-[#b7791f] hover:bg-[#9a6219]' : isBattle ? 'bg-[#13202b] hover:bg-[#223848]' : 'bg-blue-600 hover:bg-blue-700'
+              className={`w-full py-4 px-6 transition-colors font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                isGlass ? 'lg-button text-white drop-shadow' : `text-white rounded-lg shadow-lg ${isGoldQuest ? 'bg-[#b7791f] hover:bg-[#9a6219]' : isBattle ? 'bg-[#13202b] hover:bg-[#223848]' : 'bg-blue-600 hover:bg-blue-700'}`
               }`}
             >
               제출
@@ -180,14 +187,16 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         {/* 빈칸 채우기 문제 */}
         {question.type === 'BLANK' && (
           <div className="space-y-4">
-            <div className={`p-6 rounded-lg border ${
-              isGoldQuest
-                ? 'border-amber-300/70 bg-amber-50/80'
+            <div className={`p-6 ${
+              isGlass
+                ? 'lg-chip rounded-3xl'
+                : isGoldQuest
+                ? 'rounded-lg border border-amber-300/70 bg-amber-50/80'
                 : isBattle
-                  ? 'border-slate-200 bg-white/[0.72]'
-                : 'bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200'
+                  ? 'rounded-lg border border-slate-200 bg-white/[0.72]'
+                : 'rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200'
             }`}>
-              <p className="text-xl text-gray-800 whitespace-pre-wrap leading-relaxed">
+              <p className={`text-xl whitespace-pre-wrap leading-relaxed ${isGlass ? 'text-white' : 'text-gray-800'}`}>
                 {splitBlankText(question.question_text).map((part, i, arr) => (
                   <span key={i}>
                     {part}
@@ -230,8 +239,8 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               disabled={paused || !inputValue.trim() || !!submittedAnswer || isSubmitting}
               whileHover={!paused && inputValue.trim() && !submittedAnswer ? { scale: 1.02 } : {}}
               whileTap={!paused && inputValue.trim() && !submittedAnswer ? { scale: 0.98 } : {}}
-              className={`w-full text-white py-4 px-6 rounded-lg transition-colors font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${
-                isGoldQuest ? 'bg-[#b7791f] hover:bg-[#9a6219]' : isBattle ? 'bg-[#13202b] hover:bg-[#223848]' : 'bg-blue-600 hover:bg-blue-700'
+              className={`w-full py-4 px-6 transition-colors font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed ${
+                isGlass ? 'lg-button text-white drop-shadow' : `text-white rounded-lg shadow-lg ${isGoldQuest ? 'bg-[#b7791f] hover:bg-[#9a6219]' : isBattle ? 'bg-[#13202b] hover:bg-[#223848]' : 'bg-blue-600 hover:bg-blue-700'}`
               }`}
             >
               제출
@@ -253,7 +262,15 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               disabled={paused || submittedAnswer !== '' || isSubmitting}
               whileHover={!paused && submittedAnswer === '' ? { scale: 1.02, x: 5 } : {}}
               whileTap={!paused && submittedAnswer === '' ? { scale: 0.98 } : {}}
-              className={`w-full text-left p-5 sm:p-6 rounded-lg border transition-all ${submittedAnswer === ''
+              className={isGlass
+                ? `w-full text-left px-6 py-5 transition-all lg-option ${submittedAnswer === ''
+                  ? 'lg-option-idle cursor-pointer'
+                  : isSelected && !hasResolved
+                    ? 'lg-option-active'
+                  : isSelected
+                    ? (isCorrect ? 'lg-option-correct' : 'lg-option-wrong')
+                  : 'lg-option-dim'}`
+                : `w-full text-left p-5 sm:p-6 rounded-lg border transition-all ${submittedAnswer === ''
                 ? isGoldQuest
                   ? 'border-[#d7bd78]/80 bg-white/[0.78] hover:border-[#b7791f] hover:bg-[#fff5dc] cursor-pointer shadow-md hover:shadow-xl'
                   : isBattle
@@ -278,7 +295,9 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
             >
               <div className="flex items-center gap-4">
                 <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${submittedAnswer === ''
+                  className={isGlass
+                    ? 'w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg shrink-0 bg-white/25 text-white border border-white/40 shadow-inner backdrop-blur-sm'
+                    : `w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg ${submittedAnswer === ''
                     ? isGoldQuest
                       ? 'bg-[#0c3b42] text-amber-100'
                       : isBattle
@@ -299,7 +318,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                 >
                   {getOptionLabel(index)}
                 </div>
-                <span className={`text-lg font-medium flex-1 ${isBattle ? 'text-slate-800' : 'text-gray-800'}`}>{option}</span>
+                <span className={`text-lg font-medium flex-1 ${isGlass ? 'text-white drop-shadow' : isBattle ? 'text-slate-800' : 'text-gray-800'}`}>{option}</span>
                 {showResult && isSelected && (
                   isCorrect ? (
                     <CheckCircle2 className="h-7 w-7 text-green-600" />
@@ -318,17 +337,21 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           onClick={answerResult && onCorrectClick ? onCorrectClick : undefined}
-          className={`mt-6 p-5 rounded-lg text-center font-bold text-xl sm:text-2xl shadow-2xl ${answerResult
-            ? isGoldQuest
-              ? 'bg-[#0c6b4f] text-white border border-emerald-200 cursor-pointer hover:bg-[#0b5d46] transition-colors'
+          className={`mt-6 p-5 text-center font-bold text-xl sm:text-2xl ${answerResult
+            ? isGlass
+              ? 'lg-banner-correct text-white drop-shadow cursor-pointer transition-transform hover:scale-[1.02]'
+              : isGoldQuest
+              ? 'rounded-lg shadow-2xl bg-[#0c6b4f] text-white border border-emerald-200 cursor-pointer hover:bg-[#0b5d46] transition-colors'
               : isBattle
-                ? 'bg-[#0f766e] text-white border border-teal-200 cursor-pointer hover:bg-[#115e59] transition-colors'
-              : 'bg-green-600 text-white border-2 border-green-300 cursor-pointer hover:bg-green-500 transition-colors'
-            : isGoldQuest
-              ? 'bg-[#a83d34] text-white border border-red-200'
+                ? 'rounded-lg shadow-2xl bg-[#0f766e] text-white border border-teal-200 cursor-pointer hover:bg-[#115e59] transition-colors'
+              : 'rounded-lg shadow-2xl bg-green-600 text-white border-2 border-green-300 cursor-pointer hover:bg-green-500 transition-colors'
+            : isGlass
+              ? 'lg-banner-wrong text-white drop-shadow'
+              : isGoldQuest
+              ? 'rounded-lg shadow-2xl bg-[#a83d34] text-white border border-red-200'
               : isBattle
-                ? 'bg-[#be3f45] text-white border border-red-200'
-              : 'bg-red-600 text-white border-2 border-red-300'
+                ? 'rounded-lg shadow-2xl bg-[#be3f45] text-white border border-red-200'
+              : 'rounded-lg shadow-2xl bg-red-600 text-white border-2 border-red-300'
             }`}
         >
           {answerResult ? (

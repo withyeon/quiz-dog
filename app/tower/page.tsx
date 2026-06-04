@@ -534,7 +534,7 @@ export default function TowerPage() {
                                 onCorrectClick={returnToPlaying}
                                 timeLimit={30}
                                 paused={isPaused}
-                                variant="default"
+                                variant="glass"
                             />
                         </motion.div>
                     )}

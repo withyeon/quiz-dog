@@ -554,7 +554,8 @@ export default function FactoryPage() {
                   onCorrectClick={goToNextQuiz}
                   timeLimit={30}
                   paused={isPaused}
-                  className="bg-white rounded-xl shadow-2xl p-5 w-full border-2 border-gray-200 sm:p-8"
+                  variant="glass"
+                  className="lg-panel lg-ink-outline font-bitbit w-full p-5 sm:p-8"
                 />
               </div>
 

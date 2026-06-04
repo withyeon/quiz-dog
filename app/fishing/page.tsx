@@ -244,8 +244,8 @@ export default function FishingPage() {
                   timeLimit={30}
                   onCorrectClick={handleOpenClaw}
                   paused={isPaused}
-                  variant="fishing"
-                  className="mx-auto max-w-3xl rounded-xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60"
+                  variant="glass"
+                  className="lg-panel lg-ink-outline font-bitbit mx-auto max-w-3xl p-6 sm:p-8"
                 />
 
                 {/* 콤보 배지 */}

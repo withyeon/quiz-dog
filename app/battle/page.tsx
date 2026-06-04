@@ -935,8 +935,8 @@ export default function BattlePage() {
                         onCorrectClick={goToNextQuiz}
                         timeLimit={30}
                         paused={isPaused}
-                        variant="battle"
-                        className="battle-frost-panel mx-auto p-5"
+                        variant="glass"
+                        className="lg-panel lg-ink-outline font-bitbit mx-auto p-5 sm:p-7"
                       />
                     </div>
                   )}
@@ -1009,8 +1009,8 @@ export default function BattlePage() {
                     onCorrectClick={goToNextQuiz}
                     timeLimit={30}
                     paused={isPaused}
-                    variant="battle"
-                    className="battle-frost-panel mx-auto max-w-3xl p-5 sm:p-7"
+                    variant="glass"
+                    className="lg-panel lg-ink-outline font-bitbit mx-auto max-w-3xl p-5 sm:p-7"
                   />
                 ) : (
                   <div className="battle-frost-panel p-8 text-center">

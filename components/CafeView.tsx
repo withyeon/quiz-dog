@@ -705,6 +705,7 @@ export default function CafeView({
                   onCorrectClick={() => undefined}
                   timeLimit={30}
                   paused={paused}
+                  variant="glass"
                 />
               )}
             </div>

@@ -55,19 +55,22 @@ function StudentResultContent({ gameId }: { gameId: string }) {
   }, [gameId])
 
   useEffect(() => {
-    if (liveRoom?.status !== 'playing' || !playerId) return
-    // 제한 시간이 이미 지난 게임이면 결과 화면을 유지한다. 학생은 로컬에서 시간 종료로
-    // 넘어왔고 교사의 finished 기록이 약간 늦을 수 있는데, 여기서 되돌리면 결과↔게임
-    // 무한 루프가 생긴다. (교사가 새 게임을 시작한 경우엔 started_at이 갱신돼 통과)
-    if (liveRoom.started_at && liveRoom.duration_seconds) {
-      const elapsed = (Date.now() - new Date(liveRoom.started_at).getTime()) / 1000
-      if (elapsed >= Number(liveRoom.duration_seconds)) return
-    }
+    if (liveRoom?.status !== 'playing' || !playerId || !liveRoom.started_at) return
+    // 이 결과 화면이 보여주는 '종료된 세션'의 시작 시각.
+    const endedStartedAt = room?.started_at
+    // 종료 세션 정보가 아직 로드되지 않았으면 되돌리지 않는다(섣부른 재입장 방지).
+    if (!endedStartedAt) return
+    // 같은 세션(시간 종료 직후, 교사의 finished 기록이 약간 늦는 경우)에서는 절대 게임으로
+    // 되돌리지 않는다. 예전에는 elapsed(경과시간)로 판단했는데, 학생 기기 시계가 조금만
+    // 느려도 elapsed < duration이 되어 일부 학생만 게임으로 끌려가 '게임에 머무르는' 문제가
+    // 있었다. started_at(세션 식별자) 비교는 시계 오차와 무관하다.
+    if (liveRoom.started_at === endedStartedAt) return
+    // started_at이 바뀐 경우 = 교사가 새 게임을 시작 → 새 세션으로 재입장한다.
     if (typeof window !== 'undefined') {
       window.sessionStorage.removeItem(`quiz_index_${gameId}`)
     }
     router.replace(getGameModeUrl(liveRoom.game_mode || DEFAULT_GAME_MODE, gameId, playerId))
-  }, [gameId, liveRoom?.game_mode, liveRoom?.status, liveRoom?.started_at, liveRoom?.duration_seconds, playerId, router])
+  }, [gameId, liveRoom?.game_mode, liveRoom?.status, liveRoom?.started_at, playerId, room?.started_at, router])
 
   if (loading) {
     return (

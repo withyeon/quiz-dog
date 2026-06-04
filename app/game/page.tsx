@@ -570,7 +570,7 @@ export default function GamePage() {
               onCorrectClick={goToChestView}
               timeLimit={30}
               paused={isPaused}
-              variant="goldQuest"
+              variant="glass"
             />
           )}
 

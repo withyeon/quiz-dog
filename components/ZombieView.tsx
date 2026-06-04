@@ -285,6 +285,7 @@ export default function ZombieView({
                   onCorrectClick={() => setCurrentView('actionSelect')}
                   timeLimit={GAME_CONSTANTS.ROUND_DURATION}
                   paused={isPaused}
+                  variant="glass"
                 />
               ) : (
                 <div className="rounded-2xl bg-black/80 p-8 text-center text-2xl font-black text-white">
