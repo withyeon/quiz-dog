@@ -9,9 +9,30 @@ const notoSansKR = Noto_Sans_KR({
   variable: '--font-noto-sans-kr',
 })
 
+// 배포 도메인. 실제 도메인으로 NEXT_PUBLIC_SITE_URL 환경변수를 설정하면 OG 이미지가 절대경로로 노출됩니다.
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizdog.app'
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: '퀴즈독 - 강아지와 함께하는 재미있는 퀴즈 게임',
   description: '강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요 🐕',
+  icons: {
+    icon: '/icon.svg',
+  },
+  openGraph: {
+    type: 'website',
+    siteName: '퀴즈독',
+    title: '퀴즈독 - 강아지와 함께하는 재미있는 퀴즈 게임',
+    description: '강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요 🐕',
+    images: [{ url: '/og-image.png', width: 1200, height: 630, alt: '퀴즈독' }],
+    locale: 'ko_KR',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '퀴즈독 - 강아지와 함께하는 재미있는 퀴즈 게임',
+    description: '강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요 🐕',
+    images: ['/og-image.png'],
+  },
 }
 
 export default function RootLayout({

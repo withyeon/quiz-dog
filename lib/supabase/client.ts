@@ -13,7 +13,7 @@ const getSupabasePublicKey = () =>
 const supabaseUrl = getSupabaseUrl()
 const supabasePublicKey = getSupabasePublicKey()
 
-// 환경 변수 확인 및 디버깅
+// 환경 변수 누락 시에만 에러 출력
 if (typeof window !== 'undefined') {
   if (!supabaseUrl || !supabasePublicKey) {
     console.error('❌ Supabase 환경 변수 누락:', {
@@ -21,11 +21,6 @@ if (typeof window !== 'undefined') {
       hasKey: !!supabasePublicKey,
       url: supabaseUrl ? `${supabaseUrl.substring(0, 20)}...` : 'undefined',
       allEnvKeys: Object.keys(process.env).filter(key => key.includes('SUPABASE')),
-    })
-  } else {
-    console.log('✅ Supabase 환경 변수 로드 성공:', {
-      url: supabaseUrl.substring(0, 30) + '...',
-      keyLength: supabasePublicKey.length,
     })
   }
 }
@@ -156,7 +151,6 @@ export async function testSupabaseConnection(): Promise<{ success: boolean; erro
       }
     }
 
-    console.log('✅ Supabase 연결 테스트 성공')
     return { success: true }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류'
