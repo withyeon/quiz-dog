@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { getBusinessInfoLines } from '@/lib/legal/company'
 
 export default function Footer() {
+  const businessInfo = getBusinessInfoLines()
   return (
     <footer className="bg-transparent text-[#1e3a8a]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -69,8 +71,17 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-8 pt-8 border-t border-[#1e3a8a]/20 text-center text-sm text-[#1e3a8a]/70">
-          <p>&copy; 2026 퀴즈독. All rights reserved.</p>
+        {/* 사업자 정보 */}
+        <div className="mt-8 pt-8 border-t border-[#1e3a8a]/20 text-xs text-[#1e3a8a]/70 leading-6">
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            {businessInfo.map((line) => (
+              <span key={line.label}>
+                <span className="text-[#1e3a8a]/50">{line.label}</span>{' '}
+                {line.value}
+              </span>
+            ))}
+          </div>
+          <p className="mt-3">&copy; 2026 퀴즈독(위드현 에듀테크). All rights reserved.</p>
         </div>
       </div>
     </footer>

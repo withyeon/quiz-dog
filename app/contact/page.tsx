@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import { COMPANY } from '@/lib/legal/company'
 
 export const metadata: Metadata = {
   title: '문의하기 - 퀴즈독',
@@ -20,11 +21,21 @@ export default function ContactPage() {
         <div className="rounded-2xl border border-gray-200 bg-gray-50 p-8 space-y-5">
           <div>
             <h2 className="text-sm font-semibold text-gray-500 mb-1">운영자</h2>
-            <p className="text-lg text-gray-900 font-medium">위드현 에듀테크</p>
+            <p className="text-lg text-gray-900 font-medium">{COMPANY.name}</p>
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-gray-500 mb-1">연락처</h2>
-            <p className="text-lg text-[#1e3a8a] font-medium">010-3461-6744</p>
+            <h2 className="text-sm font-semibold text-gray-500 mb-1">이메일</h2>
+            <a href={`mailto:${COMPANY.email}`} className="text-lg text-[#1e3a8a] font-medium underline">
+              {COMPANY.email}
+            </a>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-500 mb-1">전화</h2>
+            <p className="text-lg text-[#1e3a8a] font-medium">{COMPANY.phone}</p>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-gray-500 mb-1">주소</h2>
+            <p className="text-gray-700">{COMPANY.address}</p>
           </div>
           <div>
             <h2 className="text-sm font-semibold text-gray-500 mb-1">운영 시간</h2>
@@ -35,6 +46,7 @@ export default function ContactPage() {
             <ul className="list-disc pl-5 text-gray-700 space-y-1">
               <li>서비스 이용 및 기능 문의</li>
               <li>오류·장애 신고</li>
+              <li>유료 결제·환불 문의</li>
               <li>개인정보 관련 요청(열람·정정·삭제)</li>
               <li>제휴 및 기타 제안</li>
             </ul>
