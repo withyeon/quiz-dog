@@ -73,9 +73,9 @@ function BattleRoyaleDemo() {
       metric={risingMetric({ emoji: '❄️', base: 0, gain: 1, suffix: '명중' })}
       phases={buildPhases([
         '퀴즈를 맞혀요',
-        '정답! 눈덩이를 손에 넣었어요',
-        '상대를 조준해 눈덩이를 던져요',
-        '명중! 상대 체력이 깎여요',
+        '정답! 눈뭉치를 장전했어요',
+        '상대팀(청팀)을 조준해 던져요',
+        '명중! 상대팀 체온이 깎여요',
       ])}
     >
       {({ phase }) =>
@@ -88,19 +88,27 @@ function BattleRoyaleDemo() {
           />
         ) : (
           <Scene>
-            <div className="rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit flex items-center justify-between gap-3 p-5">
-              <Fighter name={PLAYER_NAME} img={PLAYER_IMAGE} hp={100} />
-              <motion.div
-                className="text-4xl"
-                initial={{ x: -40, opacity: 0 }}
-                animate={isResult(phase) ? { x: 60, opacity: [1, 1, 0] } : { x: -40, opacity: 1 }}
-                transition={{ duration: 0.7 }}
-              >
-                ❄️
-              </motion.div>
-              <Fighter name="시골이" img="/assets/icons/mascot_sigol-64.png" hp={isResult(phase) ? 65 : 100} hit={isResult(phase)} />
+            <div className="rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit p-5">
+              {/* 팀 대결 헤더 */}
+              <div className="mb-4 flex items-center justify-center gap-2 text-xs font-black text-white/90">
+                <span className="rounded-full bg-rose-500/80 px-2.5 py-1">🐕 홍팀 2</span>
+                <span className="text-white/60">VS</span>
+                <span className="rounded-full bg-sky-500/80 px-2.5 py-1">🐺 청팀 2</span>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <Fighter name={PLAYER_NAME} img={PLAYER_IMAGE} hp={100} team="red" />
+                <motion.div
+                  className="text-4xl"
+                  initial={{ x: -40, opacity: 0 }}
+                  animate={isResult(phase) ? { x: 60, opacity: [1, 1, 0] } : { x: -40, opacity: 1 }}
+                  transition={{ duration: 0.7 }}
+                >
+                  ❄️
+                </motion.div>
+                <Fighter name="밥톨이" img="/assets/icons/mascot_sigol-64.png" hp={isResult(phase) ? 65 : 100} hit={isResult(phase)} team="blue" />
+              </div>
             </div>
-            <ResultBadge show={isResult(phase)} text="명중! -35 체력" />
+            <ResultBadge show={isResult(phase)} text="명중! 청팀 -35 체온" />
           </Scene>
         )
       }
@@ -108,17 +116,21 @@ function BattleRoyaleDemo() {
   )
 }
 
-function Fighter({ name, img, hp, hit }: { name: string; img: string; hp: number; hit?: boolean }) {
+function Fighter({ name, img, hp, hit, team }: { name: string; img: string; hp: number; hit?: boolean; team?: 'red' | 'blue' }) {
+  const ring = team === 'red' ? 'ring-rose-400' : team === 'blue' ? 'ring-sky-400' : 'ring-white/70'
+  const teamEmoji = team === 'red' ? '🐕' : team === 'blue' ? '🐺' : null
   return (
     <div className="flex flex-col items-center gap-1.5">
       <motion.div
         animate={hit ? { x: [0, -6, 6, -3, 0] } : {}}
         transition={{ duration: 0.4 }}
-        className="relative h-16 w-16 overflow-hidden rounded-full bg-white/80 ring-2 ring-white/70"
+        className={`relative h-16 w-16 overflow-hidden rounded-full bg-white/80 ring-2 ${ring}`}
       >
         <Image src={img} alt={name} fill className="object-contain p-1" sizes="64px" />
       </motion.div>
-      <span className="text-xs font-black text-white drop-shadow">{name}</span>
+      <span className="text-xs font-black text-white drop-shadow">
+        {teamEmoji && <span className="mr-0.5">{teamEmoji}</span>}{name}
+      </span>
       <div className="h-2.5 w-20 overflow-hidden rounded-full bg-black/40">
         <motion.div className="h-full rounded-full bg-emerald-400" animate={{ width: `${hp}%` }} transition={{ duration: 0.5 }} />
       </div>

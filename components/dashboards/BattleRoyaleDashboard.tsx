@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
-import { TEAM_INFO, type Team } from '@/lib/game/battleRoyale'
+import { PLAYER_CLASSES, TEAM_INFO, type PlayerClass, type Team } from '@/lib/game/battleRoyale'
+import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -35,12 +36,15 @@ function getHealthColor(healthPct: number) {
 
 export default function BattleRoyaleDashboard({
     players,
-    zoneLevel = 1,
+    zoneLevel: zoneLevelProp,
     gameStartTime,
 }: BattleRoyaleDashboardProps) {
     const [feed, setFeed] = useState<FeedItem[]>([])
     const [elapsed, setElapsed] = useState(0)
     const previousPlayersRef = useRef<Map<string, Player>>(new Map())
+
+    // 경과 시간으로 폭설(자기장) 단계 계산 — 2분마다 +1 (게임 로직과 동일)
+    const zoneLevel = zoneLevelProp ?? Math.floor(elapsed / 120) + 1
 
     const sortedPlayers = useMemo(() => (
         [...players].sort((a, b) => (b.health ?? 100) - (a.health ?? 100))
@@ -77,6 +81,39 @@ export default function BattleRoyaleDashboard({
         return () => window.clearInterval(interval)
     }, [gameStartTime])
 
+    // 닉네임 조회를 위한 최신 플레이어 맵 (구독 콜백에서 사용)
+    const playersRef = useRef(players)
+    playersRef.current = players
+
+    // 공격 피드 — 실제 battle:attacked 이벤트에서 공격자 실명·크리티컬을 표시
+    useEffect(() => {
+        return subscribeRoomRuntimeEvent((event) => {
+            if (event.type !== 'battle:attacked') return
+            const payload = event.payload as {
+                attackerNickname?: string
+                targetId?: string
+                damage?: number
+                isCritical?: boolean
+            } | undefined
+            if (!payload) return
+
+            const target = playersRef.current.find((p) => p.id === payload.targetId)
+            setFeed((prev) => [
+                {
+                    id: `attack-${payload.targetId ?? 'all'}-${Date.now()}-${payload.damage ?? 0}`,
+                    attackerNickname: payload.attackerNickname || '누군가',
+                    targetNickname: target?.nickname ?? '상대',
+                    damage: payload.damage ?? 0,
+                    isCritical: Boolean(payload.isCritical),
+                    timestamp: Date.now(),
+                    type: 'attack' as const,
+                },
+                ...prev,
+            ].slice(0, 12))
+        })
+    }, [])
+
+    // 탈락 감지는 체력 변화로 (폭설·아이템 등 모든 원인 포함)
     useEffect(() => {
         const previousPlayers = previousPlayersRef.current
         const nextFeed: FeedItem[] = []
@@ -87,19 +124,6 @@ export default function BattleRoyaleDashboard({
 
             const previousHealth = previous.health ?? 100
             const currentHealth = player.health ?? 100
-            const damage = Math.max(0, Math.round(previousHealth - currentHealth))
-
-            if (damage > 0) {
-                nextFeed.push({
-                    id: `attack-${player.id}-${Date.now()}-${damage}`,
-                    attackerNickname: '누군가',
-                    targetNickname: player.nickname,
-                    damage,
-                    isCritical: damage >= 30,
-                    timestamp: Date.now(),
-                    type: 'attack',
-                })
-            }
 
             if (previousHealth > 0 && currentHealth <= 0) {
                 nextFeed.push({
@@ -202,7 +226,8 @@ function PlayerCard({
     highlightLeader?: boolean
 }) {
     const health = Math.max(0, player.health ?? 100)
-    const maxHealth = player.player_class === 'shield' ? 150 : 100
+    const playerClass = player.player_class as PlayerClass | null
+    const maxHealth = playerClass ? PLAYER_CLASSES[playerClass].maxHealth : 100
     const healthPct = Math.max(0, Math.min(100, (health / maxHealth) * 100))
     const isAlive = health > 0
     const isDanger = healthPct <= 25 && isAlive

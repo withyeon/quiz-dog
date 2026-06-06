@@ -42,7 +42,7 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
     const modeConfig = getGameModeConfig(mode)
 
     if (mode === 'battle_royale') {
-        return <BattleRoyaleDashboard players={players} />
+        return <BattleRoyaleDashboard players={players} gameStartTime={room.started_at ? new Date(room.started_at).getTime() : undefined} />
     } else if (mode === 'cafe') {
         return <CafeDashboard players={players} roomCode={room.room_code} gameStartTime={room.started_at ? new Date(room.started_at).getTime() : undefined} />
     } else if (mode === 'poop_dodge') {
@@ -61,7 +61,7 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
         return (
             <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
                 <h2 className="text-2xl font-semibold mb-4 text-gray-900">{modeConfig.emoji} {modeConfig.shortLabel} 현황</h2>
-                <FactoryView players={players as any} currentPlayerId={null} roomCode={room.room_code} />
+                <FactoryView players={players as any} currentPlayerId={null} />
             </div>
         )
     } else if (mode === 'dontlookdown') {

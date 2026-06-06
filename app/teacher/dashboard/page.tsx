@@ -18,6 +18,7 @@ import QRCodeSVG from 'react-qr-code'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
 import { getZombieMeta, roomPlayerToZombiePlayer } from '@/lib/game/zombie'
+import { isGameOver as isBattleGameOver } from '@/lib/game/battleRoyale'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
 import {
@@ -288,6 +289,55 @@ export default function TeacherDashboard() {
     }
 
     void finishByZombieWin()
+  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
+
+  // 눈싸움 대작전: 한 팀 전멸(또는 개인전 최후 생존) 시 자동 종료
+  useEffect(() => {
+    if (
+      !roomCode
+      || !room
+      || room.status !== 'playing'
+      || room.game_mode !== 'battle_royale'
+      || autoFinishRequestedRef.current
+    ) {
+      return
+    }
+
+    // 게임이 실제로 시작됐는지 — 모든 활성 플레이어가 장비(직업)를 선택한 뒤에만 판정.
+    // (직업 선택 전에는 체력 변화가 없어 오판할 일이 없지만, 0/1명 등 엣지에서의 조기 종료를 막는다.)
+    const activePlayers = players.filter((player) => !player.is_kicked)
+    if (activePlayers.length < 2) return
+    const allReady = activePlayers.every((player) => player.player_class)
+    if (!allReady) return
+
+    if (!isBattleGameOver(activePlayers)) return
+
+    const finishByBattleEnd = async () => {
+      if (autoFinishRequestedRef.current) return
+      autoFinishRequestedRef.current = true
+
+      try {
+        await finishRoom(roomCode)
+        const reason = 'battle_royale_decided'
+        broadcastRoomPatch({ status: 'finished' }, reason)
+        void sendRoomEvent('game:finished', {
+          finishedBy: 'teacher',
+          reason,
+        })
+        try {
+          await saveGameReportSnapshot(room, players)
+        } catch (reportError) {
+          console.error('Error saving battle game report snapshot:', reportError)
+        }
+        stopBGM()
+        router.push(`/teacher/game/${roomCode}/end`)
+      } catch (error) {
+        autoFinishRequestedRef.current = false
+        console.error('눈싸움 조기 종료 실패:', error)
+      }
+    }
+
+    void finishByBattleEnd()
   }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
   // 게임 모드 변경 핸들러 (방이 있으면 DB도 업데이트)

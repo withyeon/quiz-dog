@@ -26,6 +26,7 @@ export type RoomEventType =
   | 'gold_quest:attack_request'
   | 'gold_quest:attack_response'
   | 'battle:attacked'
+  | 'battle:blizzard'
   | 'cafe:item_attack'
 
 export type RoomChannelEvent<TPayload = unknown> = {

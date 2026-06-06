@@ -70,8 +70,8 @@ export const PLAYER_CLASSES: Record<PlayerClass, PlayerClassInfo> = {
     description: '체온이 높고 받은 피해를 안정적으로 줄입니다.',
     damageMultiplier: 1.0,
     attackSpeed: 1.0,
-    defense: 0.7,
-    maxHealth: 150,
+    defense: 0.8,
+    maxHealth: 130,
   },
   hot_choco: {
     id: 'hot_choco',

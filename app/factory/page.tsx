@@ -65,6 +65,7 @@ export default function FactoryPage() {
   const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
 
   const questionStartTime = useRef<number>(0)
+  const moneyRef = useRef(0)
 
   // URL에서 roomCode와 playerId 가져오기
   useEffect(() => {
@@ -252,21 +253,24 @@ export default function FactoryPage() {
     return correct
   }
 
-  // 돈 변경 핸들러
-  const handleMoneyChange = useCallback(async (newMoney: number) => {
-    const roundedMoney = roundMoney(newMoney)
-    setMoney(roundedMoney)
+  // money 상태를 ref와 동기화 (DB 로드/실시간 갱신 포함)
+  useEffect(() => {
+    moneyRef.current = money
+  }, [money])
+
+  // 돈 증감 핸들러 — moneyRef를 동기적으로 누적해 동시 갱신(자동 수익 + 보너스/패널티) 레이스 방지.
+  // 절대값 set 대신 delta를 적용하므로, RPC await 중 들어온 자동 수익이 덮어써지지 않는다.
+  const applyMoneyDelta = useCallback((delta: number) => {
+    const next = roundMoney(moneyRef.current + delta)
+    moneyRef.current = next
+    setMoney(next)
     if (!playerId) return
 
-    try {
-      await commitPlayerPatch({
-        convenience_money: roundedMoney,
-        factory_money: roundedMoney,
-        score: roundedMoney,
-      }, 'factory_money_update')
-    } catch (error) {
-      console.error('Error updating money:', error)
-    }
+    void commitPlayerPatch({
+      convenience_money: next,
+      factory_money: next,
+      score: next,
+    }, 'factory_money_update')
   }, [commitPlayerPatch, playerId])
 
   // 상품 변경 핸들러
@@ -330,7 +334,7 @@ export default function FactoryPage() {
       // 속도 보너스 골드 지급
       const bonus = getSpeedBonus(answerTimeMs, 30)
       if (bonus > 0) {
-        handleMoneyChange(roundMoney(money + bonus))
+        applyMoneyDelta(bonus)
         setSpeedBonusDisplay(bonus)
         setTimeout(() => setSpeedBonusDisplay(null), 1500)
       }
@@ -353,9 +357,9 @@ export default function FactoryPage() {
       playSFX('incorrect')
 
       // 오답 패널티: 상품을 빼앗기지는 않되, 매출 일부를 잃어 템포만 살짝 늦춘다.
-      if (money > 0) {
-        const penalty = roundMoney(Math.min(Math.max(money * 0.08, 100), 2000))
-        handleMoneyChange(money - penalty)
+      if (moneyRef.current > 0) {
+        const penalty = roundMoney(Math.min(Math.max(moneyRef.current * 0.08, 100), 2000))
+        applyMoneyDelta(-penalty)
         setWrongPenalty(penalty)
         setTimeout(() => setWrongPenalty(null), 2500)
       }
@@ -563,7 +567,7 @@ export default function FactoryPage() {
               <div className="w-full min-w-0 lg:flex-1 lg:overflow-y-auto lg:max-h-[calc(100dvh-160px)]">
                 <ConvenienceStore
                   money={money}
-                  onMoneyChange={handleMoneyChange}
+                  onMoneyDelta={applyMoneyDelta}
                   products={products}
                   onProductsChange={handleProductsChange}
                   onQuizStart={handleQuizStart}

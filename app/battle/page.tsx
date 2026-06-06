@@ -132,6 +132,7 @@ export default function BattlePage() {
   const nextQuestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const incomingAttackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const blizzardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousHealthRef = useRef<number | null>(null)
   const battleStartTime = gameStartTime
 
@@ -140,6 +141,7 @@ export default function BattlePage() {
       if (nextQuestionTimerRef.current) clearTimeout(nextQuestionTimerRef.current)
       if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
       if (incomingAttackTimerRef.current) clearTimeout(incomingAttackTimerRef.current)
+      if (blizzardTimerRef.current) clearTimeout(blizzardTimerRef.current)
     }
   }, [])
 
@@ -170,6 +172,15 @@ export default function BattlePage() {
 
   useEffect(() => {
     return subscribeRoomRuntimeEvent((event) => {
+      if (event.type === 'battle:blizzard') {
+        const payload = event.payload as { targetId?: string } | undefined
+        if (!payload || payload.targetId !== playerId) return
+        if (blizzardTimerRef.current) clearTimeout(blizzardTimerRef.current)
+        setIsBlizzardActive(true)
+        blizzardTimerRef.current = setTimeout(() => setIsBlizzardActive(false), 5000)
+        return
+      }
+
       if (event.type !== 'battle:attacked') return
 
       const payload = event.payload as {
@@ -568,19 +579,20 @@ export default function BattlePage() {
     }
   }
 
-  // 아이템 사용
+  // 아이템 사용 (눈보라·휴대 난로만 수동 사용. 왕눈덩이는 다음 공격에 자동 적용)
   const handleUseItem = async () => {
     if (!currentItem || !playerId) return
+    if (currentItem.type === 'giant_ball') return // 자동 적용 아이템 — 칩 클릭으로 폐기되지 않도록
 
     if (currentItem.type === 'blizzard') {
-      // 1등 플레이어에게 눈보라 적용
+      // 1등 플레이어 화면에 눈보라 적용 — 해당 플레이어에게 realtime 전송
       const topPlayer = players
         .filter(p => p.id !== playerId && (p.health || 100) > 0)
         .sort((a, b) => (b.score || 0) - (a.score || 0))[0]
 
       if (topPlayer) {
-        setIsBlizzardActive(true)
-        setTimeout(() => setIsBlizzardActive(false), 5000)
+        await sendRoomEvent('battle:blizzard', { targetId: topPlayer.id })
+        playSFX('item')
       }
     } else if (currentItem.type === 'heater') {
       // 체온 회복
@@ -591,6 +603,7 @@ export default function BattlePage() {
         const newHealth = applyHeater(currentPlayer.health ?? 100, maxHealth)
 
         await updatePlayer(playerId, { health: newHealth })
+        playSFX('item')
       }
     }
 
@@ -618,10 +631,6 @@ export default function BattlePage() {
     )
   }
 
-  // 현재 플레이어가 1등인지 확인 (눈보라 효과용)
-  const isTopPlayer = players
-    .filter(p => (p.health || 100) > 0)
-    .sort((a, b) => (b.score || 0) - (a.score || 0))[0]?.id === playerId
   const currentHealth = Math.round(currentPlayer?.health ?? 100)
   const aliveCount = players.filter((player) => (player.health ?? 100) > 0).length
   const currentRank = players.filter((player) => (player.health ?? 100) > currentHealth).length + 1
@@ -652,7 +661,7 @@ export default function BattlePage() {
         duration={showEliminationEffect || isEliminated ? 3000 : 2000}
       />
       <HitOverlay attack={incomingAttack} />
-      {isBlizzardActive && isTopPlayer && <BlizzardOverlay isActive={true} />}
+      {isBlizzardActive && <BlizzardOverlay isActive={true} />}
 
       <AnimatePresence>
         {showTeamReveal && !teamRevealComplete && (
@@ -778,7 +787,18 @@ export default function BattlePage() {
                   </motion.div>
                 )}
 
-                {currentItem && (
+                {currentItem && currentItem.type === 'giant_ball' && (
+                  <motion.div
+                    animate={{ y: [0, -2, 0] }}
+                    transition={{ duration: 1.2, repeat: Infinity }}
+                    className="inline-flex items-center gap-2 rounded-full border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-black text-amber-800 shadow-sm"
+                  >
+                    <span>{currentItem.icon}</span>
+                    {currentItem.name} · 다음 공격 3배
+                  </motion.div>
+                )}
+
+                {currentItem && currentItem.type !== 'giant_ball' && (
                   <motion.button
                     type="button"
                     animate={{ y: [0, -2, 0] }}
@@ -787,7 +807,7 @@ export default function BattlePage() {
                     onClick={handleUseItem}
                   >
                     <span>{currentItem.icon}</span>
-                    {currentItem.name}
+                    {currentItem.name} · 탭하여 사용
                   </motion.button>
                 )}
 
@@ -855,8 +875,10 @@ export default function BattlePage() {
                     경기장 준비 중
                   </h2>
                   <p className="mt-3 max-w-md text-base font-semibold leading-relaxed text-slate-500">
-                    선생님이 게임을 시작하면 <strong className="text-slate-900">팀이 랜덤으로 배정</strong>되고,
+                    선생님이 게임을 시작하면 <strong className="text-slate-900">6명 이상이면 홍팀·청팀으로 자동 배정</strong>되고,
                     장비 선택 후 아레나에 입장합니다.
+                    <br />
+                    <span className="text-sm text-slate-400">6명 미만이면 팀 없이 끝까지 살아남는 개인 생존전으로 진행돼요.</span>
                   </p>
                   <div className="mt-4 flex items-center gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-3">
                     <span className="text-2xl">🐕</span>

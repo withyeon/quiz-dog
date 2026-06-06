@@ -265,6 +265,27 @@ export function getRankScoreMultiplier(rank: MachineRank): number {
   return 1 + (rank - 1) * 0.08
 }
 
+// 등급 서열 (낮음 → 높음). 조준 하한 비교용.
+const TIER_ORDER: Record<DollTier, number> = {
+  '꽝': 0,
+  '일반': 1,
+  '희귀': 2,
+  '영웅': 3,
+  '전설': 4,
+}
+
+/**
+ * 조준 등급에 따른 최소 인형 등급 하한.
+ * perfect(가장 좁고 어려운 구간) → 최소 영웅, great → 최소 희귀.
+ * good/safe는 하한 없음(기존 확률). 전설은 하한에서 제외해 희소성을 유지한다.
+ * 조준 실력이 인형 등급에 직접 반영되게 하는 핵심 테이블 — 여기 값만 바꾸면 밸런스 조정 가능.
+ */
+export function getAimTierFloor(aimGrade: AimGrade): DollTier | null {
+  if (aimGrade === 'perfect') return '영웅'
+  if (aimGrade === 'great') return '희귀'
+  return null
+}
+
 /**
  * 인형뽑기 실행 (Fishing Frenzy 방식)
  * @param answerTime 정답까지 걸린 시간 (초)
@@ -295,12 +316,20 @@ export function tryFishing(
       * frenzyMultiplier,
   }))
 
-  const totalChance = adjustedDolls.reduce((sum, doll) => sum + doll.adjustedChance, 0)
+  // 조준 등급에 따른 최소 등급 하한 — perfect/great면 하한 이상 인형만 후보로.
+  const floorTier = getAimTierFloor(aimGrade)
+  const eligibleDolls = floorTier
+    ? adjustedDolls.filter((doll) => TIER_ORDER[doll.tier] >= TIER_ORDER[floorTier] && doll.adjustedChance > 0)
+    : adjustedDolls
+  // 하한 후보가 비어있으면(이론상 없음) 전체 풀로 폴백.
+  const pool = eligibleDolls.length > 0 ? eligibleDolls : adjustedDolls
+
+  const totalChance = pool.reduce((sum, doll) => sum + doll.adjustedChance, 0)
   const random = Math.random() * totalChance
   let cumulativeChance = 0
 
   let selected: typeof DOLL_TYPES[0] | null = null
-  for (const doll of adjustedDolls) {
+  for (const doll of pool) {
     cumulativeChance += doll.adjustedChance
     if (random <= cumulativeChance) {
       selected = doll
@@ -308,9 +337,9 @@ export function tryFishing(
     }
   }
 
-  // 안전장치: 선택되지 않았으면 가장 흔한 것 선택
+  // 안전장치: 선택되지 않았으면 후보 중 첫 번째 선택
   if (!selected) {
-    selected = DOLL_TYPES[0]
+    selected = pool[0] ?? DOLL_TYPES[0]
   }
 
   const scoreRange = selected.maxScore - selected.minScore

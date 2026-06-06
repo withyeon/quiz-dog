@@ -94,6 +94,16 @@ export default function GameResult({
   const myTeamIsWinner =
     winningTeam !== null && (currentPlayer as any)?.team === winningTeam
 
+  // 양 팀 동시 전멸 무승부 (폭설 등으로 모두 0°)
+  const isTeamBattle =
+    gameMode === 'battle_royale' &&
+    players.some((p) => (p as any).team === 'red' || (p as any).team === 'blue')
+  const battleAliveCount =
+    gameMode === 'battle_royale'
+      ? players.filter((p) => ((p as any).health ?? 100) > 0).length
+      : 0
+  const isBattleDraw = isTeamBattle && winningTeam === null && battleAliveCount === 0
+
   // 점수 분포 데이터
   const scoreDistribution = [
     { range: '0-100', count: players.filter((p) => p.score >= 0 && p.score <= 100).length },
@@ -189,6 +199,26 @@ export default function GameResult({
                 </span>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {/* 무승부 배너 — 양 팀 동시 전멸 */}
+        {isBattleDraw && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
+            className="mb-8 overflow-hidden rounded-2xl border-4 border-slate-300 bg-gradient-to-br from-slate-500 to-slate-600 p-6 text-center shadow-xl"
+          >
+            <motion.div
+              animate={{ y: [0, -6, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity }}
+              className="mb-3 text-6xl sm:text-7xl"
+            >
+              ⛄
+            </motion.div>
+            <h2 className="mb-2 text-3xl font-black text-white sm:text-4xl">무승부!</h2>
+            <p className="text-lg font-black text-slate-100">양 팀 모두 폭설에 얼어붙었어요</p>
           </motion.div>
         )}
 

@@ -29,7 +29,7 @@ import {
 
 interface ConvenienceStoreProps {
   money: number
-  onMoneyChange: (newMoney: number) => void
+  onMoneyDelta: (delta: number) => void
   products: Product[]
   onProductsChange: (newProducts: Product[]) => void
   onQuizStart: () => void
@@ -42,7 +42,7 @@ interface ConvenienceStoreProps {
 
 export default function ConvenienceStore({
   money,
-  onMoneyChange,
+  onMoneyDelta,
   products,
   onProductsChange,
   onQuizStart,
@@ -63,12 +63,17 @@ export default function ConvenienceStore({
   const [pendingProductToPlace, setPendingProductToPlace] = useState<Product | null>(null)
   const [, setIncomeTick] = useState(0)
   const [paidProductIds, setPaidProductIds] = useState<Set<string>>(new Set())
-  const moneyRef = useRef(money)
   const incomeTickRef = useRef(0)
 
-  useEffect(() => {
-    moneyRef.current = money
-  }, [money])
+  // 최신 값을 ref로 보관해 수익 타이머가 재생성되지 않도록 한다 (틱 누락 방지).
+  const productsRef = useRef(products)
+  const customerRef = useRef(currentCustomer)
+  const eventRef = useRef(currentEvent)
+  const onMoneyDeltaRef = useRef(onMoneyDelta)
+  useEffect(() => { productsRef.current = products }, [products])
+  useEffect(() => { customerRef.current = currentCustomer }, [currentCustomer])
+  useEffect(() => { eventRef.current = currentEvent }, [currentEvent])
+  useEffect(() => { onMoneyDeltaRef.current = onMoneyDelta }, [onMoneyDelta])
 
   // CPS 계산
   useEffect(() => {
@@ -88,23 +93,24 @@ export default function ConvenienceStore({
     setCps(roundMoney(totalCPS * multiplier))
   }, [products, currentEvent, currentCustomer])
 
-  // 상품별 수익 주기 루프
+  // 상품별 수익 주기 루프 — 단일 안정 타이머. 상품/고객/이벤트가 바뀌어도 재생성되지 않아 틱이 누락되지 않는다.
   useEffect(() => {
-    if (products.length === 0) return
-
     const interval = setInterval(() => {
+      const activeProducts = productsRef.current
+      if (activeProducts.length === 0) return
+
       const nextTick = incomeTickRef.current + 1
       incomeTickRef.current = nextTick
       setIncomeTick(nextTick)
 
-      const baseIncome = calculateTickIncome(products, nextTick)
+      const baseIncome = calculateTickIncome(activeProducts, nextTick)
       let multiplier = 1.0
 
-      if (currentEvent) multiplier *= currentEvent.multiplier
-      if (currentCustomer) multiplier *= currentCustomer.bonusMultiplier
+      if (eventRef.current) multiplier *= eventRef.current.multiplier
+      if (customerRef.current) multiplier *= customerRef.current.bonusMultiplier
 
       const paidIds = new Set(
-        products
+        activeProducts
           .filter((product) => shouldProductPayOnTick(product, nextTick))
           .map((product) => product.id)
       )
@@ -115,14 +121,14 @@ export default function ConvenienceStore({
         window.setTimeout(() => setPaidProductIds(new Set()), 850)
       }
       if (tickIncome > 0) {
-        onMoneyChange(roundMoney(moneyRef.current + tickIncome))
+        onMoneyDeltaRef.current(tickIncome)
       }
 
       setLastTick(Date.now())
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [currentCustomer, currentEvent, onMoneyChange, products])
+  }, [])
 
   // 고객 방문 시스템 (30초마다)
   useEffect(() => {
@@ -224,7 +230,7 @@ export default function ConvenienceStore({
   const handleSellProduct = (product: Product) => {
     const result = sellProduct(product, products)
     if (result.success) {
-      onMoneyChange(roundMoney(money + result.money))
+      onMoneyDelta(result.money)
       onProductsChange(result.newProducts)
       setSelectedProductToSell(null)
     }
@@ -494,7 +500,7 @@ export default function ConvenienceStore({
                                   const result = upgradeProduct(slot, products)
                                   if (result.success) {
                                     onProductsChange(result.newProducts)
-                                    onMoneyChange(roundMoney(money - result.cost))
+                                    onMoneyDelta(-result.cost)
                                   }
                                 }
                               }}
