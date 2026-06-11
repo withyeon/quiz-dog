@@ -346,7 +346,7 @@ export default function GamePage() {
 
   // 플레이어 선택 처리 (King/Elf/Wizard)
   const handlePlayerSelect = async (targetPlayerId: string) => {
-    if (!pendingEvent || !playerId || !currentPlayer) return
+    if (isProcessingReward || !pendingEvent || !playerId || !currentPlayer) return
 
     playSFX('click')
     setIsProcessingReward(true)
@@ -413,7 +413,10 @@ export default function GamePage() {
       }, 3000)
     } catch (error) {
       console.error('Error applying event:', error)
+      setPendingEvent(null)
+      setBoxEvent(null)
       setIsProcessingReward(false)
+      scheduleAdvance(() => goToNextQuestion(), 1000)
     }
   }
 
@@ -615,6 +618,11 @@ export default function GamePage() {
                   </div>
                   <p className="text-xl font-black text-[#17262a] mb-2">{boxEvent.message}</p>
                   <p className="text-sm font-semibold text-slate-500">잠시 후 다음 문제로 넘어갑니다.</p>
+                </div>
+              ) : isProcessingReward ? (
+                <div className="gold-quest-panel p-8 max-w-3xl mx-auto text-center">
+                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
+                  <p className="text-xl font-black text-[#17262a]">처리 중...</p>
                 </div>
               ) : (
                 <PlayerSelector

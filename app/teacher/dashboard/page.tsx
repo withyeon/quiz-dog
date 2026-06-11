@@ -46,6 +46,7 @@ export default function TeacherDashboard() {
   const [showStartTutorial, setShowStartTutorial] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
   const [hideTutorialNextTime, setHideTutorialNextTime] = useState(false)
+  const [timerDisplaySeconds, setTimerDisplaySeconds] = useState<number | null>(null)
   const autoFinishRequestedRef = useRef(false)
   const tutorialStateRef = useRef({
     isOpen: false,
@@ -71,7 +72,7 @@ export default function TeacherDashboard() {
     title: activeModeConfig.bgm.title,
     src: activeModeConfig.bgm.src,
   }), [activeModeConfig])
-  const inviteUrl = typeof window !== 'undefined' && roomCode ? `${window.location.origin}/play/${roomCode}` : ''
+  const inviteUrl = typeof window !== 'undefined' && roomCode ? `${window.location.origin}/lobby?code=${roomCode}` : ''
   const { playBGM, pauseBGM, playSFX, stopBGM } = useAudioContext()
 
   const broadcastRoomPatch = useCallback((
@@ -244,6 +245,26 @@ export default function TeacherDashboard() {
   }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
   useEffect(() => {
+    if (room?.status === 'paused' && room.duration_seconds) {
+      setTimerDisplaySeconds(Number(room.duration_seconds))
+      return
+    }
+    if (room?.status !== 'playing' || !room.started_at || !room.duration_seconds) {
+      setTimerDisplaySeconds(null)
+      return
+    }
+    const started = new Date(room.started_at).getTime()
+    const total = Number(room.duration_seconds)
+    const update = () => {
+      const elapsed = Math.floor((Date.now() - started) / 1000)
+      setTimerDisplaySeconds(Math.max(0, total - elapsed))
+    }
+    update()
+    const id = window.setInterval(update, 1000)
+    return () => window.clearInterval(id)
+  }, [room?.status, room?.started_at, room?.duration_seconds])
+
+  useEffect(() => {
     if (
       !roomCode
       || !room
@@ -255,11 +276,11 @@ export default function TeacherDashboard() {
     }
 
     const activePlayers = players.filter((player) => !player.is_kicked)
-    const hasAssignedRoles = activePlayers.length > 0
-      && activePlayers.every((player) => getZombieMeta(player))
-    if (!hasAssignedRoles) return
+    // 게임 시작 전 입장한 플레이어만 체크 (도중 입장자는 active_item이 null)
+    const playersWithRoles = activePlayers.filter((player) => getZombieMeta(player))
+    if (playersWithRoles.length === 0) return
 
-    const zombiePlayers = activePlayers.map(roomPlayerToZombiePlayer)
+    const zombiePlayers = playersWithRoles.map(roomPlayerToZombiePlayer)
     const humans = zombiePlayers.filter((player) => player.role === 'human')
     if (humans.length > 0) return
 
@@ -690,11 +711,29 @@ export default function TeacherDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="mx-auto flex w-full max-w-2xl items-center justify-center gap-5 rounded-3xl border border-sky-100 bg-white px-6 py-4 text-center shadow-xl shadow-sky-100">
+              <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-5 rounded-3xl border border-sky-100 bg-white px-6 py-5 text-center shadow-xl shadow-sky-100">
                 <div>
                   <p className="text-xs font-black text-sky-500">참가코드</p>
                   <div className="text-4xl font-black tracking-wider text-black">{roomCode}</div>
                 </div>
+                {timerDisplaySeconds !== null && (
+                  <div className={`flex flex-col items-center rounded-2xl px-6 py-3 ${
+                    timerDisplaySeconds <= 60
+                      ? 'bg-red-50 ring-2 ring-red-400'
+                      : timerDisplaySeconds <= 120
+                        ? 'bg-amber-50 ring-2 ring-amber-300'
+                        : 'bg-slate-50 ring-1 ring-slate-200'
+                  }`}>
+                    <p className={`text-xs font-black ${timerDisplaySeconds <= 60 ? 'text-red-500' : timerDisplaySeconds <= 120 ? 'text-amber-600' : 'text-slate-500'}`}>
+                      {roomStatus === 'paused' ? '⏸ 일시정지' : '⏱ 남은 시간'}
+                    </p>
+                    <div className={`text-5xl font-black tabular-nums ${timerDisplaySeconds <= 60 ? 'text-red-600' : timerDisplaySeconds <= 120 ? 'text-amber-600' : 'text-slate-800'}`}>
+                      {timerDisplaySeconds >= 60
+                        ? `${Math.floor(timerDisplaySeconds / 60)}분 ${String(timerDisplaySeconds % 60).padStart(2, '0')}초`
+                        : `${timerDisplaySeconds}초`}
+                    </div>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowLargeQrModal(true)}
