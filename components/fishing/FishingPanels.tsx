@@ -24,6 +24,8 @@ export const ITEM_LABELS: Record<SpecialItemType, string> = {
     COIN_RAIN: '보너스 코인',
     EXTRA_PULL: '복습 티켓',
     SHIELD: '꽝 방지',
+    SCREEN_FLIP: '화면 뒤집기',
+    SCREEN_SHRINK: '화면 축소',
 }
 
 const COLLECTION_TIER_STYLE: Record<string, string> = {
@@ -52,6 +54,8 @@ export function SpecialItemIcon({
     if (type === 'COIN_RAIN') return <Coins size={size} className={className} />
     if (type === 'EXTRA_PULL') return <Ticket size={size} className={className} />
     if (type === 'SHIELD') return <ShieldCheck size={size} className={className} />
+    if (type === 'SCREEN_FLIP') return <span className={className} style={{ fontSize: size }}>🙃</span>
+    if (type === 'SCREEN_SHRINK') return <span className={className} style={{ fontSize: size }}>🔭</span>
     return <Gift size={size} className={className} />
 }
 

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AIM_ACCURACY_SCALE,
+  ATTACK_ITEM_TYPES,
   calculateTotalPoints,
   checkFrenzyEvent,
   getAimGrade,
@@ -236,7 +237,10 @@ export function useFishingGame({
     // 특별 아이템 확인
     const specialItem = trySpecialItem()
     if (specialItem) {
-      setActiveItems((prev) => [...prev, specialItem.type])
+      // 공격형 아이템(화면 뒤집기 등)은 activeItems 버프로 저장하지 않음
+      if (!ATTACK_ITEM_TYPES.has(specialItem.type)) {
+        setActiveItems((prev) => [...prev, specialItem.type])
+      }
       setPendingItem(specialItem)
       setShowItemModal(true)
       playSFX('item')

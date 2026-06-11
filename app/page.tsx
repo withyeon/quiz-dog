@@ -218,21 +218,18 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <div className="inline-block mb-4">
-              <PixelButton color="purple" className="text-3xl px-10 py-4 pointer-events-none inline-flex items-center gap-3">
-                <Image
-                  src={gameAssets.joystick.icon64}
-                  alt=""
-                  width={64}
-                  height={64}
-                  unoptimized
-                  className="h-10 w-10 object-contain pixelated"
-                  aria-hidden
-                />
-                {`${visibleGameModeCount}가지 게임 모드`}
-              </PixelButton>
-            </div>
-            <p className="text-lg mt-4" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
+            <h2
+              className="inline-block text-3xl font-black sm:text-4xl mb-4"
+              style={{
+                fontFamily: "'DNFBitBitv2', sans-serif",
+                background: 'linear-gradient(135deg, #7C3AED 0%, #6366f1 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              {`${visibleGameModeCount}가지 게임 모드`}
+            </h2>
+            <p className="text-lg mt-2" style={{ color: '#475569', fontFamily: "'DNFBitBitv2', sans-serif" }}>
               학생들이 즐기는 다양한 게임으로 학습 참여도 UP!
             </p>
           </motion.div>
@@ -251,9 +248,8 @@ export default function LandingPage() {
                 <div
                   className="rounded-2xl p-5 transition-all duration-300"
                   style={{
-                    backgroundColor: game.bg,
-                    border: `3px solid ${game.color}40`,
-                    boxShadow: `0 5px 0 ${game.color}30, 0 8px 20px rgba(0,0,0,0.08)`,
+                    backgroundColor: 'transparent',
+                    borderTop: `3px solid ${game.color}`,
                   }}
                 >
                   {game.titleImage && (
@@ -265,7 +261,7 @@ export default function LandingPage() {
                       className="mb-4 h-40 w-full object-contain md:h-44"
                     />
                   )}
-                  <p className="text-xs leading-relaxed" style={{ color: '#7B4B1A', opacity: 0.8 }}>
+                  <p className="text-xs leading-relaxed" style={{ color: '#64748B' }}>
                     {game.description}
                   </p>
                 </div>
@@ -283,7 +279,13 @@ export default function LandingPage() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
           >
-            <PixelPanel>
+            <div
+              className="rounded-3xl overflow-hidden"
+              style={{
+                background: '#FFFFFF',
+                boxShadow: '0 8px 48px rgba(14,165,233,0.12), 0 2px 8px rgba(0,0,0,0.05)',
+              }}
+            >
               <div className="p-14 relative overflow-hidden">
                 {/* 강아지 CTA 장식 */}
                 <motion.div
@@ -311,7 +313,7 @@ export default function LandingPage() {
 
                 <h2
                   className="text-4xl md:text-5xl font-black mb-10"
-                  style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}
+                  style={{ color: '#0F172A', fontFamily: "'DNFBitBitv2', sans-serif" }}
                 >
                   지금 바로 시작하세요!
                 </h2>
@@ -332,7 +334,7 @@ export default function LandingPage() {
                   </motion.span>
                 </Link>
               </div>
-            </PixelPanel>
+            </div>
           </motion.div>
         </div>
       </section>

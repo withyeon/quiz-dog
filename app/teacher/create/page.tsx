@@ -7,6 +7,7 @@ import { checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/clie
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, Pencil, CheckCircle2, MessageSquare, XCircle, ScanLine, Sparkles, SlidersHorizontal } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
+import { extractTextFromPPTX } from '@/lib/extractors/ppt'
 import { filterNickname } from '@/lib/utils/profanityFilter'
 import QuestionReviewEditor from '@/components/teacher/QuestionReviewEditor'
 import QuestionSourceSelector from '@/components/teacher/QuestionSourceSelector'

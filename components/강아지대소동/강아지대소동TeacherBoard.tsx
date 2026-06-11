@@ -35,7 +35,7 @@ export default function PuppyChaosTeacherBoard({
   const previousLeaderRef = useRef<string | null>(null)
   const [overlayEvent, setOverlayEvent] = useState<PuppyChaosEvent | null>(null)
   const [questionTotal, setQuestionTotal] = useState(0)
-  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/play/${room.room_code}` : ''
+  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/lobby?code=${room.room_code}` : ''
   const showTeacherControls = Boolean(onPause || onResume || onEnd || onKick)
 
   const activePlayers = useMemo(

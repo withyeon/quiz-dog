@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 import { AudioProviderWrapper } from '@/components/AudioProviderWrapper'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
@@ -152,7 +153,9 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased">
-        <AudioProviderWrapper>{children}</AudioProviderWrapper>
+        <AuthProvider>
+          <AudioProviderWrapper>{children}</AudioProviderWrapper>
+        </AuthProvider>
       </body>
     </html>
   )

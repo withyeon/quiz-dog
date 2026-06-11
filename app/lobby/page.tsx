@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomResync } from '@/hooks/useRoomResync'
@@ -12,9 +12,11 @@ import Minigame from '@/components/Minigame'
 import { CHARACTERS, type Character } from '@/lib/utils/characters'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
-import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl } from '@/lib/game/modes'
+import GameStartTutorialModal from '@/components/GameStartTutorialModal'
+import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { isTerminalRoomStatus } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
+import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
 import { createPlayerForRoom, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
 import { ShibaDog, DogGroup } from '@/components/PixelDogs'
 import { PixelBtn, PixelInput, PixelPanel, PlayerAvatar } from '@/components/lobby/LobbyUI'
@@ -22,8 +24,17 @@ import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
 
 type LobbyStep = 'code' | 'nickname' | 'character' | 'minigame'
 
-export default function LobbyPage() {
+export default function LobbyPageWrapper() {
+  return (
+    <Suspense>
+      <LobbyPage />
+    </Suspense>
+  )
+}
+
+function LobbyPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<LobbyStep>('code')
   const [roomCode, setRoomCode] = useState('')
   const [nickname, setNickname] = useState('')
@@ -32,6 +43,26 @@ export default function LobbyPage() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(CHARACTERS[0])
   const [minigameScore, setMinigameScore] = useState(0)
   const [isCheckingRoom, setIsCheckingRoom] = useState(false)
+  const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [tutorialGameMode, setTutorialGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
+  const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
+
+  useEffect(() => {
+    const code = searchParams.get('code')?.replace(/[^0-9]/g, '').slice(0, 6) ?? ''
+    if (code.length === 6) {
+      setRoomCode(code)
+      setIsCheckingRoom(true)
+      getRoomByCode(code).then((roomData) => {
+        if (!roomData || isTerminalRoomStatus(roomData.status)) {
+          alert(roomData ? '이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.' : '이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        } else {
+          setStep('nickname')
+        }
+      }).catch(() => {
+        alert('방 확인에 실패했어요. 인터넷 연결을 확인해주세요.')
+      }).finally(() => setIsCheckingRoom(false))
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const { players, refreshPlayers } = usePlayersRealtime({
     roomCode: step !== 'code' ? roomCode : '',
@@ -39,12 +70,23 @@ export default function LobbyPage() {
 
   const { room, refreshRoom } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })
   const resyncLobby = useRoomResync(refreshRoom, refreshPlayers)
+  const handleRoomEvent = (event: RoomChannelEvent) => {
+    if (event.type !== 'tutorial:show' && event.type !== 'tutorial:slide' && event.type !== 'tutorial:hide') return
+    const payload = event.payload as { gameMode?: unknown; stepIndex?: unknown } | undefined
+    const nextMode = isGameModeId(payload?.gameMode) ? payload.gameMode : DEFAULT_GAME_MODE
+    if (event.type === 'tutorial:hide') { setTutorialOpen(false); return }
+    setTutorialGameMode(nextMode)
+    setTutorialStepIndex(typeof payload?.stepIndex === 'number' ? payload.stepIndex : 0)
+    setTutorialOpen(true)
+  }
+
   const { status: realtimeStatus, onlineCount, sendEvent: sendRoomEvent } = useRoomChannel({
     roomCode,
     playerId,
     role: 'student',
     enabled: step !== 'code' && Boolean(roomCode),
     onResyncNeeded: resyncLobby,
+    onEvent: handleRoomEvent,
   })
 
   // 게임 시작 감지
@@ -136,6 +178,12 @@ export default function LobbyPage() {
       className="min-h-dvh relative overflow-hidden font-bitbit"
       style={{ background: 'linear-gradient(160deg, #FFF3DC 0%, #FFE8C0 50%, #FFF0D0 100%)' }}
     >
+      <GameStartTutorialModal
+        gameMode={tutorialGameMode}
+        isOpen={tutorialOpen}
+        stepIndex={tutorialStepIndex}
+        role="student"
+      />
       <div className="absolute inset-0">
         <LobbyClassroomBg />
         <div className="absolute inset-0" style={{ background: 'rgba(255,243,220,0.6)' }} />

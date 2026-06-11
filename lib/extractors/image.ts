@@ -1,5 +1,17 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
+const PRIMARY_MODEL = 'gemini-2.5-flash'
+const FALLBACK_MODEL = 'gemini-1.5-flash'
+
+function isTransientError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  return msg.includes('503') || msg.includes('Service Unavailable') || msg.includes('high demand') || msg.includes('overloaded')
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 /**
  * Gemini Vision API를 사용해 이미지에서 문제를 직접 추출합니다.
  * 시험지/문제지 이미지를 넣으면 문제 구조를 파싱하여 JSON으로 반환합니다.
@@ -15,26 +27,28 @@ export async function extractQuestionsFromImage(
 
   const arrayBuffer = await file.arrayBuffer()
   const base64Data = Buffer.from(arrayBuffer).toString('base64')
-
   const mimeType = file.type || getMimeTypeFromName(file.name)
-
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-
   const prompt = buildExamExtractionPrompt(questionCount)
 
-  const result = await model.generateContent([
-    { text: prompt },
-    {
-      inlineData: {
-        mimeType,
-        data: base64Data,
-      },
-    },
-  ])
+  const parts = [{ text: prompt }, { inlineData: { mimeType, data: base64Data } }]
 
-  const response = await result.response
-  return response.text()
+  const delays = [1000, 2000]
+  for (let i = 0; i <= delays.length; i++) {
+    const modelName = i < delays.length ? PRIMARY_MODEL : FALLBACK_MODEL
+    try {
+      const genAI = new GoogleGenerativeAI(apiKey)
+      const model = genAI.getGenerativeModel({ model: modelName })
+      const result = await model.generateContent(parts)
+      return result.response.text()
+    } catch (error) {
+      if (isTransientError(error) && i < delays.length) {
+        await sleep(delays[i])
+        continue
+      }
+      throw error
+    }
+  }
+  throw new Error('unreachable')
 }
 
 /**

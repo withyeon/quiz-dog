@@ -36,6 +36,8 @@ const ITEM_BADGES: Record<SpecialItemType, { icon: string; label: string; color:
   COIN_RAIN: { icon: 'CR', label: '보너스 코인', color: 'border-yellow-200 bg-yellow-50 text-yellow-700' },
   EXTRA_PULL: { icon: 'EX', label: '복습 티켓', color: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
   SHIELD: { icon: 'SH', label: '꽝 방지', color: 'border-teal-200 bg-teal-50 text-teal-700' },
+  SCREEN_FLIP: { icon: '🙃', label: '화면 뒤집기', color: 'border-violet-200 bg-violet-50 text-violet-700' },
+  SCREEN_SHRINK: { icon: '🔭', label: '화면 축소', color: 'border-violet-200 bg-violet-50 text-violet-700' },
 }
 
 const AIM_STYLE = {
@@ -109,7 +111,7 @@ export default function FishingMachine({
       <div className="relative flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-3">
         <div className="flex min-w-0 items-center gap-2 text-slate-900">
           <Gamepad2 size={18} className={isFrenzy ? 'text-amber-500' : 'text-sky-500'} />
-          <span className="truncate text-lg font-extrabold tracking-normal">DOKI DOKI CLAW</span>
+          <span className="truncate text-lg font-extrabold tracking-normal">인형뽑기</span>
           {isFrenzy && <Zap size={16} className="text-amber-500" />}
         </div>
         <div className="flex shrink-0 items-center gap-2">

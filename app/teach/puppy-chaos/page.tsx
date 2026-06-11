@@ -181,7 +181,7 @@ export default function PuppyChaosTeacherPage() {
   }
 
   const inviteUrl = typeof window !== 'undefined' && roomCode
-    ? `${window.location.origin}/play/${roomCode}`
+    ? `${window.location.origin}/lobby?code=${roomCode}`
     : ''
 
   return (

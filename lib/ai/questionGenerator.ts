@@ -21,6 +21,18 @@ const MAX_TEXT_LENGTH = 30000
 const QUESTION_TYPES = ['CHOICE', 'SHORT', 'OX', 'BLANK'] as const
 const BLANK_PLACEHOLDER = '[            ]'
 
+const PRIMARY_MODEL = 'gemini-2.5-flash'
+const FALLBACK_MODEL = 'gemini-1.5-flash'
+
+function isTransientError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  return msg.includes('503') || msg.includes('Service Unavailable') || msg.includes('high demand') || msg.includes('overloaded')
+}
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 function truncateText(text: string): string {
   if (text.length <= MAX_TEXT_LENGTH) return text
   return text.slice(0, MAX_TEXT_LENGTH) + '\n\n[텍스트가 길어 일부만 사용되었습니다]'
@@ -257,6 +269,42 @@ function buildRepairNote(requestedCount: number, receivedCount: number): string 
   ].join('\n')
 }
 
+async function callGeminiModel(
+  apiKey: string,
+  modelName: string,
+  prompt: string,
+): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey)
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0.35,
+    },
+  })
+  const result = await model.generateContent(prompt)
+  return result.response.text()
+}
+
+async function callGeminiWithRetry(apiKey: string, prompt: string): Promise<string> {
+  const delays = [1000, 2000]
+  for (let i = 0; i <= delays.length; i++) {
+    try {
+      return await callGeminiModel(apiKey, PRIMARY_MODEL, prompt)
+    } catch (error) {
+      if (isTransientError(error) && i < delays.length) {
+        await sleep(delays[i])
+        continue
+      }
+      if (isTransientError(error)) {
+        return await callGeminiModel(apiKey, FALLBACK_MODEL, prompt)
+      }
+      throw error
+    }
+  }
+  throw new Error('unreachable')
+}
+
 async function generateQuestionsWithGemini(
   input: QuestionInput,
   questionCount: number = 5
@@ -264,23 +312,12 @@ async function generateQuestionsWithGemini(
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) throw new Error('GEMINI_API_KEY not found')
 
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0.35,
-    },
-  })
-
   let repairNote: string | undefined
   let bestQuestions: GeneratedQuestion[] = []
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const prompt = buildGenerationPrompt(input, questionCount, repairNote)
-    const result = await model.generateContent(prompt)
-    const response = await result.response
-    const text = response.text()
+    const text = await callGeminiWithRetry(apiKey, prompt)
     const questions = validateQuestions(parseQuestionsFromJSON(text), questionCount)
     if (questions.length > bestQuestions.length) bestQuestions = questions
     if (questions.length >= questionCount) return questions

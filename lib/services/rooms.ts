@@ -192,6 +192,7 @@ export async function resetRoom(roomCode: string): Promise<void> {
       gold: 0,
       position: 0,
       health: null,
+      attack_power: null,
       active_item: null,
       item_effects: null,
       caught_dolls: null,

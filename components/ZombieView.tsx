@@ -81,6 +81,7 @@ export default function ZombieView({
   const [gameLog, setGameLog] = useState<ZombieGameLog[]>([])
   const [lastScanResult, setLastScanResult] = useState<{ playerId: string; isZombie: boolean } | null>(null)
   const [lastAttackResult, setLastAttackResult] = useState<{ targetId: string; damage: number; infected: boolean; log: string } | null>(null)
+  const [scanCooldown, setScanCooldown] = useState(0)
   const finishingRef = useRef(false)
   const { playSFX } = useAudioContext()
 
@@ -165,6 +166,7 @@ export default function ZombieView({
 
     commitZombiePlayer(updatedPlayer, 'zombie_wrong_answer')
     setGameLog((logs) => addLog(logs, updatedPlayer.role === 'zombie' && myPlayer.role === 'human' ? `${myPlayer.name}이(가) 좀비가 되었습니다!` : log, logType))
+    setScanCooldown((prev) => Math.max(0, prev - 1))
     setCurrentView('wrong')
     window.setTimeout(() => {
       setCurrentView('quiz')
@@ -178,6 +180,7 @@ export default function ZombieView({
     const result = action === 'heal' ? humanHeal(myPlayer) : humanShield(myPlayer)
     commitZombiePlayer(result.newPlayer, `zombie_${action}`)
     setGameLog((logs) => addLog(logs, result.log, 'success'))
+    setScanCooldown((prev) => Math.max(0, prev - 1))
     playSFX('correct')
     setCurrentView('quiz')
     onNextQuestion()
@@ -192,6 +195,7 @@ export default function ZombieView({
       const result = scanPlayer(myPlayer, target)
       setLastScanResult({ playerId: targetId, isZombie: result.isZombie })
       setGameLog((logs) => addLog(logs, result.log, result.isZombie ? 'danger' : 'info'))
+      setScanCooldown(GAME_CONSTANTS.SCAN_COOLDOWN_ROUNDS)
       setCurrentView('scanResult')
       playSFX('click')
       return
@@ -315,9 +319,14 @@ export default function ZombieView({
                         <ZombieIcon name="shield" size={28} className="mb-1.5 sm:mb-2" alt="" />
                         방어막
                       </Button>
-                      <Button onClick={() => setCurrentView('targetSelect')} size="lg" className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-purple-700 to-purple-600 text-base font-bold text-white sm:h-28 sm:text-lg">
+                      <Button
+                        onClick={() => setCurrentView('targetSelect')}
+                        disabled={scanCooldown > 0}
+                        size="lg"
+                        className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-purple-700 to-purple-600 text-base font-bold text-white disabled:opacity-50 sm:h-28 sm:text-lg"
+                      >
                         <ZombieIcon name="scan" size={28} className="mb-1.5 sm:mb-2" alt="" />
-                        스캔
+                        {scanCooldown > 0 ? `스캔 (${scanCooldown})` : '스캔'}
                       </Button>
                     </div>
                   )}

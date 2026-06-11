@@ -95,6 +95,11 @@ export type SpecialItemType =
   | 'COIN_RAIN'       // 즉시 보너스 점수 지급
   | 'EXTRA_PULL'      // 즉시 한 번 더 뽑기
   | 'SHIELD'          // 다음 뽑기 실패 방지 (꽝 방지)
+  | 'SCREEN_FLIP'     // 다른 플레이어 화면 뒤집기
+  | 'SCREEN_SHRINK'   // 다른 플레이어 화면 축소
+
+// 다른 플레이어 화면에 영향을 주는 공격형 아이템 목록
+export const ATTACK_ITEM_TYPES = new Set<SpecialItemType>(['SCREEN_FLIP', 'SCREEN_SHRINK'])
 
 export interface SpecialItem {
   type: SpecialItemType
@@ -148,14 +153,30 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
     rarity: '전설',
     catchChance: 0.3,
   },
+  {
+    type: 'SCREEN_FLIP',
+    name: '화면 뒤집기',
+    description: '다른 모든 친구의 화면이 7초간 뒤집혀요!',
+    emoji: '🙃',
+    rarity: '전설',
+    catchChance: 0.25,
+  },
+  {
+    type: 'SCREEN_SHRINK',
+    name: '화면 축소',
+    description: '다른 모든 친구의 화면이 7초간 반으로 줄어들어요!',
+    emoji: '🔭',
+    rarity: '전설',
+    catchChance: 0.2,
+  },
 ]
 
 /**
  * 특별 아이템 뽑기 시도 (전체 뽑기의 약 8% 발동)
  */
 export function trySpecialItem(): SpecialItem | null {
-  // 전체 아이템 발동 확률 약 10%
-  const ITEM_TRIGGER_CHANCE = 0.1
+  // 전체 아이템 발동 확률 약 1/7 (≈14%)
+  const ITEM_TRIGGER_CHANCE = 1 / 7
   if (Math.random() > ITEM_TRIGGER_CHANCE) return null
 
   const total = SPECIAL_ITEMS.reduce((s, i) => s + i.catchChance, 0)

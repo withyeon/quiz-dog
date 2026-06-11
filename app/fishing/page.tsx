@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Award, Clock, Gamepad2, PackageCheck, Settings, Star, Target, XCircle, Zap } from 'lucide-react'
 import QuizView from '@/components/QuizView'
@@ -20,11 +20,15 @@ import {
 import { useGameBase } from '@/hooks/useGameBase'
 import { useFishingGame } from '@/hooks/useFishingGame'
 import {
+  ATTACK_ITEM_TYPES,
   getAnswerSpeedGrade,
   getAnswerSpeedLabel,
   getMachineRankName,
   getMachineRankProgress,
 } from '@/lib/game/fishing'
+import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+
+type ScreenAttack = { type: 'screen_flip' | 'screen_shrink'; expiresAt: number }
 
 export default function FishingPage() {
   const gameBase = useGameBase({ expectedGameMode: 'fishing' })
@@ -37,6 +41,7 @@ export default function FishingPage() {
     playSFX, handlePreStartQuizAnswer,
     checkAnswer, handleWrongAnswer, handleCountdownComplete,
     goToNextQuestion, getElapsedSeconds,
+    sendRoomEvent,
   } = gameBase
 
   const fishing = useFishingGame({
@@ -63,11 +68,44 @@ export default function FishingPage() {
   const showResultCard = fishingState === 'release' && !!fishingResult?.doll
   const isPaused = room?.status === 'paused'
 
+  const [screenAttacks, setScreenAttacks] = useState<ScreenAttack[]>([])
+  const isFlipped = screenAttacks.some((a) => a.type === 'screen_flip')
+  const isShrunk = screenAttacks.some((a) => a.type === 'screen_shrink')
+
   useEffect(() => {
     if (room?.status === 'playing' && currentView === 'lobby' && !showCountdown && isPreStartQuizComplete) {
       setCurrentView('quiz')
     }
   }, [currentView, isPreStartQuizComplete, room?.status, setCurrentView, showCountdown])
+
+  useEffect(() => {
+    if (!pendingItem || !ATTACK_ITEM_TYPES.has(pendingItem.type)) return
+    const effect = pendingItem.type === 'SCREEN_FLIP' ? 'screen_flip' : 'screen_shrink'
+    void sendRoomEvent('game:effect', {
+      mode: 'fishing',
+      effect,
+      sourcePlayerId: playerId,
+      sourceName: currentPlayer?.nickname ?? '친구',
+      durationMs: 7000,
+      expiresAt: Date.now() + 7000,
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingItem])
+
+  useEffect(() => {
+    return subscribeRoomRuntimeEvent((event) => {
+      if (event.type !== 'game:effect') return
+      const p = event.payload as { mode?: string; effect?: string; sourcePlayerId?: string; expiresAt?: number }
+      if (p.mode !== 'fishing') return
+      if (p.sourcePlayerId === playerId) return
+      const type = p.effect as ScreenAttack['type']
+      const expiresAt = p.expiresAt ?? Date.now() + 7000
+      setScreenAttacks((prev) => [...prev.filter((a) => a.type !== type), { type, expiresAt }])
+      window.setTimeout(() => {
+        setScreenAttacks((prev) => prev.filter((a) => a.expiresAt > Date.now()))
+      }, Math.max(0, expiresAt - Date.now()))
+    })
+  }, [playerId])
 
   if (!roomCode || !playerId) {
     return (
@@ -88,6 +126,11 @@ export default function FishingPage() {
   return (
     <main
       className={`fishing-ambient relative min-h-dvh overflow-hidden font-bitbit text-slate-900 transition-colors duration-700 ${isFrenzyEvent ? 'bg-[#fffaf2]' : 'bg-[#f8fbff]'}`}
+      style={{
+        transform: [isFlipped && 'rotate(180deg)', isShrunk && 'scale(0.5)'].filter(Boolean).join(' ') || undefined,
+        transformOrigin: 'center center',
+        transition: 'transform 300ms ease',
+      }}
     >
       <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(180deg,rgba(240,249,255,0.22)_0%,rgba(255,255,255,0.16)_44%,rgba(248,250,252,0.28)_100%)]" />
       <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-80 bg-[linear-gradient(135deg,rgba(224,242,254,0.28),rgba(255,255,255,0.22)_48%,rgba(254,249,195,0.18))]" />

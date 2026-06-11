@@ -23,7 +23,7 @@ export default function GameCodeModal({
 }: GameCodeModalProps) {
   const [copied, setCopied] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/play/${roomCode}` : ''
+  const inviteUrl = typeof window !== 'undefined' ? `${window.location.origin}/lobby?code=${roomCode}` : ''
 
   useEffect(() => {
     setMounted(true)

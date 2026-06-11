@@ -53,9 +53,14 @@ export default function ZombiePage() {
     () => players.filter((player) => !player.is_kicked),
     [players],
   )
-  const zombiePlayers = useMemo(
-    () => activeRoomPlayers.map(roomPlayerToZombiePlayer),
+  // 게임 시작 전 입장한 플레이어만 (도중 입장자는 active_item이 null)
+  const playersWithRoles = useMemo(
+    () => activeRoomPlayers.filter((player) => getZombieMeta(player)),
     [activeRoomPlayers],
+  )
+  const zombiePlayers = useMemo(
+    () => playersWithRoles.map(roomPlayerToZombiePlayer),
+    [playersWithRoles],
   )
   const myPlayer = currentPlayer ? roomPlayerToZombiePlayer(currentPlayer) : null
   const humanSurvivors = zombiePlayers.filter((player) => player.role === 'human')
@@ -65,7 +70,7 @@ export default function ZombiePage() {
     ? '모든 인간이 감염되었습니다! 좀비 팀 승리!'
     : `${humanSurvivors.length}명의 인간이 생존했습니다! 인간 팀 승리!`
   const myWon = myPlayer ? myPlayer.role === winner : false
-  const hasAssignedRoles = activeRoomPlayers.length > 0 && activeRoomPlayers.every((player) => getZombieMeta(player))
+  const hasAssignedRoles = playersWithRoles.length > 0
 
   useEffect(() => {
     if (room?.status === 'waiting' && currentView !== 'lobby') {
@@ -194,7 +199,7 @@ export default function ZombiePage() {
           </motion.div>
         )}
 
-        {currentView === 'playing' && showRoleReveal && myPlayer && (
+        {room?.status === 'playing' && currentView !== 'lobby' && showRoleReveal && myPlayer && (
           <motion.div key="role_reveal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-4">
             <motion.div initial={{ scale: 0 }} animate={{ scale: [0, 1.2, 1] }} transition={{ duration: 0.8 }} className="text-center">
               <motion.div animate={{ y: [0, -20, 0] }} transition={{ duration: 1, repeat: Infinity }} className="flex justify-center">
@@ -214,7 +219,7 @@ export default function ZombiePage() {
           </motion.div>
         )}
 
-        {currentView === 'playing' && !showRoleReveal && (
+        {room?.status === 'playing' && currentView !== 'lobby' && !showRoleReveal && (
           hasAssignedRoles ? (
             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-dvh w-full">
               <ZombieView

@@ -222,99 +222,178 @@ export default function GameResult({
           </motion.div>
         )}
 
-        {/* Top 3 */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          {top3.map((player, index) => {
-            const rank = index + 1
-            const isCurrentPlayer = player.id === currentPlayerId
-            const colors = ['text-yellow-500', 'text-gray-400', 'text-amber-600']
-            const scoreDisplay = getScoreDisplay(player, gameMode)
+        {/* Top 3 Podium */}
+        <div
+          className="relative mb-10 overflow-hidden rounded-3xl"
+          style={{ background: 'linear-gradient(160deg, #0f0c29 0%, #302b63 55%, #1a1040 100%)', padding: '2rem 1rem 0' }}
+        >
+          {/* 별 파티클 */}
+          {Array.from({ length: 18 }).map((_, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full bg-white pointer-events-none"
+              style={{
+                width: i % 4 === 0 ? 3 : 2,
+                height: i % 4 === 0 ? 3 : 2,
+                top: `${(i * 41) % 85}%`,
+                left: `${(i * 59) % 100}%`,
+              }}
+              animate={{ opacity: [0.2, 0.8, 0.2], scale: [1, 1.6, 1] }}
+              transition={{ duration: 1.8 + (i % 4) * 0.5, repeat: Infinity, delay: i * 0.12 }}
+            />
+          ))}
 
-            return (
-              <motion.div
-                key={player.id}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card
-                  className={`h-full relative overflow-hidden ${isCurrentPlayer
-                    ? 'ring-4 ring-primary-500 shadow-xl scale-105 glow-box'
-                    : 'hover:shadow-lg'
-                    }`}
+          <div className="relative z-10 text-center mb-6">
+            <motion.p
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-sm font-black tracking-widest text-amber-300 mb-1"
+              style={{ fontFamily: "'DNFBitBitv2', sans-serif", letterSpacing: '0.2em', textShadow: '-1px -1px 0 rgba(0,0,0,0.9), 1px -1px 0 rgba(0,0,0,0.9), -1px 1px 0 rgba(0,0,0,0.9), 1px 1px 0 rgba(0,0,0,0.9)' }}
+            >
+              FINAL RANKING
+            </motion.p>
+            <motion.h2
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1, type: 'spring', bounce: 0.4 }}
+              className="text-3xl sm:text-4xl font-black text-white"
+              style={{ fontFamily: "'DNFBitBitv2', sans-serif", textShadow: '-2px -2px 0 rgba(0,0,0,0.9), 2px -2px 0 rgba(0,0,0,0.9), -2px 2px 0 rgba(0,0,0,0.9), 2px 2px 0 rgba(0,0,0,0.9), 0 0 30px rgba(255,215,0,0.6)' }}
+            >
+              🏆 최종 순위
+            </motion.h2>
+          </div>
+
+          {/* 시상대: 2등 - 1등 - 3등 순서 */}
+          <div className="relative z-10 flex items-end justify-center gap-2 sm:gap-4">
+            {([top3[1], top3[0], top3[2]] as (Player | undefined)[]).map((player, displayIdx) => {
+              if (!player) return <div key={displayIdx} className="flex-1 max-w-[110px]" />
+              const rank = ([2, 1, 3] as const)[displayIdx]
+              const isFirst = rank === 1
+              const isCurrentPlayer = player.id === currentPlayerId
+              const scoreDisplay = getScoreDisplay(player, gameMode)
+
+              const podiumH = isFirst ? 180 : rank === 2 ? 130 : 100
+              const podiumGrad = isFirst
+                ? 'linear-gradient(180deg, #FFD700 0%, #B8860B 100%)'
+                : rank === 2
+                  ? 'linear-gradient(180deg, #D4D4D4 0%, #808080 100%)'
+                  : 'linear-gradient(180deg, #CD7F32 0%, #8B4513 100%)'
+              const glowColor = isFirst ? 'rgba(255,215,0,0.5)' : rank === 2 ? 'rgba(200,200,200,0.3)' : 'rgba(205,127,50,0.3)'
+              const medalEmoji = isFirst ? '🥇' : rank === 2 ? '🥈' : '🥉'
+              const avatarSize = isFirst ? 88 : 68
+              const entryDelay = [0.35, 0.15, 0.55][displayIdx]
+
+              return (
+                <motion.div
+                  key={player.id}
+                  className="flex flex-col items-center"
+                  initial={{ opacity: 0, y: 80 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: entryDelay, type: 'spring', bounce: 0.35, duration: 0.7 }}
+                  style={{ zIndex: isFirst ? 10 : 5, minWidth: isFirst ? 110 : 90 }}
                 >
-                  {isCurrentPlayer && (
-                    <div className="absolute inset-0 shimmer pointer-events-none" />
+                  {/* 왕관 (1등만) */}
+                  {isFirst && (
+                    <motion.div
+                      animate={{ y: [0, -6, 0], rotate: [-5, 5, -5] }}
+                      transition={{ duration: 2.2, repeat: Infinity }}
+                      className="text-4xl mb-1 select-none"
+                      style={{ filter: 'drop-shadow(0 0 8px rgba(255,215,0,0.8))' }}
+                    >
+                      👑
+                    </motion.div>
                   )}
-                  <CardHeader className="text-center">
+
+                  {/* 아바타 */}
+                  <div className="relative mb-1">
                     <motion.div
-                      animate={{ rotate: [0, 10, -10, 0] }}
-                      transition={{ duration: 2, repeat: Infinity, delay: index * 0.3 }}
-                      className="flex justify-center mb-4"
+                      animate={isFirst ? { scale: [1, 1.06, 1] } : {}}
+                      transition={{ duration: 2.4, repeat: Infinity }}
+                      className="overflow-hidden"
+                      style={{
+                        width: avatarSize,
+                        height: avatarSize,
+                        borderRadius: 14,
+                        border: `3px solid ${isFirst ? '#FFD700' : rank === 2 ? '#C0C0C0' : '#CD7F32'}`,
+                        boxShadow: `0 0 ${isFirst ? 20 : 10}px ${glowColor}, 0 4px 12px rgba(0,0,0,0.5)`,
+                      }}
                     >
-                      {rank === 1 ? (
-                        <Image src="/trophy.svg" alt="트로피" width={80} height={80} className="h-20 w-20 drop-shadow-lg" />
-                      ) : rank === 2 ? (
-                        <Image src="/silver.svg" alt="은메달" width={80} height={80} className="h-20 w-20 drop-shadow-lg" />
-                      ) : (
-                        <Image src="/bronze.svg" alt="동메달" width={80} height={80} className="h-20 w-20 drop-shadow-lg" />
-                      )}
+                      <PlayerAvatarDisplay
+                        avatar={player.avatar}
+                        nickname={player.nickname}
+                        fallback="🐶"
+                        className="w-full h-full object-contain bg-white"
+                        sizes={`${avatarSize}px`}
+                      />
                     </motion.div>
-                    <motion.div
-                      animate={{ scale: [1, 1.1, 1] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                      className="text-5xl font-bold text-gray-900 mb-2"
-                    >
-                      #{rank}
-                    </motion.div>
-                    <CardTitle className="text-2xl font-bold">{player.nickname}</CardTitle>
                     {isCurrentPlayer && (
-                      <span className="inline-block mt-2 text-sm bg-primary-100 text-primary-800 px-3 py-1 rounded-full">
+                      <div
+                        className="absolute -top-2 -right-2 rounded-full font-black text-white flex items-center justify-center"
+                        style={{ background: '#6366f1', width: 22, height: 22, fontSize: 10, fontFamily: "'DNFBitBitv2', sans-serif", boxShadow: '0 2px 6px rgba(99,102,241,0.6)' }}
+                      >
                         나
-                      </span>
+                      </div>
                     )}
-                  </CardHeader>
-                  <CardContent className="text-center">
-                    <motion.div
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                      className="space-y-2"
+                  </div>
+
+                  {/* 닉네임 + 점수 */}
+                  <div className="text-center mb-2 px-1">
+                    <div
+                      className="font-black text-white truncate"
+                      style={{
+                        fontFamily: "'DNFBitBitv2', sans-serif",
+                        fontSize: isFirst ? '0.95rem' : '0.8rem',
+                        maxWidth: isFirst ? 110 : 90,
+                        textShadow: '-1.5px -1.5px 0 rgba(0,0,0,0.9), 1.5px -1.5px 0 rgba(0,0,0,0.9), -1.5px 1.5px 0 rgba(0,0,0,0.9), 1.5px 1.5px 0 rgba(0,0,0,0.9)',
+                      }}
                     >
-                      {gameMode === 'battle_royale' ? (
-                        <>
-                          <div className="text-4xl font-bold text-gray-900">
-                            {(player as any).health || 0} HP
-                          </div>
-                          {rank === 1 && (
-                            <div className="text-xl text-red-600 font-bold flex items-center gap-1"><Image src="/trophy.svg" alt="트로피" width={20} height={20} className="w-5 h-5" /> 승리!</div>
-                          )}
-                        </>
-                      ) : isDontLookDown ? (
-                        <>
-                          <div className="text-4xl font-bold text-gray-900">
-                            {player.score}m
-                          </div>
-                          <div className="text-xl text-yellow-600 font-bold flex items-center gap-1.5">
-                            <span>⚡</span>
-                            {player.gold.toLocaleString()} 에너지
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-4xl font-bold text-gray-900">
-                            {scoreDisplay.text}
-                            {scoreDisplay.icon && (
-                              <Image src={scoreDisplay.icon} alt="" width={28} height={28} className="ml-2 inline-block h-7 w-7 object-contain align-middle" />
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )
-          })}
+                      {player.nickname}
+                    </div>
+                    <div
+                      className="font-black"
+                      style={{
+                        fontFamily: "'DNFBitBitv2', sans-serif",
+                        fontSize: isFirst ? '1rem' : '0.82rem',
+                        color: isFirst ? '#FFD700' : rank === 2 ? '#D4D4D4' : '#CD7F32',
+                        textShadow: `-1.5px -1.5px 0 rgba(0,0,0,0.9), 1.5px -1.5px 0 rgba(0,0,0,0.9), -1.5px 1.5px 0 rgba(0,0,0,0.9), 1.5px 1.5px 0 rgba(0,0,0,0.9), 0 0 12px ${glowColor}`,
+                      }}
+                    >
+                      {gameMode === 'battle_royale'
+                        ? `${(player as any).health || 0} HP`
+                        : isDontLookDown
+                          ? `${player.score}m`
+                          : scoreDisplay.text}
+                    </div>
+                  </div>
+
+                  {/* 시상대 블록 */}
+                  <motion.div
+                    className="w-full flex flex-col items-center justify-start pt-3 font-black"
+                    initial={{ scaleY: 0, originY: 1 }}
+                    animate={{ scaleY: 1 }}
+                    transition={{ delay: entryDelay + 0.1, duration: 0.5, ease: 'easeOut' }}
+                    style={{
+                      height: podiumH,
+                      minWidth: isFirst ? 110 : 90,
+                      background: podiumGrad,
+                      borderRadius: '10px 10px 0 0',
+                      boxShadow: `0 -6px 24px ${glowColor}, inset 0 2px 0 rgba(255,255,255,0.3)`,
+                    }}
+                  >
+                    <span className="text-2xl sm:text-3xl select-none" style={{ filter: `drop-shadow(0 2px 4px rgba(0,0,0,0.4))` }}>
+                      {medalEmoji}
+                    </span>
+                    <span
+                      className="text-white font-black opacity-80 mt-1"
+                      style={{ fontFamily: "'DNFBitBitv2', sans-serif", fontSize: isFirst ? '1.1rem' : '0.9rem', textShadow: '-1px -1px 0 rgba(0,0,0,0.8), 1px -1px 0 rgba(0,0,0,0.8), -1px 1px 0 rgba(0,0,0,0.8), 1px 1px 0 rgba(0,0,0,0.8)' }}
+                    >
+                      {rank}위
+                    </span>
+                  </motion.div>
+                </motion.div>
+              )
+            })}
+          </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 mb-8">

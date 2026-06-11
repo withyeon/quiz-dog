@@ -76,7 +76,7 @@ export default function PuppyChaosPage() {
     goToNextQuestion,
     applyPlayerPatch,
     sendRoomEvent,
-  } = useGameBase({ expectedGameMode: 'poop_dodge' })
+  } = useGameBase({ expectedGameMode: 'poop_dodge', preStartQuizTotal: 0 })
   const [phase, setPhase] = useState<Phase>('waiting')
   const [combo, setCombo] = useState(0)
   const [cards, setCards] = useState<PuppyChaosCard[]>([])

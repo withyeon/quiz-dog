@@ -7,12 +7,12 @@ import { getFeatureIntroItems } from '@/components/landing/featureIntroData'
 function SectionTitleButton({ children }: { children: React.ReactNode }) {
   return (
     <span
-      className="inline-block rounded-2xl px-10 py-4 text-2xl font-black text-white sm:text-3xl"
+      className="inline-block text-3xl font-black sm:text-4xl"
       style={{
-        backgroundColor: '#0ea5e9',
-        border: '3px solid #0284c7',
-        boxShadow: '0 5px 0 #0369a1, 0 8px 20px rgba(0,0,0,0.12)',
         fontFamily: "'DNFBitBitv2', sans-serif",
+        background: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
       }}
     >
       {children}
@@ -43,7 +43,7 @@ export default function FeatureIntroSection({
           </div>
           <p
             className="mt-4 text-base sm:text-lg"
-            style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}
+            style={{ color: '#475569', fontFamily: "'DNFBitBitv2', sans-serif" }}
           >
             AI 기반 문제 생성부터 실시간 게임까지, 모든 것이 한 곳에
           </p>

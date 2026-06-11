@@ -93,6 +93,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
     const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
     const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
+    const [isCountdownComplete, setIsCountdownComplete] = useState(false)
 
     const questionStartTime = useRef<number>(Date.now())
     const autoFinishRequestedRef = useRef(false)
@@ -172,7 +173,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     }, [expectedGameMode, playerId, room?.started_at, roomCode])
     const isPreStartQuizComplete = requiredPreStartQuizCount === 0
         || preStartSubmittedCount >= requiredPreStartQuizCount
-    const shouldShowPreStartQuiz = roomStatus === 'playing' && !isPreStartQuizComplete
+    const shouldShowPreStartQuiz = roomStatus === 'playing' && !isPreStartQuizComplete && isCountdownComplete
     const isRoomHost = useMemo(
         () => isRoomHostPlayer(playerId, players, presence),
         [playerId, players, presence],
@@ -327,15 +328,11 @@ export function useGameBase(options: UseGameBaseOptions) {
         if (!room) return
 
         if (roomStatus === 'playing') {
-            if (!isPreStartQuizComplete) {
-                if (showCountdown) setShowCountdown(false)
-                return
-            }
-
-            if (currentView === 'lobby' && !showCountdown) {
+            if (currentView === 'lobby' && !showCountdown && !isCountdownComplete) {
                 // 새로고침 복구: 인덱스 남아있으면 카운트다운 건너뛰기
                 const savedIndex = roomCode ? sessionStorage.getItem(`quiz_index_${roomCode}`) : null
                 if (savedIndex && parseInt(savedIndex, 10) > 0) {
+                    setIsCountdownComplete(true)
                     setCurrentView('quiz')
                     playBGM('game')
                 } else {
@@ -347,10 +344,11 @@ export function useGameBase(options: UseGameBaseOptions) {
                 setCurrentView('lobby')
                 setShowCountdown(false)
             }
+            setIsCountdownComplete(false)
         } else if (isTerminalRoomStatus(roomStatus)) {
             forceFinishForStudent(`room_status_${roomStatus}`)
         }
-    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room, playerId, router, isPreStartQuizComplete, forceFinishForStudent])
+    }, [roomStatus, currentView, showCountdown, playBGM, roomCode, room, playerId, router, isCountdownComplete, forceFinishForStudent])
 
     useEffect(() => {
         if (roomStatus !== 'playing') {
@@ -405,10 +403,23 @@ export function useGameBase(options: UseGameBaseOptions) {
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {
         setShowCountdown(false)
-        setCurrentView('quiz')
-        playBGM('game')
-        questionStartTime.current = Date.now()
-    }, [playBGM])
+        setIsCountdownComplete(true)
+        if (isPreStartQuizComplete) {
+            setCurrentView('quiz')
+            playBGM('game')
+            questionStartTime.current = Date.now()
+        }
+        // 시작 전 퀴즈가 남아 있으면 퀴즈 완료 후 아래 effect에서 게임 시작
+    }, [playBGM, isPreStartQuizComplete])
+
+    // ─── 시작 전 퀴즈 완료 → 게임 진입 (카운트다운 이후) ───
+    useEffect(() => {
+        if (isCountdownComplete && isPreStartQuizComplete && currentView === 'lobby') {
+            setCurrentView('quiz')
+            playBGM('game')
+            questionStartTime.current = Date.now()
+        }
+    }, [isCountdownComplete, isPreStartQuizComplete, currentView, playBGM])
 
     // ─── 문제 인덱스 저장 ───
     useEffect(() => {

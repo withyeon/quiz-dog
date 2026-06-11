@@ -394,8 +394,14 @@ export default function TowerDefenseMap({
                 }
 
                 if (enemyImage) {
+                    const isFrozen = (enemy.frozenUntil ?? 0) > now
+                    const walkPhase = isFrozen ? 0 : now * (enemy.speed / 2500)
+                    const bobY = Math.sin(walkPhase * Math.PI * 2) * 1.5
+                    const lean = enemy.type === 'BOSS' ? 0 : Math.sin(walkPhase * Math.PI) * 0.05
+
                     ctx.save()
-                    ctx.translate(enemy.x, enemy.y)
+                    ctx.translate(enemy.x, enemy.y + bobY)
+                    ctx.rotate(lean)
                     if (enemy.hp < enemy.maxHp * 0.3) {
                         ctx.globalAlpha = 0.7
                         ctx.filter = 'hue-rotate(0deg) saturate(1.5)'

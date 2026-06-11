@@ -3,7 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import TeacherTutorial from '@/components/TeacherTutorial'
 import {
   BarChart3,
@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Home,
   Library,
+  LogOut,
   Menu,
   PlayCircle,
   Plus,
@@ -18,6 +19,7 @@ import {
   Settings,
   X,
 } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -33,8 +35,19 @@ const navItems = [
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, signOut } = useAuth()
   const [tutorialOpenSignal, setTutorialOpenSignal] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+
+  const userEmail = user?.email ?? ''
+  const userInitial = userEmail ? userEmail[0].toUpperCase() : 'T'
+  const displayName = userEmail ? userEmail.split('@')[0] : '선생님'
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/')
+  }
   const currentItem = navItems.find((item) => {
     if (item.id === 'home') return pathname === '/teacher'
     return pathname?.startsWith(item.href)
@@ -108,20 +121,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="border-t border-slate-100 p-4">
           <div className="rounded-lg bg-slate-50 p-4">
             <div className="flex items-center gap-3">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-black text-slate-700 ring-1 ring-slate-200">
-                T
+              <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-sky-500 text-sm font-black text-white">
+                {userInitial}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-black text-black">선생님</div>
-                <div className="mt-0.5 text-xs font-medium text-slate-500">Free 플랜</div>
+                <div className="truncate text-sm font-black text-black">{displayName}</div>
+                <div className="mt-0.5 truncate text-xs font-medium text-slate-500">{userEmail}</div>
               </div>
             </div>
-            <Link
-              href="/pricing"
-              className="mt-4 flex h-9 items-center justify-center rounded-lg bg-white text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100"
-            >
-              플랜 보기
-            </Link>
+            <div className="mt-3 flex gap-2">
+              <Link
+                href="/pricing"
+                className="flex h-9 flex-1 items-center justify-center rounded-lg bg-white text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100"
+              >
+                플랜 보기
+              </Link>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-red-50 hover:text-red-500"
+                aria-label="로그아웃"
+                title="로그아웃"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
       </aside>
@@ -195,21 +219,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="border-t border-slate-100 p-4">
               <div className="rounded-lg bg-slate-50 p-4">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-sm font-black text-slate-700 ring-1 ring-slate-200">
-                    T
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-sky-500 text-sm font-black text-white">
+                    {userInitial}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-black text-black">선생님</div>
-                    <div className="mt-0.5 text-xs font-medium text-slate-500">Free 플랜</div>
+                    <div className="truncate text-sm font-black text-black">{displayName}</div>
+                    <div className="mt-0.5 truncate text-xs font-medium text-slate-500">{userEmail}</div>
                   </div>
                 </div>
-                <Link
-                  href="/pricing"
-                  onClick={() => setMobileNavOpen(false)}
-                  className="mt-4 flex h-9 items-center justify-center rounded-lg bg-white text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100"
-                >
-                  플랜 보기
-                </Link>
+                <div className="mt-3 flex gap-2">
+                  <Link
+                    href="/pricing"
+                    onClick={() => setMobileNavOpen(false)}
+                    className="flex h-9 flex-1 items-center justify-center rounded-lg bg-white text-xs font-black text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-100"
+                  >
+                    플랜 보기
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => { setMobileNavOpen(false); void handleSignOut() }}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-white text-slate-500 ring-1 ring-slate-200 transition hover:bg-red-50 hover:text-red-500"
+                    aria-label="로그아웃"
+                    title="로그아웃"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </aside>
