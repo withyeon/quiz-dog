@@ -72,6 +72,7 @@ export default function GamePage() {
   const [hasShield, setHasShield] = useState(false) // 방어권 보유 여부
   const [shieldNotice, setShieldNotice] = useState<string | null>(null)
   const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
+  const [playerSelectTimeLeft, setPlayerSelectTimeLeft] = useState<number>(0)
   const hasShieldRef = useRef(false)
   const attackResolversRef = useRef(new Map<string, (blocked: boolean) => void>())
   // 정답 후 상자 화면 자동 전환 타이머 (수동 클릭과 중복 실행 방지)
@@ -217,6 +218,41 @@ export default function GamePage() {
       }
     }
   }, [currentView, pendingEvent, selectableForSteal.length, goToNextQuestion])
+
+  // playerSelect 화면 진입 시 15초 제한: 시간 초과하면 선택 없이 다음 문제로
+  useEffect(() => {
+    if (currentView !== 'playerSelect' || !pendingEvent || isProcessingReward || boxEvent?.targetPlayerId) return
+    const LIMIT = 15
+    setPlayerSelectTimeLeft(LIMIT)
+    const interval = window.setInterval(() => {
+      setPlayerSelectTimeLeft((prev) => {
+        if (prev <= 1) {
+          window.clearInterval(interval)
+          setSelectedChest(null)
+          setBoxEvent(null)
+          setPendingEvent(null)
+          setIsProcessingReward(false)
+          goToNextQuestion()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => window.clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentView, pendingEvent])
+
+  // 게임 종료 시 playerSelect 화면에 걸려있으면 강제 스킵
+  useEffect(() => {
+    if (currentView !== 'playerSelect' || !pendingEvent) return
+    if (room?.status === 'finished' || room?.status === 'ended') {
+      setSelectedChest(null)
+      setBoxEvent(null)
+      setPendingEvent(null)
+      setIsProcessingReward(false)
+      goToNextQuestion()
+    }
+  }, [room?.status, currentView, pendingEvent, goToNextQuestion])
 
   // 카운트다운 완료 후 게임 시작
   const handleCountdownComplete = () => {
@@ -639,11 +675,11 @@ export default function GamePage() {
                         : '마법사의 계약서'
                   }
                   description={
-                    pendingEvent.type === 'KING'
+                    `${pendingEvent.type === 'KING'
                       ? '교환할 상대를 선택하세요.'
                       : pendingEvent.type === 'ELF'
                         ? '골드 10%를 가져올 상대를 선택하세요.'
-                        : '골드 25%를 가져올 상대를 선택하세요.'
+                        : '골드 25%를 가져올 상대를 선택하세요.'} (${playerSelectTimeLeft}초)`
                   }
                   icon={pendingEvent.icon || '⚔️'}
                   iconImage={BOX_EVENT_IMAGE[pendingEvent.type]}
