@@ -107,7 +107,7 @@ export default function AuthModal({
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl">
+      <div className="relative w-full max-w-md overflow-y-auto rounded-2xl bg-white shadow-2xl" style={{ maxHeight: 'calc(100dvh - 2rem)' }}>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
           <div className="flex items-center gap-2">

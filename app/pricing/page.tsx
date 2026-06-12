@@ -46,7 +46,7 @@ const PLANS = [
     name: 'Free',
     emoji: '🐾',
     originalPrice: null,
-    price: '₩0',
+    price: '0원',
     period: '월',
     description: '체험용 · 소규모 수업',
     features: [
@@ -68,8 +68,8 @@ const PLANS = [
   {
     name: 'Pro',
     emoji: '⚡',
-    originalPrice: '₩4,900',
-    price: '₩0',
+    originalPrice: '4,900원',
+    price: '0원',
     period: '월',
     description: '고학년 · AI 심화 수업',
     features: [
@@ -93,8 +93,8 @@ const PLANS = [
   {
     name: 'Pro 연간',
     emoji: '👑',
-    originalPrice: '₩49,000',
-    price: '₩0',
+    originalPrice: '49,000원',
+    price: '0원',
     period: '1년',
     description: '최고 가성비 · 연간 플랜',
     features: [
@@ -227,8 +227,8 @@ export default function PricingPage() {
             {/* 가격 비교 */}
             <div className="flex justify-center items-center gap-6 flex-wrap">
               {[
-                { label: 'Pro 월간', original: '₩4,900/월' },
-                { label: 'Pro 연간', original: '₩49,000/년' },
+                { label: 'Pro 월간', original: '4,900원/월' },
+                { label: 'Pro 연간', original: '49,000원/년' },
               ].map(({ label, original }) => (
                 <div key={label} className="flex items-center gap-3 bg-white/70 rounded-2xl px-5 py-3" style={{ boxShadow: '0 2px 8px rgba(124,58,237,0.08)' }}>
                   <div>

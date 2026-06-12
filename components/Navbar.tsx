@@ -9,12 +9,10 @@ import { Button } from '@/components/ui/button'
 import { Menu, X, LogIn, LogOut, User, ChevronDown } from 'lucide-react'
 import { gameAssets } from '@/assets/game-assets'
 import { useAuth } from '@/contexts/AuthContext'
-import AuthModal from '@/components/auth/AuthModal'
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [authModalOpen, setAuthModalOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
@@ -161,13 +159,13 @@ export default function Navbar() {
                   )}
                 </div>
               ) : (
-                <button
-                  onClick={() => setAuthModalOpen(true)}
+                <Link
+                  href="/login"
                   className="flex items-center gap-2 rounded-xl bg-black px-4 py-2 text-sm font-black text-white transition hover:bg-neutral-800"
                 >
                   <LogIn className="h-4 w-4" />
                   선생님 로그인
-                </button>
+                </Link>
               )}
             </div>
           </div>
@@ -185,12 +183,6 @@ export default function Navbar() {
           </button>
         </div>
       </div>
-
-      <AuthModal
-        isOpen={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        redirectTo="/teacher"
-      />
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
@@ -245,13 +237,14 @@ export default function Navbar() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => { setIsMobileMenuOpen(false); setAuthModalOpen(true) }}
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
                   className="flex w-full items-center justify-center gap-2 rounded-lg bg-black px-4 py-3 text-sm font-black text-white transition hover:bg-neutral-800"
                 >
                   <LogIn className="h-4 w-4" />
                   선생님 로그인
-                </button>
+                </Link>
               )}
             </div>
           </div>
