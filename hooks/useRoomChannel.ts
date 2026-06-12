@@ -162,7 +162,7 @@ export function useRoomChannel({
         emitRoomRuntimeEvent(event)
         onEventRef.current?.(event)
 
-        if (event.type === 'room:snapshot-hint' || event.type === 'game:finished') {
+        if (event.type === 'game:finished') {
           void onResyncNeededRef.current?.('broadcast_hint')
         }
       })

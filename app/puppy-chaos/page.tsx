@@ -211,7 +211,6 @@ export default function PuppyChaosPage() {
       patch,
       reason,
     })
-    void sendRoomEvent('room:snapshot-hint', { reason })
   }, [applyPlayerPatch, sendRoomEvent])
 
   const updatePlayerAndBroadcast = useCallback(async (

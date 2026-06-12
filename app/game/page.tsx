@@ -329,7 +329,6 @@ export default function GamePage() {
       await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetPlayerId, patch) =>
         commitPlayerPatch(targetPlayerId, patch, 'gold_quest_reward')
       )
-      void sendRoomEvent('room:snapshot-hint', { reason: 'gold_quest_reward' })
 
       // 3초 후 다음 문제로
       scheduleAdvance(() => {
@@ -398,7 +397,6 @@ export default function GamePage() {
       await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetId, patch) =>
         commitPlayerPatch(targetId, patch, 'gold_quest_target_reward')
       )
-      void sendRoomEvent('room:snapshot-hint', { reason: 'gold_quest_target_reward' })
 
       // 이벤트 메시지 업데이트
       setBoxEvent(event)

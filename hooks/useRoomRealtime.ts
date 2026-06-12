@@ -182,9 +182,7 @@ export function useRoomRealtime({
         return
       }
 
-      if (event.type === 'room:snapshot-hint') {
-        void refreshRoom({ silent: true })
-      }
+      // room:patch broadcast로 이미 로컬 상태가 반영됐으므로 snapshot-hint마다 재조회 불필요.
     })
   }, [applyRoomPatch, enabled, refreshRoom, roomCode])
 

@@ -155,18 +155,21 @@ export function usePlayersRealtime({
 
     void refreshPlayers()
 
+    // UPDATE는 player:patch broadcast로 처리 — postgres_changes UPDATE를 구독하면
+    // DB write마다 같은 방의 모든 클라이언트에 trigger가 발사되어 N*M 메시지 폭발이 생긴다.
+    // INSERT만 구독해 새 플레이어 입장을 감지하고, 점수/상태 변경은 broadcast에 맡긴다.
     const channel = supabase
       .channel(`players:${roomCode}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'players',
           filter: `room_code=eq.${roomCode}`,
         },
         (payload) => {
-          if (payload.eventType === 'INSERT' && payload.new) {
+          if (payload.new) {
             const newPlayer = normalizePlayer(payload.new as Player)
             setPlayers((prev) => {
               const exists = prev.some((player) => player.id === newPlayer.id)
@@ -174,18 +177,6 @@ export function usePlayersRealtime({
               return sortPlayersByScore([...prev, newPlayer])
             })
             onPlayerInsertRef.current?.(newPlayer)
-          } else if (payload.eventType === 'UPDATE' && payload.new) {
-            const updatedPlayer = normalizePlayer(payload.new as Player)
-            setPlayers((prev) =>
-              sortPlayersByScore(prev.map((player) => (
-                player.id === updatedPlayer.id ? updatedPlayer : player
-              )))
-            )
-            onPlayerUpdateRef.current?.(updatedPlayer)
-          } else if (payload.eventType === 'DELETE' && payload.old) {
-            const deletedPlayer = payload.old as Player
-            setPlayers((prev) => prev.filter((player) => player.id !== deletedPlayer.id))
-            onPlayerDeleteRef.current?.(deletedPlayer)
           }
         }
       )
@@ -214,11 +205,9 @@ export function usePlayersRealtime({
         return
       }
 
-      if (
-        event.type === 'room:snapshot-hint'
-        || event.type === 'game:finished'
-        || event.type === 'room:patch'
-      ) {
+      // game:finished 때만 최종 점수를 DB에서 새로 읽는다.
+      // room:snapshot-hint는 player:patch broadcast로 이미 반영됐으므로 전체 재조회 불필요.
+      if (event.type === 'game:finished') {
         void refreshPlayers({ silent: true })
       }
     })
