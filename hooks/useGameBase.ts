@@ -362,16 +362,17 @@ export function useGameBase(options: UseGameBaseOptions) {
     useEffect(() => {
         if (!roomCode) return
         // 학생마다 동시에 resync가 터지는 thundering herd 방지: 20~50초 사이 무작위 간격
-        let timer: ReturnType<typeof setTimeout>
+        // eslint-disable-next-line prefer-const
+        let timer = { id: 0 }
         const schedule = () => {
             const delay = 20000 + Math.random() * 30000
-            timer = window.setTimeout(() => {
+            timer.id = window.setTimeout(() => {
                 void resyncRoomSnapshot('periodic')
                 schedule()
             }, delay)
         }
         schedule()
-        return () => window.clearTimeout(timer)
+        return () => window.clearTimeout(timer.id)
     }, [roomCode, resyncRoomSnapshot])
 
     // 제한 시간 종료(학생 측). 학생은 세션 권한이 없으므로 DB에 쓰지 않는다.
