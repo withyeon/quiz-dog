@@ -62,7 +62,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'toast',
     name: '토스트',
     emoji: '🍞',
-    image: '/cafe/toast.svg',
+    image: '/cafe/webp/toast.webp',
     cost: 0, // 기본 제공
     sellPrice: 1_000,
     description: '따뜻하고 바삭한 토스트',
@@ -71,7 +71,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'cereal',
     name: '시리얼',
     emoji: '🥣',
-    image: '/cafe/cereal.svg',
+    image: '/cafe/webp/cereal.webp',
     cost: 15_000,
     sellPrice: 3_000,
     description: '아침을 깨우는 시리얼',
@@ -80,7 +80,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'milk',
     name: '우유',
     emoji: '🥛',
-    image: '/cafe/milk.svg',
+    image: '/cafe/webp/milk.webp',
     cost: 50_000,
     sellPrice: 8_000,
     description: '신선한 우유',
@@ -89,7 +89,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'waffle',
     name: '와플',
     emoji: '🧇',
-    image: '/cafe/waffle.svg',
+    image: '/cafe/webp/waffle.webp',
     cost: 80_000,
     sellPrice: 15_000,
     description: '달콤한 와플',
@@ -98,7 +98,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'coffee',
     name: '커피',
     emoji: '☕',
-    image: '/cafe/coffee.svg',
+    image: '/cafe/webp/coffee.webp',
     cost: 200_000,
     sellPrice: 35_000,
     description: '진한 에스프레소',
@@ -107,7 +107,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'cake',
     name: '케이크',
     emoji: '🎂',
-    image: '/cafe/cake.svg',
+    image: '/cafe/webp/cake.webp',
     cost: 400_000,
     sellPrice: 80_000,
     description: '달콤한 생크림 케이크',
@@ -116,7 +116,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'pizza',
     name: '피자',
     emoji: '🍕',
-    image: '/cafe/pizza.svg',
+    image: '/cafe/webp/pizza.webp',
     cost: 450_000,
     sellPrice: 150_000,
     description: '치즈가 가득한 피자',
@@ -125,7 +125,7 @@ export const MENU_ITEMS: MenuItem[] = [
     id: 'burger',
     name: '버거',
     emoji: '🍔',
-    image: '/cafe/burger.svg',
+    image: '/cafe/webp/burger.webp',
     cost: 500_000,
     sellPrice: 300_000,
     description: '든든한 햄버거',
@@ -194,7 +194,7 @@ export const CUSTOMER_EMOJIS = ['🐱', '🐶', '🐰', '🐻', '🐼', '🐨', 
 // 캐릭터 이미지 경로 (1.svg ~ 20.svg)
 export function getRandomCharacterImage(): string {
   const characterNumber = Math.floor(Math.random() * 20) + 1 // 1~20
-  return `/character/${characterNumber}.svg`
+  return `/character/webp/${characterNumber}.webp`
 }
 
 // 초기 게임 상태
