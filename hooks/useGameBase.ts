@@ -361,10 +361,17 @@ export function useGameBase(options: UseGameBaseOptions) {
     // (실시간=즉시성, 폴링=정합성 보정. 교실 라이브 게임에서 '멈춤' 방지의 안전망)
     useEffect(() => {
         if (!roomCode) return
-        const interval = window.setInterval(() => {
-            void resyncRoomSnapshot('periodic')
-        }, 30000)
-        return () => window.clearInterval(interval)
+        // 학생마다 동시에 resync가 터지는 thundering herd 방지: 20~50초 사이 무작위 간격
+        let timer: ReturnType<typeof setTimeout>
+        const schedule = () => {
+            const delay = 20000 + Math.random() * 30000
+            timer = window.setTimeout(() => {
+                void resyncRoomSnapshot('periodic')
+                schedule()
+            }, delay)
+        }
+        schedule()
+        return () => window.clearTimeout(timer)
     }, [roomCode, resyncRoomSnapshot])
 
     // 제한 시간 종료(학생 측). 학생은 세션 권한이 없으므로 DB에 쓰지 않는다.
@@ -465,7 +472,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         return correct
     }, [currentQuestion, currentQuestionIndex, isAnswerLocked])
 
-    // ─── 정답 기록 DB 동기화 ───
+    // ─── 정답 기록 DB 동기화 (5초 debounce — 연속 답변을 묶어 DB 쓰기 횟수 감소) ───
     useEffect(() => {
         if (playerId && answerHistory.length > 0 && canSyncAnswerHistory) {
             const syncTimer = window.setTimeout(() => {
@@ -483,7 +490,7 @@ export function useGameBase(options: UseGameBaseOptions) {
                         setCanSyncAnswerHistory(false)
                     }
                 })
-            }, 700)
+            }, 5000)
 
             return () => window.clearTimeout(syncTimer)
         }

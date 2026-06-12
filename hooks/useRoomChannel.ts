@@ -227,7 +227,7 @@ export function useRoomChannel({
         onlineAt: onlineAtRef.current || new Date().toISOString(),
         lastSeenAt: new Date().toISOString(),
       } satisfies RoomPresenceMeta)
-    }, 15000)
+    }, 45000)
 
     return () => {
       window.clearInterval(heartbeat)
