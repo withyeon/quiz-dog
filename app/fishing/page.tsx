@@ -27,13 +27,14 @@ import {
   getMachineRankProgress,
 } from '@/lib/game/fishing'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import AnswerReveal from '@/components/AnswerReveal'
 
 type ScreenAttack = { type: 'screen_flip' | 'screen_shrink'; expiresAt: number }
 
 export default function FishingPage() {
   const gameBase = useGameBase({ expectedGameMode: 'fishing' })
   const {
-    roomCode, playerId, currentView, setCurrentView,
+    roomCode, playerId, currentView, setCurrentView, revealedAnswer,
     showCountdown, players, room, roomLoading, playersLoading,
     currentPlayer, currentQuestion, questionsLoading, questionsError,
     preStartQuizQuestion, preStartSubmittedCount, preStartQuizTotal,
@@ -515,6 +516,7 @@ export default function FishingPage() {
                 <XCircle size={48} />
               </motion.div>
               <h2 className="mb-2 text-4xl font-extrabold text-red-600">틀렸습니다</h2>
+              <AnswerReveal answer={revealedAnswer} />
               <p className="text-xl text-slate-600">콤보가 끊겼어요. 다음 문제에서 다시 도전</p>
             </motion.div>
           )}

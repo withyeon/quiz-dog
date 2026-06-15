@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Heart } from 'lucide-react'
 import QuizView from '@/components/QuizView'
+import AnswerReveal from '@/components/AnswerReveal'
+import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import ZombieIcon from '@/components/zombie/ZombieIcon'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -77,6 +79,7 @@ export default function ZombieView({
   }, [startedAtMs, totalDurationSec])
 
   const [currentView, setCurrentView] = useState<ViewState>('quiz')
+  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [timeRemaining, setTimeRemaining] = useState(computeRemaining)
   const [gameLog, setGameLog] = useState<ZombieGameLog[]>([])
   const [lastScanResult, setLastScanResult] = useState<{ playerId: string; isZombie: boolean } | null>(null)
@@ -168,10 +171,12 @@ export default function ZombieView({
     setGameLog((logs) => addLog(logs, updatedPlayer.role === 'zombie' && myPlayer.role === 'human' ? `${myPlayer.name}이(가) 좀비가 되었습니다!` : log, logType))
     setScanCooldown((prev) => Math.max(0, prev - 1))
     setCurrentView('wrong')
+    revealAnswer(currentQuestion?.id)
     window.setTimeout(() => {
       setCurrentView('quiz')
+      clearRevealedAnswer()
       onNextQuestion()
-    }, 1500)
+    }, 3000)
     return false
   }
 
@@ -401,6 +406,7 @@ export default function ZombieView({
                 <ZombieIcon name="wrong" size={84} alt="오답" />
               </div>
               <p className="text-4xl font-bold text-red-400">틀렸습니다!</p>
+              <AnswerReveal answer={revealedAnswer} />
               {myPlayer?.role === 'human' && <p className="mt-2 text-xl text-gray-400">체력 -{GAME_CONSTANTS.WRONG_PENALTY_HUMAN}</p>}
             </motion.div>
           )}

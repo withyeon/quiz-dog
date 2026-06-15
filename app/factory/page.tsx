@@ -10,6 +10,8 @@ import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
 import QuizView from '@/components/QuizView'
+import AnswerReveal from '@/components/AnswerReveal'
+import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import ConvenienceStore from '@/components/ConvenienceStore'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
@@ -60,6 +62,7 @@ export default function FactoryPage() {
   const [lastAnswerSpeed, setLastAnswerSpeed] = useState<'fast' | 'normal' | 'slow'>('normal') // 마지막 정답 속도
   const [speedBonusDisplay, setSpeedBonusDisplay] = useState<number | null>(null) // 속도 보너스 표시용
   const [wrongPenalty, setWrongPenalty] = useState<number | null>(null) // 오답 패널티 표시
+  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
   const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
   const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
@@ -366,14 +369,16 @@ export default function FactoryPage() {
 
       setIsQuizMode(false)
       setCurrentView('wrong')
+      revealAnswer(currentQuestion?.id)
       setTimeout(() => {
         setCurrentView('quiz')
         setIsQuizMode(true)
         setCurrentQuestionIndex(() => pickRandomQuestionIndex())
         setSelectedAnswer('')
         setIsCorrect(false)
+        clearRevealedAnswer()
         questionStartTime.current = Date.now()
-      }, 2500)
+      }, 3000)
     }
     return correct
   }
@@ -592,6 +597,7 @@ export default function FactoryPage() {
                 <XCircle size={48} />
               </div>
               <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다!</h2>
+              <AnswerReveal answer={revealedAnswer} />
               {wrongPenalty ? (
                 <motion.p
                   initial={{ opacity: 0, y: 10 }}

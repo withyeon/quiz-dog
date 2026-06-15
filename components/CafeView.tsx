@@ -18,6 +18,8 @@ import { CAFE_ITEMS, getRandomItemChoices, type CafeItem, type ItemId } from '@/
 import { X, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import QuizView from '@/components/QuizView'
+import AnswerReveal from '@/components/AnswerReveal'
+import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import { useAudioContext } from '@/components/AudioProvider'
 import type { Database } from '@/types/database.types'
 
@@ -83,6 +85,7 @@ export default function CafeView({
 
   const [showQuiz, setShowQuiz] = useState(false)
   const [showWrong, setShowWrong] = useState(false)
+  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [showShop, setShowShop] = useState(false)
   const [servingAnimations, setServingAnimations] = useState<
     Array<{ id: string; x: number; y: number; amount: number; isGolden?: boolean }>
@@ -246,10 +249,12 @@ export default function CafeView({
       playSFX('incorrect')
       setShowWrong(true)
       setShowQuiz(false)
+      revealAnswer(currentQuestion?.id)
       setTimeout(() => {
         setShowWrong(false)
+        clearRevealedAnswer()
         onNextQuestion()
-      }, 2000)
+      }, 3000)
       return false
     }
 
@@ -272,10 +277,12 @@ export default function CafeView({
       playSFX('incorrect')
       setShowWrong(true)
       setShowQuiz(false)
+      revealAnswer(currentQuestion?.id)
       setTimeout(() => {
         setShowWrong(false)
+        clearRevealedAnswer()
         onNextQuestion()
-      }, 2000)
+      }, 3000)
     }
     return correct
   }
@@ -439,6 +446,7 @@ export default function CafeView({
           <div className="bg-red-100 border-4 border-red-500 rounded-xl p-8 shadow-lg text-center max-w-md">
             <div className="text-6xl mb-4">❌</div>
             <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다.</h2>
+            <AnswerReveal answer={revealedAnswer} />
             <p className="text-gray-700">다른 문제로 넘어갑니다.</p>
           </div>
         </motion.div>

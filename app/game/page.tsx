@@ -14,6 +14,7 @@ import { useGameBase } from '@/hooks/useGameBase'
 import { BOX_EVENT_IMAGE, generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
 import PlayerSelector from '@/components/PlayerSelector'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import AnswerReveal from '@/components/AnswerReveal'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -38,6 +39,7 @@ export default function GamePage() {
     currentView,
     setCurrentView,
     currentQuestionIndex,
+    revealedAnswer,
     showCountdown,
     setShowCountdown,
     consecutiveCorrect,
@@ -708,6 +710,7 @@ export default function GamePage() {
                 <XCircle className="h-12 w-12 text-red-600" />
               </motion.div>
               <h2 className="gold-quest-title text-4xl sm:text-5xl font-black text-red-700 mb-4">틀렸습니다</h2>
+              <AnswerReveal answer={revealedAnswer} />
               <p className="text-gray-700 text-lg font-semibold">3초 후 다음 문제로 이동합니다.</p>
               <div className="mt-6 flex justify-center gap-2">
                 {[0, 1, 2].map((i) => (
