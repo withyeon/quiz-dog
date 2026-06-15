@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
 import { useAudioContext } from '@/components/AudioProvider'
-import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
+import { isQuizAnswerMatch, splitAcceptableAnswers } from '@/lib/quiz/answerMatching'
+import { getQuestionAnswer } from '@/lib/services/questions'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 
@@ -28,6 +29,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
   const [inputValue, setInputValue] = useState<string>('')
   const [submittedAnswer, setSubmittedAnswer] = useState<string>('')
   const [answerResult, setAnswerResult] = useState<boolean | null>(null)
+  const [revealedAnswer, setRevealedAnswer] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timeLimit || 30)
   const { playSFX } = useAudioContext()
@@ -101,8 +103,28 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
     setInputValue('')
     setSubmittedAnswer('')
     setAnswerResult(null)
+    setRevealedAnswer(null)
     setIsSubmitting(false)
   }, [question.id, timeLimit])
+
+  // 오답일 때 정답을 보여준다(학습용). question.answer가 있으면 그대로, 없으면 서버에서 조회.
+  useEffect(() => {
+    if (answerResult !== false) return
+
+    const localAnswer = question.answer?.trim()
+    if (localAnswer) {
+      setRevealedAnswer(localAnswer)
+      return
+    }
+
+    let active = true
+    void getQuestionAnswer(question.id).then((answer) => {
+      if (active) setRevealedAnswer(answer)
+    })
+    return () => {
+      active = false
+    }
+  }, [answerResult, question.id, question.answer])
 
   return (
     <MotionDiv
@@ -365,10 +387,17 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               {onCorrectClick && <ArrowRight className="h-5 w-5" />}
             </MotionDiv>
           ) : (
-            <span className="inline-flex items-center justify-center gap-2">
-              <XCircle className="h-6 w-6" />
-              오답입니다
-            </span>
+            <div className="flex flex-col items-center justify-center gap-2">
+              <span className="inline-flex items-center justify-center gap-2">
+                <XCircle className="h-6 w-6" />
+                오답입니다
+              </span>
+              {revealedAnswer && splitAcceptableAnswers(revealedAnswer).length > 0 && (
+                <span className="text-base sm:text-lg font-bold opacity-95">
+                  정답: {splitAcceptableAnswers(revealedAnswer).join(' / ')}
+                </span>
+              )}
+            </div>
           )}
         </MotionDiv>
       )}
