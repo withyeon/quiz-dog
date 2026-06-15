@@ -18,6 +18,7 @@ import { isTerminalRoomStatus } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
 import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
 import { createPlayerForRoom, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
+import { updatePlayer } from '@/lib/services/players'
 import { ShibaDog, DogGroup } from '@/components/PixelDogs'
 import { PixelBtn, PixelInput, PixelPanel, PlayerAvatar } from '@/components/lobby/LobbyUI'
 import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
@@ -147,16 +148,26 @@ function LobbyPage() {
       const nicknameCheck = filterNickname(nickname)
       const finalNickname = nicknameCheck.filtered || nickname.trim()
 
-      if (await nicknameExists(roomCode, finalNickname)) {
+      // 본인은 중복 검사에서 제외 (닉네임/캐릭터 변경 시 자기 자신과 충돌 방지)
+      if (await nicknameExists(roomCode, finalNickname, playerId)) {
         alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         setStep('nickname')
+        return
+      }
+
+      const avatar = character.imagePath || character.emoji
+
+      // 이미 입장한 학생이 캐릭터/닉네임을 바꾸는 경우: 새로 만들지 않고 기존 플레이어 업데이트
+      if (isJoined && playerId) {
+        await updatePlayer(playerId, { nickname: finalNickname, avatar })
+        void sendRoomEvent('room:snapshot-hint', { reason: 'player_updated' })
         return
       }
 
       const playerData = await createPlayerForRoom({
         roomCode,
         nickname: finalNickname,
-        avatar: character.imagePath || character.emoji,
+        avatar,
         gameMode: roomData.game_mode,
       })
 
