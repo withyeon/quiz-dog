@@ -2,17 +2,10 @@ import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
 import path from 'path'
 
-const SET_ID = 'set-yakseongga-quiz'
-
-const questionSet = {
-  id: SET_ID,
-  title: '약성가 퀴즈',
-  description:
-    '약재 이름이 출제되면 해당 약재의 약성가(2구)를 한글로 적는 주관식 퀴즈입니다. (정답 비교 시 띄어쓰기는 무시됩니다.)',
-  subject: '기타',
-  grade: '기타',
-  tags: ['약성가', '본초', '한약', '주관식'],
-}
+// 15문제씩 3세트로 분리한다.
+const QUESTIONS_PER_SET = 15
+// 기존 단일 세트(분리 전)를 정리하기 위한 id
+const LEGACY_SET_ID = 'set-yakseongga-quiz'
 
 // [한자 약재명, 한글 약재명, 약성가 1구, 약성가 2구]
 const herbs = [
@@ -63,12 +56,30 @@ const herbs = [
   ['甘松香', '감송향', '감송감향욕기향', '제심복통악기량'],
 ]
 
-const questions = herbs.map(([hanja, hangul, line1, line2]) => ({
+const allQuestions = herbs.map(([hanja, hangul, line1, line2]) => ({
   type: 'SHORT',
   question_text: `[${hanja} (${hangul})] 의 약성가를 한글로 쓰시오.`,
   options: [],
   answer: `${line1} ${line2}`,
 }))
+
+// 15문제씩 끊어 세트 정의를 만든다.
+const sets = []
+for (let i = 0; i < allQuestions.length; i += QUESTIONS_PER_SET) {
+  const part = i / QUESTIONS_PER_SET + 1
+  sets.push({
+    set: {
+      id: `set-yakseongga-quiz-${part}`,
+      title: `약성가 퀴즈 ${part}`,
+      description:
+        '약재 이름이 출제되면 해당 약재의 약성가(2구)를 한글로 적는 주관식 퀴즈입니다. (정답 비교 시 띄어쓰기는 무시됩니다.)',
+      subject: '기타',
+      grade: '기타',
+      tags: ['약성가', '본초', '한약', '주관식'],
+    },
+    questions: allQuestions.slice(i, i + QUESTIONS_PER_SET),
+  })
+}
 
 function loadEnv() {
   try {
@@ -111,39 +122,46 @@ if (!supabaseUrl || !supabaseKey) {
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function seed() {
-  console.log(`Seeding 약성가 퀴즈: ${SET_ID} (${questions.length} questions)`)
+  // 분리 전 단일 세트 정리 (있으면 삭제)
+  await supabase.from('questions').delete().eq('set_id', LEGACY_SET_ID)
+  await supabase.from('question_sets').delete().eq('id', LEGACY_SET_ID)
 
-  const { error: setError } = await supabase
-    .from('question_sets')
-    .upsert(questionSet, { onConflict: 'id' })
+  for (const { set, questions } of sets) {
+    console.log(`Seeding ${set.title}: ${set.id} (${questions.length} questions)`)
 
-  if (setError) throw setError
+    const { error: setError } = await supabase
+      .from('question_sets')
+      .upsert(set, { onConflict: 'id' })
 
-  const { error: deleteError } = await supabase
-    .from('questions')
-    .delete()
-    .eq('set_id', SET_ID)
+    if (setError) throw setError
 
-  if (deleteError) throw deleteError
+    const { error: deleteError } = await supabase
+      .from('questions')
+      .delete()
+      .eq('set_id', set.id)
 
-  const { error: questionError } = await supabase.from('questions').insert(
-    questions.map((question) => ({
-      set_id: SET_ID,
-      ...question,
-    }))
-  )
+    if (deleteError) throw deleteError
 
-  if (questionError) throw questionError
+    const { error: questionError } = await supabase.from('questions').insert(
+      questions.map((question) => ({
+        set_id: set.id,
+        ...question,
+      }))
+    )
 
-  const { count, error: countError } = await supabase
-    .from('questions')
-    .select('*', { count: 'exact', head: true })
-    .eq('set_id', SET_ID)
+    if (questionError) throw questionError
 
-  if (countError) throw countError
+    const { count, error: countError } = await supabase
+      .from('questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('set_id', set.id)
+
+    if (countError) throw countError
+
+    console.log(`  → inserted ${count ?? 0} questions`)
+  }
 
   console.log('Seed complete.')
-  console.log(`Inserted questions: ${count ?? 0}`)
 }
 
 seed().catch((error) => {
