@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
 
 interface MinigameProps {
   characterImage: string
@@ -15,253 +14,246 @@ interface FallingObject {
   y: number
   type: 'bomb' | 'coin' | 'rock'
   speed: number
+  removed: boolean
 }
 
+const OBJ_SIZE = 40
+const PLAYER_W = 64
+const PLAYER_H = 64
+const PLAYER_Y_FRAC = 0.88
+
 export default function Minigame({ characterImage, onScoreChange }: MinigameProps) {
-  const [playerX, setPlayerX] = useState(50) // 플레이어 X 위치 (0-100)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const playerXRef = useRef(0.5)
+  const playerVelRef = useRef(0)
+  const keysRef = useRef({ left: false, right: false })
+  const objectsRef = useRef<FallingObject[]>([])
+  const scoreRef = useRef(0)
+  const gameOverRef = useRef(false)
+  const rafRef = useRef<number | null>(null)
+  const lastTimeRef = useRef<number | null>(null)
+  const spawnTimerRef = useRef(0)
+  const nextIdRef = useRef(0)
+
+  const playerImgRef = useRef<HTMLImageElement | null>(null)
+  const bombImgRef = useRef<HTMLImageElement | null>(null)
+  const rockImgRef = useRef<HTMLImageElement | null>(null)
+  const boneImgRef = useRef<HTMLImageElement | null>(null)
+  const bgImgRef = useRef<HTMLImageElement | null>(null)
+
   const [score, setScore] = useState(0)
   const [highScore, setHighScore] = useState(0)
-  const [fallingObjects, setFallingObjects] = useState<FallingObject[]>([])
   const [gameOver, setGameOver] = useState(false)
-  const [isMovingLeft, setIsMovingLeft] = useState(false)
-  const [isMovingRight, setIsMovingRight] = useState(false)
 
-  const objectIdRef = useRef(0)
-  const gameLoopRef = useRef<NodeJS.Timeout>()
-  const spawnTimerRef = useRef<NodeJS.Timeout>()
+  useEffect(() => {
+    const load = (src: string, ref: React.MutableRefObject<HTMLImageElement | null>) => {
+      const img = new window.Image()
+      img.src = src
+      img.onload = () => { ref.current = img }
+    }
+    load(characterImage, playerImgRef)
+    load('/mini-game/bomb.svg', bombImgRef)
+    load('/mini-game/rock.svg', rockImgRef)
+    load('/mini-game/bone.svg', boneImgRef)
+    load('/background/mini-game.png', bgImgRef)
+  }, [characterImage])
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') keysRef.current.left = true
+      if (e.key === 'ArrowRight') keysRef.current.right = true
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') keysRef.current.left = false
+      if (e.key === 'ArrowRight') keysRef.current.right = false
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
+  }, [])
+
+  const startLoop = useCallback(() => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current)
+
+    gameOverRef.current = false
+    scoreRef.current = 0
+    playerXRef.current = 0.5
+    playerVelRef.current = 0
+    objectsRef.current = []
+    spawnTimerRef.current = 0
+    nextIdRef.current = 0
+    lastTimeRef.current = null
+
+    const loop = (now: number) => {
+      if (gameOverRef.current) return
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const ctx = canvas.getContext('2d', { alpha: false })
+      if (!ctx) return
+
+      const w = canvas.clientWidth || 400
+      const h = canvas.clientHeight || 500
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w
+        canvas.height = h
+      }
+
+      if (lastTimeRef.current === null) lastTimeRef.current = now
+      const delta = Math.min(50, now - lastTimeRef.current)
+      lastTimeRef.current = now
+
+      // 플레이어 이동
+      const friction = Math.pow(0.85, delta / 16.67)
+      if (keysRef.current.left) playerVelRef.current -= 0.000007 * delta
+      if (keysRef.current.right) playerVelRef.current += 0.000007 * delta
+      playerVelRef.current *= friction
+      playerVelRef.current = Math.max(-0.003, Math.min(0.003, playerVelRef.current))
+      playerXRef.current += playerVelRef.current * delta
+      playerXRef.current = Math.max(0.08, Math.min(0.92, playerXRef.current))
+
+      // 오브젝트 스폰
+      spawnTimerRef.current += delta
+      const spawnInterval = Math.max(400, 800 - scoreRef.current * 0.5)
+      if (spawnTimerRef.current >= spawnInterval) {
+        spawnTimerRef.current = 0
+        const r = Math.random()
+        const type: 'bomb' | 'coin' | 'rock' = r < 0.4 ? 'bomb' : r < 0.7 ? 'rock' : 'coin'
+        objectsRef.current.push({
+          id: nextIdRef.current++,
+          x: (Math.random() * 0.8 + 0.1) * w,
+          y: -OBJ_SIZE,
+          type,
+          speed: (1.5 + Math.random() + scoreRef.current * 0.01) * 0.12,
+          removed: false,
+        })
+      }
+
+      // 오브젝트 업데이트 + 충돌
+      const playerPx = playerXRef.current * w
+      const playerPy = h * PLAYER_Y_FRAC
+      let hitGame = false
+
+      for (const obj of objectsRef.current) {
+        if (obj.removed) continue
+        obj.y += obj.speed * delta
+        const dx = Math.abs(obj.x - playerPx)
+        const dy = Math.abs(obj.y - playerPy)
+        if (dx < (OBJ_SIZE + PLAYER_W) * 0.35 && dy < (OBJ_SIZE + PLAYER_H) * 0.35) {
+          obj.removed = true
+          if (obj.type === 'coin') {
+            scoreRef.current += 10
+            setScore(scoreRef.current)
+          } else {
+            hitGame = true
+          }
+        }
+      }
+
+      if (hitGame) {
+        gameOverRef.current = true
+        setHighScore(prev => Math.max(prev, scoreRef.current))
+        setGameOver(true)
+        return
+      }
+
+      objectsRef.current = objectsRef.current.filter(o => !o.removed && o.y < h + OBJ_SIZE)
+
+      // 배경 렌더링
+      if (bgImgRef.current) {
+        const img = bgImgRef.current
+        const ir = img.width / img.height
+        const cr = w / h
+        let sw: number, sh: number, sx: number, sy: number
+        if (ir > cr) { sh = img.height; sw = sh * cr; sx = (img.width - sw) / 2; sy = 0 }
+        else { sw = img.width; sh = sw / cr; sx = 0; sy = (img.height - sh) / 2 }
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h)
+      } else {
+        ctx.fillStyle = '#7dd3fc'
+        ctx.fillRect(0, 0, w, h)
+      }
+
+      // 오브젝트 렌더링
+      for (const obj of objectsRef.current) {
+        if (obj.removed) continue
+        const img = obj.type === 'bomb' ? bombImgRef.current
+          : obj.type === 'rock' ? rockImgRef.current
+          : boneImgRef.current
+        if (img) {
+          ctx.drawImage(img, obj.x - OBJ_SIZE / 2, obj.y - OBJ_SIZE / 2, OBJ_SIZE, OBJ_SIZE)
+        } else {
+          ctx.fillStyle = obj.type === 'coin' ? '#fbbf24' : '#ef4444'
+          ctx.beginPath()
+          ctx.arc(obj.x, obj.y, OBJ_SIZE / 2, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+
+      // 플레이어 렌더링
+      if (playerImgRef.current) {
+        ctx.drawImage(playerImgRef.current, playerPx - PLAYER_W / 2, playerPy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
+      }
+
+      rafRef.current = requestAnimationFrame(loop)
+    }
+
+    rafRef.current = requestAnimationFrame(loop)
+  }, [])
+
+  useEffect(() => {
+    startLoop()
+    return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current) }
+  }, [startLoop])
 
   useEffect(() => {
     onScoreChange?.(score)
   }, [score, onScoreChange])
 
-  // 플레이어 이동
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (gameOver) return
-      if (e.key === 'ArrowLeft') setIsMovingLeft(true)
-      if (e.key === 'ArrowRight') setIsMovingRight(true)
-    }
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') setIsMovingLeft(false)
-      if (e.key === 'ArrowRight') setIsMovingRight(false)
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [gameOver])
-
-  // 플레이어 위치 업데이트
-  useEffect(() => {
-    if (gameOver) return
-
-    const moveInterval = setInterval(() => {
-      setPlayerX(prev => {
-        let newX = prev
-        if (isMovingLeft) newX = Math.max(10, prev - 3)
-        if (isMovingRight) newX = Math.min(90, prev + 3)
-        return newX
-      })
-    }, 16)
-
-    return () => clearInterval(moveInterval)
-  }, [isMovingLeft, isMovingRight, gameOver])
-
-  // 장애물/코인 생성
-  useEffect(() => {
-    if (gameOver) return
-
-    const spawnObject = () => {
-      const random = Math.random()
-      const type: FallingObject['type'] =
-        random < 0.4 ? 'bomb' :
-          random < 0.7 ? 'rock' : 'coin'
-
-      const newObject: FallingObject = {
-        id: objectIdRef.current++,
-        x: Math.random() * 80 + 10, // 10-90 사이
-        y: -10,
-        type,
-        speed: 1.5 + Math.random() * 1 + score * 0.01, // 점수에 따라 속도 증가
-      }
-
-      setFallingObjects(prev => [...prev, newObject])
-    }
-
-    spawnTimerRef.current = setInterval(spawnObject, 800) // 0.8초마다 생성
-
-    return () => {
-      if (spawnTimerRef.current) clearInterval(spawnTimerRef.current)
-    }
-  }, [gameOver, score])
-
-  // 게임 루프
-  useEffect(() => {
-    if (gameOver) return
-
-    gameLoopRef.current = setInterval(() => {
-      setFallingObjects(prev => {
-        const updated = prev
-          .map(obj => ({ ...obj, y: obj.y + obj.speed }))
-          .filter(obj => obj.y < 110) // 화면 밖으로 나간 것 제거
-
-        // 충돌 감지
-        updated.forEach(obj => {
-          const distX = Math.abs(obj.x - playerX)
-          const distY = Math.abs(obj.y - 90) // 플레이어는 y=90에 위치
-
-          if (distX < 8 && distY < 8) {
-            if (obj.type === 'coin') {
-              // 코인 수집
-              setScore(s => {
-                const newScore = s + 10
-                return newScore
-              })
-              obj.y = 200 // 제거 처리
-            } else if (obj.type === 'bomb' || obj.type === 'rock') {
-              // 장애물 충돌 -> 게임 오버
-              setGameOver(true)
-              setHighScore(prev => Math.max(prev, score))
-            }
-          }
-        })
-
-        return updated
-      })
-    }, 16)
-
-    return () => {
-      if (gameLoopRef.current) clearInterval(gameLoopRef.current)
-    }
-  }, [gameOver, playerX, score])
-
-  // 게임 재시작
-  const handleRestart = () => {
+  const handleRestart = useCallback(() => {
     setGameOver(false)
     setScore(0)
-    setPlayerX(50)
-    setFallingObjects([])
-    setIsMovingLeft(false)
-    setIsMovingRight(false)
+    startLoop()
+  }, [startLoop])
+
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (gameOver) { handleRestart(); return }
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = (e.clientX - rect.left) / rect.width
+    playerVelRef.current += clickX < playerXRef.current ? -0.002 : 0.002
   }
 
-  // 화면 클릭으로 이동
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (gameOver) {
-      handleRestart()
-      return
-    }
-
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (gameOver) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const clickX = ((e.clientX - rect.left) / rect.width) * 100
-
-    if (clickX < playerX) {
-      setIsMovingLeft(true)
-      setTimeout(() => setIsMovingLeft(false), 200)
-    } else {
-      setIsMovingRight(true)
-      setTimeout(() => setIsMovingRight(false), 200)
-    }
+    playerXRef.current = Math.max(0.08, Math.min(0.92, (e.touches[0].clientX - rect.left) / rect.width))
+    playerVelRef.current = 0
   }
 
   return (
     <div
-      className="relative w-full h-full overflow-hidden rounded-lg cursor-pointer bg-cover bg-bottom bg-no-repeat"
-      style={{ backgroundImage: "url('/background/mini-game.png')" }}
+      ref={containerRef}
+      className="relative w-full h-full overflow-hidden rounded-lg cursor-pointer touch-none"
       onClick={handleClick}
+      onTouchMove={handleTouchMove}
     >
-      {/* 떨어지는 오브젝트 */}
-      <AnimatePresence>
-        {fallingObjects.map(obj => (
-          <motion.div
-            key={obj.id}
-            className="absolute text-4xl"
-            style={{
-              left: `${obj.x}%`,
-              top: `${obj.y}%`,
-              transform: 'translate(-50%, -50%)',
-            }}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1, rotate: obj.type === 'coin' ? 360 : 0 }}
-            exit={{ scale: 0 }}
-            transition={{ rotate: { duration: 2, repeat: Infinity, ease: 'linear' } }}
-          >
-            {obj.type === 'bomb' && (
-              <Image
-                src="/mini-game/bomb.svg"
-                alt="폭탄"
-                width={40}
-                height={40}
-                className="h-10 w-10 object-contain drop-shadow-md"
-              />
-            )}
-            {obj.type === 'rock' && (
-              <Image
-                src="/mini-game/rock.svg"
-                alt="바위"
-                width={40}
-                height={40}
-                className="h-10 w-10 object-contain drop-shadow-md"
-              />
-            )}
-            {obj.type === 'coin' && (
-              <Image
-                src="/mini-game/bone.svg"
-                alt="뼈다귀"
-                width={40}
-                height={40}
-                className="h-10 w-10 object-contain drop-shadow-md"
-              />
-            )}
-          </motion.div>
-        ))}
-      </AnimatePresence>
+      <canvas ref={canvasRef} className="w-full h-full block" />
 
-      {/* 플레이어 */}
-      <motion.div
-        className="absolute bottom-[10%]"
-        style={{
-          left: `${playerX}%`,
-          transform: 'translateX(-50%)',
-        }}
-        animate={{
-          scale: gameOver ? [1, 1.2, 0] : 1,
-        }}
-      >
-        <div className="relative w-16 h-16">
-          <Image
-            src={characterImage}
-            alt="Player"
-            fill
-            className="object-contain drop-shadow-lg"
-            sizes="64px"
-          />
-        </div>
-      </motion.div>
-
-      {/* 점수 표시 */}
-      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 text-center">
-        <motion.div
-          className="text-5xl font-bold text-white drop-shadow-lg"
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 0.3 }}
-          key={score}
-        >
-          {score}
-        </motion.div>
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+        <div className="text-5xl font-bold text-white drop-shadow-lg">{score}</div>
         {highScore > 0 && (
-          <div className="text-sm text-white/80 font-semibold mt-1">
-            최고: {highScore}
-          </div>
+          <div className="text-sm text-white/80 font-semibold mt-1">최고: {highScore}</div>
         )}
       </div>
 
-      {/* 게임 오버 */}
+      {!gameOver && score < 50 && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+          <p className="text-white text-sm font-semibold drop-shadow-lg animate-pulse">
+            ← → 키 또는 클릭으로 이동 | 폭탄·운석 피하기 | 뼈다귀 모으기!
+          </p>
+        </div>
+      )}
+
       <AnimatePresence>
         {gameOver && (
           <motion.div
@@ -270,16 +262,12 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
             exit={{ opacity: 0 }}
             className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm"
           >
-            <div className="text-6xl font-bold text-white mb-4 drop-shadow-lg">
-              게임 오버!
-            </div>
-            <div className="text-2xl text-white mb-6">
-              점수: {score}
-            </div>
+            <div className="text-6xl font-bold text-white mb-4 drop-shadow-lg">게임 오버!</div>
+            <div className="text-2xl text-white mb-6">점수: {score}</div>
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={handleRestart}
+              onClick={(e) => { e.stopPropagation(); handleRestart() }}
               className="px-8 py-4 bg-white text-indigo-600 rounded-xl font-bold text-xl shadow-lg"
             >
               다시 시작
@@ -287,19 +275,6 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* 조작 안내 */}
-      {!gameOver && score < 50 && (
-        <motion.div
-          className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-center"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          <p className="text-white text-sm font-semibold drop-shadow-lg">
-            ← → 키 또는 클릭으로 이동 | 폭탄 운석 피하기 | 뼈다귀 모으기!
-          </p>
-        </motion.div>
-      )}
     </div>
   )
 }

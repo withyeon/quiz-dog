@@ -4,7 +4,6 @@ import { ReactNode, useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
-import TeacherTutorial from '@/components/TeacherTutorial'
 import {
   BarChart3,
   BookOpen,
@@ -15,7 +14,6 @@ import {
   Menu,
   PlayCircle,
   Plus,
-  HelpCircle,
   Settings,
   X,
 } from 'lucide-react'
@@ -37,7 +35,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, signOut } = useAuth()
-  const [tutorialOpenSignal, setTutorialOpenSignal] = useState(0)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const userEmail = user?.email ?? ''
@@ -279,14 +276,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setTutorialOpenSignal((value) => value + 1)}
-                className="hidden h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-black sm:flex"
-              >
-                <HelpCircle className="h-4 w-4" />
-                튜토리얼
-              </button>
               <Link
                 href="/teacher"
                 className="hidden h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100 sm:flex"
@@ -308,7 +297,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           {children}
         </main>
       </div>
-      <TeacherTutorial openSignal={tutorialOpenSignal} />
     </div>
   )
 }
