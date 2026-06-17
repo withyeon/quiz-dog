@@ -14,6 +14,7 @@ import QuestionSourceSelector from '@/components/teacher/QuestionSourceSelector'
 import { createQuestionSetWithQuestions } from '@/lib/services/questionSets'
 import { formatServiceError } from '@/lib/services/errors'
 import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
+import { toast } from '@/components/ui/Toaster'
 
 type SourceType = 'topic' | 'youtube' | 'file' | 'exam'
 type ManualQuestionType = 'CHOICE' | 'SHORT' | 'OX' | 'MIXED'
@@ -44,22 +45,23 @@ export default function CreateQuestionPage() {
   const [setName, setSetName] = useState('')
   const [subject, setSubject] = useState('')
   const [grade, setGrade] = useState('')
+  const [isPublic, setIsPublic] = useState(false)
 
   const handleGenerate = async () => {
     if (sourceType === 'topic' && !topic.trim()) {
-      alert('주제를 입력해주세요.')
+      toast.error('주제를 입력해주세요.')
       return
     }
     if (sourceType === 'youtube' && !youtubeUrl.trim()) {
-      alert('유튜브 URL을 입력해주세요.')
+      toast.error('유튜브 URL을 입력해주세요.')
       return
     }
     if (sourceType === 'file' && !file) {
-      alert('파일을 선택해주세요.')
+      toast.error('파일을 선택해주세요.')
       return
     }
     if (sourceType === 'exam' && !examFile) {
-      alert('시험지 파일을 선택해주세요.')
+      toast.error('시험지 파일을 선택해주세요.')
       return
     }
 
@@ -102,7 +104,7 @@ export default function CreateQuestionPage() {
     } catch (error) {
       console.error('Error generating questions:', error)
       const errorMessage = formatServiceError(error)
-      alert(`문제 생성에 실패했습니다: ${errorMessage}`)
+      toast.error(`문제 생성에 실패했습니다: ${errorMessage}`)
     } finally {
       setIsGenerating(false)
     }
@@ -112,33 +114,33 @@ export default function CreateQuestionPage() {
     if (isSaving) return
 
     if (!setName.trim()) {
-      alert('문제집 이름을 입력해주세요.')
+      toast.error('문제집 이름을 입력해주세요.')
       return
     }
     if (!subject) {
-      alert('과목을 선택해주세요.')
+      toast.error('과목을 선택해주세요.')
       return
     }
     if (!grade) {
-      alert('대상 학년을 선택해주세요.')
+      toast.error('대상 학년을 선택해주세요.')
       return
     }
 
     const nameCheck = filterNickname(setName)
     if (!nameCheck.isValid) {
-      alert('문제집 이름에 부적절한 단어가 포함되어 있습니다.')
+      toast.error('문제집 이름에 부적절한 단어가 포함되어 있습니다.')
       return
     }
 
     const supabaseCheck = checkSupabaseConfig()
     if (!supabaseCheck.isValid) {
-      alert(`Supabase 연결 오류: ${supabaseCheck.error}`)
+      toast.error(`Supabase 연결 오류: ${supabaseCheck.error}`)
       return
     }
 
     const connectionTest = await testSupabaseConnection()
     if (!connectionTest.success) {
-      alert(`Supabase 연결 실패: ${connectionTest.error}\n\n환경 변수를 확인하고 개발 서버를 재시작해주세요.`)
+      toast.error(`Supabase 연결 실패: ${connectionTest.error}\n환경 변수를 확인하고 개발 서버를 재시작해주세요.`)
       return
     }
 
@@ -152,14 +154,19 @@ export default function CreateQuestionPage() {
           grade,
         },
         questions: generatedQuestions,
+        isPublic,
       })
 
-      alert('문제가 저장되었습니다!')
+      toast.success(
+        isPublic
+          ? '문제집을 저장하고 자료실에 공개했습니다!'
+          : '문제집이 저장되었습니다!',
+      )
       router.push('/teacher')
     } catch (error) {
       console.error('Error saving questions:', error)
       const errorMessage = formatServiceError(error)
-      alert(`문제 저장에 실패했습니다: ${errorMessage}`)
+      toast.error(`문제 저장에 실패했습니다: ${errorMessage}`)
     } finally {
       setIsSaving(false)
     }
@@ -186,6 +193,8 @@ export default function CreateQuestionPage() {
         setSubject={setSubject}
         grade={grade}
         setGrade={setGrade}
+        isPublic={isPublic}
+        setIsPublic={setIsPublic}
         onBack={() => setIsReviewing(false)}
         onSave={handleSaveQuestions}
         onCreateManual={handleCreateManual}

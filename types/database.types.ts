@@ -133,6 +133,8 @@ export interface Database {
           subject: string | null
           grade: string | null
           tags: Json
+          owner_id: string | null
+          is_public: boolean
           created_at: string
           updated_at: string
         }
@@ -143,6 +145,8 @@ export interface Database {
           subject?: string | null
           grade?: string | null
           tags?: Json
+          owner_id?: string | null
+          is_public?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -153,6 +157,8 @@ export interface Database {
           subject?: string | null
           grade?: string | null
           tags?: Json
+          owner_id?: string | null
+          is_public?: boolean
           created_at?: string
           updated_at?: string
         }

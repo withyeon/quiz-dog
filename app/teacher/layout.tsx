@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import DashboardLayout from '@/components/DashboardLayout'
+import { Toaster } from '@/components/ui/Toaster'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
@@ -25,5 +26,10 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
     )
   }
 
-  return <DashboardLayout>{children}</DashboardLayout>
+  return (
+    <DashboardLayout>
+      <Toaster />
+      {children}
+    </DashboardLayout>
+  )
 }

@@ -28,6 +28,8 @@ import {
 } from '@/lib/services/questionSets'
 import { formatServiceError } from '@/lib/services/errors'
 import { getLocalLikedQuestionSetIds, getLibraryClientId } from '@/lib/utils/libraryClientId'
+import { useAuth } from '@/contexts/AuthContext'
+import { toast } from '@/components/ui/Toaster'
 
 type QuestionSet = QuestionSetSummary
 type LikedQuestionSet = QuestionSetIndexItem & {
@@ -56,22 +58,26 @@ function TeacherPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const createType = searchParams?.get('create') as SourceType | null
+  const { user } = useAuth()
+  const userId = user?.id ?? null
 
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([])
   const [likedQuestionSets, setLikedQuestionSets] = useState<LikedQuestionSet[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!createType) {
+    if (!createType && userId) {
       loadQuestionSets()
     }
-  }, [createType])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createType, userId])
 
   const loadQuestionSets = async () => {
+    if (!userId) return
     try {
       setLoading(true)
       const [sets, likedIndexItems] = await Promise.all([
-        listQuestionSetsWithCounts(),
+        listQuestionSetsWithCounts(userId),
         listQuestionSetIndexFromQuestions(getLibraryClientId()),
       ])
       const localLikedSetIds = getLocalLikedQuestionSetIds()
@@ -95,11 +101,11 @@ function TeacherPageContent() {
   const handleCopyLikedSet = async (setId: string) => {
     try {
       await copyQuestionSetFromQuestionsOnly(setId)
-      alert('내 문제집에 담았습니다.')
+      toast.success('내 문제집에 담았습니다.')
       void loadQuestionSets()
     } catch (error) {
       console.error('Error copying liked question set:', error)
-      alert('문제집을 담지 못했습니다: ' + formatServiceError(error))
+      toast.error('문제집을 담지 못했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -111,11 +117,11 @@ function TeacherPageContent() {
   const handleDuplicate = async (set: QuestionSet) => {
     try {
       await duplicateQuestionSet(set.id, `${set.title} (복사본)`)
-      alert('문제집이 복제되었습니다!')
+      toast.success('문제집이 복제되었습니다!')
       loadQuestionSets()
     } catch (error) {
       console.error('Error duplicating question set:', error)
-      alert('복제에 실패했습니다.')
+      toast.error('복제에 실패했습니다.')
     }
   }
 
@@ -124,11 +130,11 @@ function TeacherPageContent() {
 
     try {
       await deleteQuestionSet(setId)
-      alert('문제집이 삭제되었습니다.')
+      toast.success('문제집이 삭제되었습니다.')
       loadQuestionSets()
     } catch (error) {
       console.error('Error deleting question set:', error)
-      alert('삭제에 실패했습니다.')
+      toast.error('삭제에 실패했습니다.')
     }
   }
 

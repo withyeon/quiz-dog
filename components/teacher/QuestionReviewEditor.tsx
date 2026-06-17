@@ -1,13 +1,14 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Trash2, XCircle } from 'lucide-react'
+import { Trash2, XCircle, Globe, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
 import { ArrowLeft } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { displayBlankText } from '@/lib/quiz/blankText'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
+import { toast } from '@/components/ui/Toaster'
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   CHOICE: { label: '객관식', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
@@ -45,6 +46,8 @@ interface QuestionReviewEditorProps {
   setSubject: (value: string) => void
   grade: string
   setGrade: (value: string) => void
+  isPublic: boolean
+  setIsPublic: (value: boolean) => void
   onBack: () => void
   onSave: () => void
   onCreateManual: (type: 'CHOICE' | 'SHORT' | 'OX' | 'MIXED') => void
@@ -60,6 +63,8 @@ export default function QuestionReviewEditor({
   setSubject,
   grade,
   setGrade,
+  isPublic,
+  setIsPublic,
   onBack,
   onSave,
   onCreateManual,
@@ -197,6 +202,47 @@ export default function QuestionReviewEditor({
             </select>
           </div>
         </div>
+
+        {/* 자료실 공개 여부 */}
+        <button
+          type="button"
+          onClick={() => setIsPublic(!isPublic)}
+          aria-pressed={isPublic}
+          className={`mt-4 flex w-full items-center gap-3 rounded-lg border p-4 text-left transition ${
+            isPublic
+              ? 'border-sky-300 bg-sky-50'
+              : 'border-slate-200 bg-white hover:border-slate-300'
+          }`}
+        >
+          <span
+            className={`grid h-10 w-10 flex-shrink-0 place-items-center rounded-lg ${
+              isPublic ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-500'
+            }`}
+          >
+            {isPublic ? <Globe className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-black text-black">
+              {isPublic ? '자료실에 공개' : '나만 보기 (비공개)'}
+            </span>
+            <span className="mt-0.5 block text-xs font-bold leading-5 text-slate-500">
+              {isPublic
+                ? '다른 선생님들이 자료실에서 이 문제집을 찾아 사용할 수 있어요.'
+                : '내 문제집에만 저장됩니다. 자료실에는 올라가지 않아요.'}
+            </span>
+          </span>
+          <span
+            className={`relative h-7 w-12 flex-shrink-0 rounded-full transition ${
+              isPublic ? 'bg-sky-500' : 'bg-slate-300'
+            }`}
+          >
+            <span
+              className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                isPublic ? 'left-6' : 'left-1'
+              }`}
+            />
+          </span>
+        </button>
       </div>
 
       {/* 문제 목록 */}
@@ -387,7 +433,7 @@ export default function QuestionReviewEditor({
             onClick={() => {
               if (isSaving) return
               if (totalErrors > 0) {
-                alert(`수정이 필요한 항목이 ${totalErrors}개 있습니다. 빨간 경고를 먼저 고쳐주세요.`)
+                toast.error(`수정이 필요한 항목이 ${totalErrors}개 있습니다. 빨간 경고를 먼저 고쳐주세요.`)
                 return
               }
               onSave()

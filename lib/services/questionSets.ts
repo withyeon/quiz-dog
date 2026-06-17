@@ -58,6 +58,16 @@ export function createQuestionSetId(prefix = 'set'): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
+/** 현재 로그인한 선생님의 user id (비로그인 시 null) */
+export async function getCurrentUserId(): Promise<string | null> {
+  try {
+    const { data } = await supabase.auth.getUser()
+    return data.user?.id ?? null
+  } catch {
+    return null
+  }
+}
+
 function isGeneratedQuestionSetTitle(title: string, setId: string): boolean {
   const normalizedTitle = title.trim()
   if (!normalizedTitle) return true
@@ -124,30 +134,45 @@ export function validateQuestionSetMetadata(input: QuestionSetMetadataInput): st
   return errors
 }
 
-export async function listQuestionSetsWithCounts(): Promise<QuestionSetSummary[]> {
-  const { data: sets, error } = await (supabase
-    .from('question_sets') as any)
+/**
+ * "내 문제집" 목록. ownerId를 주면 해당 선생님 소유 문제집만 반환한다.
+ * (ownerId 미지정 시 전체 — /dev 등 관리 용도)
+ * 문항 수는 set별 개별 쿼리(N+1) 대신 한 번에 묶어서 센다.
+ */
+export async function listQuestionSetsWithCounts(ownerId?: string | null): Promise<QuestionSetSummary[]> {
+  let query = (supabase.from('question_sets') as any)
     .select('*')
     .order('created_at', { ascending: false })
 
+  if (ownerId) query = query.eq('owner_id', ownerId)
+
+  const { data: sets, error } = await query
   if (error) throw error
 
-  const summaries = await Promise.all(
-    ((sets ?? []) as QuestionSetRow[]).map(async (set) => {
-      const { count, error: countError } = await supabase
-        .from('questions')
-        .select('id', { count: 'exact', head: true })
-        .eq('set_id', set.id)
+  const rows = (sets ?? []) as QuestionSetRow[]
+  if (rows.length === 0) return []
 
-      if (countError) throw countError
-      return { ...set, question_count: count ?? 0 }
-    })
-  )
+  const setIds = rows.map((set) => set.id)
+  const { data: questionRows, error: countError } = await supabase
+    .from('questions')
+    .select('set_id')
+    .in('set_id', setIds)
 
-  return summaries
+  if (countError) throw countError
+
+  const countBySet = new Map<string, number>()
+  ;((questionRows ?? []) as Pick<QuestionRow, 'set_id'>[]).forEach((row) => {
+    countBySet.set(row.set_id, (countBySet.get(row.set_id) ?? 0) + 1)
+  })
+
+  return rows.map((set) => ({ ...set, question_count: countBySet.get(set.id) ?? 0 }))
 }
 
-export async function listQuestionSetIndexFromQuestions(clientId?: string | null): Promise<QuestionSetIndexItem[]> {
+export async function listQuestionSetIndexFromQuestions(
+  clientId?: string | null,
+  options?: { onlyPublic?: boolean },
+): Promise<QuestionSetIndexItem[]> {
+  const onlyPublic = options?.onlyPublic ?? false
   const { data, error } = await (supabase
     .from('questions') as any)
     .select('set_id, created_at')
@@ -182,19 +207,25 @@ export async function listQuestionSetIndexFromQuestions(clientId?: string | null
 
   const { data: sets, error: setError } = await (supabase
     .from('question_sets') as any)
-    .select('id, title, description, subject, grade, tags')
+    .select('id, title, description, subject, grade, tags, is_public')
     .in('id', setIds)
 
   if (setError) throw setError
 
+  type IndexSetMeta = Pick<QuestionSetRow, 'id' | 'title' | 'description' | 'subject' | 'grade' | 'tags' | 'is_public'>
   const setById = new Map(
-    ((sets ?? []) as Pick<QuestionSetRow, 'id' | 'title' | 'description' | 'subject' | 'grade' | 'tags'>[])
-      .map((set) => [set.id, set]),
+    ((sets ?? []) as IndexSetMeta[]).map((set) => [set.id, set]),
   )
 
-  const likeSummaryById = await getQuestionSetLikeSummaries(setIds, clientId)
+  // 자료실(onlyPublic)에서는 공개로 설정된 문제집만 노출한다.
+  const visibleItems = onlyPublic
+    ? items.filter((item) => setById.get(item.set_id)?.is_public === true)
+    : items
 
-  return items.map((item) => {
+  const visibleSetIds = visibleItems.map((item) => item.set_id)
+  const likeSummaryById = await getQuestionSetLikeSummaries(visibleSetIds, clientId)
+
+  return visibleItems.map((item) => {
     const set = setById.get(item.set_id)
     const likeSummary = likeSummaryById.get(item.set_id)
     return {
@@ -292,6 +323,7 @@ async function ensureQuestionSetLikeTarget(setId: string): Promise<void> {
       title: '자료실 문제집',
       description: '자료실 좋아요를 위해 자동 등록된 문제집',
       tags: [],
+      is_public: true,
     } satisfies QuestionSetInsert)
 
   if (insertError && !String(insertError.code ?? '').startsWith('23')) throw insertError
@@ -357,9 +389,11 @@ export async function getQuestionSetWithQuestions(setId: string): Promise<Questi
 }
 
 export async function createQuestionSet(input: QuestionSetInsert): Promise<QuestionSetRow> {
+  // owner_id가 명시되지 않았으면 현재 로그인한 선생님으로 자동 지정한다.
+  const ownerId = input.owner_id ?? (await getCurrentUserId())
   const { data, error } = await (supabase
     .from('question_sets') as any)
-    .insert(input)
+    .insert({ ...input, owner_id: ownerId })
     .select()
     .single()
 
@@ -371,6 +405,7 @@ export async function createQuestionSetWithQuestions(input: {
   metadata: QuestionSetMetadataInput
   questions: QuestionDraft[]
   idPrefix?: string
+  isPublic?: boolean
 }): Promise<string> {
   const metadataErrors = validateQuestionSetMetadata(input.metadata)
   if (metadataErrors.length > 0) {
@@ -391,6 +426,7 @@ export async function createQuestionSetWithQuestions(input: {
     subject: input.metadata.subject ?? null,
     grade: input.metadata.grade ?? null,
     tags: input.metadata.tags ?? [],
+    is_public: input.isPublic ?? false,
   } as QuestionSetInsert)
 
   try {

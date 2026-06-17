@@ -30,6 +30,7 @@ import {
   getLibraryClientId,
   setLocalQuestionSetLiked,
 } from '@/lib/utils/libraryClientId'
+import { toast } from '@/components/ui/Toaster'
 
 type QuestionSet = {
   set_id: string
@@ -219,7 +220,7 @@ function LibraryPageContent() {
       setLoading(true)
       const clientId = getLibraryClientId()
       const localLikedSetIds = getLocalLikedQuestionSetIds()
-      const indexItems = await listQuestionSetIndexFromQuestions(clientId)
+      const indexItems = await listQuestionSetIndexFromQuestions(clientId, { onlyPublic: true })
       const sets = indexItems.map((item, index) => {
         const subject = normalizeSubject(item.subject, item.set_id)
         const grade = normalizeGrade(item.grade, item.set_id)
@@ -354,11 +355,11 @@ function LibraryPageContent() {
   const handleCopySet = async (setId: string) => {
     try {
       await copyQuestionSetFromQuestionsOnly(setId)
-      alert('내 문제집에 담았습니다.')
+      toast.success('내 문제집에 담았습니다.')
       router.push('/teacher')
     } catch (error) {
       console.error('Error copying set:', error)
-      alert('문제집을 담지 못했습니다: ' + formatServiceError(error))
+      toast.error('문제집을 담지 못했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -621,7 +622,7 @@ function LibraryPageContent() {
                   <button
                     onClick={async () => {
                       await navigator.clipboard.writeText(`${window.location.origin}/teacher/library?set=${selectedSet.set_id}`)
-                      alert('링크가 복사되었습니다.')
+                      toast.success('링크가 복사되었습니다.')
                     }}
                     className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-black"
                   >
