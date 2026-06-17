@@ -53,6 +53,7 @@ import ScreenShake from '@/components/ScreenShake'
 import type { Database } from '@/types/database.types'
 import { updatePlayer } from '@/lib/services/players'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import AnswerReveal from '@/components/AnswerReveal'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
@@ -75,6 +76,7 @@ export default function BattlePage() {
     playerId,
     currentView,
     setCurrentView,
+    revealedAnswer,
     showCountdown,
     setShowCountdown,
     players,
@@ -1086,6 +1088,7 @@ export default function BattlePage() {
                   <AlertTriangle className="h-8 w-8" />
                 </div>
                 <h2 className="text-3xl font-black text-slate-950">틀렸습니다</h2>
+                <AnswerReveal answer={revealedAnswer} />
                 <p className="mt-2 font-semibold text-slate-500">눈뭉치가 녹아버렸습니다.</p>
               </motion.section>
             )}

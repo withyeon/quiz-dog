@@ -105,7 +105,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
         return
       }
       const finalNickname = nicknameCheck.filtered || nickname.trim()
-      if (await nicknameExists(roomCode, finalNickname)) {
+      if (await nicknameExists(roomCode, finalNickname, playerId)) {
         alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         return
       }

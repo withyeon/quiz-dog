@@ -325,12 +325,27 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           정답
                         </label>
-                        <input
-                          type="text"
-                          value={question.answer}
-                          onChange={(e) => updateQuestionField(index, 'answer', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                        />
+                        {question.type === 'SHORT' || question.type === 'BLANK' ? (
+                          <>
+                            <textarea
+                              value={question.answer}
+                              onChange={(e) => updateQuestionField(index, 'answer', e.target.value)}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                              rows={3}
+                              placeholder={'정답을 입력하세요\n복수 정답은 줄바꿈으로 구분'}
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                              여러 정답을 인정하려면 줄바꿈으로 구분하세요. (하나만 맞아도 정답 처리)
+                            </p>
+                          </>
+                        ) : (
+                          <input
+                            type="text"
+                            value={question.answer}
+                            onChange={(e) => updateQuestionField(index, 'answer', e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          />
+                        )}
                       </div>
 
                       {/* 저장/취소 버튼 */}
@@ -480,13 +495,28 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 정답
               </label>
-              <input
-                type="text"
-                value={newQuestion.answer || ''}
-                onChange={(e) => updateNewQuestion('answer', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                placeholder="정답을 입력하세요"
-              />
+              {newQuestion.type === 'SHORT' || newQuestion.type === 'BLANK' ? (
+                <>
+                  <textarea
+                    value={newQuestion.answer || ''}
+                    onChange={(e) => updateNewQuestion('answer', e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    rows={3}
+                    placeholder={'정답을 입력하세요\n복수 정답은 줄바꿈으로 구분'}
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    여러 정답을 인정하려면 줄바꿈으로 구분하세요. (하나만 맞아도 정답 처리)
+                  </p>
+                </>
+              ) : (
+                <input
+                  type="text"
+                  value={newQuestion.answer || ''}
+                  onChange={(e) => updateNewQuestion('answer', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  placeholder="정답을 입력하세요"
+                />
+              )}
             </div>
 
             <div className="flex gap-2">

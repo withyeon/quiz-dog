@@ -6,6 +6,8 @@ import { Eye, DollarSign, Gem, Radio, ShieldAlert, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import QuizView from '@/components/QuizView'
+import AnswerReveal from '@/components/AnswerReveal'
+import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import {
   applyCheat,
   attemptInvestigate,
@@ -115,6 +117,7 @@ export default function MafiaView({
   playSFX,
 }: MafiaViewProps) {
   const [currentView, setCurrentView] = useState<MafiaViewType>('quiz')
+  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [currentVaults, setCurrentVaults] = useState<SafeVault[]>([])
   const [cheatVaultContents, setCheatVaultContents] = useState<SafeVault[] | null>(null)
   const [selectedVaultResult, setSelectedVaultResult] = useState<{ vault: SafeVault; log: string } | null>(null)
@@ -172,8 +175,9 @@ export default function MafiaView({
     setSelectedVaultResult(null)
     setInvestigatingPlayer(null)
     setInvestigationResult(null)
+    clearRevealedAnswer()
     goToNextQuestion()
-  }, [goToNextQuestion])
+  }, [goToNextQuestion, clearRevealedAnswer])
 
   const handleAnswerSubmit = async (answer: string) => {
     const correct = await checkAnswer(answer)
@@ -183,7 +187,8 @@ export default function MafiaView({
     } else {
       playSFX('incorrect')
       setCurrentView('wrong')
-      window.setTimeout(goToQuiz, 1300)
+      revealAnswer(currentQuestion?.id)
+      window.setTimeout(goToQuiz, 3000)
     }
     return correct
   }
@@ -414,6 +419,7 @@ export default function MafiaView({
             <motion.div key="wrong" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center text-4xl font-black text-red-400">
               <div className="mb-4 text-7xl">❌</div>
               틀렸습니다
+              <AnswerReveal answer={revealedAnswer} className="text-left" />
             </motion.div>
           )}
         </AnimatePresence>

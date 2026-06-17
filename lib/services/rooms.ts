@@ -265,13 +265,23 @@ export async function ensureRoomExists(roomCode: string): Promise<RoomRow> {
   return data as RoomRow
 }
 
-export async function nicknameExists(roomCode: string, nickname: string): Promise<boolean> {
-  const { data, error } = await supabase
+export async function nicknameExists(
+  roomCode: string,
+  nickname: string,
+  excludePlayerId?: string | null,
+): Promise<boolean> {
+  let query = supabase
     .from('players')
     .select('id')
     .eq('room_code', roomCode)
     .eq('nickname', nickname)
-    .limit(1)
+
+  // 본인(이미 입장한 플레이어)은 중복 검사에서 제외 — 닉네임/캐릭터 변경 시 자기 자신과 충돌 방지
+  if (excludePlayerId) {
+    query = query.neq('id', excludePlayerId)
+  }
+
+  const { data, error } = await query.limit(1)
 
   if (error) throw error
   return (data ?? []).length > 0

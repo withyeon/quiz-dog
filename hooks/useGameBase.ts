@@ -22,6 +22,7 @@ import {
     listQuestionsForGame,
     type GameQuestion,
 } from '@/lib/services/questions'
+import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -69,7 +70,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     const {
         expectedGameMode,
         redirectToResultPage = true,
-        wrongAnswerDelay = 2000,
+        wrongAnswerDelay = 3000,
         timeLimit = 30,
         preStartQuizTotal = DEFAULT_PRE_START_QUIZ_TOTAL,
     } = options
@@ -81,6 +82,8 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [playerId, setPlayerId] = useState<string | null>(null)
     const [currentView, setCurrentView] = useState<string>('lobby')
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
+    // 오답 시 보여줄 정답(학습용). handleWrongAnswer 에서 서버 조회 후 채운다.
+    const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
     const [selectedAnswer, setSelectedAnswer] = useState<string>('')
     const [isCorrect, setIsCorrect] = useState(false)
     const [showCountdown, setShowCountdown] = useState(false)
@@ -504,16 +507,19 @@ export function useGameBase(options: UseGameBaseOptions) {
         setSelectedAnswer('')
         setIsCorrect(false)
         setIsAnswerLocked(false) // 잠금 해제
+        clearRevealedAnswer()
         questionStartTime.current = Date.now()
-    }, [])
+    }, [clearRevealedAnswer])
 
     // ─── 오답 처리 (공통 패턴: wrong 뷰 보여주고 → 일정 시간 후 다음 문제) ───
     const handleWrongAnswer = useCallback(() => {
         setCurrentView('wrong')
+        // 오답 화면에 정답을 보여주기 위해 서버에서 정답을 조회한다(학습용).
+        revealAnswer(currentQuestion?.id)
         setTimeout(() => {
             goToNextQuestion()
         }, wrongAnswerDelay)
-    }, [wrongAnswerDelay, goToNextQuestion])
+    }, [wrongAnswerDelay, goToNextQuestion, currentQuestion, revealAnswer])
 
     // ─── 시작 전 퀴즈: 정답 보상 없이 제출 수만 카운트 ───
     const handlePreStartQuizAnswer = useCallback(async (answer: string): Promise<boolean> => {
@@ -607,6 +613,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         setCurrentView,
         currentQuestionIndex,
         setCurrentQuestionIndex,
+        revealedAnswer,
         selectedAnswer,
         isCorrect,
         showCountdown,

@@ -32,9 +32,23 @@ export function normalizeQuizAnswer(value: string | number | null | undefined): 
   return normalized.replace(/[^0-9a-z가-힣]/g, '')
 }
 
+/**
+ * 하나의 정답 필드에 여러 정답을 담을 수 있다.
+ * 줄바꿈(\n) 또는 파이프(|)로 구분한다. (예: "답1|답2", 또는 줄바꿈으로 여러 줄)
+ * 기존 단일 정답은 구분자가 없으므로 1개짜리 배열로 그대로 동작한다.
+ */
+export function splitAcceptableAnswers(correctAnswer: string | null | undefined): string[] {
+  return String(correctAnswer ?? '')
+    .split(/[\n|]/)
+    .map((answer) => answer.trim())
+    .filter(Boolean)
+}
+
 export function isQuizAnswerMatch(submittedAnswer: string, correctAnswer: string): boolean {
   const submitted = normalizeQuizAnswer(submittedAnswer)
-  const correct = normalizeQuizAnswer(correctAnswer)
+  if (submitted === '') return false
 
-  return submitted !== '' && correct !== '' && submitted === correct
+  return splitAcceptableAnswers(correctAnswer).some(
+    (candidate) => normalizeQuizAnswer(candidate) === submitted,
+  )
 }

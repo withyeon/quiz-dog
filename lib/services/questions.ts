@@ -72,6 +72,23 @@ export async function checkQuestionAnswer(
   return Boolean(data)
 }
 
+/**
+ * 오답 시 정답을 보여주기 위해 정답 텍스트를 가져온다.
+ * (학습용 퀴즈이므로 제출 이후 정답 공개를 허용)
+ * 정답을 가져오지 못하면 null 을 반환한다.
+ */
+export async function getQuestionAnswer(questionId: string): Promise<string | null> {
+  const { data, error } = await (supabase.rpc as any)('get_question_answer', {
+    p_question_id: questionId,
+  })
+
+  if (error) {
+    console.error('정답 조회 실패:', error)
+    return null
+  }
+  return typeof data === 'string' ? data : null
+}
+
 export async function listQuestionsForAnalytics(
   setId: string,
 ): Promise<AnalyticsQuestion[]> {
