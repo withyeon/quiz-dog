@@ -71,6 +71,19 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
       .map((meta) => String(meta.playerId)),
   ), [presence])
 
+  // 같은 방 다른 친구들이 이미 고른 캐릭터(본인 제외) → 중복 선택 방지용
+  const takenCharacterIds = useMemo(() => {
+    const taken = new Set<string>()
+    for (const p of players) {
+      if (p.id === playerId) continue
+      const character = CHARACTERS.find((c) => c.imagePath === p.avatar)
+      if (character) taken.add(character.id)
+    }
+    // 학생 수가 캐릭터 수보다 많으면(전부 사용중) 더는 막지 않는다(아무도 못 고르는 상황 방지).
+    if (taken.size >= CHARACTERS.length) return new Set<string>()
+    return taken
+  }, [players, playerId])
+
   // 게임 시작 감지 - 입장 후 로비에서 게임으로 이동
   useEffect(() => {
     if (room?.status === 'playing' && isJoined && playerId) {
@@ -107,6 +120,10 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
       const finalNickname = nicknameCheck.filtered || nickname.trim()
       if (await nicknameExists(roomCode, finalNickname, playerId)) {
         alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
+        return
+      }
+      if (takenCharacterIds.has(selectedCharacter.id)) {
+        alert('방금 다른 친구가 이 캐릭터를 선택했어요! 다른 캐릭터를 골라주세요.')
         return
       }
       const playerData = await createPlayerForRoom({
@@ -191,6 +208,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
                     selectedCharacterId={selectedCharacter.id}
                     onSelect={setSelectedCharacter}
                     showCategories={false}
+                    takenCharacterIds={takenCharacterIds}
                   />
                 </div>
               </div>

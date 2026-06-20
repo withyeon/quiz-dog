@@ -9,12 +9,15 @@ interface CharacterSelectorProps {
   selectedCharacterId?: string
   onSelect: (character: Character) => void
   showCategories?: boolean
+  /** 같은 방 다른 친구들이 이미 고른 캐릭터 ID들(중복 선택 방지용). 본인 선택은 제외하고 전달한다. */
+  takenCharacterIds?: Set<string>
 }
 
 export default function CharacterSelector({
   selectedCharacterId,
   onSelect,
   showCategories = false,
+  takenCharacterIds,
 }: CharacterSelectorProps) {
   const [selectedCategory, setSelectedCategory] = useState<Character['category'] | undefined>(undefined)
 
@@ -64,20 +67,26 @@ export default function CharacterSelector({
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
         {filteredCharacters.map((character) => {
           const isSelected = selectedCharacterId === character.id
+          // 본인이 고른 건 제외하고, 다른 친구가 이미 쓰는 캐릭터는 선택 불가
+          const isTaken = !isSelected && (takenCharacterIds?.has(character.id) ?? false)
           const display = getCharacterDisplay(character)
 
           return (
             <motion.button
               key={character.id}
-              onClick={() => onSelect(character)}
-              whileHover={{ scale: 1.1, y: -5 }}
-              whileTap={{ scale: 0.95 }}
+              onClick={() => { if (!isTaken) onSelect(character) }}
+              disabled={isTaken}
+              aria-disabled={isTaken}
+              whileHover={isTaken ? undefined : { scale: 1.1, y: -5 }}
+              whileTap={isTaken ? undefined : { scale: 0.95 }}
               className={`relative p-1 rounded-xl border-2 transition-all ${
-                isSelected
-                  ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-105'
-                  : 'border-gray-200 bg-white hover:border-indigo-300'
+                isTaken
+                  ? 'border-gray-200 bg-gray-100 opacity-50 grayscale cursor-not-allowed'
+                  : isSelected
+                    ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-105'
+                    : 'border-gray-200 bg-white hover:border-indigo-300'
               }`}
-              title={character.name}
+              title={isTaken ? `${character.name} (이미 친구가 선택함)` : character.name}
             >
               {/* 이미지가 있는 경우 */}
               {display.hasImage ? (
@@ -106,6 +115,13 @@ export default function CharacterSelector({
                 >
                   ✓
                 </motion.div>
+              )}
+
+              {/* 이미 다른 친구가 선택한 캐릭터 표시 */}
+              {isTaken && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/10">
+                  <span className="rounded-full bg-gray-700/90 px-1.5 py-0.5 text-[9px] font-bold text-white">사용중</span>
+                </div>
               )}
             </motion.button>
           )

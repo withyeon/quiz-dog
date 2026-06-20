@@ -6,7 +6,6 @@ import { useCafeStore } from '@/store/cafeStore'
 import CafeView from '@/components/CafeView'
 import AttackAlert from '@/components/cafe/AttackAlert'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trophy, Clock, Coins, Users } from 'lucide-react'
 import { formatCafeMoney, formatTime, MENU_ITEMS } from '@/lib/game/cafe'
@@ -43,9 +42,10 @@ export default function CafePage() {
     commitPlayerPatch,
     playBGM,
     playSFX,
-  } = useGameBase({ expectedGameMode: 'cafe' })
+  } = useGameBase({ expectedGameMode: 'cafe', preStartQuizTotal: 0 })
 
-  const [selectedDuration, setSelectedDuration] = useState(420) // 7분 기본값
+  // 게임 시간은 선생님이 정한다(room.duration_seconds). 학생은 선택하지 않는다.
+  const gameDuration = room?.duration_seconds ?? 420
   const [incomingAttack, setIncomingAttack] = useState<{
     attackerNickname: string
     itemName: string
@@ -65,15 +65,15 @@ export default function CafePage() {
     removeHalfCustomers,
   } = useCafeStore()
 
-  // room 상태가 'playing'이 되면 자동으로 게임 시작
+  // 선생님이 시작(room.status='playing')하면 카페 게임을 시작한다.
+  // 게임 시간은 선생님이 정한 room.duration_seconds(gameDuration)를 사용한다.
+  // 여기서는 스토어만 시작(startGame)하고, 화면 전환은 아래 별도 effect가 스토어
+  // status를 보고 처리한다(시작 로직과 뷰 전환의 책임 분리).
   useEffect(() => {
     if (room?.status === 'playing') {
       if (!isPreStartQuizComplete) return
       if (status !== 'playing' && status !== 'ended') {
-        startGame(selectedDuration)
-      }
-      if (currentView !== 'playing' && currentView !== 'result') {
-        setCurrentView('playing')
+        startGame(gameDuration)
       }
     } else if (room?.status === 'finished' && currentView !== 'result') {
       setCurrentView('result')
@@ -81,16 +81,16 @@ export default function CafePage() {
       resetGame()
       setCurrentView('lobby')
     }
-  }, [isPreStartQuizComplete, room?.status, currentView, status, startGame, resetGame, selectedDuration, setCurrentView])
+  }, [isPreStartQuizComplete, room?.status, currentView, status, startGame, resetGame, gameDuration, setCurrentView])
 
-  // 게임 상태 동기화
+  // 스토어 상태에 따라 화면 전환
   useEffect(() => {
-    if (status === 'playing' && currentView !== 'playing' && isPreStartQuizComplete) {
+    if (status === 'playing' && currentView !== 'playing' && currentView !== 'result') {
       setCurrentView('playing')
     } else if (status === 'ended' && currentView !== 'result') {
       setCurrentView('result')
     }
-  }, [isPreStartQuizComplete, status, currentView, setCurrentView])
+  }, [status, currentView, setCurrentView])
 
   useEffect(() => {
     return () => {
@@ -135,6 +135,15 @@ export default function CafePage() {
     return checkAnswer(answer)
   }, [checkAnswer])
 
+  // 카페는 퀴즈/아이템 UI를 CafeView 내부 상태로 직접 관리한다.
+  // useGameBase의 goToNextQuestion은 공용 뷰를 'quiz'로 바꾸는데, 카페 페이지는
+  // 'lobby' | 'playing' | 'result'만 렌더하므로 'quiz'가 되면 손님·접시가 모두 사라지고
+  // 빈 카페 배경만 남는다. 다음 문제로 넘어간 직후 다시 'playing' 뷰로 되돌린다.
+  const handleNextQuestion = useCallback(() => {
+    goToNextQuestion()
+    setCurrentView('playing')
+  }, [goToNextQuestion, setCurrentView])
+
   const handleSendCafeEvent = useCallback(async (type: 'cafe:item_attack', payload: unknown) => {
     const eventPayload = payload as Record<string, unknown>
     await sendRoomEvent(type, {
@@ -157,11 +166,6 @@ export default function CafePage() {
       }, 'cafe_score_update')
     }, 500)
   }, [commitPlayerPatch, playerId])
-
-  const handleStartGame = () => {
-    startGame(selectedDuration)
-    setCurrentView('playing')
-  }
 
   // 가장 많이 판 메뉴 찾기
   const topMenuEntry = Object.entries(stats.menuSales).sort((a, b) => b[1] - a[1])[0]
@@ -204,33 +208,11 @@ export default function CafePage() {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* 게임 시간 선택 */}
-                <div>
-                  <label className="block text-lg font-semibold text-gray-700 mb-3">
-                    <Clock className="inline mr-2 h-5 w-5" />
-                    게임 시간 선택
-                  </label>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { minutes: 3, seconds: 180, label: '3분' },
-                      { minutes: 7, seconds: 420, label: '7분' },
-                      { minutes: 10, seconds: 600, label: '10분' },
-                    ].map((option) => (
-                      <button
-                        key={option.seconds}
-                        onClick={() => setSelectedDuration(option.seconds)}
-                        className={`p-4 rounded-xl border-4 transition-all ${selectedDuration === option.seconds
-                            ? 'border-amber-500 bg-amber-100 scale-105'
-                            : 'border-gray-300 bg-gray-50 hover:border-amber-300'
-                          }`}
-                      >
-                        <div className="text-2xl font-bold text-gray-900">{option.label}</div>
-                        <div className="text-sm text-gray-600 mt-1">
-                          {formatTime(option.seconds)}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                {/* 선생님이 정한 게임 시간 안내 (학생은 선택 불가) */}
+                <div className="flex items-center justify-center gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-4">
+                  <Clock className="h-6 w-6 text-amber-600" />
+                  <span className="text-lg font-semibold text-gray-700">게임 시간</span>
+                  <span className="text-2xl font-bold text-amber-700">{formatTime(gameDuration)}</span>
                 </div>
 
                 {/* 게임 설명 */}
@@ -243,14 +225,12 @@ export default function CafePage() {
                   </ul>
                 </div>
 
-                {/* 시작 버튼 */}
-                <Button
-                  onClick={handleStartGame}
-                  size="lg"
-                  className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold text-xl py-6 shadow-xl border-4 border-white"
-                >
-                  🎮 게임 시작하기
-                </Button>
+                {/* 시작은 선생님이 한다. 학생은 대기만. */}
+                <div className="flex flex-col items-center gap-3 rounded-xl border-4 border-dashed border-amber-300 bg-white/60 py-6">
+                  <div className="text-4xl animate-pulse">⏳</div>
+                  <p className="text-lg font-bold text-gray-700">선생님이 시작하면 자동으로 시작돼요</p>
+                  <p className="text-sm text-gray-500">잠시만 기다려 주세요…</p>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
@@ -269,7 +249,7 @@ export default function CafePage() {
               roomCode={roomCode}
               currentQuestion={currentQuestion}
               onAnswer={handleAnswer}
-              onNextQuestion={goToNextQuestion}
+              onNextQuestion={handleNextQuestion}
               players={players}
               currentPlayerId={playerId}
               consecutiveCorrect={consecutiveCorrect}
