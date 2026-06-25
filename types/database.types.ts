@@ -276,6 +276,79 @@ export interface Database {
           created_at?: string
         }
       }
+      announcements: {
+        Row: {
+          id: string
+          title: string
+          body: string
+          level: 'info' | 'warning' | 'critical'
+          is_published: boolean
+          created_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          body?: string
+          level?: 'info' | 'warning' | 'critical'
+          is_published?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          body?: string
+          level?: 'info' | 'warning' | 'critical'
+          is_published?: boolean
+          created_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      feedback: {
+        Row: {
+          id: string
+          category: 'general' | 'bug' | 'question_error' | 'payment' | 'suggestion' | 'other'
+          message: string
+          contact: string | null
+          room_code: string | null
+          page_url: string | null
+          user_email: string | null
+          status: 'open' | 'in_progress' | 'resolved' | 'archived'
+          admin_note: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          category?: 'general' | 'bug' | 'question_error' | 'payment' | 'suggestion' | 'other'
+          message: string
+          contact?: string | null
+          room_code?: string | null
+          page_url?: string | null
+          user_email?: string | null
+          status?: 'open' | 'in_progress' | 'resolved' | 'archived'
+          admin_note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          category?: 'general' | 'bug' | 'question_error' | 'payment' | 'suggestion' | 'other'
+          message?: string
+          contact?: string | null
+          room_code?: string | null
+          page_url?: string | null
+          user_email?: string | null
+          status?: 'open' | 'in_progress' | 'resolved' | 'archived'
+          admin_note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       events: {
         Row: {
           id: string

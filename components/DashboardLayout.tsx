@@ -15,9 +15,11 @@ import {
   PlayCircle,
   Plus,
   Settings,
+  ShieldCheck,
   X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { isAdminEmail } from '@/lib/admin/admins'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -38,6 +40,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const userEmail = user?.email ?? ''
+  const isAdmin = isAdminEmail(userEmail)
   const userInitial = userEmail ? userEmail[0].toUpperCase() : 'T'
   const displayName = userEmail ? userEmail.split('@')[0] : '선생님'
 
@@ -113,6 +116,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </Link>
             )
           })}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={`flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition ${
+                pathname?.startsWith('/admin')
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-black'
+              }`}
+            >
+              <ShieldCheck className="h-5 w-5" />
+              <span className="flex-1">관리자</span>
+            </Link>
+          )}
         </nav>
 
         <div className="border-t border-slate-100 p-4">

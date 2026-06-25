@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { COMPANY } from '@/lib/legal/company'
+import FeedbackForm from '@/components/FeedbackForm'
 
 export const metadata: Metadata = {
   title: '문의하기 - 퀴즈독',
@@ -60,6 +61,10 @@ export default function ContactPage() {
           </a>
           의 개인정보 보호책임자 정보도 함께 확인해 주세요.
         </p>
+
+        <div className="mt-10">
+          <FeedbackForm />
+        </div>
       </main>
       <Footer />
     </div>
