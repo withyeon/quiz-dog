@@ -40,23 +40,23 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
 
     if (loading) {
         return (
-            <div className="min-h-dvh bg-gray-50 flex items-center justify-center p-6">
-                <p className="text-xl font-bold text-gray-500">결과 데이터를 불러오는 중입니다...</p>
+            <div className="min-h-dvh bg-slate-50 flex items-center justify-center p-6">
+                <p className="text-xl font-bold text-slate-500">결과를 불러오는 중…</p>
             </div>
         )
     }
 
     if (!room) {
         return (
-            <div className="min-h-dvh bg-gray-50 flex flex-col items-center justify-center p-6 gap-4">
+            <div className="min-h-dvh bg-slate-50 flex flex-col items-center justify-center p-6 gap-4">
                 <p className="text-xl font-bold text-red-500">
                     {errorMessage ? `게임 방 정보를 불러오지 못했습니다. ${errorMessage}` : '게임 방 정보를 찾을 수 없습니다.'}
                 </p>
                 <button
                     onClick={() => router.push('/teacher/dashboard')}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                    className="rounded-xl bg-sky-500 px-6 py-2 font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
                 >
-                    대시보드로 돌아가기
+                    게임 시작으로
                 </button>
             </div>
         )
@@ -64,38 +64,38 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
 
     if (room.status !== 'finished') {
         return (
-            <div className="min-h-dvh bg-gray-50 flex flex-col items-center justify-center p-6 gap-4">
+            <div className="min-h-dvh bg-slate-50 flex flex-col items-center justify-center p-6 gap-4">
                 <div className="bg-yellow-100 text-yellow-800 p-6 rounded-xl border border-yellow-200">
-                    <p className="text-lg font-bold">아직 게임이 진행 중입니다!</p>
-                    <p className="mt-2">결과 리포트는 게임이 완전히 종료된 후에 볼 수 있습니다.</p>
+                    <p className="text-lg font-bold">아직 게임이 진행 중이에요</p>
+                    <p className="mt-2">게임이 끝나면 결과를 볼 수 있어요.</p>
                 </div>
                 <button
                     onClick={() => router.push('/teacher/dashboard')}
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700"
+                    className="rounded-xl bg-sky-500 px-6 py-2 font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
                 >
-                    대시보드로 돌아가기
+                    게임 시작으로
                 </button>
             </div>
         )
     }
 
     return (
-        <div className="min-h-dvh bg-gray-50 p-6">
+        <div className="min-h-dvh bg-slate-50 p-6">
             <div className="max-w-7xl mx-auto">
                 <div className="flex items-center justify-between mb-8">
                     <div>
-                        <h1 className="text-3xl font-bold text-black">게임 결과 리포트</h1>
-                        <p className="text-gray-600 mt-2">방 코드: <span className="font-mono font-bold">{roomCode}</span></p>
+                        <h1 className="text-3xl font-bold text-black">게임 결과</h1>
+                        <p className="text-slate-500 mt-2">참가코드 <span className="font-mono font-bold">{roomCode}</span></p>
                     </div>
                     <button
                         onClick={() => router.push('/teacher/dashboard')}
-                        className="px-6 py-3 bg-white text-gray-700 font-semibold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+                        className="rounded-xl border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
                     >
-                        ← 대시보드로 복귀
+                        게임 시작으로
                     </button>
                 </div>
 
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
                     <TeacherAnalytics setId={room.set_id || null} players={players} />
                 </div>
             </div>

@@ -55,7 +55,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#102a43] p-6">
-        <p className="text-3xl font-black text-white">결과 발표를 준비하는 중입니다...</p>
+        <p className="text-3xl font-black text-white">결과 발표 준비 중…</p>
       </div>
     )
   }
@@ -64,13 +64,13 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
         <p className="text-xl font-black text-red-600">
-          {errorMessage ? `종료 화면을 불러오지 못했습니다. ${errorMessage}` : '게임 결과를 찾을 수 없습니다.'}
+          {errorMessage ? `종료 화면을 불러오지 못했어요. ${errorMessage}` : '게임 결과를 찾을 수 없어요.'}
         </p>
         <button
           onClick={() => router.push('/teacher/dashboard')}
-          className="rounded-lg bg-slate-900 px-5 py-3 font-bold text-white"
+          className="rounded-xl bg-sky-500 px-5 py-3 font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
         >
-          대시보드로 돌아가기
+          게임 시작으로
         </button>
       </div>
     )

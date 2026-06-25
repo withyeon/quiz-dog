@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   ArrowRight,
   BookOpen,
@@ -13,7 +14,6 @@ import {
   Pencil,
   Play,
   Plus,
-  Sparkles,
   Trash2,
   Wand2,
 } from 'lucide-react'
@@ -147,59 +147,64 @@ function TeacherPageContent() {
     <div className="mx-auto max-w-7xl">
       {loading ? (
         <div className="flex min-h-[520px] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-black" />
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
         </div>
       ) : questionSets.length === 0 ? (
         <div className="space-y-8">
-          <section className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="grid gap-8 p-8 lg:grid-cols-[1.1fr_0.9fr] lg:p-10">
               <div className="flex flex-col justify-center">
-                <span className="mb-5 inline-flex w-fit items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-bold text-slate-600">
-                  <Sparkles className="h-4 w-4" />
-                  QuizDog Teacher
-                </span>
-                <h1 className="text-4xl font-black leading-tight tracking-normal text-black md:text-5xl">
-                  수업 퀴즈를 빠르게 만들고 바로 시작하세요
+                <h1 className="text-4xl font-black leading-tight tracking-tight text-slate-900 md:text-5xl">
+                  수업 퀴즈,<br />만들고 바로 시작
                 </h1>
-                <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-slate-500">
-                  문제집을 만들거나 샘플을 가져오면 게임 진행과 결과 분석까지 한 흐름으로 이어집니다.
+                <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-500">
+                  문제집 만들기 · 자료실에서 가져오기 · 게임까지 한 곳에서.
                 </p>
                 <div className="mt-8 flex flex-wrap gap-3">
                   <Link
                     href="/teacher/create"
-                    className="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-3 font-black text-white shadow-sm transition hover:bg-neutral-800"
+                    className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
                   >
                     <Plus className="h-5 w-5" />
-                    퀴즈 만들기
+                    문제집 만들기
                   </Link>
                   <Link
                     href="/teacher/library"
-                    className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 font-black text-black shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
                     <Library className="h-5 w-5" />
-                    라이브러리 보기
+                    자료실
                   </Link>
                 </div>
               </div>
-              <div className="rounded-lg bg-[#f7f8fa] p-5">
-                <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-black text-slate-500">시작 준비</span>
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">0개</span>
+              <div className="rounded-2xl bg-gradient-to-br from-sky-50 to-cyan-50 p-5">
+                <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
+                  <div className="flex items-center gap-3">
+                    <Image
+                      src="/mascot_pome.png"
+                      alt="퀴즈독"
+                      width={48}
+                      height={48}
+                      className="h-12 w-12 object-contain"
+                    />
+                    <div>
+                      <div className="text-sm font-bold text-slate-900">시작하기</div>
+                      <div className="text-xs font-semibold text-slate-400">세 가지 방법</div>
+                    </div>
                   </div>
-                  <div className="mt-8 space-y-3">
+                  <div className="mt-5 space-y-2">
                     {[
-                      { icon: Wand2, label: 'AI 생성', href: '/teacher/create' },
+                      { icon: Wand2, label: 'AI로 만들기', href: '/teacher/create' },
                       { icon: Pencil, label: '직접 작성', href: '/teacher/create' },
-                      { icon: Library, label: '샘플 가져오기', href: '/teacher/library' },
+                      { icon: Library, label: '자료실에서 가져오기', href: '/teacher/library' },
                     ].map((item) => (
                       <Link
                         key={item.label}
                         href={item.href}
-                        className="flex items-center justify-between rounded-lg border border-slate-200 px-4 py-3 text-black transition hover:bg-slate-50"
+                        className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 text-slate-800 transition hover:border-sky-200 hover:bg-sky-50"
                       >
-                        <span className="flex items-center gap-3 font-black">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-black">
+                        <span className="flex items-center gap-3 font-bold">
+                          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
                             <item.icon className="h-5 w-5" />
                           </span>
                           {item.label}
@@ -221,31 +226,28 @@ function TeacherPageContent() {
         </div>
       ) : (
         <div className="space-y-7">
-          <section className="rounded-lg bg-white p-8 shadow-sm ring-1 ring-slate-200">
+          <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">
-                  Teacher Home
-                </span>
-                <h1 className="mt-5 text-4xl font-black tracking-normal text-black md:text-5xl">내 문제집</h1>
+                <h1 className="text-4xl font-black tracking-tight text-slate-900 md:text-5xl">내 문제집</h1>
                 <p className="mt-3 text-base font-medium text-slate-500">
-                  {questionSets.length}개 문제집 · {totalQuestions}개 문항이 준비되어 있습니다.
+                  문제집 {questionSets.length} · 문항 {totalQuestions}
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link
                   href="/teacher/create"
-                  className="inline-flex items-center gap-2 rounded-lg bg-black px-5 py-3 font-black text-white shadow-sm transition hover:bg-neutral-800"
+                  className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-3 font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
                 >
                   <Plus className="h-5 w-5" />
-                  퀴즈 만들기
+                  문제집 만들기
                 </Link>
                 <Link
                   href="/teacher/library"
-                  className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-3 font-black text-black shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                 >
                   <Library className="h-5 w-5" />
-                  라이브러리
+                  자료실
                 </Link>
               </div>
             </div>
@@ -253,33 +255,33 @@ function TeacherPageContent() {
 
           <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: BookOpen, label: '내 문제집', value: questionSets.length.toLocaleString(), tone: 'bg-slate-100 text-black' },
-              { icon: FileQuestion, label: '총 문제 수', value: totalQuestions.toLocaleString(), tone: 'bg-slate-100 text-black' },
-              { icon: Heart, label: '좋아요한 문제집', value: likedQuestionSets.length.toLocaleString(), tone: 'bg-rose-50 text-rose-600' },
-              { icon: Play, label: '최근 문제집', value: recentSets.length.toLocaleString(), tone: 'bg-slate-100 text-black' },
+              { icon: BookOpen, label: '문제집', value: questionSets.length.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
+              { icon: FileQuestion, label: '총 문항', value: totalQuestions.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
+              { icon: Heart, label: '좋아요', value: likedQuestionSets.length.toLocaleString(), tone: 'bg-rose-50 text-rose-600' },
+              { icon: Play, label: '최근', value: recentSets.length.toLocaleString(), tone: 'bg-amber-100 text-amber-600' },
             ].map((item) => (
-              <div key={item.label} className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+              <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-500">{item.label}</span>
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-lg ${item.tone}`}>
+                  <span className="text-sm font-semibold text-slate-500">{item.label}</span>
+                  <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.tone}`}>
                     <item.icon className="h-5 w-5" />
                   </span>
                 </div>
-                <div className="mt-5 text-3xl font-black tracking-normal text-black">{item.value}</div>
+                <div className="mt-5 text-3xl font-black tracking-tight text-slate-900">{item.value}</div>
               </div>
             ))}
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
-            <div className="rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-xl font-black tracking-normal text-black">문제집 목록</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500">바로 게임을 시작하거나 문항을 수정할 수 있습니다.</p>
+                  <h2 className="text-xl font-extrabold tracking-tight text-slate-900">문제집 목록</h2>
+                  <p className="mt-1 text-sm font-medium text-slate-500">게임 시작 · 문항 수정</p>
                 </div>
                 <Link
                   href="/teacher/create"
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-black text-white transition hover:bg-neutral-800"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
                 >
                   <Plus className="h-4 w-4" />
                   새 문제집
@@ -289,13 +291,13 @@ function TeacherPageContent() {
                 {questionSets.map((set) => (
                   <div key={set.id} className="flex flex-col gap-4 p-5 transition hover:bg-slate-50 md:flex-row md:items-center">
                       <div className="flex min-w-0 flex-1 items-center gap-4">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-black">
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
                         <BookOpen className="h-6 w-6" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="truncate text-base font-black text-black">{set.title}</h3>
+                        <h3 className="truncate text-base font-bold text-slate-900">{set.title}</h3>
                         <div className="mt-1 flex flex-wrap gap-2 text-sm font-medium text-slate-500">
-                          <span>{set.question_count}문제</span>
+                          <span>{set.question_count}문항</span>
                           <span>·</span>
                           <span>{new Date(set.created_at).toLocaleDateString('ko-KR')}</span>
                         </div>
@@ -304,28 +306,28 @@ function TeacherPageContent() {
                     <div className="flex flex-wrap gap-2 md:justify-end">
                       <button
                         onClick={() => handleStartGame(set.id)}
-                        className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2.5 text-sm font-black text-white transition hover:bg-neutral-800"
+                        className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
                       >
                         <Play className="h-4 w-4 fill-current" />
                         게임 시작
                       </button>
                       <button
                         onClick={() => router.push(`/teacher/sets/${encodeURIComponent(set.id)}/edit`)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-black"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-black"
                         aria-label={`${set.title} 수정`}
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDuplicate(set)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-black"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-black"
                         aria-label={`${set.title} 복제`}
                       >
                         <Copy className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(set.id)}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                         aria-label={`${set.title} 삭제`}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -344,18 +346,18 @@ function TeacherPageContent() {
                 compact
               />
 
-              <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <h2 className="text-lg font-black text-black">최근 문제집</h2>
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-extrabold text-slate-900">최근 문제집</h2>
                 <div className="mt-4 space-y-3">
                   {recentSets.map((set) => (
                     <button
                       key={set.id}
                       onClick={() => handleStartGame(set.id)}
-                      className="flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 p-3 text-left transition hover:bg-slate-50"
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 text-left transition hover:border-sky-200 hover:bg-sky-50"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-black text-black">{set.title}</span>
-                        <span className="mt-1 block text-xs font-bold text-slate-400">{set.question_count}문제</span>
+                        <span className="block truncate text-sm font-bold text-slate-900">{set.title}</span>
+                        <span className="mt-1 block text-xs font-semibold text-slate-400">{set.question_count}문항</span>
                       </span>
                       <ArrowRight className="h-4 w-4 flex-shrink-0 text-slate-400" />
                     </button>
@@ -364,14 +366,14 @@ function TeacherPageContent() {
               </div>
               <Link
                 href="/teacher/create"
-                className="flex min-h-44 flex-col justify-between rounded-lg border border-dashed border-slate-300 bg-white p-5 transition hover:bg-slate-50"
+                className="flex min-h-44 flex-col justify-between rounded-2xl border border-dashed border-slate-300 bg-white p-5 transition hover:border-sky-300 hover:bg-sky-50"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-black text-white">
+                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-500 text-white">
                   <Plus className="h-6 w-6" />
                 </span>
                 <span>
-                  <span className="block text-lg font-black text-black">새 문제집 만들기</span>
-                  <span className="mt-1 block text-sm font-bold text-slate-500">수업 전에 바로 준비하기</span>
+                  <span className="block text-lg font-extrabold text-slate-900">새 문제집 만들기</span>
+                  <span className="mt-1 block text-sm font-medium text-slate-500">수업 전 빠르게</span>
                 </span>
               </Link>
             </aside>
@@ -396,29 +398,29 @@ function LikedQuestionSetsPanel({
   const visibleSets = compact ? likedQuestionSets.slice(0, 5) : likedQuestionSets
 
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black text-black">좋아요한 문제집</h2>
-          <p className="mt-1 text-sm font-bold text-slate-500">
-            자료실에서 눌러둔 문제집을 모아봅니다.
+          <h2 className="text-lg font-extrabold text-slate-900">좋아요한 문제집</h2>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            자료실에서 담아둔 문제집
           </p>
         </div>
-        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
+        <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-rose-50 text-rose-600">
           <Heart className="h-5 w-5 fill-current" />
         </span>
       </div>
 
       {likedQuestionSets.length === 0 ? (
-        <div className="mt-4 rounded-lg bg-slate-50 p-4">
-          <p className="text-sm font-bold leading-6 text-slate-500">
-            아직 좋아요한 문제집이 없습니다.
+        <div className="mt-4 rounded-xl bg-slate-50 p-4">
+          <p className="text-sm font-medium leading-6 text-slate-500">
+            아직 없어요
           </p>
           <Link
             href="/teacher/library"
-            className="mt-3 inline-flex items-center gap-2 text-sm font-black text-black"
+            className="mt-3 inline-flex items-center gap-2 text-sm font-bold text-sky-600"
           >
-            자료실에서 찾아보기
+            자료실 둘러보기
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -427,16 +429,16 @@ function LikedQuestionSetsPanel({
           {visibleSets.map((set) => (
             <div
               key={set.set_id}
-              className="flex items-center gap-2 rounded-lg border border-slate-200 p-3"
+              className="flex items-center gap-2 rounded-xl border border-slate-200 p-3"
             >
               <button
                 type="button"
                 onClick={() => onStartGame(set.set_id)}
                 className="min-w-0 flex-1 text-left"
               >
-                <span className="block truncate text-sm font-black text-black">{set.name}</span>
-                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-bold text-slate-400">
-                  <span>{set.question_count}문제</span>
+                <span className="block truncate text-sm font-bold text-slate-900">{set.name}</span>
+                <span className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-slate-400">
+                  <span>{set.question_count}문항</span>
                   <span>·</span>
                   <span className="inline-flex items-center gap-1 text-rose-500">
                     <Heart className="h-3 w-3 fill-current" />
@@ -447,7 +449,7 @@ function LikedQuestionSetsPanel({
               <button
                 type="button"
                 onClick={() => void onCopySet(set.set_id)}
-                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600 transition hover:bg-black hover:text-white"
+                className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600 transition hover:bg-sky-500 hover:text-white"
                 aria-label={`${set.name} 내 문제집에 담기`}
                 title="내 문제집에 담기"
               >
@@ -459,7 +461,7 @@ function LikedQuestionSetsPanel({
           {compact && likedQuestionSets.length > visibleSets.length && (
             <Link
               href="/teacher/library"
-              className="flex items-center justify-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm font-black text-slate-600 transition hover:bg-slate-100 hover:text-black"
+              className="flex items-center justify-center gap-2 rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-600 transition hover:bg-slate-100 hover:text-black"
             >
               전체 보기
               <ArrowRight className="h-4 w-4" />

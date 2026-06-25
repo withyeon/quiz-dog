@@ -61,13 +61,13 @@ export default function TeacherGameReportPageClient({ gameId }: { gameId: string
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-slate-50 p-6 text-center">
         <p className="text-xl font-black text-red-600">
-          {errorMessage ? `리포트를 불러오지 못했습니다. ${errorMessage}` : '게임 결과를 찾을 수 없습니다.'}
+          {errorMessage ? `결과를 불러오지 못했어요. ${errorMessage}` : '게임 결과를 찾을 수 없습니다.'}
         </p>
         <button
           onClick={() => router.push('/teacher/analytics')}
-          className="rounded-lg bg-slate-900 px-5 py-3 font-bold text-white"
+          className="rounded-xl bg-sky-500 px-5 py-3 font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
         >
-          히스토리로 돌아가기
+          기록으로
         </button>
       </div>
     )
@@ -75,7 +75,7 @@ export default function TeacherGameReportPageClient({ gameId }: { gameId: string
 
   return (
     <main className="min-h-dvh bg-slate-50 p-4 sm:p-6">
-      <div className="mx-auto max-w-7xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+      <div className="mx-auto max-w-7xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
         <TeacherPostGameReport room={room} players={players} questions={questions} />
       </div>
     </main>

@@ -26,7 +26,7 @@ interface DashboardLayoutProps {
 const navItems = [
   { href: '/teacher', label: '홈', icon: Home, id: 'home' },
   { href: '/teacher/library', label: '자료실', icon: Library, id: 'library' },
-  { href: '/teacher/analytics', label: '히스토리', icon: BarChart3, id: 'history' },
+  { href: '/teacher/analytics', label: '게임 기록', icon: BarChart3, id: 'history' },
   { href: '/teacher/dashboard', label: '게임 시작', icon: PlayCircle, id: 'play' },
   { href: '/teacher/settings', label: '설정', icon: Settings, id: 'settings' },
 ]
@@ -84,10 +84,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="px-4 pb-4">
           <Link
             href="/teacher/create"
-            className="flex h-11 items-center justify-center gap-2 rounded-lg bg-black px-4 text-sm font-bold text-white transition hover:bg-neutral-800"
+            className="flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
           >
             <Plus className="h-4 w-4" />
-            새 퀴즈 만들기
+            문제집 만들기
           </Link>
         </div>
 
@@ -101,9 +101,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Link
                 key={item.id}
                 href={item.href}
-                className={`flex h-11 items-center gap-3 rounded-lg px-3 text-sm font-bold transition ${
+                className={`flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition ${
                   active
-                    ? 'bg-slate-100 text-black'
+                    ? 'bg-sky-50 text-sky-700'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-black'
                 }`}
               >
@@ -199,9 +199,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     key={item.id}
                     href={item.href}
                     onClick={() => setMobileNavOpen(false)}
-                    className={`flex h-12 items-center gap-3 rounded-lg px-3 text-sm font-bold transition ${
+                    className={`flex h-12 items-center gap-3 rounded-xl px-3 text-sm font-bold transition ${
                       active
-                        ? 'bg-slate-100 text-black'
+                        ? 'bg-sky-50 text-sky-700'
                         : 'text-slate-500 hover:bg-slate-50 hover:text-black'
                     }`}
                   >
@@ -270,8 +270,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   priority
                 />
               </Link>
-              <div>
-                <div className="text-sm font-medium text-slate-400">선생님 대시보드</div>
+              <div className="hidden items-center gap-2 lg:flex">
+                <span className="text-base font-extrabold text-slate-800">{currentItem.label}</span>
               </div>
             </div>
 

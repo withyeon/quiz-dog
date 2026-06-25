@@ -3,20 +3,11 @@
 import { motion } from 'framer-motion'
 import FeatureMenuCard from '@/components/landing/FeatureMenuCard'
 import { getFeatureIntroItems } from '@/components/landing/featureIntroData'
+import { PixelHeading } from '@/components/landing/PixelHeading'
 
 function SectionTitleButton({ children }: { children: React.ReactNode }) {
   return (
-    <span
-      className="inline-block text-3xl font-black sm:text-4xl"
-      style={{
-        fontFamily: "'DNFBitBitv2', sans-serif",
-        background: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-      }}
-    >
-      {children}
-    </span>
+    <PixelHeading className="text-4xl sm:text-5xl">{children}</PixelHeading>
   )
 }
 

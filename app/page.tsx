@@ -7,6 +7,7 @@ import Image from 'next/image'
 import Navbar from '@/components/Navbar'
 import PawBackgroundDecor from '@/components/PawBackgroundDecor'
 import FeatureIntroSection from '@/components/landing/FeatureIntroSection'
+import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import GameShowcase from '@/components/GameShowcase'
 import Footer from '@/components/Footer'
 import AnimatedNumber from '@/components/AnimatedNumber'
@@ -218,16 +219,10 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2
-              className="inline-block text-3xl font-black sm:text-4xl mb-4"
-              style={{
-                fontFamily: "'DNFBitBitv2', sans-serif",
-                background: 'linear-gradient(135deg, #7C3AED 0%, #6366f1 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}
-            >
-              {`${visibleGameModeCount}가지 게임 모드`}
+            <h2 className="mb-4 text-4xl sm:text-5xl">
+              <PixelHeading>
+                <PixelAccent>{visibleGameModeCount}가지</PixelAccent> 게임 모드
+              </PixelHeading>
             </h2>
             <p className="text-lg mt-2" style={{ color: '#475569', fontFamily: "'DNFBitBitv2', sans-serif" }}>
               학생들이 즐기는 다양한 게임으로 학습 참여도 UP!

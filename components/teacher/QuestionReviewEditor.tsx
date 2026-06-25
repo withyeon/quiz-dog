@@ -123,23 +123,23 @@ export default function QuestionReviewEditor({
   const totalErrors = generatedQuestions.reduce((sum, q) => sum + getQuestionErrors(q).length, 0)
 
   return (
-    <main className="min-h-dvh bg-[#f5f7fb] px-4 py-5 text-black sm:px-6 lg:px-8">
+    <main className="text-black">
       <div className="mx-auto max-w-5xl">
       <Button
         variant="ghost"
         onClick={onBack}
-        className="-ml-3 mb-4 h-10 rounded-lg px-3 text-slate-500 hover:bg-slate-100 hover:text-black"
+        className="-ml-3 mb-4 h-10 rounded-xl px-3 text-slate-500 hover:bg-slate-100 hover:text-black"
       >
         <ArrowLeft className="h-4 w-4 mr-2" />
-        제작 방식 다시 선택
+        방식 다시 선택
       </Button>
 
       {/* 상단 요약 바 */}
-      <div className="mb-5 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-sm font-black text-black">저장 전 검수</div>
-            <h2 className="mt-1 text-2xl font-black text-black">문제집 내용 다듬기</h2>
+            <div className="text-sm font-semibold text-slate-500">저장 전 검수</div>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">내용 확인</h2>
             <p className="text-sm font-bold text-slate-500 mt-1">
               {generatedQuestions.length}문제 · {totalErrors > 0 ? (
                 <span className="text-red-500 font-black">⚠ {totalErrors}개 수정 필요</span>
@@ -161,22 +161,22 @@ export default function QuestionReviewEditor({
           </div>
         </div>
         <div>
-          <label className="block text-sm font-black text-slate-600 mb-1.5">문제집 이름</label>
+          <label className="mb-1.5 block text-sm font-semibold text-slate-600">문제집 이름</label>
           <input
             type="text"
             value={setName}
             onChange={(e) => setSetName(e.target.value)}
             placeholder="예: 한국사 기초 문제집"
-            className="w-full rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+            className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-black text-slate-600 mb-1.5">과목</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-600">과목</label>
             <select
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             >
               <option value="">과목 선택</option>
               <option value="국어">국어</option>
@@ -189,11 +189,11 @@ export default function QuestionReviewEditor({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-black text-slate-600 mb-1.5">대상 학년</label>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-600">대상 학년</label>
             <select
               value={grade}
               onChange={(e) => setGrade(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             >
               <option value="">학년 선택</option>
               {TARGET_GRADE_OPTIONS.map((option) => (
@@ -257,7 +257,7 @@ export default function QuestionReviewEditor({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.03 }}
-              className={`overflow-hidden rounded-lg border bg-white transition-all ${errors.length > 0 ? 'border-red-200 shadow-red-50' : 'border-slate-200'
+              className={`overflow-hidden rounded-2xl border bg-white transition-all ${errors.length > 0 ? 'border-red-200 shadow-red-50' : 'border-slate-200'
                 } shadow-sm hover:shadow-md`}
             >
               {/* 문제 헤더 */}
@@ -287,11 +287,11 @@ export default function QuestionReviewEditor({
               <div className="p-5 space-y-4">
                 {/* 문제 텍스트 */}
                 <div>
-                  <label className="block text-sm font-black text-slate-600 mb-1.5">문제</label>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-600">문제</label>
                   <textarea
                     value={q.type === 'BLANK' ? displayBlankText(q.question_text) : q.question_text}
                     onChange={(e) => handleEditQuestion(index, 'question_text', e.target.value)}
-                    className="w-full resize-none rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     rows={2}
                     placeholder="문제를 입력하세요"
                   />
@@ -300,7 +300,7 @@ export default function QuestionReviewEditor({
                 {/* 보기 (객관식/OX) */}
                 {(q.type === 'CHOICE' || q.type === 'OX') && (
                   <div>
-                    <label className="block text-sm font-black text-slate-600 mb-1.5">
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-600">
                       보기 <span className="font-normal text-gray-400">— 정답을 클릭하세요</span>
                     </label>
                     <div className="space-y-2">
@@ -360,12 +360,12 @@ export default function QuestionReviewEditor({
                 {/* 정답 (주관식/빈칸) */}
                 {(q.type === 'SHORT' || q.type === 'BLANK') && (
                   <div>
-                    <label className="block text-sm font-black text-slate-600 mb-1.5">정답</label>
+                    <label className="mb-1.5 block text-sm font-semibold text-slate-600">정답</label>
                     <input
                       type="text"
                       value={q.answer}
                       onChange={(e) => handleEditQuestion(index, 'answer', e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 px-4 py-2.5 font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                       placeholder="정답을 입력하세요"
                     />
                   </div>
@@ -388,8 +388,8 @@ export default function QuestionReviewEditor({
         })}
 
         {/* 문제 추가 */}
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white/70 p-6 text-center">
-          <p className="mb-3 text-sm font-black text-slate-500">문제 추가하기</p>
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 p-6 text-center">
+          <p className="mb-3 text-sm font-semibold text-slate-500">문제 추가</p>
           <div className="flex gap-3 justify-center flex-wrap">
             <button
               onClick={() => onCreateManual('CHOICE')}
@@ -421,7 +421,7 @@ export default function QuestionReviewEditor({
 
       {/* 하단 저장 바 */}
       <div className="sticky bottom-4 mt-6 z-50">
-        <div className="flex gap-3 rounded-lg border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+        <div className="flex gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
           <Button
             variant="outline"
             onClick={onBack}
