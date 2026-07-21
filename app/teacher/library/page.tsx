@@ -1,6 +1,6 @@
 'use client'
 
-import { notify } from '@/components/ui/Toast'
+import { toast } from '@/components/ui/Toaster'
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -355,11 +355,11 @@ function LibraryPageContent() {
   const handleCopySet = async (setId: string) => {
     try {
       await copyQuestionSetFromQuestionsOnly(setId)
-      notify('내 문제집에 담았습니다.', 'success')
+      toast.success('내 문제집에 담았습니다.')
       router.push('/teacher')
     } catch (error) {
       console.error('Error copying set:', error)
-      notify('문제집을 담지 못했습니다: ' + formatServiceError(error), 'error')
+      toast.error('문제집을 담지 못했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -622,7 +622,7 @@ function LibraryPageContent() {
                   <button
                     onClick={async () => {
                       await navigator.clipboard.writeText(`${window.location.origin}/teacher/library?set=${selectedSet.set_id}`)
-                      notify('링크가 복사되었습니다.', 'success')
+                      toast.success('링크가 복사되었습니다.')
                     }}
                     className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-black"
                   >

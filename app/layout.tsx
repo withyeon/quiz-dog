@@ -3,7 +3,6 @@ import { Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 import { AudioProviderWrapper } from '@/components/AudioProviderWrapper'
 import { AuthProvider } from '@/contexts/AuthContext'
-import { ToastProvider } from '@/components/ui/Toast'
 import { ConfirmDialogProvider } from '@/components/ui/ConfirmDialog'
 
 const notoSansKR = Noto_Sans_KR({
@@ -213,11 +212,9 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <ToastProvider>
-            <ConfirmDialogProvider>
-              <AudioProviderWrapper>{children}</AudioProviderWrapper>
-            </ConfirmDialogProvider>
-          </ToastProvider>
+          <ConfirmDialogProvider>
+            <AudioProviderWrapper>{children}</AudioProviderWrapper>
+          </ConfirmDialogProvider>
         </AuthProvider>
       </body>
     </html>

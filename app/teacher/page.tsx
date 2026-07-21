@@ -1,7 +1,7 @@
 'use client'
 
+import { toast } from '@/components/ui/Toaster'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
-import { notify } from '@/components/ui/Toast'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -97,11 +97,11 @@ function TeacherPageContent() {
   const handleCopyLikedSet = async (setId: string) => {
     try {
       await copyQuestionSetFromQuestionsOnly(setId)
-      notify('내 문제집에 담았습니다.', 'success')
+      toast.success('내 문제집에 담았습니다.')
       void loadQuestionSets()
     } catch (error) {
       console.error('Error copying liked question set:', error)
-      notify('문제집을 담지 못했습니다: ' + formatServiceError(error), 'error')
+      toast.error('문제집을 담지 못했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -113,11 +113,11 @@ function TeacherPageContent() {
   const handleDuplicate = async (set: QuestionSet) => {
     try {
       await duplicateQuestionSet(set.id, `${set.title} (복사본)`)
-      notify('문제집이 복제되었습니다!', 'success')
+      toast.success('문제집이 복제되었습니다!')
       loadQuestionSets()
     } catch (error) {
       console.error('Error duplicating question set:', error)
-      notify('복제에 실패했습니다.', 'error')
+      toast.error('복제에 실패했습니다.')
     }
   }
 
@@ -132,11 +132,11 @@ function TeacherPageContent() {
 
     try {
       await deleteQuestionSet(setId)
-      notify('문제집이 삭제되었습니다.', 'success')
+      toast.success('문제집이 삭제되었습니다.')
       loadQuestionSets()
     } catch (error) {
       console.error('Error deleting question set:', error)
-      notify('삭제에 실패했습니다.', 'error')
+      toast.error('삭제에 실패했습니다.')
     }
   }
 

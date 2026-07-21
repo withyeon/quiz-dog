@@ -1,6 +1,6 @@
 'use client'
 
-import { notify } from '@/components/ui/Toast'
+import { toast } from '@/components/ui/Toaster'
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -426,7 +426,7 @@ export default function TeacherDashboard() {
     // Supabase 설정 확인
     const configCheck = checkSupabaseConfig()
     if (!configCheck.isValid) {
-      notify(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.', 'error')
+      toast.error(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.')
       return
     }
 
@@ -436,12 +436,10 @@ export default function TeacherDashboard() {
     try {
       if (activeModeConfig.requiresQuestionSet) {
         if (!setId) {
-          notify(
-            questionSets.length === 0
+          toast.info(questionSets.length === 0
               ? '아직 사용할 수 있는 문제집이 없어요. 먼저 문제집을 만들어주세요.'
               : '이 게임은 문제집이 필요합니다. 위에서 문제집을 선택해주세요.',
-            'info',
-          )
+            'info',)
           return
         }
         playBGM('game', activeBgmTrack)
@@ -468,7 +466,7 @@ export default function TeacherDashboard() {
         userMessage += `\n\n(요청한 Set ID: ${setId})`
       }
 
-      notify(userMessage, 'info')
+      toast.info(userMessage)
     }
   }
 
@@ -483,7 +481,7 @@ export default function TeacherDashboard() {
       const startedAt = new Date().toISOString()
       if (activeModeConfig.requiresQuestionSet) {
         if (!setId) {
-          notify('이 방에는 문제집이 연결되어 있지 않습니다. 문제집을 선택해 새 게임을 만들어주세요.', 'info')
+          toast.info('이 방에는 문제집이 연결되어 있지 않습니다. 문제집을 선택해 새 게임을 만들어주세요.')
           return
         }
         await assertQuestionSetHasQuestions(setId)
@@ -507,7 +505,7 @@ export default function TeacherDashboard() {
       playBGM('game', activeBgmTrack)
     } catch (error) {
       console.error('Error starting game:', error)
-      notify('게임 시작에 실패했습니다: ' + formatServiceError(error), 'error')
+      toast.error('게임 시작에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -563,7 +561,7 @@ export default function TeacherDashboard() {
       router.push(`/teacher/game/${roomCode}/end`)
     } catch (error) {
       console.error('Error ending game:', error)
-      notify('게임 종료에 실패했습니다: ' + formatServiceError(error), 'error')
+      toast.error('게임 종료에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -587,7 +585,7 @@ export default function TeacherDashboard() {
       pauseBGM()
     } catch (error) {
       console.error('Error pausing game:', error)
-      notify('게임 일시정지에 실패했습니다: ' + formatServiceError(error), 'error')
+      toast.error('게임 일시정지에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -606,7 +604,7 @@ export default function TeacherDashboard() {
       playBGM('game', activeBgmTrack)
     } catch (error) {
       console.error('Error resuming game:', error)
-      notify('게임 재개에 실패했습니다: ' + formatServiceError(error), 'error')
+      toast.error('게임 재개에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -626,10 +624,10 @@ export default function TeacherDashboard() {
 
       setIsGameStarted(false)
       stopBGM()
-      notify('게임이 초기화되었습니다.', 'success')
+      toast.success('게임이 초기화되었습니다.')
     } catch (error) {
       console.error('Error resetting game:', error)
-      notify('게임 초기화에 실패했습니다: ' + formatServiceError(error), 'error')
+      toast.error('게임 초기화에 실패했습니다: ' + formatServiceError(error))
     }
   }
 
@@ -637,10 +635,10 @@ export default function TeacherDashboard() {
     if (!inviteUrl) return
     try {
       await navigator.clipboard.writeText(inviteUrl)
-      notify('초대 링크가 복사되었습니다.', 'success')
+      toast.success('초대 링크가 복사되었습니다.')
     } catch (error) {
       console.error('초대 링크 복사 실패:', error)
-      notify('복사에 실패했습니다. 링크를 직접 복사해주세요.', 'success')
+      toast.success('복사에 실패했습니다. 링크를 직접 복사해주세요.')
     }
   }
 

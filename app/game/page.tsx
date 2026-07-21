@@ -1,12 +1,12 @@
 'use client'
 
+import { toast } from '@/components/ui/Toaster'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import { AlertTriangle, Anchor, CheckCircle2, Coins, Radio, ShieldCheck, XCircle } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import ShieldPromptModal from '@/components/ShieldPromptModal'
-import { useToast } from '@/components/ui/Toast'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
@@ -81,8 +81,6 @@ export default function GamePage() {
     swap: (aId: string, bId: string, reason?: string) =>
       commitPlayerSwap(aId, bId, ['gold', 'score'], reason).then(() => undefined),
   }), [commitPlayerDelta, commitPlayerSteal, commitPlayerSwap])
-
-  const { showToast } = useToast()
 
   const [selectedChest, setSelectedChest] = useState<number | null>(null)
   const [boxEvent, setBoxEvent] = useState<BoxEvent | null>(null)
@@ -203,7 +201,7 @@ export default function GamePage() {
 
       // 방어권이 없으면 즉시 알리고 응답한다 (모달로 붙잡지 않는다).
       if (!hasShieldRef.current) {
-        showToast(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`, 'warning')
+        toast.info(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`)
         void sendRoomEvent('gold_quest:attack_response', {
           requestId: payload.requestId,
           attackerPlayerId: payload.attackerPlayerId,
@@ -225,7 +223,7 @@ export default function GamePage() {
           setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
           playSFX('item')
         } else {
-          showToast(`${payload.attackerNickname}님의 ${attackName} 효과를 맞았습니다.`, 'warning')
+          toast.info(`${payload.attackerNickname}님의 ${attackName} 효과를 맞았습니다.`)
         }
 
         void sendRoomEvent('gold_quest:attack_response', {
@@ -236,7 +234,7 @@ export default function GamePage() {
         } satisfies AttackResponsePayload)
       })()
     })
-  }, [askShield, playerId, playSFX, sendRoomEvent, showToast])
+  }, [askShield, playerId, playSFX, sendRoomEvent])
 
   const waitForShieldResponse = async (event: BoxEvent, targetPlayer: Player): Promise<boolean> => {
     if (!playerId || !currentPlayer) return false

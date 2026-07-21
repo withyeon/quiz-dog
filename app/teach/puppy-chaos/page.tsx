@@ -1,6 +1,6 @@
 'use client'
 
-import { notify } from '@/components/ui/Toast'
+import { toast } from '@/components/ui/Toaster'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import QRCodeSVG from 'react-qr-code'
@@ -50,7 +50,7 @@ export default function PuppyChaosTeacherPage() {
   const handleCreateRoom = async () => {
     const configCheck = checkSupabaseConfig()
     if (!configCheck.isValid) {
-      notify(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.', 'error')
+      toast.error(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.')
       return
     }
 
@@ -64,7 +64,7 @@ export default function PuppyChaosTeacherPage() {
       const created = await createRoom({ setId, gameMode: 'poop_dodge' })
       setRoomCode(created.room_code)
     } catch (error) {
-      notify('세션 생성에 실패했습니다: ' + formatServiceError(error), 'error')
+      toast.error('세션 생성에 실패했습니다: ' + formatServiceError(error))
     } finally {
       setIsBusy(false)
     }
@@ -87,7 +87,7 @@ export default function PuppyChaosTeacherPage() {
         duration_seconds: durationMinutes * 60,
       }, 'poop_dodge_start')
     } catch (error) {
-      notify('게임 시작에 실패했습니다: ' + formatServiceError(error), 'error')
+      toast.error('게임 시작에 실패했습니다: ' + formatServiceError(error))
     } finally {
       setIsBusy(false)
     }

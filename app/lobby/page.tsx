@@ -1,8 +1,8 @@
 'use client'
 
+import { toast } from '@/components/ui/Toaster'
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useToast } from '@/components/ui/Toast'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomResync } from '@/hooks/useRoomResync'
@@ -37,7 +37,6 @@ export default function LobbyPageWrapper() {
 function LobbyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { showToast } = useToast()
   const [step, setStep] = useState<LobbyStep>('code')
   const [roomCode, setRoomCode] = useState('')
   const [nickname, setNickname] = useState('')
@@ -186,7 +185,7 @@ function LobbyPage() {
       }
     } catch (err) {
       console.error('Error joining room:', err)
-      showToast('방 입장에 실패했어요: ' + formatServiceError(err), 'error')
+      toast.error('방 입장에 실패했어요: ' + formatServiceError(err))
     }
   }
 
