@@ -1,5 +1,6 @@
 'use client'
 
+import { confirmAsync } from '@/components/ui/ConfirmDialog'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -126,7 +127,13 @@ function TeacherPageContent() {
   }
 
   const handleDelete = async (setId: string) => {
-    if (!confirm('정말 이 문제집을 삭제하시겠습니까?')) return
+    const ok = await confirmAsync({
+      title: '문제집을 삭제할까요?',
+      message: '삭제하면 되돌릴 수 없어요. 이 문제집의 문제도 함께 사라집니다.',
+      confirmLabel: '삭제하기',
+      destructive: true,
+    })
+    if (!ok) return
 
     try {
       await deleteQuestionSet(setId)

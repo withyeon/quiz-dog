@@ -38,3 +38,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# 영상 원본 (.mov)
+# 웹에는 압축된 .mp4를 배포한다(호환성/용량). QuickTime 원본은 저장소에 포함하지 않는다.
+*.mov
+

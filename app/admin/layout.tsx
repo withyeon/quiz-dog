@@ -2,7 +2,6 @@ import { ReactNode } from 'react'
 import { AdminGate } from '@/components/admin/AdminGate'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import { AdminNav } from '@/components/admin/AdminNav'
-import { Toaster } from '@/components/ui/Toaster'
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -13,7 +12,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <AdminNav />
           <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
         </div>
-        <Toaster />
       </div>
     </AdminGate>
   )

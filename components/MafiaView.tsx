@@ -49,6 +49,8 @@ interface MafiaViewProps {
   checkAnswer: (answer: string) => Promise<boolean>
   goToNextQuestion: () => void
   commitPlayerPatch: (playerId: string, patch: PlayerPatch, reason?: string) => Promise<void>
+  commitPlayerDelta: (playerId: string, deltas: Partial<Record<'mafia_cash' | 'mafia_diamonds' | 'score' | 'gold', number>>, options?: { reason?: string }) => Promise<unknown>
+  commitPlayerSteal: (victimId: string, thiefId: string, amount: number, columns: Array<'mafia_cash' | 'score' | 'gold'>, reason?: string) => Promise<unknown>
   sendRoomEvent: (type: RoomEventType, payload?: unknown) => Promise<unknown> | { ok: boolean; reason?: string }
   playSFX: (sound: 'correct' | 'incorrect' | 'item' | 'click') => void
 }
@@ -87,13 +89,9 @@ function toMafiaPlayer(player: PlayerRow): MafiaPlayer {
   }
 }
 
-function createPatch(player: MafiaPlayer): PlayerPatch {
-  const score = calculateLaunderedCash(player)
+/** 수상함/배수 등 비숫자 플래그만 담은 부분 patch (숫자 컬럼은 원자 delta로 별도 처리). */
+function createFlagPatch(player: MafiaPlayer): PlayerPatch {
   return {
-    mafia_cash: player.cash,
-    mafia_diamonds: player.diamonds,
-    score,
-    gold: player.cash,
     active_item: {
       mafia: {
         isCheating: player.isCheating,
@@ -102,6 +100,28 @@ function createPatch(player: MafiaPlayer): PlayerPatch {
       },
     },
   }
+}
+
+/**
+ * 로컬에서 계산한 old→new 변화를 "절대값 덮어쓰기" 대신 원자적 delta로 커밋한다.
+ * 동시에 조사(강탈)당하는 경우에도 자금 변화가 유실되지 않도록 보장한다.
+ * mafia는 DB(mafia_cash)를 권위로 삼으므로 score(=cash+diamonds*100)/gold(=cash)도 함께 delta.
+ */
+function mafiaNumericDelta(
+  oldP: MafiaPlayer,
+  newP: MafiaPlayer,
+): Partial<Record<'mafia_cash' | 'mafia_diamonds' | 'score' | 'gold', number>> {
+  const cashDelta = newP.cash - oldP.cash
+  const diamondsDelta = newP.diamonds - oldP.diamonds
+  const deltas: Partial<Record<'mafia_cash' | 'mafia_diamonds' | 'score' | 'gold', number>> = {}
+  if (cashDelta !== 0) {
+    deltas.mafia_cash = cashDelta
+    deltas.gold = cashDelta
+  }
+  if (diamondsDelta !== 0) deltas.mafia_diamonds = diamondsDelta
+  const scoreDelta = cashDelta + diamondsDelta * 100
+  if (scoreDelta !== 0) deltas.score = scoreDelta
+  return deltas
 }
 
 export default function MafiaView({
@@ -113,6 +133,8 @@ export default function MafiaView({
   checkAnswer,
   goToNextQuestion,
   commitPlayerPatch,
+  commitPlayerDelta,
+  commitPlayerSteal,
   sendRoomEvent,
   playSFX,
 }: MafiaViewProps) {
@@ -216,7 +238,14 @@ export default function MafiaView({
     }
     setSelectedVaultResult({ vault, log: result.log })
     setCurrentView('vaultResult')
-    await commitPlayerPatch(player.id, createPatch(result.newPlayer), 'mafia_vault_opened')
+    // 자금/다이아 획득은 원자 delta로 — 동시에 조사(강탈)당해도 유실되지 않는다.
+    const deltas = mafiaNumericDelta(player, result.newPlayer)
+    await Promise.all([
+      Object.keys(deltas).length > 0
+        ? commitPlayerDelta(player.id, deltas, { reason: 'mafia_vault_opened' })
+        : Promise.resolve(),
+      commitPlayerPatch(player.id, createFlagPatch(result.newPlayer), 'mafia_vault_flags'),
+    ])
     broadcastLog(result.log, vault.reward === 'empty' ? 'info' : 'success')
     playSFX('item')
     window.setTimeout(goToQuiz, 1800)
@@ -226,7 +255,14 @@ export default function MafiaView({
     if (!player || currentVaults.length === 0) return
     const result = applyCheat(currentVaults, player, Date.now())
     setCheatVaultContents(result.vaultContents)
-    await commitPlayerPatch(player.id, createPatch(result.newPlayer), 'mafia_cheat_started')
+    // 몰래보기는 보통 자금 변화 없이 플래그만 바뀌지만, 변화가 있으면 원자 delta로 처리.
+    const deltas = mafiaNumericDelta(player, result.newPlayer)
+    await Promise.all([
+      Object.keys(deltas).length > 0
+        ? commitPlayerDelta(player.id, deltas, { reason: 'mafia_cheat_started' })
+        : Promise.resolve(),
+      commitPlayerPatch(player.id, createFlagPatch(result.newPlayer), 'mafia_cheat_flags'),
+    ])
     broadcastLog(`${player.name}가 금고 쪽에서 수상한 움직임을 보였습니다.`, 'warning')
     playSFX('click')
   }
@@ -250,10 +286,23 @@ export default function MafiaView({
       setInvestigationResult(result.result)
       // 친구 조사는 본인의 '다음 라운드 행동'이므로, 조사하는 순간 본인의 수상함은 해제된다.
       const clearedInvestigator = { ...result.newInvestigator, isCheating: false, cheatPendingVault: false }
-      await Promise.all([
-        commitPlayerPatch(player.id, createPatch(clearedInvestigator), 'mafia_investigator_reward'),
-        commitPlayerPatch(target.id, createPatch(result.newTarget), 'mafia_target_investigated'),
-      ])
+
+      const ops: Array<Promise<unknown>> = [
+        // 조사자 본인 수상함 해제 (플래그만)
+        commitPlayerPatch(player.id, createFlagPatch(clearedInvestigator), 'mafia_investigator_clear'),
+      ]
+
+      if (result.success && (result.recovered ?? 0) > 0) {
+        // 자금 환수는 원자적 이동으로 — 동시 조사/획득 시 lost update 방지, 총량 보존.
+        // (score=cash+diamonds*100, gold=cash 이므로 같은 금액을 함께 이동)
+        ops.push(
+          commitPlayerSteal(target.id, player.id, result.recovered!, ['mafia_cash', 'score', 'gold'], 'mafia_investigate_recover'),
+          // 발각된 타겟의 치팅 플래그 해제 (플래그만)
+          commitPlayerPatch(target.id, createFlagPatch(result.newTarget), 'mafia_target_caught'),
+        )
+      }
+
+      await Promise.all(ops)
       broadcastLog(result.log, result.success ? 'danger' : 'info')
       if (result.success) {
         setShowCheatCaught(true)

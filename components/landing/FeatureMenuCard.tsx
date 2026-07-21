@@ -11,10 +11,12 @@ const CARD_BORDER = 'rgba(226,232,240,0.8)'
 const CARD_SHADOW = '0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)'
 const CARD_SHADOW_HOVER = '0 12px 40px rgba(14,165,233,0.12), 0 4px 12px rgba(0,0,0,0.06)'
 
-function FeatureIcon({ src, alt, fallbackEmoji }: { src: string; alt: string; fallbackEmoji: string }) {
+function FeatureIcon({ src, alt, fallbackEmoji }: { src?: string; alt: string; fallbackEmoji: string }) {
   const [failed, setFailed] = useState(false)
 
-  if (failed) {
+  // 경로가 비어 있으면 요청 자체를 보내지 않고 바로 이모지를 쓴다.
+  // (없는 파일을 요청하면 방문자마다 /_next/image 400이 쌓인다)
+  if (!src || failed) {
     return (
       <span className="flex h-16 w-16 items-center justify-center text-5xl" aria-hidden>
         {fallbackEmoji}

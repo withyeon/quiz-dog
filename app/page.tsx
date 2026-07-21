@@ -180,8 +180,7 @@ export default function LandingPage() {
 
   return (
     <div
-      className="min-h-dvh relative overflow-hidden font-bitbit"
-      style={{ backgroundColor: '#d9eef5' }}
+      className="min-h-dvh relative overflow-hidden font-bitbit bg-[#d9eef5]"
     >
       <PawBackgroundDecor />
 

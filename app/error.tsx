@@ -16,8 +16,7 @@ export default function Error({
 
   return (
     <div
-      className="min-h-dvh flex items-center justify-center p-6 font-bitbit"
-      style={{ backgroundColor: '#d9eef5' }}
+      className="min-h-dvh flex items-center justify-center p-6 font-bitbit bg-[#d9eef5]"
     >
       <div className="w-full max-w-md rounded-2xl border-4 border-[#0c3b42]/15 bg-white/85 p-8 text-center shadow-2xl backdrop-blur-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}

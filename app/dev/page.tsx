@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from '@/components/ui/Toaster'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -88,7 +89,7 @@ export default function DevPage() {
 
     const cfg = checkSupabaseConfig()
     if (!cfg.isValid) {
-      alert(cfg.error ?? 'Supabase 설정이 올바르지 않습니다.')
+      toast.error(cfg.error ?? 'Supabase 설정이 올바르지 않습니다.')
       return
     }
 
@@ -120,7 +121,7 @@ export default function DevPage() {
     } catch (error) {
       const msg = formatDevStartError(error)
       console.error('Error starting dev game:', msg, error)
-      alert('게임 시작에 실패했습니다: ' + msg)
+      toast.error('게임 시작에 실패했습니다: ' + msg)
       setLoading(false)
     }
   }

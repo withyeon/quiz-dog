@@ -24,6 +24,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
   const [nickname, setNickname] = useState('')
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [isJoined, setIsJoined] = useState(false)
+  const [joinError, setJoinError] = useState<string | null>(null)
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(CHARACTERS[0])
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [tutorialGameMode, setTutorialGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
@@ -95,31 +96,32 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
   // 방 입장
   const handleJoinRoom = async () => {
+    setJoinError(null)
     if (!nickname.trim()) {
-      alert('닉네임을 입력해주세요.')
+      setJoinError('닉네임을 입력해주세요.')
       return
     }
 
     // 닉네임 필터링
     const nicknameCheck = filterNickname(nickname)
     if (!nicknameCheck.isValid) {
-      alert('닉네임에 부적절한 단어가 포함되어 있거나 너무 깁니다. (최대 20자)')
+      setJoinError('사용할 수 없는 닉네임이에요. 다른 이름을 써주세요. (최대 20자)')
       return
     }
 
     try {
       const roomData = await getRoomByCode(roomCode)
       if (!roomData) {
-        alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        setJoinError('이 코드의 게임방이 없어요. 선생님께 코드를 다시 확인해주세요.')
         return
       }
       if (isTerminalRoomStatus(roomData.status)) {
-        alert('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
+        setJoinError('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
         return
       }
       const finalNickname = nicknameCheck.filtered || nickname.trim()
       if (await nicknameExists(roomCode, finalNickname, playerId)) {
-        alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
+        setJoinError('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         return
       }
       if (takenCharacterIds.has(selectedCharacter.id)) {
@@ -142,7 +144,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
       }
     } catch (err) {
       console.error('Error joining room:', err)
-      alert('방 입장에 실패했습니다: ' + formatServiceError(err))
+      setJoinError('방 입장에 실패했어요: ' + formatServiceError(err))
     }
   }
 
@@ -188,7 +190,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
                 <input
                   type="text"
                   value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
+                  onChange={(e) => { setJoinError(null); setNickname(e.target.value) }}
                   className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   placeholder="닉네임을 입력하세요 (최대 20자)"
                   maxLength={20}
@@ -212,6 +214,14 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
                   />
                 </div>
               </div>
+              {joinError && (
+                <p
+                  role="alert"
+                  className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700"
+                >
+                  {joinError}
+                </p>
+              )}
               <button
                 onClick={handleJoinRoom}
                 className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors font-medium"

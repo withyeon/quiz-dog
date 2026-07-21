@@ -240,6 +240,19 @@ export function generateAttack(
 }
 
 /**
+ * 방어력 적용 후 실제 감소할 체온량(양수). 원자적 증분(delta)에 사용한다.
+ */
+export function getDamageReduction(
+  damage: number,
+  playerClass?: PlayerClass
+): number {
+  if (playerClass) {
+    damage *= PLAYER_CLASSES[playerClass].defense
+  }
+  return Math.floor(damage)
+}
+
+/**
  * 체온 감소 처리 (방어력 적용)
  */
 export function applyDamage(
@@ -247,11 +260,7 @@ export function applyDamage(
   damage: number,
   playerClass?: PlayerClass
 ): number {
-  // 방어력 적용
-  if (playerClass) {
-    damage *= PLAYER_CLASSES[playerClass].defense
-  }
-  return Math.max(0, currentHealth - Math.floor(damage))
+  return Math.max(0, currentHealth - getDamageReduction(damage, playerClass))
 }
 
 /**
@@ -268,12 +277,14 @@ export function applyHeal(
   return currentHealth
 }
 
+/** 휴대 난로 아이템 체온 회복량 */
+export const HEATER_HEAL_AMOUNT = 30
+
 /**
  * 난로 아이템 효과 (체온 회복)
  */
 export function applyHeater(currentHealth: number, maxHealth: number): number {
-  const healAmount = 30
-  return Math.min(maxHealth, currentHealth + healAmount)
+  return Math.min(maxHealth, currentHealth + HEATER_HEAL_AMOUNT)
 }
 
 /**

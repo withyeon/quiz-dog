@@ -1,10 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { toast } from '@/components/ui/Toaster'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import { AlertTriangle, Anchor, CheckCircle2, Coins, Radio, ShieldCheck, XCircle } from 'lucide-react'
 import QuizView from '@/components/QuizView'
+import ShieldPromptModal from '@/components/ShieldPromptModal'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
@@ -64,9 +66,21 @@ export default function GamePage() {
     handleWrongAnswer,
     goToNextQuestion,
     sendRoomEvent,
-    commitPlayerPatch,
+    commitPlayerDelta,
+    commitPlayerSteal,
+    commitPlayerSwap,
     roomChannelStatus,
   } = useGameBase({ expectedGameMode: 'gold_quest' })
+
+  // 골드퀘스트 원자 변경 어댑터 — 동시 상자 개봉/강탈 시 골드 증발·복제 방지.
+  const goldMutator = useMemo(() => ({
+    delta: (playerId: string, deltas: { gold?: number; score?: number }, reason?: string) =>
+      commitPlayerDelta(playerId, deltas, { reason }).then(() => undefined),
+    steal: (victimId: string, thiefId: string, amount: number, reason?: string) =>
+      commitPlayerSteal(victimId, thiefId, amount, ['gold', 'score'], reason).then(() => undefined),
+    swap: (aId: string, bId: string, reason?: string) =>
+      commitPlayerSwap(aId, bId, ['gold', 'score'], reason).then(() => undefined),
+  }), [commitPlayerDelta, commitPlayerSteal, commitPlayerSwap])
 
   const [selectedChest, setSelectedChest] = useState<number | null>(null)
   const [boxEvent, setBoxEvent] = useState<BoxEvent | null>(null)
@@ -75,6 +89,9 @@ export default function GamePage() {
   const [shieldNotice, setShieldNotice] = useState<string | null>(null)
   const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
   const [playerSelectTimeLeft, setPlayerSelectTimeLeft] = useState<number>(0)
+  // 방어권 사용 여부를 묻는 모달 (네이티브 confirm 대체 — 게임 루프를 막지 않는다)
+  const [shieldAsk, setShieldAsk] = useState<{ message: string; expiresAt: number } | null>(null)
+  const shieldResolverRef = useRef<((useShield: boolean) => void) | null>(null)
   const hasShieldRef = useRef(false)
   const attackResolversRef = useRef(new Map<string, (blocked: boolean) => void>())
   // 정답 후 상자 화면 자동 전환 타이머 (수동 클릭과 중복 실행 방지)
@@ -88,6 +105,33 @@ export default function GamePage() {
       correctTimerRef.current = null
     }
   }
+
+  /** 방어권 사용 여부를 모달로 묻는다. 제한 시간이 지나면 자동으로 false. */
+  const askShield = useCallback((message: string, timeoutMs = 5000) => {
+    return new Promise<boolean>((resolve) => {
+      // 앞선 요청이 남아 있으면 먼저 정리한다.
+      shieldResolverRef.current?.(false)
+      shieldResolverRef.current = resolve
+      setShieldAsk({ message, expiresAt: Date.now() + timeoutMs })
+    })
+  }, [])
+
+  const answerShield = useCallback((useShield: boolean) => {
+    const resolve = shieldResolverRef.current
+    shieldResolverRef.current = null
+    setShieldAsk(null)
+    resolve?.(useShield)
+  }, [])
+
+  // 제한 시간 초과 시 자동으로 '사용 안 함'
+  useEffect(() => {
+    if (!shieldAsk) return
+    const timer = window.setTimeout(
+      () => answerShield(false),
+      Math.max(0, shieldAsk.expiresAt - Date.now()),
+    )
+    return () => window.clearTimeout(timer)
+  }, [shieldAsk, answerShield])
 
   // 다음 문제 이동 예약: 항상 기존 타이머를 먼저 정리해 중복 점프를 막는다.
   const scheduleAdvance = (action: () => void, delay: number) => {
@@ -154,28 +198,43 @@ export default function GamePage() {
       if (!payload || payload.targetPlayerId !== playerId || payload.attackerPlayerId === playerId) return
 
       const attackName = payload.event.itemName || '공격'
-      const useShield = hasShieldRef.current
-        ? window.confirm(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.\n방어권을 사용하시겠습니까?`)
-        : false
 
-      if (useShield) {
-        setHasShield(false)
-        setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
-        playSFX('item')
-      } else {
-        window.setTimeout(() => {
-          window.alert(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`)
-        }, 0)
+      // 방어권이 없으면 즉시 알리고 응답한다 (모달로 붙잡지 않는다).
+      if (!hasShieldRef.current) {
+        toast.info(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`)
+        void sendRoomEvent('gold_quest:attack_response', {
+          requestId: payload.requestId,
+          attackerPlayerId: payload.attackerPlayerId,
+          targetPlayerId: playerId,
+          blocked: false,
+        } satisfies AttackResponsePayload)
+        return
       }
 
-      void sendRoomEvent('gold_quest:attack_response', {
-        requestId: payload.requestId,
-        attackerPlayerId: payload.attackerPlayerId,
-        targetPlayerId: playerId,
-        blocked: useShield,
-      } satisfies AttackResponsePayload)
+      // 방어권이 있으면 모달로 묻는다. 공격자는 6초까지 대기하므로 5초 제한.
+      void (async () => {
+        const useShield = await askShield(
+          `${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`,
+          5000,
+        )
+
+        if (useShield) {
+          setHasShield(false)
+          setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
+          playSFX('item')
+        } else {
+          toast.info(`${payload.attackerNickname}님의 ${attackName} 효과를 맞았습니다.`)
+        }
+
+        void sendRoomEvent('gold_quest:attack_response', {
+          requestId: payload.requestId,
+          attackerPlayerId: payload.attackerPlayerId,
+          targetPlayerId: playerId,
+          blocked: useShield,
+        } satisfies AttackResponsePayload)
+      })()
     })
-  }, [playerId, playSFX, sendRoomEvent])
+  }, [askShield, playerId, playSFX, sendRoomEvent])
 
   const waitForShieldResponse = async (event: BoxEvent, targetPlayer: Player): Promise<boolean> => {
     if (!playerId || !currentPlayer) return false
@@ -328,7 +387,7 @@ export default function GamePage() {
         event.type === 'DRAGON'
 
       if (hasShield && isNegativeEvent) {
-        const useShield = window.confirm(`${event.itemName} 효과가 나왔습니다.\n방어권을 사용하시겠습니까?`)
+        const useShield = await askShield(`${event.itemName} 효과가 나왔습니다.`, 5000)
         if (useShield) {
           setHasShield(false)
           setShieldNotice('방어권으로 손실 효과를 막았습니다!')
@@ -364,9 +423,7 @@ export default function GamePage() {
         ? players.find((p) => p.id === event.targetPlayerId) || null
         : null
 
-      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetPlayerId, patch) =>
-        commitPlayerPatch(targetPlayerId, patch, 'gold_quest_reward')
-      )
+      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, goldMutator)
 
       // 3초 후 다음 문제로
       scheduleAdvance(() => {
@@ -432,9 +489,7 @@ export default function GamePage() {
         return
       }
 
-      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, (targetId, patch) =>
-        commitPlayerPatch(targetId, patch, 'gold_quest_target_reward')
-      )
+      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, goldMutator)
 
       // 이벤트 메시지 업데이트
       setBoxEvent(event)
@@ -814,6 +869,15 @@ export default function GamePage() {
           </section>
         )}
       </div>
+      <AnimatePresence>
+        {shieldAsk && (
+          <ShieldPromptModal
+            message={shieldAsk.message}
+            expiresAt={shieldAsk.expiresAt}
+            onAnswer={answerShield}
+          />
+        )}
+      </AnimatePresence>
       {isPaused && currentView !== 'lobby' && currentView !== 'result' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
           <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">

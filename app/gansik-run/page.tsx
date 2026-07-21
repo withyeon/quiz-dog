@@ -36,7 +36,7 @@ export default function GansikRunPage() {
     preStartQuizQuestion, preStartSubmittedCount, preStartQuizTotal,
     shouldShowPreStartQuiz, isPreStartQuizComplete,
     handlePreStartQuizAnswer,
-    players, currentPlayer, commitPlayerPatch, sendRoomEvent,
+    players, currentPlayer, commitPlayerPatch, commitPlayerDelta, sendRoomEvent,
   } = useGameBase({ expectedGameMode: 'treat_rush' })
 
   const [pageView, setPageView] = useState<PageView>('lobby')
@@ -88,13 +88,13 @@ export default function GansikRunPage() {
       }
 
       const stealAmount = Math.max(10, Math.min(120, Math.ceil((target.score ?? 0) * 0.2)))
+      // 공격자 점수는 로컬 상태가 권위(scoreDelta로 로컬 반영 후 절대값 동기화)이므로 그대로 즉시 push.
+      // 피해자 점수는 원자적 증분으로 감소시켜 동시 강탈 시 음수/덮어쓰기를 방지한다.
       await Promise.all([
         commitPlayerPatch(playerId, {
           score: Math.max(0, Math.floor(state.score + stealAmount)),
         }, 'treat_rush_score_steal_gain'),
-        commitPlayerPatch(target.id, {
-          score: Math.max(0, (target.score ?? 0) - stealAmount),
-        }, 'treat_rush_score_steal_loss'),
+        commitPlayerDelta(target.id, { score: -stealAmount }, { reason: 'treat_rush_score_steal_loss' }),
       ])
 
       return {
@@ -120,7 +120,7 @@ export default function GansikRunPage() {
         message: item === 'screen_flip' ? '친구들 화면 뒤집기!' : '친구들 화면 축소!',
       }
     }
-  }, [commitPlayerPatch, currentPlayer?.nickname, playerId, players, sendRoomEvent])
+  }, [commitPlayerPatch, commitPlayerDelta, currentPlayer?.nickname, playerId, players, sendRoomEvent])
 
   const handleGameEnd = useCallback((state: GansikRunState) => {
     syncGansikRunScore(state)

@@ -1,14 +1,21 @@
-/** 기능 소개 카드 아이콘 — PNG 교체 시 경로만 수정 */
-export const FEATURE_ICON_AI = '/images/feature-ai-quiz.png'
-export const FEATURE_ICON_GAME = '/images/feature-game-mode.png'
-export const FEATURE_ICON_REPORT = '/images/feature-report.png'
+/**
+ * 기능 소개 카드 아이콘.
+ * 비워두면 fallbackEmoji를 그대로 사용한다(요청을 아예 보내지 않음).
+ * PNG를 준비했다면 여기에 경로만 넣으면 이미지로 바뀐다.
+ *
+ * 주의: 존재하지 않는 경로를 넣으면 방문자마다 /_next/image 400 요청이 발생하고
+ * 이모지로 폴백되기까지 아이콘이 깜빡인다.
+ */
+export const FEATURE_ICON_AI = ''
+export const FEATURE_ICON_GAME = ''
+export const FEATURE_ICON_REPORT = ''
 
 export type FeatureIntroItem = {
   title: string
   description: string
   features: string[]
   buttonLabel: string
-  iconSrc: string
+  iconSrc?: string
   fallbackEmoji: string
 }
 
