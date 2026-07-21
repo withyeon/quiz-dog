@@ -16,6 +16,7 @@ import GameModeSelector from '@/components/dashboards/GameModeSelector'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
 import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
 import QRCodeSVG from 'react-qr-code'
+import { Play, Pause, Square, RotateCcw, Clock } from 'lucide-react'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
 import { getZombieMeta, roomPlayerToZombiePlayer } from '@/lib/game/zombie'
@@ -436,10 +437,11 @@ export default function TeacherDashboard() {
     try {
       if (activeModeConfig.requiresQuestionSet) {
         if (!setId) {
-          toast.info(questionSets.length === 0
+          toast.info(
+            questionSets.length === 0
               ? '아직 사용할 수 있는 문제집이 없어요. 먼저 문제집을 만들어주세요.'
               : '이 게임은 문제집이 필요합니다. 위에서 문제집을 선택해주세요.',
-            'info',)
+          )
           return
         }
         playBGM('game', activeBgmTrack)
@@ -662,12 +664,11 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="font-bitbit">
-      {/* 페이지 제목 - 블루킷 스타일 */}
-      <h1 className="text-4xl font-bold text-black mb-8">게임 시작</h1>
+    <div>
+      <h1 className="mb-8 text-4xl font-black tracking-tight text-slate-900">게임 시작</h1>
 
       {/* 방 설정 */}
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
 
         {/* 게임 모드 선택 */}
         {!roomCode && (
@@ -681,9 +682,11 @@ export default function TeacherDashboard() {
           <div className="space-y-4">
             {/* 공통 게임 시간 설정 */}
             {(
-              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
-                <label className="block text-lg font-semibold text-amber-800 mb-2">⏱️ 게임 시간 (몇 분 후 자동 종료)</label>
-                <div className="flex flex-wrap gap-3">
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <label className="mb-2 flex items-center gap-2 text-lg font-bold text-amber-800">
+                  <Clock className="h-5 w-5" /> 게임 시간
+                </label>
+                <div className="flex flex-wrap items-center gap-3">
                   {[3, 5, 7, 10].map((minutes) => (
                     <button
                       key={minutes}
@@ -696,9 +699,29 @@ export default function TeacherDashboard() {
                       {minutes}분
                     </button>
                   ))}
+                  <label
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold border-2 transition-all ${![3, 5, 7, 10].includes(timedDurationMinutes)
+                      ? 'border-amber-500 bg-amber-200 text-amber-900'
+                      : 'border-amber-200 bg-white text-amber-800'
+                      }`}
+                  >
+                    <span className="text-sm">직접 입력</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={120}
+                      value={timedDurationMinutes}
+                      onChange={(e) => {
+                        const next = Math.min(120, Math.max(1, Math.floor(Number(e.target.value) || 0)))
+                        setTimedDurationMinutes(next)
+                      }}
+                      className="w-14 rounded-md border-2 border-amber-200 bg-white px-2 py-1 text-center text-amber-900 focus:border-amber-400 focus:outline-none"
+                    />
+                    <span className="text-sm">분</span>
+                  </label>
                 </div>
-                <p className="text-sm text-amber-700 mt-2">
-                  시간이 되면 자동 종료되고 순위를 공개해요.
+                <p className="mt-2 text-sm font-medium text-amber-700">
+                  시간이 끝나면 자동 종료 · 순위 공개 (1~120분)
                 </p>
               </div>
             )}
@@ -804,23 +827,25 @@ export default function TeacherDashboard() {
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <h2 className="mt-1 text-2xl font-black text-black">학생들이 입장하고 있어요</h2>
+                    <h2 className="text-2xl font-black tracking-tight text-slate-900">학생 입장 대기 중</h2>
+                    <p className="mt-1 text-sm font-medium text-slate-500">참가자 {players.length}명</p>
                   </div>
                   <button
                     onClick={handleStartButtonClick}
                     disabled={players.length === 0}
-                    className="rounded-xl bg-blue-600 px-6 py-4 text-lg font-black text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-6 py-4 text-lg font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                   >
-                    🎮 게임 시작
+                    <Play className="h-5 w-5 fill-current" />
+                    게임 시작
                   </button>
                 </div>
 
                 {players.length === 0 ? (
                   <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center">
-                    <div className="mb-3 text-4xl">🐶</div>
-                    <p className="text-lg font-black text-slate-700">아직 참가한 학생이 없어요</p>
-                    <p className="mt-1 text-sm font-bold text-slate-500">
-                      학생들이 게임 코드를 입력하면 여기에 표시됩니다.
+                    <Image src="/mascot_pome.png" alt="퀴즈독" width={56} height={56} className="mx-auto mb-3 h-14 w-14 object-contain" />
+                    <p className="text-lg font-bold text-slate-700">참가자 없음</p>
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      학생이 코드를 입력하면 여기에 표시돼요
                     </p>
                   </div>
                 ) : (
@@ -848,10 +873,10 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => setShowGameCodeModal(true)}
-                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-black text-black shadow-lg shadow-sky-100 transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-xl"
+                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-extrabold text-sky-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-md"
               >
                 코드 크게 보기
               </button>
@@ -860,29 +885,29 @@ export default function TeacherDashboard() {
                   {roomStatus === 'paused' ? (
                     <button
                       onClick={handleResumeGame}
-                      className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-emerald-600"
                     >
-                      ▶️ 다시 시작
+                      <Play className="h-5 w-5 fill-current" /> 다시 시작
                     </button>
                   ) : (
                     <button
                       onClick={handlePauseGame}
-                      className="flex-1 rounded-lg bg-amber-500 px-4 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-amber-600"
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-amber-600"
                     >
-                      ⏸️ 일시정지
+                      <Pause className="h-5 w-5 fill-current" /> 일시정지
                     </button>
                   )}
                   <button
                     onClick={handleEndGame}
-                    className="flex-1 rounded-lg bg-red-600 px-4 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-red-700"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-red-600"
                   >
-                    ⏹️ 게임 종료
+                    <Square className="h-5 w-5 fill-current" /> 게임 종료
                   </button>
                   <button
                     onClick={handleResetGame}
-                    className="flex-1 rounded-lg bg-gray-600 px-4 py-3 font-semibold text-white shadow-sm transition-colors hover:bg-gray-700"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-slate-600"
                   >
-                    🔄 초기화
+                    <RotateCcw className="h-5 w-5" /> 초기화
                   </button>
                 </>
               )}
@@ -939,17 +964,17 @@ export default function TeacherDashboard() {
             )}
 
             <div className="text-center">
-              <p className="mb-6 text-lg font-medium text-gray-600">
+              <p className="mb-6 text-lg font-medium text-slate-500">
                 {activeModeConfig.requiresQuestionSet && !selectedSetId
                   ? '문제집을 선택하면 게임을 시작할 수 있어요'
-                  : '게임을 시작하려면 아래 버튼을 클릭하세요'}
+                  : '모드를 고르고 새 게임 만들기'}
               </p>
               <button
                 onClick={handleCreateGame}
                 disabled={activeModeConfig.requiresQuestionSet && !selectedSetId}
-                className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-black text-white shadow-lg shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
+                className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-bold text-white shadow-sm shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
               >
-                게임 시작하기
+                새 게임 만들기
               </button>
             </div>
           </div>
@@ -958,12 +983,14 @@ export default function TeacherDashboard() {
 
       {/* 게임 모드에 따른 표시 또는 통계 화면 */}
       {roomCode && room && room.status !== 'waiting' && (
-        <LiveDashboardRenderer room={room} players={players} />
+        <div className="font-bitbit">
+          <LiveDashboardRenderer room={room} players={players} />
+        </div>
       )}
 
       {!roomCode && (
-        <div className="bg-white rounded-xl shadow-sm p-12 text-center border border-gray-200">
-          <p className="text-gray-600">게임을 시작하면 여기에 참가자 목록이 표시됩니다.</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+          <p className="font-medium text-slate-500">게임을 만들면 참가자 목록이 여기에 표시돼요</p>
         </div>
       )}
 
@@ -978,17 +1005,19 @@ export default function TeacherDashboard() {
         }}
       />
 
-      <GameStartTutorialModal
-        gameMode={gameMode}
-        isOpen={showStartTutorial}
-        stepIndex={tutorialStepIndex}
-        role="teacher"
-        hideNextTime={hideTutorialNextTime}
-        onHideNextTimeChange={setHideTutorialNextTime}
-        onStepChange={setTutorialStep}
-        onStart={handleStartFromTutorial}
-        onClose={handleCloseStartTutorial}
-      />
+      <div className="font-bitbit">
+        <GameStartTutorialModal
+          gameMode={gameMode}
+          isOpen={showStartTutorial}
+          stepIndex={tutorialStepIndex}
+          role="teacher"
+          hideNextTime={hideTutorialNextTime}
+          onHideNextTimeChange={setHideTutorialNextTime}
+          onStepChange={setTutorialStep}
+          onStart={handleStartFromTutorial}
+          onClose={handleCloseStartTutorial}
+        />
+      </div>
 
       {showLargeQrModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">

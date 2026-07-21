@@ -114,6 +114,7 @@ export default function DodgeMiniGame({
   const touchActiveRef = useRef(false)
   const shakeRef = useRef(0)
   const nearMissRef = useRef(0)
+  const lastTimeLeftRef = useRef(durationSeconds)
 
   const [timeLeft, setTimeLeft] = useState(durationSeconds)
   const [hits, setHits] = useState(0)
@@ -229,7 +230,7 @@ export default function DodgeMiniGame({
     const wrap = wrapRef.current
     if (!canvas || !wrap) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { alpha: false })
     if (!ctx) return
 
     const resize = () => {
@@ -388,7 +389,11 @@ export default function DodgeMiniGame({
       }
 
       const remaining = Math.max(0, durationSeconds - elapsedRef.current / 1000)
-      setTimeLeft(Math.ceil(remaining * 10) / 10)
+      const newTimeLeft = Math.ceil(remaining * 10) / 10
+      if (newTimeLeft !== lastTimeLeftRef.current) {
+        lastTimeLeftRef.current = newTimeLeft
+        setTimeLeft(newTimeLeft)
+      }
 
       ctx.clearRect(0, 0, width, height)
       ctx.save()

@@ -17,7 +17,16 @@ interface UsePlayersRealtimeOptions {
   onPlayerUpdate?: (player: Player) => void
   onPlayerInsert?: (player: Player) => void
   onPlayerDelete?: (player: Player) => void
+  /**
+   * 주기적 재동기화 간격(ms). 점수/상태는 평소 player:patch broadcast로 즉시 반영되지만,
+   * broadcast는 전달 보장이 없어(fire-and-forget) 패킷이 누락되면 게임이 끝날 때까지
+   * 점수가 멈춰 보일 수 있다. 시간 기반으로 가볍게 DB를 다시 읽어 누락분을 메운다.
+   * (액션마다가 아니라 시간 기반이라 write 폭증과 무관) 0이면 비활성.
+   */
+  reconcileIntervalMs?: number
 }
+
+const DEFAULT_RECONCILE_INTERVAL_MS = 4000
 
 type RefreshOptions = {
   silent?: boolean
@@ -46,6 +55,7 @@ export function usePlayersRealtime({
   onPlayerUpdate,
   onPlayerInsert,
   onPlayerDelete,
+  reconcileIntervalMs = DEFAULT_RECONCILE_INTERVAL_MS,
 }: UsePlayersRealtimeOptions) {
   const [players, setPlayers] = useState<Player[]>([])
   const [loading, setLoading] = useState(true)
@@ -212,6 +222,23 @@ export function usePlayersRealtime({
       }
     })
   }, [applyPlayerPatch, enabled, refreshPlayers, roomCode])
+
+  // 주기적 재동기화: broadcast로 못 받은(누락된) 점수/상태 변화를 메우는 안전망.
+  // 탭이 보일 때만 돌려 백그라운드 낭비를 막는다.
+  useEffect(() => {
+    if (!enabled || !roomCode || reconcileIntervalMs <= 0) return
+    if (typeof window === 'undefined') return
+
+    const tick = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      void refreshPlayers({ silent: true })
+    }
+
+    const intervalId = window.setInterval(tick, reconcileIntervalMs)
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [enabled, roomCode, reconcileIntervalMs, refreshPlayers])
 
   return {
     players,

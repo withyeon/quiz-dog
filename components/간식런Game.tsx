@@ -69,6 +69,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
   const questionIndexRef = useRef(0)
   const prevScoreRef = useRef(0)
   const [, forceUpdate] = useState(0)
+  const lastHudRef = useRef({ score: -1, time: -1, speed: -1, chaser: false, itemCount: -1 })
   const [canvasSize, setCanvasSize] = useState({ w: 400, h: 700 })
   const [showQuiz, setShowQuiz] = useState(false)
   const [currentQ, setCurrentQ] = useState<GansikRunQuestion | null>(null)
@@ -278,7 +279,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const ctx = canvas.getContext('2d')
+    const ctx = canvas.getContext('2d', { alpha: false })
     if (!ctx) return
 
     const { w, h } = canvasSize
@@ -464,7 +465,22 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
 
       ctx.restore()
 
-      forceUpdate(c => c + 1)
+      const hud = lastHudRef.current
+      const activeCount = state.activeItems.filter(i => i.remaining > 0).length
+      if (
+        hud.score !== state.score ||
+        hud.time !== state.timeRemaining ||
+        hud.speed !== state.speedMultiplier ||
+        hud.chaser !== state.chaserWarning ||
+        hud.itemCount !== activeCount
+      ) {
+        hud.score = state.score
+        hud.time = state.timeRemaining
+        hud.speed = state.speedMultiplier
+        hud.chaser = state.chaserWarning
+        hud.itemCount = activeCount
+        forceUpdate(c => c + 1)
+      }
       animRef.current = requestAnimationFrame(loop)
     }
 

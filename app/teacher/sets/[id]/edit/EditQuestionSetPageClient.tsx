@@ -170,13 +170,13 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
   if (loading) {
     return (
       <div className="min-h-dvh flex items-center justify-center">
-        <div className="text-2xl font-bold text-black">로딩 중...</div>
+        <div className="text-2xl font-bold text-slate-700">불러오는 중…</div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="mx-auto max-w-6xl">
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
@@ -185,23 +185,23 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
             onClick={() => router.push('/teacher')}
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
-            뒤로 가기
+            문제집 목록
           </Button>
           <div className="flex-1 w-full max-w-2xl">
             {isEditingInfo ? (
-              <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm space-y-3">
+              <div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <input
                   type="text"
                   value={setName}
                   onChange={(e) => setSetName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded font-bold text-black"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                   placeholder="문제집 이름"
                 />
                 <div className="grid grid-cols-2 gap-3">
                   <select
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 bg-white"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                   >
                     <option value="">과목 선택</option>
                     <option value="국어">국어</option>
@@ -215,7 +215,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   <select
                     value={grade}
                     onChange={(e) => setGrade(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 bg-white"
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                   >
                     <option value="">학년 선택</option>
                     {TARGET_GRADE_OPTIONS.map((option) => (
@@ -224,7 +224,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   </select>
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <Button size="sm" onClick={handleSaveSetInfo} className="bg-sky-600 hover:bg-sky-700 text-white">저장</Button>
+                  <Button size="sm" onClick={handleSaveSetInfo} className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600">저장</Button>
                   <Button size="sm" variant="outline" onClick={() => setIsEditingInfo(false)}>취소</Button>
                 </div>
               </div>
@@ -235,7 +235,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   <div className="flex items-center gap-2 mt-1.5 cursor-pointer" onClick={() => setIsEditingInfo(true)}>
                     {subject ? <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold">{subject}</span> : ''}
                     {grade ? <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-xs font-semibold">{grade}</span> : ''}
-                    {(!subject && !grade) && <span className="text-xs text-gray-400">과목/학년 미설정</span>}
+                    {(!subject && !grade) && <span className="text-xs text-slate-400">과목/학년 미설정</span>}
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setIsEditingInfo(true)}>
@@ -244,8 +244,8 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
               </div>
             )}
           </div>
-          <span className="text-sm text-gray-600">
-            총 {questions.length}문제
+          <span className="text-sm text-slate-500">
+            총 {questions.length}문항
           </span>
         </div>
       </div>
@@ -262,12 +262,12 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
             <Reorder.Item
               key={question.id}
               value={question}
-              className="bg-white rounded-lg shadow-md border-2 border-gray-200 p-6"
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
             >
               <div className="flex items-start gap-4">
                 {/* 드래그 핸들 */}
                 <div className="flex-shrink-0 pt-2 cursor-grab active:cursor-grabbing">
-                  <GripVertical className="h-6 w-6 text-gray-400" />
+                  <GripVertical className="h-6 w-6 text-slate-400" />
                 </div>
 
                 {/* 문제 번호 */}
@@ -281,13 +281,13 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                     <div className="space-y-4">
                       {/* 문제 유형 */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-semibold text-slate-600">
                           문제 유형
                         </label>
                         <select
                           value={question.type}
                           onChange={(e) => updateQuestionField(index, 'type', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                         >
                           <option value="CHOICE">객관식</option>
                           <option value="OX">OX</option>
@@ -298,13 +298,13 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
 
                       {/* 문제 텍스트 */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-semibold text-slate-600">
                           문제
                         </label>
                         <textarea
                           value={question.type === 'BLANK' ? displayBlankText(question.question_text) : question.question_text}
                           onChange={(e) => updateQuestionField(index, 'question_text', e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                           rows={3}
                         />
                       </div>
@@ -312,7 +312,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                       {/* 보기 (객관식일 때만) */}
                       {question.type === 'CHOICE' && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <label className="mb-2 block text-sm font-semibold text-slate-600">
                             보기 (쉼표로 구분)
                           </label>
                           <input
@@ -322,7 +322,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                               const options = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                               updateQuestionField(index, 'options', options)
                             }}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                             placeholder="보기1, 보기2, 보기3, 보기4"
                           />
                         </div>
@@ -330,7 +330,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
 
                       {/* 정답 */}
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="mb-2 block text-sm font-semibold text-slate-600">
                           정답
                         </label>
                         {question.type === 'SHORT' || question.type === 'BLANK' ? (
@@ -338,11 +338,11 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                             <textarea
                               value={question.answer}
                               onChange={(e) => updateQuestionField(index, 'answer', e.target.value)}
-                              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                              className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                               rows={3}
                               placeholder={'정답을 입력하세요\n복수 정답은 줄바꿈으로 구분'}
                             />
-                            <p className="mt-1 text-xs text-gray-500">
+                            <p className="mt-1 text-xs text-slate-500">
                               여러 정답을 인정하려면 줄바꿈으로 구분하세요. (하나만 맞아도 정답 처리)
                             </p>
                           </>
@@ -351,7 +351,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                             type="text"
                             value={question.answer}
                             onChange={(e) => updateQuestionField(index, 'answer', e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                           />
                         )}
                       </div>
@@ -360,7 +360,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                       <div className="flex gap-2">
                         <Button
                           onClick={() => handleSaveQuestion(index)}
-                          className="bg-sky-600 hover:bg-sky-700 text-white"
+                          className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
                         >
                           <Save className="h-4 w-4 mr-2" />
                           저장
@@ -380,7 +380,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="px-2 py-1 bg-sky-100 text-black rounded text-xs font-semibold">
+                          <span className="rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold text-sky-700">
                             {question.type === 'CHOICE' ? '객관식' :
                               question.type === 'OX' ? 'OX' :
                                 question.type === 'SHORT' ? '주관식' : '빈칸'}
@@ -411,12 +411,12 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                       </p>
                       {question.type === 'CHOICE' && Array.isArray(question.options) && (
                         <div className="mt-2">
-                          <p className="text-sm text-gray-600 mb-1">보기:</p>
+                          <p className="text-sm text-slate-500 mb-1">보기:</p>
                           <div className="flex flex-wrap gap-2">
                             {question.options.map((option, i) => (
                               <span
                                 key={i}
-                                className="px-3 py-1 bg-gray-100 rounded text-sm"
+                                className="px-3 py-1 bg-slate-100 rounded text-sm"
                               >
                                 {i + 1}. {String(option)}
                               </span>
@@ -424,7 +424,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                           </div>
                         </div>
                       )}
-                      <p className="text-sm text-gray-600 mt-2">
+                      <p className="text-sm text-slate-500 mt-2">
                         <span className="font-semibold">정답:</span> {question.answer}
                       </p>
                     </div>
@@ -453,13 +453,13 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-semibold text-slate-600">
                 문제 유형
               </label>
               <select
                 value={newQuestion.type || 'CHOICE'}
                 onChange={(e) => updateNewQuestion('type', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
               >
                 <option value="CHOICE">객관식</option>
                 <option value="OX">OX</option>
@@ -469,13 +469,13 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-semibold text-slate-600">
                 문제
               </label>
               <textarea
                 value={newQuestion.question_text || ''}
                 onChange={(e) => updateNewQuestion('question_text', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 rows={3}
                 placeholder="문제를 입력하세요"
               />
@@ -483,7 +483,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
 
             {newQuestion.type === 'CHOICE' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="mb-2 block text-sm font-semibold text-slate-600">
                   보기 (쉼표로 구분)
                 </label>
                 <input
@@ -493,14 +493,14 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                     const options = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                     updateNewQuestion('options', options)
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                   placeholder="보기1, 보기2, 보기3, 보기4"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="mb-2 block text-sm font-semibold text-slate-600">
                 정답
               </label>
               {newQuestion.type === 'SHORT' || newQuestion.type === 'BLANK' ? (
@@ -508,11 +508,11 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   <textarea
                     value={newQuestion.answer || ''}
                     onChange={(e) => updateNewQuestion('answer', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     rows={3}
                     placeholder={'정답을 입력하세요\n복수 정답은 줄바꿈으로 구분'}
                   />
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     여러 정답을 인정하려면 줄바꿈으로 구분하세요. (하나만 맞아도 정답 처리)
                   </p>
                 </>
@@ -521,7 +521,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   type="text"
                   value={newQuestion.answer || ''}
                   onChange={(e) => updateNewQuestion('answer', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                   placeholder="정답을 입력하세요"
                 />
               )}
@@ -530,7 +530,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
             <div className="flex gap-2">
               <Button
                 onClick={handleAddQuestion}
-                className="bg-sky-600 hover:bg-sky-700 text-white"
+                className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 추가
@@ -553,17 +553,17 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
               options: [],
               answer: '',
             })}
-            className="w-full bg-sky-600 hover:bg-sky-700 text-white py-6 text-lg font-bold shadow-sm"
+            className="w-full rounded-xl bg-sky-500 py-6 text-lg font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
           >
             <Plus className="h-5 w-5 mr-2" />
-            새 문제 직접 추가
+            새 문제 추가
           </Button>
           <Button
             onClick={() => setIsMergeModalOpen(true)}
-            className="w-full bg-white text-sky-600 border-2 border-sky-200 hover:bg-sky-50 py-6 text-lg font-bold shadow-sm"
+            className="w-full rounded-xl border-2 border-sky-200 bg-white py-6 text-lg font-bold text-sky-600 shadow-sm hover:bg-sky-50"
           >
             <Search className="h-5 w-5 mr-2 text-sky-600" />
-            다른 문제집에서 픽(Pick) 해오기
+            다른 문제집에서 가져오기
           </Button>
         </div>
       )}

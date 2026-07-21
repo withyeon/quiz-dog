@@ -47,6 +47,45 @@ export type AnswerRecord = {
 
 export { getGameModeUrl }
 
+// ─── 문제 랜덤 출제 (무한 반복) ───
+// 문제를 순서대로(0,1,2,…) 내보내는 대신, 한 바퀴(length)마다 새로 섞어서 낸다.
+// 문제집이 5개뿐이어도 계속(무한히) 풀 수 있고, 매 바퀴 순서가 달라진다.
+// 결정적(시드 기반) 셔플이라 같은 인덱스는 항상 같은 문제로 매핑된다(리렌더 안전).
+function mulberry32(seed: number): () => number {
+    return () => {
+        seed |= 0
+        seed = (seed + 0x6d2b79f5) | 0
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+}
+
+// 바퀴(cycle)마다 다른 시드를 만들어 매 바퀴 다르게 섞는다.
+function mixSeed(base: number, cycle: number): number {
+    return (base ^ Math.imul(cycle + 1, 0x9e3779b1)) >>> 0
+}
+
+// [0..length-1]을 시드 기반 Fisher–Yates로 섞은 배열.
+function shuffleIndices(length: number, seed: number): number[] {
+    const order = Array.from({ length }, (_, i) => i)
+    const rng = mulberry32(seed)
+    for (let i = length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1))
+        ;[order[i], order[j]] = [order[j], order[i]]
+    }
+    return order
+}
+
+// 누적 인덱스(rawIndex)를 실제 문제 위치(0..length-1)로 변환.
+// 같은 바퀴 안에서는 각 문제가 정확히 한 번씩, 바퀴가 넘어가면 다시 섞어서 반복.
+function resolveQuestionPosition(rawIndex: number, length: number, baseSeed: number): number {
+    if (length <= 1) return 0
+    const safeIndex = ((rawIndex % length) + length) % length
+    const cycle = Math.floor(rawIndex / length)
+    return shuffleIndices(length, mixSeed(baseSeed, cycle))[safeIndex]
+}
+
 export const DEFAULT_PRE_START_QUIZ_TOTAL = 3
 
 interface UseGameBaseOptions {
@@ -109,6 +148,11 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     const questionStartTime = useRef<number>(Date.now())
     const autoFinishRequestedRef = useRef(false)
+    // 학생마다 다른 랜덤 출제 순서를 위한 시드(세션당 1회 생성).
+    const orderSeedRef = useRef<number | undefined>(undefined)
+    if (orderSeedRef.current === undefined) {
+        orderSeedRef.current = Math.floor(Math.random() * 0x7fffffff)
+    }
     const [hasRestoredData, setHasRestoredData] = useState(false)
     const [canSyncAnswerHistory, setCanSyncAnswerHistory] = useState(true)
 
@@ -173,8 +217,12 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 현재 플레이어 & 문제 ───
     const currentPlayer = players.find((p) => p.id === playerId) || null
+    // 랜덤 출제: 누적 인덱스를 섞인 문제 위치로 변환해서 현재 문제를 고른다.
+    const currentQuestionPosition = questions.length > 0
+        ? resolveQuestionPosition(currentQuestionIndex, questions.length, orderSeedRef.current)
+        : 0
     const currentQuestion = questions.length > 0
-        ? questions[currentQuestionIndex % questions.length]
+        ? questions[currentQuestionPosition]
         : null
     const preStartQuizQuestion = questions.length > 0
         ? questions[preStartQuestionIndex % questions.length]
@@ -532,7 +580,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         // 시간 초과 (빈 답안)
         if (answer === '') {
             setIsCorrect(false)
-            setAnswerHistory((prev) => [...prev, { questionIndex: currentQuestionIndex, isCorrect: false, selectedAnswer: '' }])
+            setAnswerHistory((prev) => [...prev, { questionIndex: currentQuestionPosition, isCorrect: false, selectedAnswer: '' }])
             setConsecutiveCorrect(0)
             return false
         }
@@ -548,7 +596,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
 
         setIsCorrect(correct)
-        setAnswerHistory((prev) => [...prev, { questionIndex: currentQuestionIndex, isCorrect: correct, selectedAnswer: normalizedAnswer }])
+        setAnswerHistory((prev) => [...prev, { questionIndex: currentQuestionPosition, isCorrect: correct, selectedAnswer: normalizedAnswer }])
 
         if (correct) {
             setConsecutiveCorrect((prev) => prev + 1)
@@ -557,7 +605,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
 
         return correct
-    }, [currentQuestion, currentQuestionIndex, isAnswerLocked])
+    }, [currentQuestion, currentQuestionPosition, isAnswerLocked])
 
     // ─── 정답 기록 DB 동기화 (5초 debounce — 연속 답변을 묶어 DB 쓰기 횟수 감소) ───
     useEffect(() => {

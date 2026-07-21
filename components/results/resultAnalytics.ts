@@ -115,7 +115,11 @@ export function buildResultAnalytics(
     const history = toAnswerHistory(player.answer_history)
     const correctCount = history.filter((answer) => answer.isCorrect).length
     const answeredCount = history.length
-    const denominator = totalQuestions > 0 ? totalQuestions : answeredCount
+    // 카페·낚시처럼 한 문제를 여러 번 푸는 게임에서는 정답 수(correctCount)가
+    // 문제집 문항 수(totalQuestions)를 넘을 수 있다. 이때 분모를 totalQuestions로 두면
+    // 정답률이 100%를 초과한다. 실제 푼 문항 수(answeredCount)를 분모 하한으로 삼아
+    // 정답률이 항상 ≤100%가 되도록 한다(일반 퀴즈는 answeredCount ≤ totalQuestions라 변화 없음).
+    const denominator = Math.max(totalQuestions, answeredCount)
 
     return {
       id: player.id,
@@ -126,7 +130,7 @@ export function buildResultAnalytics(
       correctCount,
       answeredCount,
       totalCount: denominator,
-      accuracy: denominator > 0 ? Math.round((correctCount / denominator) * 100) : 0,
+      accuracy: denominator > 0 ? Math.min(100, Math.round((correctCount / denominator) * 100)) : 0,
       avgResponseTimeMs: getAverageResponseTime(history),
       rankByScore: playerRank.get(player.id) ?? index + 1,
       history,
@@ -196,7 +200,7 @@ export function buildResultAnalytics(
 
   const totalCorrect = playerAnalyses.reduce((sum, player) => sum + player.correctCount, 0)
   const totalPossible = playerAnalyses.reduce((sum, player) => sum + player.totalCount, 0)
-  const averageAccuracy = totalPossible > 0 ? Math.round((totalCorrect / totalPossible) * 100) : 0
+  const averageAccuracy = totalPossible > 0 ? Math.min(100, Math.round((totalCorrect / totalPossible) * 100)) : 0
   const averageScore = playerAnalyses.length > 0
     ? Math.round(playerAnalyses.reduce((sum, player) => sum + player.score, 0) / playerAnalyses.length)
     : 0

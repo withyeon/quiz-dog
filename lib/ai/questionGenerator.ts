@@ -22,11 +22,20 @@ const QUESTION_TYPES = ['CHOICE', 'SHORT', 'OX', 'BLANK'] as const
 const BLANK_PLACEHOLDER = '[            ]'
 
 const PRIMARY_MODEL = 'gemini-2.5-flash'
-const FALLBACK_MODEL = 'gemini-1.5-flash'
+// 폴백은 별도 쿼터 버킷을 쓰는 경량 모델. gemini-1.5/2.0-flash는 무료 등급에서
+// 제거됐거나 쿼터가 0이라 폴백으로 못 씀(404/429). flash-lite는 무료 쿼터가 있고 가벼움.
+const FALLBACK_MODEL = 'gemini-2.5-flash-lite'
 
-function isTransientError(error: unknown): boolean {
+// 503: 일시적 과부하 → 잠시 후 재시도하면 풀리는 경우가 많음
+function isOverloadedError(error: unknown): boolean {
   const msg = error instanceof Error ? error.message : String(error)
   return msg.includes('503') || msg.includes('Service Unavailable') || msg.includes('high demand') || msg.includes('overloaded')
+}
+
+// 429: 분당/일일 사용량(쿼터) 초과 → 같은 모델 재시도는 무의미, 다른 모델로 폴백
+function isQuotaError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error)
+  return msg.includes('429') || msg.includes('Too Many Requests') || msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED')
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -292,12 +301,21 @@ async function callGeminiWithRetry(apiKey: string, prompt: string): Promise<stri
     try {
       return await callGeminiModel(apiKey, PRIMARY_MODEL, prompt)
     } catch (error) {
-      if (isTransientError(error) && i < delays.length) {
+      // 과부하는 잠시 후 주 모델 재시도
+      if (isOverloadedError(error) && i < delays.length) {
         await sleep(delays[i])
         continue
       }
-      if (isTransientError(error)) {
-        return await callGeminiModel(apiKey, FALLBACK_MODEL, prompt)
+      // 과부하가 지속되거나 쿼터 초과면 경량 모델로 폴백 (별도 쿼터 버킷)
+      if (isOverloadedError(error) || isQuotaError(error)) {
+        try {
+          return await callGeminiModel(apiKey, FALLBACK_MODEL, prompt)
+        } catch (fallbackError) {
+          if (isQuotaError(fallbackError)) {
+            throw new Error('AI 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 Gemini API 결제를 활성화해주세요.')
+          }
+          throw fallbackError
+        }
       }
       throw error
     }

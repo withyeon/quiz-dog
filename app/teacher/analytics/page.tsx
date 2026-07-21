@@ -7,7 +7,6 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import {
   ArrowLeft,
-  BarChart3,
   CheckCircle2,
   ChevronRight,
   Clock,
@@ -143,17 +142,17 @@ function AnalyticsPageContent() {
     const report = selectedReport ?? reports.find((item) => item.id === selectedReportId) ?? null
 
     if (loading) {
-      return <div className="p-8 text-center text-gray-500 font-bold">로딩 중...</div>
+      return <div className="p-8 text-center font-bold text-slate-500">불러오는 중…</div>
     }
 
     if (!report) {
       return (
         <div className="p-8 text-center">
-          <p className="text-gray-500 mb-4">
-            {errorMessage ? `리포트를 불러오지 못했습니다. ${errorMessage}` : '리포트를 찾을 수 없습니다.'}
+          <p className="mb-4 text-slate-500">
+            {errorMessage ? `결과를 불러오지 못했어요. ${errorMessage}` : '결과를 찾을 수 없어요.'}
           </p>
           <Button variant="outline" onClick={() => router.push('/teacher/analytics')}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> 돌아가기
+            <ArrowLeft className="mr-2 h-4 w-4" /> 돌아가기
           </Button>
         </div>
       )
@@ -182,19 +181,19 @@ function AnalyticsPageContent() {
           onClick={() => router.push('/teacher/analytics')}
           className="mb-6"
         >
-          <ArrowLeft className="h-4 w-4 mr-2" /> 리포트 목록
+          <ArrowLeft className="mr-2 h-4 w-4" /> 기록 목록
         </Button>
 
         <div className="mb-6">
-          <h1 className="mb-2 flex items-center gap-3 text-2xl font-bold text-black">
-            <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-gray-50">
+          <h1 className="mb-2 flex items-center gap-3 text-2xl font-black tracking-tight text-slate-900">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50">
               <GameTitleImage mode={modeCfg} />
             </span>
-            {reportTitle} 결과 리포트
+            {reportTitle}
           </h1>
-          <div className="flex items-center gap-4 text-sm text-gray-500">
-            <span>방 코드: <span className="font-mono font-bold">{report.room_code}</span></span>
-            <span>참여 {report.player_count}명</span>
+          <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-500">
+            <span>참가코드 <span className="font-mono font-bold text-slate-700">{report.room_code}</span></span>
+            <span>참가 {report.player_count}명</span>
             <span>{new Date(report.created_at).toLocaleString('ko-KR')}</span>
           </div>
         </div>
@@ -212,9 +211,9 @@ function AnalyticsPageContent() {
           <div className="mt-6 text-center">
             <Button
               onClick={() => router.push(`/teacher/dashboard?set=${encodeURIComponent(report.set_id!)}`)}
-              className="bg-sky-600 hover:bg-sky-700 text-white"
+              className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
             >
-              <Play className="h-4 w-4 mr-2" /> 이 문제집으로 다시 게임 시작
+              <Play className="mr-2 h-4 w-4" /> 이 문제집으로 다시 시작
             </Button>
           </div>
         )}
@@ -226,25 +225,25 @@ function AnalyticsPageContent() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-black mb-2">📊 게임 히스토리</h1>
-        <p className="text-gray-600">지난 게임 결과를 다시 확인하세요</p>
+        <h1 className="mb-2 text-3xl font-black tracking-tight text-slate-900">게임 기록</h1>
+        <p className="font-medium text-slate-500">지난 게임 결과</p>
         {errorMessage && (
-          <p className="mt-3 text-sm text-red-500">리포트를 불러오는 중 문제가 발생했습니다: {errorMessage}</p>
+          <p className="mt-3 text-sm text-red-500">기록을 불러오는 중 문제가 생겼어요: {errorMessage}</p>
         )}
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500">로딩 중...</div>
+        <div className="py-12 text-center text-slate-500">불러오는 중…</div>
       ) : reports.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <BarChart3 className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-700 mb-2">아직 게임 기록이 없습니다</h2>
-          <p className="text-gray-500 mb-6">게임을 진행하면 결과가 여기에 자동으로 저장됩니다.</p>
+        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+          <Image src="/mascot_pome.png" alt="퀴즈독" width={72} height={72} className="mx-auto mb-4 h-16 w-16 object-contain" />
+          <h2 className="mb-2 text-xl font-extrabold text-slate-800">아직 기록이 없어요</h2>
+          <p className="mb-6 font-medium text-slate-500">게임을 진행하면 결과가 자동으로 저장돼요</p>
           <Button
             onClick={() => router.push('/teacher/dashboard')}
-            className="bg-sky-600 hover:bg-sky-700 text-white"
+            className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
           >
-            <Play className="h-4 w-4 mr-2" /> 게임 시작하기
+            <Play className="mr-2 h-4 w-4" /> 게임 시작
           </Button>
         </div>
       ) : (
@@ -266,20 +265,20 @@ function AnalyticsPageContent() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.03 }}
                 onClick={() => router.push(`/teacher/analytics?report=${report.id}`)}
-                className="w-full bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4 hover:shadow-md hover:border-gray-300 transition-all text-left group"
+                className="group flex w-full items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 text-left transition-all hover:border-sky-200 hover:shadow-md"
               >
                 {/* 게임 모드 아이콘 */}
-                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gray-50">
+                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-50">
                   <GameTitleImage mode={modeCfg} size="sm" />
                 </div>
 
                 {/* 정보 */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="truncate font-bold text-black">{reportTitle}</span>
-                    <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded font-mono">{report.room_code}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="truncate font-bold text-slate-900">{reportTitle}</span>
+                    <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-500">{report.room_code}</span>
                   </div>
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-medium text-slate-500">
                     <span className="flex items-center gap-1 whitespace-nowrap">
                       <Users className="h-3.5 w-3.5 shrink-0" /> {report.player_count}명
                     </span>
@@ -290,7 +289,7 @@ function AnalyticsPageContent() {
                 </div>
 
                 {/* 화살표 */}
-                <ChevronRight className="h-5 w-5 text-gray-300 group-hover:text-gray-500 transition-colors" />
+                <ChevronRight className="h-5 w-5 text-slate-300 transition-colors group-hover:text-sky-500" />
               </motion.button>
             )
           })}
@@ -321,12 +320,14 @@ function HistoryReportDetail({
           { label: '평균 점수', value: averageScore.toLocaleString(), icon: Trophy },
           { label: '완주율', value: `${completionRate}%`, icon: CheckCircle2 },
         ].map((item) => (
-          <div key={item.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-slate-500">{item.label}</span>
-              <item.icon className="h-5 w-5 text-slate-400" />
+              <span className="text-sm font-semibold text-slate-500">{item.label}</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                <item.icon className="h-5 w-5" />
+              </span>
             </div>
-            <div className="mt-4 text-3xl font-black text-black">{item.value}</div>
+            <div className="mt-4 text-3xl font-black tracking-tight text-slate-900">{item.value}</div>
           </div>
         ))}
       </section>
@@ -334,18 +335,18 @@ function HistoryReportDetail({
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-2 border-b border-slate-100 p-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-sm font-black text-slate-500">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
               <ListChecks className="h-4 w-4" />
-              그때 플레이했던 문제
+              출제된 문제
             </div>
-            <h2 className="mt-2 text-2xl font-black text-black">{questions.length}개 문항</h2>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">{questions.length}문항</h2>
           </div>
-          <p className="text-sm font-medium text-slate-500">정답과 당시 학생들의 정답률을 함께 봅니다.</p>
+          <p className="text-sm font-medium text-slate-500">정답 · 학생 정답률</p>
         </div>
 
         {questions.length === 0 ? (
-          <div className="p-10 text-center text-sm font-bold text-slate-500">
-            연결된 문제 데이터를 찾지 못했습니다.
+          <div className="p-10 text-center text-sm font-medium text-slate-500">
+            연결된 문제를 찾지 못했어요
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -354,10 +355,10 @@ function HistoryReportDetail({
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap items-center gap-2">
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
-                        Q{question.index + 1}
+                      <span className="rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-700">
+                        {question.index + 1}번
                       </span>
-                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
                         {question.type}
                       </span>
                     </div>
@@ -404,13 +405,13 @@ function HistoryReportDetail({
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-2 border-b border-slate-100 p-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <div className="flex items-center gap-2 text-sm font-black text-slate-500">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
               <Users className="h-4 w-4" />
-              그때 아이들 결과
+              학생 결과
             </div>
-            <h2 className="mt-2 text-2xl font-black text-black">{students.length}명 결과</h2>
+            <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">{students.length}명</h2>
           </div>
-          <p className="text-sm font-medium text-slate-500">점수 순위와 문항별 답안을 같이 확인합니다.</p>
+          <p className="text-sm font-medium text-slate-500">점수 순위 · 문항별 답안</p>
         </div>
 
         <div className="overflow-x-auto">
@@ -476,8 +477,8 @@ function HistoryReportDetail({
               ))}
               {students.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center font-bold text-slate-500">
-                    저장된 학생 결과가 없습니다.
+                  <td colSpan={7} className="px-4 py-10 text-center font-medium text-slate-500">
+                    저장된 학생 결과가 없어요
                   </td>
                 </tr>
               )}
@@ -491,7 +492,7 @@ function HistoryReportDetail({
 
 export default function AnalyticsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-gray-500">로딩 중...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">불러오는 중…</div>}>
       <AnalyticsPageContent />
     </Suspense>
   )

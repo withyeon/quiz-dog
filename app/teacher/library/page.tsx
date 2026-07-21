@@ -1,6 +1,5 @@
 'use client'
 
-import { toast } from '@/components/ui/Toaster'
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
@@ -31,6 +30,7 @@ import {
   getLibraryClientId,
   setLocalQuestionSetLiked,
 } from '@/lib/utils/libraryClientId'
+import { toast } from '@/components/ui/Toaster'
 
 type QuestionSet = {
   set_id: string
@@ -220,7 +220,7 @@ function LibraryPageContent() {
       setLoading(true)
       const clientId = getLibraryClientId()
       const localLikedSetIds = getLocalLikedQuestionSetIds()
-      const indexItems = await listQuestionSetIndexFromQuestions(clientId)
+      const indexItems = await listQuestionSetIndexFromQuestions(clientId, { onlyPublic: true })
       const sets = indexItems.map((item, index) => {
         const subject = normalizeSubject(item.subject, item.set_id)
         const grade = normalizeGrade(item.grade, item.set_id)
@@ -369,56 +369,52 @@ function LibraryPageContent() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <section className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">
-              <Library className="h-4 w-4" />
-              수업 준비 라이브러리
-            </div>
-            <h1 className="text-3xl font-black tracking-normal text-black sm:text-4xl">
-              바로 수업에 쓸 퀴즈 세트를 찾아보세요
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              자료실
             </h1>
             <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500">
-              필요한 자료를 고른 뒤 내 문제집에 담아 수정하거나, 바로 게임을 시작할 수 있습니다.
+              수업에 쓸 문제집 찾기 · 담아서 수정하거나 바로 게임 시작.
             </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 xl:w-[520px]">
             {[
-              { label: '전체 자료', value: allQuestionSets.length.toLocaleString(), icon: Library },
+              { label: '전체', value: allQuestionSets.length.toLocaleString(), icon: Library },
               { label: '검색 결과', value: filteredSets.length.toLocaleString(), icon: Search },
               { label: '총 문항', value: filteredSets.reduce((sum, set) => sum + set.question_count, 0).toLocaleString(), icon: FileQuestion },
             ].map((item) => (
-              <div key={item.label} className="rounded-lg bg-slate-50 p-4">
+              <div key={item.label} className="rounded-xl bg-slate-50 p-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-500">{item.label}</span>
+                  <span className="text-xs font-semibold text-slate-500">{item.label}</span>
                   <item.icon className="h-4 w-4 text-slate-400" />
                 </div>
-                <div className="mt-3 text-2xl font-black text-black">{item.value}</div>
+                <div className="mt-3 text-2xl font-black tracking-tight text-slate-900">{item.value}</div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="rounded-lg bg-white p-4 shadow-sm ring-1 ring-slate-200 sm:p-5">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <label className="relative flex-1">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="단원명, 과목, 학년으로 검색"
+              placeholder="단원·과목·학년 검색"
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              className="h-12 w-full rounded-lg border border-slate-200 bg-white pl-12 pr-4 text-base font-bold text-black outline-none transition placeholder:text-slate-400 focus:border-slate-400"
+              className="h-12 w-full rounded-xl border border-slate-200 bg-white pl-12 pr-4 text-base font-semibold text-black outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             />
           </label>
           <div className="flex items-center gap-2">
             <select
               value={sortType}
               onChange={(event) => setSortType(event.target.value as SortType)}
-              className="h-12 rounded-lg border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 outline-none transition focus:border-slate-400"
+              className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
             >
               <option value="likes">좋아요순</option>
               <option value="recent">최신순</option>
@@ -426,7 +422,7 @@ function LibraryPageContent() {
             {activeFilterCount > 0 && (
               <button
                 onClick={resetFilters}
-                className="h-12 rounded-lg px-4 text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-black"
+                className="h-12 rounded-xl px-4 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-black"
               >
                 초기화
               </button>
@@ -472,15 +468,13 @@ function LibraryPageContent() {
 
       <section className="grid gap-4 lg:grid-cols-2">
         <PopularPanel
-          title="주간 인기글"
-          metricLabel="이번 주"
+          title="이번 주 인기"
           sets={weeklyPopularSets}
           metric={(set) => set.weekly_like_count}
           onSelect={setPreviewSetId}
         />
         <PopularPanel
-          title="월간 인기글"
-          metricLabel="이번 달"
+          title="이번 달 인기"
           sets={monthlyPopularSets}
           metric={(set) => set.monthly_like_count}
           onSelect={setPreviewSetId}
@@ -490,26 +484,26 @@ function LibraryPageContent() {
       <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2 text-sm font-bold text-slate-500">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-500">
               <SlidersHorizontal className="h-4 w-4" />
-              {filteredSets.length.toLocaleString()}개 자료
+              {filteredSets.length.toLocaleString()}개
             </div>
           </div>
 
           {loading ? (
-            <div className="flex min-h-80 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-black" />
+            <div className="flex min-h-80 items-center justify-center rounded-2xl border border-slate-200 bg-white">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
             </div>
           ) : filteredSets.length === 0 ? (
-            <div className="rounded-lg bg-white p-12 text-center ring-1 ring-slate-200">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <Search className="h-6 w-6 text-slate-400" />
+            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50">
+                <Search className="h-6 w-6 text-sky-400" />
               </div>
-              <h2 className="mt-4 text-lg font-black text-black">맞는 자료가 없습니다</h2>
-              <p className="mt-2 text-sm font-medium text-slate-500">검색어나 필터를 조금 넓혀보세요.</p>
+              <h2 className="mt-4 text-lg font-extrabold text-slate-800">맞는 문제집이 없어요</h2>
+              <p className="mt-2 text-sm font-medium text-slate-500">검색어나 필터를 넓혀 보세요</p>
               <button
                 onClick={resetFilters}
-                className="mt-5 rounded-lg bg-black px-4 py-2.5 text-sm font-black text-white transition hover:bg-neutral-800"
+                className="mt-5 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
               >
                 필터 초기화
               </button>
@@ -519,29 +513,29 @@ function LibraryPageContent() {
               <article
                 key={set.set_id}
                 onClick={() => setPreviewSetId(set.set_id)}
-                className={`w-full rounded-lg bg-white p-5 text-left shadow-sm ring-1 transition ${
+                className={`w-full cursor-pointer rounded-2xl border bg-white p-5 text-left shadow-sm transition ${
                   selectedSet?.set_id === set.set_id
-                    ? 'ring-black'
-                    : 'ring-slate-200 hover:bg-slate-50'
-                } cursor-pointer`}
+                    ? 'border-sky-400 ring-1 ring-sky-200'
+                    : 'border-slate-200 hover:border-sky-200 hover:bg-slate-50'
+                }`}
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
                     <BookOpen className="h-6 w-6" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap gap-2">
                       {set.tags.map((tag) => (
-                        <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">
+                        <span key={tag} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                           {tag}
                         </span>
                       ))}
                     </div>
-                    <h3 className="truncate text-lg font-black text-black">{set.name}</h3>
+                    <h3 className="truncate text-lg font-bold text-slate-900">{set.name}</h3>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500">
                       <span>{set.creator}</span>
                       <span>·</span>
-                      <span>{set.question_count}문제</span>
+                      <span>{set.question_count}문항</span>
                       <span>·</span>
                       <span>{new Date(set.created_at).toLocaleDateString('ko-KR')}</span>
                     </div>
@@ -553,7 +547,7 @@ function LibraryPageContent() {
                         event.stopPropagation()
                         void handleToggleLike(set.set_id)
                       }}
-                      className={`inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-black transition ${
+                      className={`inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-bold transition ${
                         set.liked_by_client
                           ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-100'
                           : 'bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600'
@@ -572,20 +566,17 @@ function LibraryPageContent() {
         </div>
 
         <aside className="xl:sticky xl:top-24 xl:self-start">
-          <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             {selectedSet ? (
               <>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
-                  <div>
-                    <div className="text-sm font-black text-slate-500">선택한 자료</div>
-                    <div className="mt-0.5 text-xs font-bold text-slate-400">수업 준비 패널</div>
-                  </div>
+                  <div className="text-sm font-bold text-slate-500">선택한 문제집</div>
                 </div>
 
-                <h2 className="mt-5 text-xl font-black leading-snug text-black">{selectedSet.name}</h2>
+                <h2 className="mt-5 text-xl font-extrabold leading-snug text-slate-900">{selectedSet.name}</h2>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <InfoTile label="문항 수" value={`${selectedSet.question_count}개`} icon={FileQuestion} />
                   <InfoTile label="좋아요" value={`${selectedSet.like_count.toLocaleString()}개`} icon={Heart} />
@@ -596,7 +587,7 @@ function LibraryPageContent() {
                 <div className="mt-5 space-y-2">
                   <button
                     onClick={() => void handleToggleLike(selectedSet.set_id)}
-                    className={`flex h-12 w-full items-center justify-center gap-2 rounded-lg text-sm font-black transition ${
+                    className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition ${
                       selectedSet.liked_by_client
                         ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-100 hover:bg-rose-100'
                         : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-rose-600'
@@ -607,14 +598,14 @@ function LibraryPageContent() {
                   </button>
                   <button
                     onClick={() => handleCopySet(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-black text-sm font-black text-white transition hover:bg-neutral-800"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
                   >
                     <Plus className="h-4 w-4" />
                     내 문제집에 담기
                   </button>
                   <button
                     onClick={() => handleStartGame(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-white text-sm font-black text-black ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
                     <Play className="h-4 w-4 fill-current" />
                     바로 게임 시작
@@ -624,7 +615,7 @@ function LibraryPageContent() {
                       await navigator.clipboard.writeText(`${window.location.origin}/teacher/library?set=${selectedSet.set_id}`)
                       toast.success('링크가 복사되었습니다.')
                     }}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-lg text-sm font-black text-slate-500 transition hover:bg-slate-100 hover:text-black"
+                    className="flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-black"
                   >
                     <Copy className="h-4 w-4" />
                     링크 복사
@@ -634,7 +625,7 @@ function LibraryPageContent() {
             ) : (
               <div className="py-10 text-center">
                 <BookOpen className="mx-auto h-10 w-10 text-slate-300" />
-                <p className="mt-3 text-sm font-bold text-slate-500">자료를 선택하면 수업 준비 패널이 열립니다.</p>
+                <p className="mt-3 text-sm font-medium text-slate-500">문제집을 선택해 보세요</p>
               </div>
             )}
           </div>
@@ -646,29 +637,27 @@ function LibraryPageContent() {
 
 function PopularPanel({
   title,
-  metricLabel,
   sets,
   metric,
   onSelect,
 }: {
   title: string
-  metricLabel: string
   sets: QuestionSet[]
   metric: (set: QuestionSet) => number
   onSelect: (setId: string) => void
 }) {
   return (
-    <div className="rounded-lg bg-white p-5 shadow-sm ring-1 ring-slate-200">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <div className="grid h-9 w-9 place-items-center rounded-lg bg-amber-50 text-amber-600">
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-600">
           <Trophy className="h-5 w-5" />
         </div>
-        <h2 className="text-lg font-black text-black">{title}</h2>
+        <h2 className="text-lg font-extrabold text-slate-900">{title}</h2>
       </div>
 
       {sets.length === 0 ? (
-        <div className="rounded-lg bg-slate-50 p-5 text-sm font-bold text-slate-500">
-          아직 집계된 좋아요가 없습니다.
+        <div className="rounded-xl bg-slate-50 p-5 text-sm font-medium text-slate-500">
+          아직 집계 전이에요
         </div>
       ) : (
         <div className="space-y-2">
@@ -677,20 +666,20 @@ function PopularPanel({
               key={set.set_id}
               type="button"
               onClick={() => onSelect(set.set_id)}
-              className="flex w-full items-center gap-3 rounded-lg p-3 text-left transition hover:bg-slate-50"
+              className="flex w-full items-center gap-3 rounded-xl p-3 text-left transition hover:bg-slate-50"
             >
-              <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-slate-100 text-sm font-black text-slate-700">
+              <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-xl bg-amber-50 text-sm font-bold text-amber-600">
                 {index + 1}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-black text-black">{set.name}</span>
-                <span className="mt-1 block text-xs font-bold text-slate-400">
+                <span className="block truncate text-sm font-bold text-slate-900">{set.name}</span>
+                <span className="mt-1 block text-xs font-semibold text-slate-400">
                   {getGradeLabel(set.grade)} · {getSubjectName(set.subject)}
                 </span>
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-black text-rose-600">
+              <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-600">
                 <Heart className="h-3.5 w-3.5 fill-current" />
-                {metric(set).toLocaleString()} {metricLabel}
+                {metric(set).toLocaleString()}
               </span>
             </button>
           ))}
@@ -713,15 +702,15 @@ function FilterRow({
 }) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-      <div className="w-16 flex-shrink-0 text-sm font-black text-slate-500">{label}</div>
+      <div className="w-16 flex-shrink-0 text-sm font-semibold text-slate-500">{label}</div>
       <div className="flex flex-wrap gap-2">
         {items.map((item) => (
           <button
             key={item.id}
             onClick={() => onChange(item.id)}
-            className={`rounded-full px-3 py-1.5 text-sm font-black transition ${
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold transition ${
               value === item.id
-                ? 'bg-black text-white'
+                ? 'bg-sky-500 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
@@ -743,17 +732,17 @@ function InfoTile({
   icon: LucideIcon
 }) {
   return (
-    <div className="rounded-lg bg-slate-50 p-3">
+    <div className="rounded-xl bg-slate-50 p-3">
       <Icon className="h-4 w-4 text-slate-400" />
-      <div className="mt-2 text-xs font-bold text-slate-400">{label}</div>
-      <div className="mt-1 truncate text-sm font-black text-black">{value}</div>
+      <div className="mt-2 text-xs font-semibold text-slate-400">{label}</div>
+      <div className="mt-1 truncate text-sm font-bold text-slate-900">{value}</div>
     </div>
   )
 }
 
 export default function LibraryPage() {
   return (
-    <Suspense fallback={<div className="min-h-dvh flex items-center justify-center">로딩 중...</div>}>
+    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center text-slate-500">불러오는 중…</div>}>
       <LibraryPageContent />
     </Suspense>
   )

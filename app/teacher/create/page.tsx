@@ -1,6 +1,5 @@
 'use client'
 
-import { toast } from '@/components/ui/Toaster'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -15,6 +14,7 @@ import QuestionSourceSelector from '@/components/teacher/QuestionSourceSelector'
 import { createQuestionSetWithQuestions } from '@/lib/services/questionSets'
 import { formatServiceError } from '@/lib/services/errors'
 import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
+import { toast } from '@/components/ui/Toaster'
 
 type SourceType = 'topic' | 'youtube' | 'file' | 'exam'
 type ManualQuestionType = 'CHOICE' | 'SHORT' | 'OX' | 'MIXED'
@@ -45,22 +45,23 @@ export default function CreateQuestionPage() {
   const [setName, setSetName] = useState('')
   const [subject, setSubject] = useState('')
   const [grade, setGrade] = useState('')
+  const [isPublic, setIsPublic] = useState(false)
 
   const handleGenerate = async () => {
     if (sourceType === 'topic' && !topic.trim()) {
-      toast.info('주제를 입력해주세요.')
+      toast.error('주제를 입력해주세요.')
       return
     }
     if (sourceType === 'youtube' && !youtubeUrl.trim()) {
-      toast.info('유튜브 URL을 입력해주세요.')
+      toast.error('유튜브 URL을 입력해주세요.')
       return
     }
     if (sourceType === 'file' && !file) {
-      toast.info('파일을 선택해주세요.')
+      toast.error('파일을 선택해주세요.')
       return
     }
     if (sourceType === 'exam' && !examFile) {
-      toast.info('시험지 파일을 선택해주세요.')
+      toast.error('시험지 파일을 선택해주세요.')
       return
     }
 
@@ -113,21 +114,21 @@ export default function CreateQuestionPage() {
     if (isSaving) return
 
     if (!setName.trim()) {
-      toast.info('문제집 이름을 입력해주세요.')
+      toast.error('문제집 이름을 입력해주세요.')
       return
     }
     if (!subject) {
-      toast.info('과목을 선택해주세요.')
+      toast.error('과목을 선택해주세요.')
       return
     }
     if (!grade) {
-      toast.info('대상 학년을 선택해주세요.')
+      toast.error('대상 학년을 선택해주세요.')
       return
     }
 
     const nameCheck = filterNickname(setName)
     if (!nameCheck.isValid) {
-      toast.info('문제집 이름에 부적절한 단어가 포함되어 있습니다.')
+      toast.error('문제집 이름에 부적절한 단어가 포함되어 있습니다.')
       return
     }
 
@@ -139,7 +140,7 @@ export default function CreateQuestionPage() {
 
     const connectionTest = await testSupabaseConnection()
     if (!connectionTest.success) {
-      toast.error(`Supabase 연결 실패: ${connectionTest.error}\n\n환경 변수를 확인하고 개발 서버를 재시작해주세요.`)
+      toast.error(`Supabase 연결 실패: ${connectionTest.error}\n환경 변수를 확인하고 개발 서버를 재시작해주세요.`)
       return
     }
 
@@ -153,9 +154,14 @@ export default function CreateQuestionPage() {
           grade,
         },
         questions: generatedQuestions,
+        isPublic,
       })
 
-      toast.success('문제가 저장되었습니다!')
+      toast.success(
+        isPublic
+          ? '문제집을 저장하고 자료실에 공개했습니다!'
+          : '문제집이 저장되었습니다!',
+      )
       router.push('/teacher')
     } catch (error) {
       console.error('Error saving questions:', error)
@@ -187,6 +193,8 @@ export default function CreateQuestionPage() {
         setSubject={setSubject}
         grade={grade}
         setGrade={setGrade}
+        isPublic={isPublic}
+        setIsPublic={setIsPublic}
         onBack={() => setIsReviewing(false)}
         onSave={handleSaveQuestions}
         onCreateManual={handleCreateManual}
@@ -197,38 +205,35 @@ export default function CreateQuestionPage() {
 
   // ======= 메인 생성 화면 =======
   return (
-    <main className="min-h-dvh bg-[#f5f7fb] px-4 py-5 text-black sm:px-6 lg:px-8">
+    <main className="text-black">
       <div className="mx-auto max-w-6xl">
         <div className="mb-5 flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <Button
               variant="ghost"
               onClick={() => router.push('/teacher')}
-              className="-ml-3 mb-3 h-10 rounded-lg px-3 text-slate-500 hover:bg-slate-100 hover:text-black"
+              className="-ml-3 mb-3 h-10 rounded-xl px-3 text-slate-500 hover:bg-slate-100 hover:text-black"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               문제집 목록
             </Button>
             <div className="flex items-center gap-3">
-              <div className="grid h-12 w-12 place-items-center rounded-lg bg-black text-white shadow-sm">
+              <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-500 text-white shadow-sm shadow-sky-200">
                 <Pencil className="h-6 w-6" />
               </div>
-              <div>
-                <div className="text-sm font-black text-black">문제집 제작실</div>
-                <h1 className="text-3xl font-black tracking-normal text-black sm:text-4xl">
-                  새 문제집 만들기
-                </h1>
-              </div>
+              <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+                문제 만들기
+              </h1>
             </div>
           </div>
 
-          <div className="flex w-full rounded-lg border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
+          <div className="flex w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
             <button
               type="button"
               onClick={() => setActiveTab('manual')}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-black transition sm:flex-none ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
                 activeTab === 'manual'
-                  ? 'bg-black text-white shadow-sm'
+                  ? 'bg-sky-500 text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-black'
               }`}
             >
@@ -238,14 +243,14 @@ export default function CreateQuestionPage() {
             <button
               type="button"
               onClick={() => setActiveTab('ai')}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-black transition sm:flex-none ${
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
                 activeTab === 'ai'
                   ? 'bg-sky-500 text-white shadow-sm'
                   : 'text-slate-500 hover:bg-slate-50 hover:text-black'
               }`}
             >
               <ScanLine className="h-4 w-4" />
-              AI로 퀴즈 초안 만들기
+              AI로 만들기
             </button>
           </div>
         </div>
@@ -253,16 +258,16 @@ export default function CreateQuestionPage() {
       {activeTab === 'manual' ? (
         <div className="space-y-6 animate-in fade-in duration-300">
           <div className="grid gap-5 lg:grid-cols-[310px_minmax(0,1fr)]">
-            <aside className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-sky-100 text-black">
+            <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
                 <SlidersHorizontal className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-black text-black">빈 문제로 시작</h2>
-              <p className="mt-2 text-sm font-bold leading-6 text-slate-500">
-                유형을 고르면 검수 화면에서 바로 내용을 채울 수 있어요. 문제는 저장 전까지 자유롭게 추가하고 바꿀 수 있습니다.
+              <h2 className="text-xl font-extrabold text-slate-900">빈 문제로 시작</h2>
+              <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
+                유형을 고르면 바로 내용을 채울 수 있어요. 저장 전까지 자유롭게 수정.
               </p>
-              <div className="mt-5 rounded-lg bg-slate-50 p-3 text-xs font-bold leading-5 text-slate-500">
-                추천 흐름: 유형 선택 → 문제 작성 → 과목/학년 지정 → 저장
+              <div className="mt-5 rounded-xl bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-500">
+                유형 선택 → 문제 작성 → 과목·학년 → 저장
               </div>
             </aside>
 
@@ -271,76 +276,76 @@ export default function CreateQuestionPage() {
                 whileHover={{ y: -3 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleCreateManual('CHOICE')}
-                className="group min-h-56 rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-sky-300 hover:shadow-md"
+                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-sky-300 hover:shadow-md"
               >
                 <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-sky-100 text-black">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-100 text-sky-600">
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-sky-100 group-hover:text-black">
                     1-4
                   </span>
                 </div>
-                <div className="text-2xl font-black text-black">객관식</div>
-                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">보기와 정답을 빠르게 구성하는 기본 문제 유형</p>
-                <div className="mt-6 text-sm font-black text-black">시작하기</div>
+                <div className="text-2xl font-extrabold text-slate-900">객관식</div>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">보기와 정답을 빠르게 구성하는 기본 문제 유형</p>
+                <div className="mt-6 text-sm font-bold text-black">시작하기</div>
               </motion.button>
 
               <motion.button
                 whileHover={{ y: -3 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleCreateManual('SHORT')}
-                className="group min-h-56 rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-cyan-300 hover:shadow-md"
+                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-cyan-300 hover:shadow-md"
               >
                 <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-cyan-100 text-cyan-700">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-100 text-cyan-700">
                     <MessageSquare className="h-6 w-6" />
                   </div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-cyan-100 group-hover:text-cyan-700">
                     입력
                   </span>
                 </div>
-                <div className="text-2xl font-black text-black">단답형</div>
-                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">짧은 답, 빈칸, 용어 확인에 어울리는 작성형 문제</p>
-                <div className="mt-6 text-sm font-black text-cyan-700">시작하기</div>
+                <div className="text-2xl font-extrabold text-slate-900">주관식</div>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">짧은 답, 빈칸, 용어 확인에 어울리는 작성형 문제</p>
+                <div className="mt-6 text-sm font-bold text-cyan-700">시작하기</div>
               </motion.button>
 
               <motion.button
                 whileHover={{ y: -3 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleCreateManual('OX')}
-                className="group min-h-56 rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-amber-300 hover:shadow-md"
+                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-amber-300 hover:shadow-md"
               >
                 <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-amber-100 text-amber-700">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-amber-700">
                     <XCircle className="h-6 w-6" />
                   </div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-700">
                     O/X
                   </span>
                 </div>
-                <div className="text-2xl font-black text-black">OX</div>
-                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">개념 판단이나 빠른 확인에 좋은 OX 문제</p>
-                <div className="mt-6 text-sm font-black text-amber-700">시작하기</div>
+                <div className="text-2xl font-extrabold text-slate-900">OX</div>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">개념 판단이나 빠른 확인에 좋은 OX 문제</p>
+                <div className="mt-6 text-sm font-bold text-amber-700">시작하기</div>
               </motion.button>
 
               <motion.button
                 whileHover={{ y: -3 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleCreateManual('MIXED')}
-                className="group min-h-56 rounded-lg border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-sky-300 hover:shadow-md"
+                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-sky-300 hover:shadow-md"
               >
                 <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-lg bg-sky-100 text-black">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-100 text-sky-600">
                     <Sparkles className="h-6 w-6" />
                   </div>
                   <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-sky-100 group-hover:text-black">
                     3종
                   </span>
                 </div>
-                <div className="text-2xl font-black text-black">혼합 유형</div>
-                <p className="mt-3 text-sm font-bold leading-6 text-slate-500">객관식, 단답형, OX 문제를 한 번에 추가합니다</p>
-                <div className="mt-6 text-sm font-black text-black">시작하기</div>
+                <div className="text-2xl font-extrabold text-slate-900">혼합 유형</div>
+                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">객관식·주관식·OX를 한 번에 추가</p>
+                <div className="mt-6 text-sm font-bold text-black">시작하기</div>
               </motion.button>
             </div>
           </div>
@@ -364,23 +369,23 @@ export default function CreateQuestionPage() {
           {/* AI 생성 버튼 */}
           {sourceType && (
             <div className="mb-8">
-              <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="mb-5 flex items-center gap-3">
-                  <div className="grid h-10 w-10 place-items-center rounded-lg bg-sky-100 text-black">
+                  <div className="grid h-10 w-10 place-items-center rounded-xl bg-sky-100 text-sky-600">
                     <Sparkles className="h-5 w-5" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black text-black">생성 조건</h2>
-                    <p className="text-sm font-bold text-slate-500">자료를 문제로 바꿀 때 사용할 기본값입니다.</p>
+                    <h2 className="text-lg font-extrabold text-slate-900">옵션</h2>
+                    <p className="text-sm font-medium text-slate-500">과목 · 학년 · 문제 수</p>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
-                    <label className="mb-2 block text-sm font-black text-slate-600">과목</label>
+                    <label className="mb-2 block text-sm font-semibold text-slate-600">과목</label>
                     <select
                       value={subject}
                       onChange={(e) => setSubject(e.target.value)}
-                      className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     >
                       <option value="">전체/해당없음</option>
                       <option value="국어">국어</option>
@@ -392,11 +397,11 @@ export default function CreateQuestionPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-black text-slate-600">대상 학년</label>
+                    <label className="mb-2 block text-sm font-semibold text-slate-600">대상 학년</label>
                     <select
                       value={grade}
                       onChange={(e) => setGrade(e.target.value)}
-                      className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     >
                       <option value="">전체/해당없음</option>
                       {TARGET_GRADE_OPTIONS.map((option) => (
@@ -405,7 +410,7 @@ export default function CreateQuestionPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="mb-2 block text-sm font-black text-slate-600">
+                    <label className="mb-2 block text-sm font-semibold text-slate-600">
                       {sourceType === 'exam' ? '최대 문제 수' : '생성 문제 수'}
                     </label>
                     <input
@@ -419,31 +424,31 @@ export default function CreateQuestionPage() {
                           setQuestionCount(nextValue)
                         }
                       }}
-                      className="h-11 w-full rounded-lg border border-slate-200 px-3 text-sm font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                      className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     />
-                    <p className="mt-1 text-xs font-bold text-slate-400">
-                      한 번에 최대 {MAX_AI_QUESTION_COUNT}문제까지 생성합니다.
+                    <p className="mt-1 text-xs font-medium text-slate-400">
+                      한 번에 최대 {MAX_AI_QUESTION_COUNT}문제
                     </p>
                   </div>
                 </div>
                 <Button
                   onClick={handleGenerate}
                   disabled={isGenerating}
-                  className="mt-5 h-12 w-full rounded-lg bg-black text-base font-black text-white shadow-sm hover:bg-neutral-800"
+                  className="mt-5 h-12 w-full rounded-xl bg-sky-500 text-base font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
                   size="lg"
                 >
                   {isGenerating
                     ? sourceType === 'exam'
-                      ? '시험지 분석 중...'
-                      : '문제 생성 중...'
+                      ? '시험지 분석 중…'
+                      : '문제 만드는 중…'
                     : sourceType === 'exam'
-                      ? '시험지에서 문제 추출하기'
-                      : '문제 생성하기'
+                      ? '시험지에서 문제 추출'
+                      : '문제 만들기'
                   }
                 </Button>
                 {sourceType === 'exam' && (
-                  <p className="mt-3 text-center text-xs font-bold text-slate-500">
-                    AI가 시험지를 읽고 문제를 추출합니다. 추출 후 검토 화면에서 수정할 수 있습니다.
+                  <p className="mt-3 text-center text-xs font-medium text-slate-500">
+                    AI가 시험지를 읽고 문제를 추출해요 · 추출 후 수정 가능
                   </p>
                 )}
               </div>

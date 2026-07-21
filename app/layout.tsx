@@ -4,6 +4,7 @@ import './globals.css'
 import { AudioProviderWrapper } from '@/components/AudioProviderWrapper'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ConfirmDialogProvider } from '@/components/ui/ConfirmDialog'
+import { Toaster } from '@/components/ui/Toaster'
 
 const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
@@ -214,6 +215,8 @@ export default function RootLayout({
         <AuthProvider>
           <ConfirmDialogProvider>
             <AudioProviderWrapper>{children}</AudioProviderWrapper>
+            {/* 앱 전역 토스트 — 학생 화면(로비/게임)에서도 동작해야 하므로 루트에 마운트 */}
+            <Toaster />
           </ConfirmDialogProvider>
         </AuthProvider>
       </body>

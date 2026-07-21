@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from '@/components/ui/Toaster'
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -72,6 +72,33 @@ function LobbyPage() {
     roomCode: step !== 'code' ? roomCode : '',
   })
 
+  // 같은 방 다른 친구들이 이미 고른 캐릭터(본인 제외) → 중복 선택 방지용
+  const takenCharacterIds = useMemo(() => {
+    const taken = new Set<string>()
+    for (const p of players) {
+      if (p.id === playerId) continue
+      const character = CHARACTERS.find((c) => c.imagePath === p.avatar)
+      if (character) taken.add(character.id)
+    }
+    // 학생 수가 캐릭터 수보다 많으면(전부 사용중) 더는 막지 않는다(아무도 못 고르는 상황 방지).
+    if (taken.size >= CHARACTERS.length) return new Set<string>()
+    return taken
+  }, [players, playerId])
+
+  // 캐릭터 변경 DB 반영 디바운스(빠르게 여러 번 눌러도 마지막 것만 저장 → 렉 방지)
+  const avatarSyncTimer = useRef<NodeJS.Timeout | null>(null)
+  useEffect(() => () => {
+    if (avatarSyncTimer.current) clearTimeout(avatarSyncTimer.current)
+  }, [])
+
+  // 입장 전 기본 미리보기 캐릭터가 이미 사용중이면, 비어있는 첫 캐릭터로 바꿔준다.
+  useEffect(() => {
+    if (isJoined || step !== 'character') return
+    if (!takenCharacterIds.has(selectedCharacter.id)) return
+    const firstAvailable = CHARACTERS.find((c) => !takenCharacterIds.has(c.id))
+    if (firstAvailable) setSelectedCharacter(firstAvailable)
+  }, [step, isJoined, takenCharacterIds, selectedCharacter.id])
+
   const { room, refreshRoom } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })
   const resyncLobby = useRoomResync(refreshRoom, refreshPlayers)
   const handleRoomEvent = (event: RoomChannelEvent) => {
@@ -137,7 +164,27 @@ function LobbyPage() {
   }
 
   const handleCharacterSelect = async (character: Character) => {
+    // 다른 친구가 이미 고른 캐릭터는 선택 불가
+    if (takenCharacterIds.has(character.id)) return
+
+    // 시각 반영은 즉시 (네트워크를 기다리지 않음)
     setSelectedCharacter(character)
+    const avatar = character.imagePath || character.emoji
+
+    // 이미 입장한 학생이 캐릭터만 바꾸는 경우:
+    // 방/닉네임 재검증 없이 가벼운 아바타 업데이트만 디바운스로 처리한다(렉 방지).
+    if (isJoined && playerId) {
+      const targetPlayerId = playerId
+      if (avatarSyncTimer.current) clearTimeout(avatarSyncTimer.current)
+      avatarSyncTimer.current = setTimeout(() => {
+        updatePlayer(targetPlayerId, { avatar })
+          .then(() => sendRoomEvent('room:snapshot-hint', { reason: 'player_updated' }))
+          .catch((err) => console.error('캐릭터 변경 실패:', formatServiceError(err)))
+      }, 300)
+      return
+    }
+
+    // 첫 입장: 이때만 방/닉네임을 검증하고 플레이어를 생성한다.
     try {
       const roomData = await getRoomByCode(roomCode)
       if (!roomData) {
@@ -153,19 +200,9 @@ function LobbyPage() {
       const nicknameCheck = filterNickname(nickname)
       const finalNickname = nicknameCheck.filtered || nickname.trim()
 
-      // 본인은 중복 검사에서 제외 (닉네임/캐릭터 변경 시 자기 자신과 충돌 방지)
       if (await nicknameExists(roomCode, finalNickname, playerId)) {
         setNicknameError('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         setStep('nickname')
-        return
-      }
-
-      const avatar = character.imagePath || character.emoji
-
-      // 이미 입장한 학생이 캐릭터/닉네임을 바꾸는 경우: 새로 만들지 않고 기존 플레이어 업데이트
-      if (isJoined && playerId) {
-        await updatePlayer(playerId, { nickname: finalNickname, avatar })
-        void sendRoomEvent('room:snapshot-hint', { reason: 'player_updated' })
         return
       }
 
@@ -361,7 +398,7 @@ function LobbyPage() {
                 <div className="md:col-span-2">
                   <PixelPanel label="🐾 캐릭터 선택" labelColor="#7B4FCC">
                     <div className="p-6 pt-8 max-h-[520px] overflow-y-auto">
-                      <CharacterSelector selectedCharacterId={selectedCharacter.id} onSelect={handleCharacterSelect} showCategories={false} />
+                      <CharacterSelector selectedCharacterId={selectedCharacter.id} onSelect={handleCharacterSelect} showCategories={false} takenCharacterIds={takenCharacterIds} />
                     </div>
                   </PixelPanel>
                 </div>

@@ -47,7 +47,7 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
     } else if (mode === 'battle_royale') {
         return <BattleRoyaleDashboard players={players} gameStartTime={room.started_at ? new Date(room.started_at).getTime() : undefined} />
     } else if (mode === 'cafe') {
-        return <CafeDashboard players={players} roomCode={room.room_code} gameStartTime={room.started_at ? new Date(room.started_at).getTime() : undefined} />
+        return <CafeDashboard players={players} roomCode={room.room_code} gameStartTime={room.started_at ? new Date(room.started_at).getTime() : undefined} duration={room.duration_seconds ?? undefined} />
     } else if (mode === 'poop_dodge') {
         return <PuppyChaosTeacherBoard room={room} players={players} events={events} />
     } else if (mode === 'fishing') {
