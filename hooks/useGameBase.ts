@@ -18,6 +18,15 @@ import { finishRoom } from '@/lib/services/rooms'
 import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
 import {
+    applyPlayerDelta,
+    stealPlayerResource,
+    swapPlayerColumns,
+    pickDeltaFields,
+    type PlayerDeltas,
+    type PlayerMaxes,
+    type DeltaColumn,
+} from '@/lib/services/playerMutations'
+import {
     checkQuestionAnswer,
     listQuestionsForGame,
     type GameQuestion,
@@ -222,6 +231,80 @@ export function useGameBase(options: UseGameBaseOptions) {
             throw error
         }
     }, [applyPlayerPatch, requestRoomResync, sendRoomEvent])
+
+    // 갱신된 권위 있는 행을 로컬 반영 + broadcast 한다.
+    // (라이브 전파는 postgres_changes가 아니라 player:patch broadcast로 이뤄지므로,
+    //  RPC가 돌려준 절대값을 broadcast 해야 모든 화면이 정합적으로 수렴한다.)
+    const broadcastAuthoritativeRow = useCallback((
+        row: Player,
+        columns: Array<keyof Player>,
+        reason: string,
+    ) => {
+        const patch = pickDeltaFields(row, columns) as PlayerPatch
+        applyPlayerPatch(row.id, patch)
+        void sendRoomEvent('player:patch', { playerId: row.id, patch, reason })
+    }, [applyPlayerPatch, sendRoomEvent])
+
+    /**
+     * 한 플레이어의 숫자 컬럼을 서버에서 원자적으로 "증분"한다 (Lost Update 방지).
+     * 절대값을 덮어쓰는 commitPlayerPatch 대신, 동시 공격/획득이 누적되어야 하는
+     * 모든 지점(공격 데미지, 골드 획득/손실, 힐, 자기장 등)에서 사용한다.
+     */
+    const commitPlayerDelta = useCallback(async (
+        targetPlayerId: string,
+        deltas: PlayerDeltas,
+        options: { reason?: string; maxes?: PlayerMaxes } = {},
+    ): Promise<Player | null> => {
+        const { reason = 'player_delta', maxes = {} } = options
+        try {
+            const row = await applyPlayerDelta(targetPlayerId, deltas, maxes)
+            broadcastAuthoritativeRow(row, Object.keys(deltas) as Array<keyof Player>, reason)
+            return row
+        } catch (error) {
+            requestRoomResync('manual')
+            throw error
+        }
+    }, [broadcastAuthoritativeRow, requestRoomResync])
+
+    /**
+     * 자원 훔치기(엘프/마법사/점수강탈)를 원자적으로 처리한다.
+     * 피해자 실제 보유량까지만 이동해 총량이 보존된다.
+     */
+    const commitPlayerSteal = useCallback(async (
+        victimId: string,
+        thiefId: string,
+        amount: number,
+        columns: DeltaColumn[],
+        reason = 'player_steal',
+    ): Promise<Player[]> => {
+        try {
+            const rows = await stealPlayerResource(victimId, thiefId, amount, columns)
+            rows.forEach((row) => broadcastAuthoritativeRow(row, columns as Array<keyof Player>, reason))
+            return rows
+        } catch (error) {
+            requestRoomResync('manual')
+            throw error
+        }
+    }, [broadcastAuthoritativeRow, requestRoomResync])
+
+    /**
+     * 두 플레이어의 지정 컬럼을 원자적으로 맞교환한다 (골드퀘스트 KING).
+     */
+    const commitPlayerSwap = useCallback(async (
+        playerAId: string,
+        playerBId: string,
+        columns: DeltaColumn[],
+        reason = 'player_swap',
+    ): Promise<Player[]> => {
+        try {
+            const rows = await swapPlayerColumns(playerAId, playerBId, columns)
+            rows.forEach((row) => broadcastAuthoritativeRow(row, columns as Array<keyof Player>, reason))
+            return rows
+        } catch (error) {
+            requestRoomResync('manual')
+            throw error
+        }
+    }, [broadcastAuthoritativeRow, requestRoomResync])
 
     // ─── 기존 데이터 복구 (새로고침 방어) ───
     useEffect(() => {
@@ -659,6 +742,9 @@ export function useGameBase(options: UseGameBaseOptions) {
         requestRoomResync,
         applyPlayerPatch,
         commitPlayerPatch,
+        commitPlayerDelta,
+        commitPlayerSteal,
+        commitPlayerSwap,
 
         // 유틸
         isAllQuestionsAnswered,

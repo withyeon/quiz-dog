@@ -1,5 +1,6 @@
 'use client'
 
+import { notify } from '@/components/ui/Toast'
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -33,11 +34,17 @@ import {
   updateRoomGameMode,
 } from '@/lib/services/rooms'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
+import { listQuestionSetsWithCounts, type QuestionSetSummary } from '@/lib/services/questionSets'
 import { getPlayerDisplayNickname, isAvatarPath } from '@/lib/utils/playerDisplay'
 
 export default function TeacherDashboard() {
   const router = useRouter()
   const [roomCode, setRoomCode] = useState('')
+  // 게임 시작에 쓸 문제집 — 예전에는 URL(?set=)로만 받아서 대시보드에서 고를 방법이 없었다.
+  const [questionSets, setQuestionSets] = useState<QuestionSetSummary[]>([])
+  const [selectedSetId, setSelectedSetId] = useState<string>('')
+  const [setsLoading, setSetsLoading] = useState(true)
+  const [setsError, setSetsError] = useState<string | null>(null)
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
   const [showLargeQrModal, setShowLargeQrModal] = useState(false)
@@ -67,6 +74,13 @@ export default function TeacherDashboard() {
   })
   const roomStatus = room?.status
   const activeModeConfig = getGameModeConfig(gameMode)
+  // 현재 방(또는 선택된) 문제집 제목 — 대기방에서 어떤 문제집인지 확인용
+  const activeSetLabel = useMemo(() => {
+    const activeId = room?.set_id || selectedSetId
+    if (!activeId) return null
+    const found = questionSets.find((set) => set.id === activeId)
+    return found ? `${found.title} (${found.question_count}문제)` : null
+  }, [room?.set_id, selectedSetId, questionSets])
   const activeBgmTrack = useMemo(() => ({
     id: activeModeConfig.id,
     title: activeModeConfig.bgm.title,
@@ -376,6 +390,35 @@ export default function TeacherDashboard() {
     }
   }
 
+  // 문제집 목록 로드 (대시보드에서 바로 고를 수 있도록)
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setSetsLoading(true)
+      setSetsError(null)
+      try {
+        const sets = await listQuestionSetsWithCounts()
+        if (cancelled) return
+        const usable = sets.filter((set) => (set.question_count ?? 0) > 0)
+        setQuestionSets(usable)
+
+        // URL(?set=)로 들어온 경우 우선 선택, 없으면 첫 문제집
+        const fromUrl = new URLSearchParams(window.location.search).get('set')
+        setSelectedSetId((prev) => {
+          if (prev) return prev
+          if (fromUrl && usable.some((set) => set.id === fromUrl)) return fromUrl
+          return usable[0]?.id ?? ''
+        })
+      } catch (error) {
+        if (!cancelled) setSetsError(formatServiceError(error))
+      } finally {
+        if (!cancelled) setSetsLoading(false)
+      }
+    }
+    void load()
+    return () => { cancelled = true }
+  }, [])
+
   // 새 게임 생성 (랜덤 코드 생성)
   const handleCreateGame = async () => {
     playSFX('click')
@@ -383,18 +426,22 @@ export default function TeacherDashboard() {
     // Supabase 설정 확인
     const configCheck = checkSupabaseConfig()
     if (!configCheck.isValid) {
-      alert(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.')
+      notify(configCheck.error || 'Supabase 환경 변수가 설정되지 않았습니다.', 'error')
       return
     }
 
-    // URL에서 set_id 가져오기
-    const params = new URLSearchParams(window.location.search)
-    const setId = params.get('set')
+    // 대시보드에서 고른 문제집을 우선 사용하고, 없으면 URL(?set=)을 폴백으로 쓴다.
+    const setId = selectedSetId || new URLSearchParams(window.location.search).get('set')
 
     try {
       if (activeModeConfig.requiresQuestionSet) {
         if (!setId) {
-          alert('이 게임은 문제집이 필요합니다. 문제집을 선택한 뒤 새 게임을 만들어주세요.')
+          notify(
+            questionSets.length === 0
+              ? '아직 사용할 수 있는 문제집이 없어요. 먼저 문제집을 만들어주세요.'
+              : '이 게임은 문제집이 필요합니다. 위에서 문제집을 선택해주세요.',
+            'info',
+          )
           return
         }
         playBGM('game', activeBgmTrack)
@@ -421,7 +468,7 @@ export default function TeacherDashboard() {
         userMessage += `\n\n(요청한 Set ID: ${setId})`
       }
 
-      alert(userMessage)
+      notify(userMessage, 'info')
     }
   }
 
@@ -436,7 +483,7 @@ export default function TeacherDashboard() {
       const startedAt = new Date().toISOString()
       if (activeModeConfig.requiresQuestionSet) {
         if (!setId) {
-          alert('이 방에는 문제집이 연결되어 있지 않습니다. 문제집을 선택해 새 게임을 만들어주세요.')
+          notify('이 방에는 문제집이 연결되어 있지 않습니다. 문제집을 선택해 새 게임을 만들어주세요.', 'info')
           return
         }
         await assertQuestionSetHasQuestions(setId)
@@ -460,7 +507,7 @@ export default function TeacherDashboard() {
       playBGM('game', activeBgmTrack)
     } catch (error) {
       console.error('Error starting game:', error)
-      alert('게임 시작에 실패했습니다: ' + formatServiceError(error))
+      notify('게임 시작에 실패했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
@@ -516,7 +563,7 @@ export default function TeacherDashboard() {
       router.push(`/teacher/game/${roomCode}/end`)
     } catch (error) {
       console.error('Error ending game:', error)
-      alert('게임 종료에 실패했습니다: ' + formatServiceError(error))
+      notify('게임 종료에 실패했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
@@ -540,7 +587,7 @@ export default function TeacherDashboard() {
       pauseBGM()
     } catch (error) {
       console.error('Error pausing game:', error)
-      alert('게임 일시정지에 실패했습니다: ' + formatServiceError(error))
+      notify('게임 일시정지에 실패했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
@@ -559,7 +606,7 @@ export default function TeacherDashboard() {
       playBGM('game', activeBgmTrack)
     } catch (error) {
       console.error('Error resuming game:', error)
-      alert('게임 재개에 실패했습니다: ' + formatServiceError(error))
+      notify('게임 재개에 실패했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
@@ -579,10 +626,10 @@ export default function TeacherDashboard() {
 
       setIsGameStarted(false)
       stopBGM()
-      alert('게임이 초기화되었습니다.')
+      notify('게임이 초기화되었습니다.', 'success')
     } catch (error) {
       console.error('Error resetting game:', error)
-      alert('게임 초기화에 실패했습니다: ' + formatServiceError(error))
+      notify('게임 초기화에 실패했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
@@ -590,10 +637,10 @@ export default function TeacherDashboard() {
     if (!inviteUrl) return
     try {
       await navigator.clipboard.writeText(inviteUrl)
-      alert('초대 링크가 복사되었습니다.')
+      notify('초대 링크가 복사되었습니다.', 'success')
     } catch (error) {
       console.error('초대 링크 복사 실패:', error)
-      alert('복사에 실패했습니다. 링크를 직접 복사해주세요.')
+      notify('복사에 실패했습니다. 링크를 직접 복사해주세요.', 'success')
     }
   }
 
@@ -684,6 +731,12 @@ export default function TeacherDashboard() {
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-sky-50">
                     <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-black">참가자 {players.length}명</span>
+                    {/* 어떤 문제집으로 시작했는지 확인할 수 있게 표시 — 엉뚱한 문제집으로 수업을 시작하는 사고 방지 */}
+                    {activeSetLabel && (
+                      <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-black">
+                        📖 {activeSetLabel}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -838,14 +891,69 @@ export default function TeacherDashboard() {
             </div>
           </div>
         ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-600 mb-6 text-lg font-medium">게임을 시작하려면 아래 버튼을 클릭하세요</p>
-            <button
-              onClick={handleCreateGame}
-              className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-black text-white shadow-lg shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-sky-200"
-            >
-              게임 시작하기
-            </button>
+          <div className="py-12">
+            {/* 문제집 선택 — 예전에는 URL(?set=)로만 지정할 수 있어서
+                대시보드에서 바로 게임을 시작할 방법이 없었다. */}
+            {activeModeConfig.requiresQuestionSet && (
+              <div className="mx-auto mb-8 max-w-xl text-left">
+                <label htmlFor="dashboard-set-select" className="mb-2 block text-sm font-black text-gray-700">
+                  문제집 선택
+                </label>
+
+                {setsLoading ? (
+                  <div className="rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-500">
+                    문제집을 불러오는 중...
+                  </div>
+                ) : setsError ? (
+                  <div className="rounded-xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
+                    문제집을 불러오지 못했어요: {setsError}
+                  </div>
+                ) : questionSets.length === 0 ? (
+                  <div className="rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-4 text-sm font-semibold text-amber-900">
+                    <p className="mb-3">아직 문항이 있는 문제집이 없어요. 먼저 문제집을 만들어주세요.</p>
+                    <button
+                      onClick={() => router.push('/teacher/create')}
+                      className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-black text-white transition hover:bg-amber-600"
+                    >
+                      문제집 만들러 가기
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <select
+                      id="dashboard-set-select"
+                      value={selectedSetId}
+                      onChange={(e) => setSelectedSetId(e.target.value)}
+                      className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-100"
+                    >
+                      {questionSets.map((set) => (
+                        <option key={set.id} value={set.id}>
+                          {set.title} ({set.question_count}문제)
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-2 text-xs font-semibold text-gray-500">
+                      학생들이 풀게 될 문제집이에요. 총 {questionSets.length}개 중에서 고를 수 있어요.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="text-center">
+              <p className="mb-6 text-lg font-medium text-gray-600">
+                {activeModeConfig.requiresQuestionSet && !selectedSetId
+                  ? '문제집을 선택하면 게임을 시작할 수 있어요'
+                  : '게임을 시작하려면 아래 버튼을 클릭하세요'}
+              </p>
+              <button
+                onClick={handleCreateGame}
+                disabled={activeModeConfig.requiresQuestionSet && !selectedSetId}
+                className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-black text-white shadow-lg shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
+              >
+                게임 시작하기
+              </button>
+            </div>
           </div>
         )}
       </div>

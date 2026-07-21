@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAsync } from '@/components/ui/ConfirmDialog'
+import { notify } from '@/components/ui/Toast'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, Reorder } from 'framer-motion'
@@ -62,7 +64,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
       setQuestions(loadedQuestions)
     } catch (error) {
       console.error('Error loading questions:', error)
-      alert('문제를 불러오는데 실패했습니다.')
+      notify('문제를 불러오는데 실패했습니다.', 'error')
     } finally {
       setLoading(false)
     }
@@ -76,17 +78,17 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
 
   const handleSaveSetInfo = async () => {
     try {
-      if (!setName.trim()) { alert('문제집 이름을 입력하세요.'); return }
+      if (!setName.trim()) { notify('문제집 이름을 입력하세요.', 'info'); return }
       await updateQuestionSetMetadata(setId, {
         title: setName.trim(),
         subject,
         grade,
       })
       setIsEditingInfo(false)
-      alert('문제집 정보가 저장되었습니다.')
+      notify('문제집 정보가 저장되었습니다.', 'success')
     } catch (e) {
       console.error(e)
-      alert('문제집 정보 저장 중 오류가 발생했습니다.')
+      notify('문제집 정보 저장 중 오류가 발생했습니다.', 'error')
     }
   }
 
@@ -97,23 +99,29 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
     try {
       await updateQuestionRecord(question.id, question)
       setEditingIndex(null)
-      alert('문제가 저장되었습니다.')
+      notify('문제가 저장되었습니다.', 'success')
     } catch (error) {
       console.error('Error saving question:', error)
-      alert('문제 저장에 실패했습니다: ' + formatServiceError(error))
+      notify('문제 저장에 실패했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
   const handleDeleteQuestion = async (id: string) => {
-    if (!confirm('정말 이 문제를 삭제하시겠습니까?')) return
+    const ok = await confirmAsync({
+      title: '이 문제를 삭제할까요?',
+      message: '삭제하면 되돌릴 수 없어요.',
+      confirmLabel: '삭제하기',
+      destructive: true,
+    })
+    if (!ok) return
 
     try {
       await deleteQuestionRecord(id)
       setQuestions(questions.filter(q => q.id !== id))
-      alert('문제가 삭제되었습니다.')
+      notify('문제가 삭제되었습니다.', 'success')
     } catch (error) {
       console.error('Error deleting question:', error)
-      alert('문제 삭제에 실패했습니다.')
+      notify('문제 삭제에 실패했습니다.', 'error')
     }
   }
 
@@ -124,10 +132,10 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
       const createdQuestion = await createQuestionInSet(setId, newQuestion)
       setQuestions([...questions, createdQuestion])
       setNewQuestion(null)
-      alert('문제가 추가되었습니다.')
+      notify('문제가 추가되었습니다.', 'success')
     } catch (error) {
       console.error('Error adding question:', error)
-      alert('문제 추가에 실패했습니다: ' + formatServiceError(error))
+      notify('문제 추가에 실패했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
@@ -136,10 +144,10 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
       const copiedQuestions = await copyQuestionsIntoSet(setId, selectedQs)
       setQuestions([...questions, ...copiedQuestions])
       setIsMergeModalOpen(false)
-      alert(`${copiedQuestions.length}개의 문제를 성공적으로 가져왔습니다!`)
+      notify(`${copiedQuestions.length}개의 문제를 성공적으로 가져왔습니다!`, 'success')
     } catch (err) {
       console.error(err)
-      alert('문제를 가져오는 중 오류가 발생했습니다: ' + formatServiceError(err))
+      notify('문제를 가져오는 중 오류가 발생했습니다: ' + formatServiceError(err), 'error')
     }
   }
 

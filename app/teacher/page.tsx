@@ -1,5 +1,7 @@
 'use client'
 
+import { confirmAsync } from '@/components/ui/ConfirmDialog'
+import { notify } from '@/components/ui/Toast'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -95,11 +97,11 @@ function TeacherPageContent() {
   const handleCopyLikedSet = async (setId: string) => {
     try {
       await copyQuestionSetFromQuestionsOnly(setId)
-      alert('내 문제집에 담았습니다.')
+      notify('내 문제집에 담았습니다.', 'success')
       void loadQuestionSets()
     } catch (error) {
       console.error('Error copying liked question set:', error)
-      alert('문제집을 담지 못했습니다: ' + formatServiceError(error))
+      notify('문제집을 담지 못했습니다: ' + formatServiceError(error), 'error')
     }
   }
 
@@ -111,24 +113,30 @@ function TeacherPageContent() {
   const handleDuplicate = async (set: QuestionSet) => {
     try {
       await duplicateQuestionSet(set.id, `${set.title} (복사본)`)
-      alert('문제집이 복제되었습니다!')
+      notify('문제집이 복제되었습니다!', 'success')
       loadQuestionSets()
     } catch (error) {
       console.error('Error duplicating question set:', error)
-      alert('복제에 실패했습니다.')
+      notify('복제에 실패했습니다.', 'error')
     }
   }
 
   const handleDelete = async (setId: string) => {
-    if (!confirm('정말 이 문제집을 삭제하시겠습니까?')) return
+    const ok = await confirmAsync({
+      title: '문제집을 삭제할까요?',
+      message: '삭제하면 되돌릴 수 없어요. 이 문제집의 문제도 함께 사라집니다.',
+      confirmLabel: '삭제하기',
+      destructive: true,
+    })
+    if (!ok) return
 
     try {
       await deleteQuestionSet(setId)
-      alert('문제집이 삭제되었습니다.')
+      notify('문제집이 삭제되었습니다.', 'success')
       loadQuestionSets()
     } catch (error) {
       console.error('Error deleting question set:', error)
-      alert('삭제에 실패했습니다.')
+      notify('삭제에 실패했습니다.', 'error')
     }
   }
 

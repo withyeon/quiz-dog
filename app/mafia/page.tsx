@@ -41,6 +41,8 @@ export default function MafiaPage() {
     checkAnswer,
     goToNextQuestion,
     commitPlayerPatch,
+    commitPlayerDelta,
+    commitPlayerSteal,
     sendRoomEvent,
   } = useGameBase({ expectedGameMode: 'mafia', preStartQuizTotal: 0 })
 
@@ -183,6 +185,8 @@ export default function MafiaPage() {
               checkAnswer={checkAnswer}
               goToNextQuestion={goToNextQuestion}
               commitPlayerPatch={commitPlayerPatch}
+              commitPlayerDelta={commitPlayerDelta}
+              commitPlayerSteal={commitPlayerSteal}
               sendRoomEvent={sendRoomEvent}
               playSFX={playSFX}
             />

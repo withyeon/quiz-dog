@@ -11,7 +11,7 @@ const PRIMARY_COLOR = '#4FC3F7'
 interface GameData {
     name: string
     emoji: string
-    videoSrc?: string   // /videos/gold-quest.mp4 등 넣으면 자동 재생
+    videoSrc?: string   // 예: '/main/mp4/gold-quest.mp4' — 넣으면 자동 재생, 없으면 imageSrc 사용
     imageSrc: string    // 동영상 없을 때 폴백 이미지
     titleImageSrc?: string
     keywords: string[]
@@ -24,7 +24,7 @@ const games: GameData[] = [
     {
         name: '타워 디펜스',
         emoji: '🏰',
-        videoSrc: '/main/mp4/tower-defense.mov',
+        videoSrc: '/main/mp4/tower-defense.mp4',
         imageSrc: '/title/tower-defense.svg',
         titleImageSrc: '/title/tower-defense.svg',
         keywords: ['🏰 타워 설치', '⚔️ 적 격파', '🧠 전략 배치', '🛡️ 라운드 방어'],
@@ -35,7 +35,7 @@ const games: GameData[] = [
     {
         name: '해적왕의 보물찾기',
         emoji: '🏴‍☠️',
-        videoSrc: '/main/mp4/gold-quest.mov',
+        videoSrc: '/main/mp4/gold-quest.mp4',
         imageSrc: '/title/gold-quest.svg',
         titleImageSrc: '/title/gold-quest.svg',
         keywords: ['💰 골드 수집', '⚔️ 실시간 대결', '🗺️ 맵 탐험', '🏆 최고 부자 우승'],
@@ -364,6 +364,8 @@ function VideoOrImage({ game }: { game: GameData }) {
                 loop
                 muted
                 playsInline
+                preload="metadata"
+                poster={game.imageSrc}
                 className="absolute inset-0 w-full h-full object-cover"
                 onError={() => {
                     setHasVideoError(true)

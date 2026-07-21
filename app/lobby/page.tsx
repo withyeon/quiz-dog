@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useToast } from '@/components/ui/Toast'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomResync } from '@/hooks/useRoomResync'
@@ -36,6 +37,7 @@ export default function LobbyPageWrapper() {
 function LobbyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { showToast } = useToast()
   const [step, setStep] = useState<LobbyStep>('code')
   const [roomCode, setRoomCode] = useState('')
   const [nickname, setNickname] = useState('')
@@ -44,6 +46,8 @@ function LobbyPage() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(CHARACTERS[0])
   const [minigameScore, setMinigameScore] = useState(0)
   const [isCheckingRoom, setIsCheckingRoom] = useState(false)
+  const [codeError, setCodeError] = useState<string | null>(null)
+  const [nicknameError, setNicknameError] = useState<string | null>(null)
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [tutorialGameMode, setTutorialGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
@@ -55,12 +59,12 @@ function LobbyPage() {
       setIsCheckingRoom(true)
       getRoomByCode(code).then((roomData) => {
         if (!roomData || isTerminalRoomStatus(roomData.status)) {
-          alert(roomData ? '이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.' : '이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+          setCodeError(roomData ? '이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.' : '이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
         } else {
           setStep('nickname')
         }
       }).catch(() => {
-        alert('방 확인에 실패했어요. 인터넷 연결을 확인해주세요.')
+        setCodeError('방 확인에 실패했어요. 인터넷 연결을 확인해주세요.')
       }).finally(() => setIsCheckingRoom(false))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -100,8 +104,9 @@ function LobbyPage() {
   }, [room?.status, step, roomCode, playerId, room?.game_mode, router])
 
   const handleCodeSubmit = async () => {
+    setCodeError(null)
     if (!roomCode.trim() || roomCode.length !== 6) {
-      alert('6자리 게임 코드를 입력해주세요.')
+      setCodeError('6자리 게임 코드를 입력해주세요.')
       return
     }
     setIsCheckingRoom(true)
@@ -109,25 +114,26 @@ function LobbyPage() {
       const roomData = await getRoomByCode(roomCode)
 
       if (!roomData) {
-        alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        setCodeError('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
         return
       }
       if (isTerminalRoomStatus(roomData.status)) {
-        alert('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
+        setCodeError('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
         return
       }
       setStep('nickname')
     } catch {
-      alert('방 확인에 실패했어요. 인터넷 연결을 확인해주세요.')
+      setCodeError('방 확인에 실패했어요. 인터넷 연결을 확인해주세요.')
     } finally {
       setIsCheckingRoom(false)
     }
   }
 
   const handleNicknameSubmit = () => {
-    if (!nickname.trim()) { alert('닉네임을 입력해주세요.'); return }
+    setNicknameError(null)
+    if (!nickname.trim()) { setNicknameError('닉네임을 입력해주세요.'); return }
     const check = filterNickname(nickname)
-    if (!check.isValid) { alert('닉네임에 부적절한 단어가 포함되어 있습니다. (최대 20자)'); return }
+    if (!check.isValid) { setNicknameError('사용할 수 없는 닉네임이에요. 다른 이름을 써주세요. (최대 20자)'); return }
     setStep('character')
   }
 
@@ -136,12 +142,12 @@ function LobbyPage() {
     try {
       const roomData = await getRoomByCode(roomCode)
       if (!roomData) {
-        alert('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        setCodeError('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
         setStep('code')
         return
       }
       if (isTerminalRoomStatus(roomData.status)) {
-        alert('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
+        setCodeError('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
         setStep('code')
         return
       }
@@ -150,7 +156,7 @@ function LobbyPage() {
 
       // 본인은 중복 검사에서 제외 (닉네임/캐릭터 변경 시 자기 자신과 충돌 방지)
       if (await nicknameExists(roomCode, finalNickname, playerId)) {
-        alert('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
+        setNicknameError('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         setStep('nickname')
         return
       }
@@ -180,7 +186,7 @@ function LobbyPage() {
       }
     } catch (err) {
       console.error('Error joining room:', err)
-      alert('방 입장에 실패했습니다: ' + formatServiceError(err))
+      showToast('방 입장에 실패했어요: ' + formatServiceError(err), 'error')
     }
   }
 
@@ -251,7 +257,7 @@ function LobbyPage() {
                     <PixelInput
                       type="text"
                       value={roomCode}
-                      onChange={(e) => setRoomCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                      onChange={(e) => { setCodeError(null); setRoomCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6)) }}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !isCheckingRoom) handleCodeSubmit() }}
                       placeholder="000000"
                       maxLength={6}
@@ -262,6 +268,16 @@ function LobbyPage() {
                       {isCheckingRoom ? '⏳' : '→'}
                     </PixelBtn>
                   </div>
+
+                  {codeError && (
+                    <p
+                      role="alert"
+                      className="mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 text-sm font-black text-rose-700"
+                      style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
+                    >
+                      {codeError}
+                    </p>
+                  )}
 
                   <PixelBtn color="green" onClick={handleCodeSubmit} disabled={isCheckingRoom} className="w-full text-lg py-4">
                     {isCheckingRoom ? '⏳ 확인 중...' : '🚪 입장하기'}
@@ -297,7 +313,7 @@ function LobbyPage() {
                     <PixelInput
                       type="text"
                       value={nickname}
-                      onChange={(e) => setNickname(e.target.value.slice(0, 20))}
+                      onChange={(e) => { setNicknameError(null); setNickname(e.target.value.slice(0, 20)) }}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleNicknameSubmit() }}
                       placeholder="닉네임"
                       maxLength={20}
@@ -307,6 +323,16 @@ function LobbyPage() {
                     />
                     <PixelBtn color="blue" onClick={handleNicknameSubmit} className="text-xl px-5 py-4">→</PixelBtn>
                   </div>
+
+                  {nicknameError && (
+                    <p
+                      role="alert"
+                      className="-mt-3 mb-5 rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 text-sm font-black text-rose-700"
+                      style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
+                    >
+                      {nicknameError}
+                    </p>
+                  )}
 
                   {nickname && !filterNickname(nickname).isValid && (
                     <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-500 text-sm mb-4 font-black" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>

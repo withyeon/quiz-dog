@@ -1,5 +1,6 @@
 'use client'
 
+import { notify } from '@/components/ui/Toast'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -47,19 +48,19 @@ export default function CreateQuestionPage() {
 
   const handleGenerate = async () => {
     if (sourceType === 'topic' && !topic.trim()) {
-      alert('주제를 입력해주세요.')
+      notify('주제를 입력해주세요.', 'info')
       return
     }
     if (sourceType === 'youtube' && !youtubeUrl.trim()) {
-      alert('유튜브 URL을 입력해주세요.')
+      notify('유튜브 URL을 입력해주세요.', 'info')
       return
     }
     if (sourceType === 'file' && !file) {
-      alert('파일을 선택해주세요.')
+      notify('파일을 선택해주세요.', 'info')
       return
     }
     if (sourceType === 'exam' && !examFile) {
-      alert('시험지 파일을 선택해주세요.')
+      notify('시험지 파일을 선택해주세요.', 'info')
       return
     }
 
@@ -102,7 +103,7 @@ export default function CreateQuestionPage() {
     } catch (error) {
       console.error('Error generating questions:', error)
       const errorMessage = formatServiceError(error)
-      alert(`문제 생성에 실패했습니다: ${errorMessage}`)
+      notify(`문제 생성에 실패했습니다: ${errorMessage}`, 'error')
     } finally {
       setIsGenerating(false)
     }
@@ -112,33 +113,33 @@ export default function CreateQuestionPage() {
     if (isSaving) return
 
     if (!setName.trim()) {
-      alert('문제집 이름을 입력해주세요.')
+      notify('문제집 이름을 입력해주세요.', 'info')
       return
     }
     if (!subject) {
-      alert('과목을 선택해주세요.')
+      notify('과목을 선택해주세요.', 'info')
       return
     }
     if (!grade) {
-      alert('대상 학년을 선택해주세요.')
+      notify('대상 학년을 선택해주세요.', 'info')
       return
     }
 
     const nameCheck = filterNickname(setName)
     if (!nameCheck.isValid) {
-      alert('문제집 이름에 부적절한 단어가 포함되어 있습니다.')
+      notify('문제집 이름에 부적절한 단어가 포함되어 있습니다.', 'info')
       return
     }
 
     const supabaseCheck = checkSupabaseConfig()
     if (!supabaseCheck.isValid) {
-      alert(`Supabase 연결 오류: ${supabaseCheck.error}`)
+      notify(`Supabase 연결 오류: ${supabaseCheck.error}`, 'error')
       return
     }
 
     const connectionTest = await testSupabaseConnection()
     if (!connectionTest.success) {
-      alert(`Supabase 연결 실패: ${connectionTest.error}\n\n환경 변수를 확인하고 개발 서버를 재시작해주세요.`)
+      notify(`Supabase 연결 실패: ${connectionTest.error}\n\n환경 변수를 확인하고 개발 서버를 재시작해주세요.`, 'error')
       return
     }
 
@@ -154,12 +155,12 @@ export default function CreateQuestionPage() {
         questions: generatedQuestions,
       })
 
-      alert('문제가 저장되었습니다!')
+      notify('문제가 저장되었습니다!', 'success')
       router.push('/teacher')
     } catch (error) {
       console.error('Error saving questions:', error)
       const errorMessage = formatServiceError(error)
-      alert(`문제 저장에 실패했습니다: ${errorMessage}`)
+      notify(`문제 저장에 실패했습니다: ${errorMessage}`, 'error')
     } finally {
       setIsSaving(false)
     }

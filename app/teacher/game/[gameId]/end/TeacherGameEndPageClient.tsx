@@ -1,5 +1,6 @@
 'use client'
 
+import { notify } from '@/components/ui/Toast'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import TeacherEndSequence from '@/components/results/TeacherEndSequence'
@@ -94,7 +95,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
       router.replace(`/teacher/dashboard?room=${encodeURIComponent(room.room_code)}`)
     } catch (error) {
       console.error('Error restarting game:', error)
-      alert('다시 시작에 실패했습니다: ' + formatServiceError(error))
+      notify('다시 시작에 실패했습니다: ' + formatServiceError(error), 'error')
       setIsRestarting(false)
     }
   }

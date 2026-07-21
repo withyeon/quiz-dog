@@ -43,6 +43,7 @@ type ZombieViewProps = {
   onGameEnd?: () => void
   onFinishRoom: () => Promise<boolean>
   onPlayerPatch: (playerId: string, patch: Record<string, unknown>, reason: string) => void
+  onZombieAttack: (zombieId: string, targetId: string, damage: number) => Promise<void>
 }
 
 function addLog(logs: ZombieGameLog[], message: string, type: ZombieGameLog['type'] = 'info'): ZombieGameLog[] {
@@ -68,6 +69,7 @@ export default function ZombieView({
   onNextQuestion,
   onFinishRoom,
   onPlayerPatch,
+  onZombieAttack,
 }: ZombieViewProps) {
   const startedAtMs = roomStartedAt ? new Date(roomStartedAt).getTime() : null
   const totalDurationSec = roomDurationSeconds ?? GAME_CONSTANTS.GAME_DURATION
@@ -206,9 +208,12 @@ export default function ZombieView({
       return
     }
 
+    // 로컬 result는 공격자 화면의 즉시 연출(로그/감염 애니메이션)에만 쓰고,
+    // 실제 DB 반영·전파는 서버 원자 RPC가 담당한다 (동시 공격 데미지 누적 + 감염 정합성).
     const result = zombieAttack(myPlayer, target)
-    commitZombiePlayer(result.newZombie, 'zombie_attack_actor')
-    commitZombiePlayer(result.newTarget, 'zombie_attack_target')
+    void onZombieAttack(myPlayer.id, target.id, myPlayer.attackPower).catch((error) => {
+      console.error('좀비 공격 처리 실패:', error)
+    })
     setLastAttackResult({
       targetId,
       damage: myPlayer.attackPower,

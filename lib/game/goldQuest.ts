@@ -1,9 +1,19 @@
 import type { Database } from '@/types/database.types'
-import { updatePlayer } from '@/lib/services/players'
 
 type Player = Database['public']['Tables']['players']['Row']
-type PlayerPatch = Partial<Player> & Record<string, unknown>
-type PlayerPatchUpdater = (playerId: string, patch: PlayerPatch) => Promise<void>
+
+/**
+ * 원자적 골드/점수 변경 어댑터.
+ * 절대값 덮어쓰기(Lost Update) 대신 서버측 증분/훔치기/교환으로 처리한다.
+ */
+export interface GoldQuestMutator {
+  /** 한 플레이어의 gold/score를 원자적으로 증분 (음수면 감소, 0 미만 clamp). */
+  delta: (playerId: string, deltas: { gold?: number; score?: number }, reason?: string) => Promise<void>
+  /** thief가 victim의 gold(및 동일 score)를 amount만큼 원자적으로 강탈 (총량 보존). */
+  steal: (victimId: string, thiefId: string, amount: number, reason?: string) => Promise<void>
+  /** 두 플레이어의 gold/score를 원자적으로 맞교환. */
+  swap: (aId: string, bId: string, reason?: string) => Promise<void>
+}
 
 export type BoxEventType = 
   | 'GOLD_STACK'          // 골드 스택 (10, 20, 30, 40, 50, 100)
@@ -108,14 +118,16 @@ export function generateBoxEvent(
 
 
 /**
- * BoxEvent를 적용하여 플레이어 점수 업데이트
+ * BoxEvent를 적용하여 플레이어 점수 업데이트.
+ * 모든 변경은 서버측 원자 연산(mutator)으로 처리해 동시 상자 개봉/강탈 시
+ * Lost Update(골드 증발·복제)를 방지한다.
  */
 export async function applyBoxEvent(
   event: BoxEvent,
   currentPlayerId: string,
   currentPlayer: Player,
   targetPlayer: Player | null,
-  updatePlayerPatch: PlayerPatchUpdater = updatePlayer,
+  mutator: GoldQuestMutator,
 ): Promise<void> {
   switch (event.type) {
     case 'GOLD_STACK':
@@ -123,60 +135,30 @@ export async function applyBoxEvent(
     case 'UNICORN':
       // 골드 추가 (스택/광대 2배/유니콘 3배 — value로 결정됨)
       if (event.value !== undefined) {
-        await updatePlayerPatch(currentPlayerId, {
-          gold: currentPlayer.gold + event.value,
-          score: currentPlayer.score + event.value,
-        })
+        await mutator.delta(currentPlayerId, { gold: event.value, score: event.value }, 'gold_quest_gain')
       }
       break
 
     case 'SLIME_MONSTER':
     case 'DRAGON':
-      // 골드 손실 (슬라임 25%/드래곤 50% — value로 결정됨)
+      // 골드 손실 (슬라임 25%/드래곤 50% — value로 결정됨). 서버에서 0 미만 clamp.
       if (event.value !== undefined) {
-        await updatePlayerPatch(currentPlayerId, {
-          gold: Math.max(currentPlayer.gold - event.value, 0),
-          score: Math.max(currentPlayer.score - event.value, 0),
-        })
+        await mutator.delta(currentPlayerId, { gold: -event.value, score: -event.value }, 'gold_quest_loss')
       }
       break
 
     case 'KING':
-      // 왕: 골드 교환 (Swap)
+      // 왕: 골드/점수 원자적 교환 (Swap)
       if (event.targetPlayerId && targetPlayer) {
-        // 두 플레이어의 점수와 Gold 교환
-        const tempScore = currentPlayer.score
-        const tempGold = currentPlayer.gold
-
-        await Promise.all([
-          updatePlayerPatch(currentPlayerId, {
-            score: targetPlayer.score,
-            gold: targetPlayer.gold,
-          }),
-          updatePlayerPatch(event.targetPlayerId, {
-            score: tempScore,
-            gold: tempGold,
-          }),
-        ])
+        await mutator.swap(currentPlayerId, event.targetPlayerId, 'gold_quest_swap')
       }
       break
 
     case 'ELF':
     case 'WIZARD':
-      // 엘프/마법사: 골드 훔치기 (비율은 event.value로 결정)
+      // 엘프/마법사: 골드 훔치기 (비율은 event.value로 결정). 서버가 피해자 실제 보유량까지만 이동.
       if (event.targetPlayerId && targetPlayer && event.value !== undefined) {
-        const stealAmount = Math.min(event.value, targetPlayer.gold)
-
-        await Promise.all([
-          updatePlayerPatch(currentPlayerId, {
-            gold: currentPlayer.gold + stealAmount,
-            score: currentPlayer.score + stealAmount,
-          }),
-          updatePlayerPatch(event.targetPlayerId, {
-            gold: Math.max(targetPlayer.gold - stealAmount, 0),
-            score: Math.max(targetPlayer.score - stealAmount, 0),
-          }),
-        ])
+        await mutator.steal(event.targetPlayerId, currentPlayerId, event.value, 'gold_quest_steal')
       }
       break
 

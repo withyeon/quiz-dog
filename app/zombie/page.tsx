@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import ZombieView from '@/components/ZombieView'
@@ -13,9 +13,12 @@ import ZombieIcon from '@/components/zombie/ZombieIcon'
 import {
   getZombieMeta,
   roomPlayerToZombiePlayer,
+  GAME_CONSTANTS,
 } from '@/lib/game/zombie'
 import { updatePlayer } from '@/lib/services/players'
+import { zombieAttack as zombieAttackRpc, pickDeltaFields } from '@/lib/services/playerMutations'
 import { useGameBase } from '@/hooks/useGameBase'
+import type { Database } from '@/types/database.types'
 
 export default function ZombiePage() {
   const router = useRouter()
@@ -53,6 +56,31 @@ export default function ZombiePage() {
     () => players.filter((player) => !player.is_kicked),
     [players],
   )
+
+  // 좀비 감염 공격 — 방어막/체력/역할 전이를 서버에서 원자적으로 처리하고,
+  // 두 행의 권위 있는 결과를 broadcast 해 모든 화면을 정합적으로 수렴시킨다.
+  // (동시에 여러 좀비가 같은 인간을 공격해도 데미지가 누적된다.)
+  const handleZombieAttack = useCallback(async (
+    zombieId: string,
+    targetId: string,
+    damage: number,
+  ) => {
+    const rows = await zombieAttackRpc(
+      zombieId,
+      targetId,
+      damage,
+      GAME_CONSTANTS.INFECTION_THRESHOLD,
+      GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
+    )
+    const fields: Array<keyof Database['public']['Tables']['players']['Row']> = [
+      'health', 'attack_power', 'score', 'active_item',
+    ]
+    rows.forEach((row) => {
+      const patch = pickDeltaFields(row, fields)
+      applyPlayerPatch(row.id, patch)
+      void sendRoomEvent('player:patch', { playerId: row.id, patch, reason: 'zombie_attack' })
+    })
+  }, [applyPlayerPatch, sendRoomEvent])
   // 게임 시작 전 입장한 플레이어만 (도중 입장자는 active_item이 null)
   const playersWithRoles = useMemo(
     () => activeRoomPlayers.filter((player) => getZombieMeta(player)),
@@ -243,6 +271,7 @@ export default function ZombiePage() {
                     console.error('좀비 플레이어 업데이트 실패:', error)
                   })
                 }}
+                onZombieAttack={handleZombieAttack}
               />
             </motion.div>
           ) : (

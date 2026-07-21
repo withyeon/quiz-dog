@@ -3,6 +3,8 @@ import { Noto_Sans_KR } from 'next/font/google'
 import './globals.css'
 import { AudioProviderWrapper } from '@/components/AudioProviderWrapper'
 import { AuthProvider } from '@/contexts/AuthContext'
+import { ToastProvider } from '@/components/ui/Toast'
+import { ConfirmDialogProvider } from '@/components/ui/ConfirmDialog'
 
 const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
@@ -55,12 +57,29 @@ export default function RootLayout({
                   '\`searchParams\` is a Promise and must be unwrapped'
                 ];
 
-                function isDynamicApiInspectorNoise(args) {
-                  var text = Array.prototype.slice.call(args).map(function (arg) {
+                function argsToText(args) {
+                  return Array.prototype.slice.call(args).map(function (arg) {
                     if (typeof arg === 'string') return arg;
                     if (arg && typeof arg.message === 'string') return arg.message;
                     return '';
                   }).join('\\n');
+                }
+
+                // 일부 브라우저 확장이 하이드레이션 직전에 style="user-select:auto"를 주입한다.
+                // 앱이 막을 수 없는 외부 변형이라 이 조합의 경고만 걸러낸다.
+                // (user-select와 무관한 진짜 하이드레이션 불일치는 그대로 표시된다.)
+                function isExtensionUserSelectHydrationNoise(args) {
+                  var text = argsToText(args);
+                  if (text.indexOf('user-select') === -1) return false;
+                  return (
+                    text.indexOf('hydrat') !== -1 ||
+                    text.indexOf("didn't match") !== -1 ||
+                    text.indexOf('did not match') !== -1
+                  );
+                }
+
+                function isDynamicApiInspectorNoise(args) {
+                  var text = argsToText(args);
 
                   if (!dynamicApiMessages.some(function (message) { return text.indexOf(message) !== -1; })) {
                     return false;
@@ -83,6 +102,7 @@ export default function RootLayout({
 
                   var patched = function () {
                     if (isDynamicApiInspectorNoise(arguments)) return;
+                    if (isExtensionUserSelectHydrationNoise(arguments)) return;
                     return current.apply(console, arguments);
                   };
                   patched.__quizDogDynamicApiPatched = true;
@@ -104,6 +124,10 @@ export default function RootLayout({
                   }
                 }, true);
 
+                // style을 CSSOM(node.style.*)으로 건드리면 브라우저가 속성 값 전체를
+                // 정규화한다(예: #d9eef5 -> rgb(217, 238, 245)). 그러면 하이드레이션 직전에
+                // 서버 HTML과 값이 달라져 React가 mismatch를 띄운다.
+                // 따라서 다른 선언의 원본 표기를 그대로 두도록 문자열로만 제거한다.
                 function removeInjectedUserSelect(root) {
                   if (!root || root.nodeType !== 1) return;
                   var nodes = [root];
@@ -113,10 +137,36 @@ export default function RootLayout({
 
                   for (var i = 0; i < nodes.length; i += 1) {
                     var node = nodes[i];
-                    if (!node.style) continue;
-                    if (node.style.userSelect === 'auto') node.style.removeProperty('user-select');
-                    if (node.style.webkitUserSelect === 'auto') node.style.removeProperty('-webkit-user-select');
-                    if (node.getAttribute('style') === '') node.removeAttribute('style');
+                    if (!node.getAttribute) continue;
+
+                    var raw = node.getAttribute('style');
+                    if (!raw || raw.indexOf('user-select') === -1) continue;
+
+                    var kept = [];
+                    var parts = raw.split(';');
+                    for (var j = 0; j < parts.length; j += 1) {
+                      var decl = parts[j];
+                      if (!decl || !decl.trim()) continue;
+
+                      var sep = decl.indexOf(':');
+                      if (sep === -1) { kept.push(decl); continue; }
+
+                      var name = decl.slice(0, sep).trim().toLowerCase();
+                      var value = decl.slice(sep + 1).trim().toLowerCase();
+                      var isUserSelect = name === 'user-select'
+                        || name === '-webkit-user-select'
+                        || name === '-moz-user-select'
+                        || name === '-ms-user-select';
+
+                      // 주입된 'auto'만 제거하고 나머지는 원문 그대로 유지
+                      if (isUserSelect && value === 'auto') continue;
+                      kept.push(decl);
+                    }
+
+                    var cleaned = kept.join(';').trim();
+                    if (cleaned === raw.trim()) continue;
+                    if (cleaned === '') node.removeAttribute('style');
+                    else node.setAttribute('style', cleaned);
                   }
                 }
 
@@ -140,6 +190,15 @@ export default function RootLayout({
                   subtree: true
                 });
 
+                // 확장 프로그램은 보통 DOM 파싱이 끝난 뒤 주입한다.
+                // 하이드레이션 전에 한 번 더 훑어 남아 있는 주입을 걷어낸다.
+                function sweepInjectedUserSelect() {
+                  removeInjectedUserSelect(document.documentElement);
+                  if (document.body) removeInjectedUserSelect(document.body);
+                }
+                document.addEventListener('DOMContentLoaded', sweepInjectedUserSelect);
+                document.addEventListener('readystatechange', sweepInjectedUserSelect);
+
                 window.addEventListener('load', function () {
                   window.setTimeout(function () {
                     window.clearInterval(consoleFilterTimer);
@@ -154,7 +213,11 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         <AuthProvider>
-          <AudioProviderWrapper>{children}</AudioProviderWrapper>
+          <ToastProvider>
+            <ConfirmDialogProvider>
+              <AudioProviderWrapper>{children}</AudioProviderWrapper>
+            </ConfirmDialogProvider>
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>

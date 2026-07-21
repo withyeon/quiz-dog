@@ -24,9 +24,8 @@ import {
   calculateDamage,
   isCriticalHit,
   generateAttack,
-  applyDamage,
-  applyHeal,
-  applyHeater,
+  getDamageReduction,
+  HEATER_HEAL_AMOUNT,
   checkWinner,
   checkWinningTeam,
   isGameOver,
@@ -102,6 +101,7 @@ export default function BattlePage() {
     questionStartTime,
     consecutiveCorrect,
     sendRoomEvent,
+    commitPlayerDelta,
   } = useGameBase({ expectedGameMode: 'battle_royale' })
   const isPaused = room?.status === 'paused'
 
@@ -318,17 +318,16 @@ export default function BattlePage() {
       Promise.all(
         players
           .filter((player) => (player.health || 100) > 0)
-          .map(async (player) => {
-            const newHealth = Math.max(0, (player.health || 100) - zoneDamage)
-            await updatePlayer(player.id, { health: newHealth })
-          }),
+          .map((player) =>
+            commitPlayerDelta(player.id, { health: -zoneDamage }, { reason: 'battle_zone' }),
+          ),
       ).catch((error) => {
         console.error('Error applying zone damage:', error)
       })
     }, 10000) // 10초마다
 
     return () => clearInterval(interval)
-  }, [battleStartTime, isPreStartQuizComplete, isRoomHost, players, room?.status, zoneLevel])
+  }, [battleStartTime, commitPlayerDelta, isPreStartQuizComplete, isRoomHost, players, room?.status, zoneLevel])
 
   // 탈락 감지 (체온이 0이 되면 눈사람으로)
   useEffect(() => {
@@ -425,12 +424,15 @@ export default function BattlePage() {
         return correct
       }
 
-      // 핫초코 직업: 체온 회복
+      // 핫초코 직업: 체온 회복 — 원자적 증분(최대 체력 상한 적용)
       if (selectedClass === 'hot_choco') {
-        const maxHealth = PLAYER_CLASSES[selectedClass].maxHealth
-        const newHealth = applyHeal(currentPlayer?.health || 100, selectedClass)
+        const classInfo = PLAYER_CLASSES[selectedClass]
+        const healAmount = classInfo.healAmount ?? 0
         try {
-          await updatePlayer(playerId, { health: Math.min(newHealth, maxHealth) })
+          await commitPlayerDelta(playerId, { health: healAmount }, {
+            reason: 'battle_heal',
+            maxes: { health: classInfo.maxHealth },
+          })
         } catch (error) {
           console.error('Error healing:', error)
         }
@@ -539,14 +541,13 @@ export default function BattlePage() {
     }
     setAttackResult(attack)
 
-    // 타겟 플레이어 체력 감소
+    // 타겟 플레이어 체력 감소 — 원자적 증분으로 동시 공격이 누적되게 한다.
     const targetPlayer = players.find(p => p.id === targetId) as Player | undefined
     if (targetPlayer) {
-      const currentHealth = targetPlayer.health || 100
-      const newHealth = applyDamage(currentHealth, damage, targetPlayer.player_class)
+      const reduction = getDamageReduction(damage, targetPlayer.player_class as PlayerClass | undefined)
 
       try {
-        await updatePlayer(targetId, { health: newHealth })
+        await commitPlayerDelta(targetId, { health: -reduction }, { reason: 'battle_attack' })
         await sendRoomEvent('battle:attacked', {
           attackerId: playerId,
           attackerNickname: currentPlayer.nickname,
@@ -597,14 +598,15 @@ export default function BattlePage() {
         playSFX('item')
       }
     } else if (currentItem.type === 'heater') {
-      // 체온 회복
+      // 체온 회복 — 원자적 증분(+30, 최대 체력 상한)
       if (currentPlayer) {
         const maxHealth = selectedClass
           ? PLAYER_CLASSES[selectedClass].maxHealth
           : 100
-        const newHealth = applyHeater(currentPlayer.health ?? 100, maxHealth)
-
-        await updatePlayer(playerId, { health: newHealth })
+        await commitPlayerDelta(playerId, { health: HEATER_HEAL_AMOUNT }, {
+          reason: 'battle_heater',
+          maxes: { health: maxHealth },
+        })
         playSFX('item')
       }
     }
