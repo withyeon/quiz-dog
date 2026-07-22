@@ -39,7 +39,8 @@ function createBlankQuestion(type: Exclude<ManualQuestionType, 'MIXED'>): Genera
 export default function CreateQuestionPage() {
   const router = useRouter()
   const [sourceType, setSourceType] = useState<SourceType | null>(null)
-  const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('manual')
+  // AI 생성을 기본으로 — 대부분 자료/주제에서 바로 만드는 흐름을 우선한다.
+  const [activeTab, setActiveTab] = useState<'manual' | 'ai'>('ai')
   const [topic, setTopic] = useState('')
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
