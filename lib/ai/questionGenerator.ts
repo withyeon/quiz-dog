@@ -8,6 +8,15 @@ export interface QuestionInput {
   sourceType: SourceType
   grade?: string
   subject?: string
+  /** 생성에 사용할 문항 유형을 제한. 비우면 AI가 자유롭게 섞어서 출제. */
+  allowedTypes?: GeneratedQuestion['type'][]
+}
+
+const TYPE_LABEL: Record<GeneratedQuestion['type'], string> = {
+  CHOICE: '객관식(CHOICE)',
+  SHORT: '주관식(SHORT)',
+  OX: 'OX(OX)',
+  BLANK: '빈칸(BLANK)',
 }
 
 export interface GeneratedQuestion {
@@ -48,8 +57,16 @@ function truncateText(text: string): string {
 }
 
 function buildGenerationPrompt(input: QuestionInput, questionCount: number, repairNote?: string): string {
+  const allowed = (input.allowedTypes && input.allowedTypes.length > 0)
+    ? input.allowedTypes
+    : null
+  const typeRestriction = allowed
+    ? `- 반드시 다음 유형만 사용하세요: ${allowed.map((t) => TYPE_LABEL[t]).join(', ')}. 그 외 유형은 절대 만들지 마세요.\n- 가능하면 지정된 유형들을 골고루 섞어 출제하세요.`
+    : '- CHOICE(객관식) 위주로 하되 OX, SHORT를 적절히 섞어 다양하게 출제하세요.'
+
   const typeRules = `출제 품질 규칙:
 - 정확히 ${questionCount}개를 생성하세요. 더 적거나 많으면 실패입니다.
+${typeRestriction}
 - 각 문제는 서로 다른 핵심 개념을 물어야 하며, 같은 질문을 표현만 바꿔 반복하지 마세요.
 - CHOICE 타입은 보기 4개를 정확히 제공하고 answer는 보기 문자열 중 하나와 완전히 같아야 합니다.
 - OX 타입은 options가 ["O", "X"]이고 answer는 "O" 또는 "X"만 가능합니다.

@@ -2,6 +2,8 @@
 
 import { motion } from 'framer-motion'
 import { Pencil, FileText, Youtube, ScanLine } from 'lucide-react'
+import FileDropzone from '@/components/teacher/FileDropzone'
+import { toast } from '@/components/ui/Toaster'
 
 type SourceType = 'topic' | 'youtube' | 'file' | 'exam'
 type SourceTone = 'sky' | 'cyan' | 'rose' | 'amber'
@@ -125,15 +127,15 @@ export default function QuestionSourceSelector({
 
     if (id === 'file') {
       return (
-        <div className="mt-4 space-y-2">
-          <input
-            type="file"
+        <div onClick={(e) => e.stopPropagation()}>
+          <FileDropzone
+            file={file}
+            onSelect={setFile}
             accept=".pdf,.txt,.csv,.docx,.ppt,.pptx"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none ring-2 ring-transparent transition ${toneClasses.cyan.focus}`}
-            onClick={(e) => e.stopPropagation()}
+            hint="PDF · DOCX · PPTX · PPT · TXT · CSV"
+            tone="cyan"
+            onError={(msg) => toast.error(msg)}
           />
-          {file && <p className="truncate text-sm font-bold text-cyan-700">선택됨: {file.name}</p>}
         </div>
       )
     }
@@ -152,15 +154,15 @@ export default function QuestionSourceSelector({
     }
 
     return (
-      <div className="mt-4 space-y-2">
-        <input
-          type="file"
+      <div onClick={(e) => e.stopPropagation()}>
+        <FileDropzone
+          file={examFile}
+          onSelect={setExamFile}
           accept=".pdf,.jpg,.jpeg,.png,.webp"
-          onChange={(e) => setExamFile(e.target.files?.[0] || null)}
-          className={`w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-semibold text-slate-700 outline-none ring-2 ring-transparent transition ${toneClasses.amber.focus}`}
-          onClick={(e) => e.stopPropagation()}
+          hint="PDF · JPG · PNG · WEBP"
+          tone="amber"
+          onError={(msg) => toast.error(msg)}
         />
-        {examFile && <p className="truncate text-sm font-bold text-amber-700">선택됨: {examFile.name}</p>}
       </div>
     )
   }
