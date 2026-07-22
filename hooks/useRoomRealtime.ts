@@ -186,6 +186,29 @@ export function useRoomRealtime({
     })
   }, [applyRoomPatch, enabled, refreshRoom, roomCode])
 
+  // Realtime은 가장 빠른 경로지만, 모바일 절전·교실 Wi-Fi 전환·DB publication
+  // 지연으로 이벤트 하나가 빠질 수 있다. 짧은 스냅샷 재조정을 함께 두어 모든
+  // 클라이언트가 종료/일시정지 같은 권위 상태로 빠르게 수렴하게 한다.
+  useEffect(() => {
+    if (!enabled || !roomCode || typeof window === 'undefined') return
+
+    const reconcile = () => {
+      if (document.visibilityState === 'visible') {
+        void refreshRoom({ silent: true })
+      }
+    }
+
+    const intervalId = window.setInterval(reconcile, 2000)
+    window.addEventListener('focus', reconcile)
+    document.addEventListener('visibilitychange', reconcile)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', reconcile)
+      document.removeEventListener('visibilitychange', reconcile)
+    }
+  }, [enabled, refreshRoom, roomCode])
+
   return {
     room,
     loading,

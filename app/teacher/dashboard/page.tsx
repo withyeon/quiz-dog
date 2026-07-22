@@ -223,15 +223,16 @@ export default function TeacherDashboard() {
       autoFinishRequestedRef.current = true
 
       try {
-        await finishRoom(roomCode)
         const reason = room.game_mode === 'poop_dodge'
           ? 'poop_dodge_time_up'
           : `${room.game_mode || 'game'}_time_up`
+        const finishPromise = finishRoom(roomCode)
         broadcastRoomPatch({ status: 'finished' }, reason)
         void sendRoomEvent('game:finished', {
           finishedBy: 'teacher',
           reason,
         })
+        await finishPromise
         try {
           await saveGameReportSnapshot(room, players)
         } catch (reportError) {
@@ -304,13 +305,14 @@ export default function TeacherDashboard() {
       autoFinishRequestedRef.current = true
 
       try {
-        await finishRoom(roomCode)
         const reason = 'zombie_all_humans_infected'
+        const finishPromise = finishRoom(roomCode)
         broadcastRoomPatch({ status: 'finished' }, reason)
         void sendRoomEvent('game:finished', {
           finishedBy: 'teacher',
           reason,
         })
+        await finishPromise
         try {
           await saveGameReportSnapshot(room, players)
         } catch (reportError) {
@@ -353,13 +355,14 @@ export default function TeacherDashboard() {
       autoFinishRequestedRef.current = true
 
       try {
-        await finishRoom(roomCode)
         const reason = 'battle_royale_decided'
+        const finishPromise = finishRoom(roomCode)
         broadcastRoomPatch({ status: 'finished' }, reason)
         void sendRoomEvent('game:finished', {
           finishedBy: 'teacher',
           reason,
         })
+        await finishPromise
         try {
           await saveGameReportSnapshot(room, players)
         } catch (reportError) {
@@ -544,12 +547,13 @@ export default function TeacherDashboard() {
     playSFX('click')
 
     try {
-      await finishRoom(roomCode)
+      const finishPromise = finishRoom(roomCode)
       broadcastRoomPatch({ status: 'finished' }, 'teacher_finish')
       void sendRoomEvent('game:finished', {
         finishedBy: 'teacher',
         reason: 'teacher_finish',
       })
+      await finishPromise
 
       // 게임 종료 순간의 최종 성적 스냅샷을 영구 보관함(game_reports)에 저장
       try {

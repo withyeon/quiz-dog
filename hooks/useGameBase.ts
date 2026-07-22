@@ -712,7 +712,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     const finishGame = useCallback(async (): Promise<boolean> => {
         if (!roomCode || !room || isTerminalRoomStatus(room.status)) return false
         try {
-            await finishRoom(roomCode)
+            const finishPromise = finishRoom(roomCode)
             void sendRoomEvent('room:patch', {
                 patch: { status: 'finished' },
                 reason: 'student_finished',
@@ -721,6 +721,7 @@ export function useGameBase(options: UseGameBaseOptions) {
                 finishedBy: playerId,
                 reason: 'student_finished',
             })
+            await finishPromise
             return true
         } catch (error) {
             console.error('게임 종료 업데이트 실패:', error)
