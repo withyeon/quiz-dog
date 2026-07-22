@@ -317,7 +317,8 @@ export default function GameShowcase() {
                     {/* Arrow buttons */}
                     <button
                         onClick={() => go(-1)}
-                        className="toss-depth-plastic absolute left-0 top-1/2 -translate-y-1/2 -translate-x-5 md:-translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ease-in-out hover:scale-110 hover:shadow-lg active:scale-95"
+                        aria-label="이전 게임 보기"
+                        className="toss-depth-plastic absolute left-0 top-1/2 -translate-y-1/2 translate-x-1 lg:-translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ease-in-out hover:scale-110 hover:shadow-lg active:scale-95"
                         style={{
                             backgroundColor: 'rgba(255,255,255,0.8)',
                             backdropFilter: 'blur(12px)',
@@ -325,11 +326,12 @@ export default function GameShowcase() {
                             border: '1px solid rgba(255,255,255,0.95)',
                         }}
                     >
-                        <ChevronLeft className="w-5 h-5 text-sky-600" />
+                        <ChevronLeft className="w-5 h-5 text-sky-600" aria-hidden />
                     </button>
                     <button
                         onClick={() => go(1)}
-                        className="toss-depth-plastic absolute right-0 top-1/2 -translate-y-1/2 translate-x-5 md:translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ease-in-out hover:scale-110 hover:shadow-lg active:scale-95"
+                        aria-label="다음 게임 보기"
+                        className="toss-depth-plastic absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1 lg:translate-x-7 z-10 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 ease-in-out hover:scale-110 hover:shadow-lg active:scale-95"
                         style={{
                             backgroundColor: 'rgba(255,255,255,0.8)',
                             backdropFilter: 'blur(12px)',
@@ -337,7 +339,7 @@ export default function GameShowcase() {
                             border: '1px solid rgba(255,255,255,0.95)',
                         }}
                     >
-                        <ChevronRight className="w-5 h-5 text-sky-600" />
+                        <ChevronRight className="w-5 h-5 text-sky-600" aria-hidden />
                     </button>
                 </div>
             </div>

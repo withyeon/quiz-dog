@@ -228,7 +228,7 @@ function LobbyPage() {
 
   return (
     <main
-      className="min-h-dvh relative overflow-hidden font-bitbit"
+      className="min-h-dvh relative overflow-x-hidden font-bitbit"
       style={{ background: 'linear-gradient(160deg, #FFF3DC 0%, #FFE8C0 50%, #FFF0D0 100%)' }}
     >
       <GameStartTutorialModal
@@ -264,7 +264,7 @@ function LobbyPage() {
         </div>
       </div>
 
-      <div className="relative z-10 min-h-[calc(100dvh-72px)] flex items-center justify-center p-6">
+      <div className="relative z-10 min-h-[calc(100dvh-72px)] flex items-center justify-center px-3 py-6 sm:p-6">
         <AnimatePresence mode="wait">
           {step === 'code' && (
             <motion.div
@@ -276,7 +276,7 @@ function LobbyPage() {
               className="text-center w-full max-w-md"
             >
               <PixelPanel label="🐶 퀴즈독 입장하기" labelColor="#C17B3A">
-                <div className="p-10 pt-12">
+                <div className="p-5 pt-10 sm:p-10 sm:pt-12">
                   <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2.5, repeat: Infinity }} className="mb-6">
                     <Image src="/quizdog-logo.svg" alt="퀴즈독" width={320} height={100} className="w-full max-w-xs mx-auto" priority />
                   </motion.div>
@@ -289,7 +289,7 @@ function LobbyPage() {
                     선생님께 받은 게임 코드를 입력하세요!
                   </p>
 
-                  <div className="flex gap-3 items-center justify-center mb-6">
+                  <div className="flex gap-2 sm:gap-3 items-center justify-center mb-6">
                     <PixelInput
                       type="text"
                       value={roomCode}
@@ -333,7 +333,7 @@ function LobbyPage() {
               className="text-center w-full max-w-md"
             >
               <PixelPanel label="💬 닉네임 설정" labelColor="#2E7BD4">
-                <div className="p-10 pt-12">
+                <div className="p-5 pt-10 sm:p-10 sm:pt-12">
                   <motion.div className="flex justify-center mb-6" animate={{ y: [0, -8, 0] }} transition={{ duration: 2, repeat: Infinity }}>
                     <ShibaDog size={100} />
                   </motion.div>

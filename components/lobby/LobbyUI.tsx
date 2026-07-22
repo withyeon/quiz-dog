@@ -37,7 +37,8 @@ export function PixelBtn({
       disabled={disabled}
       whileHover={disabled ? {} : { y: -2, scale: 1.02 }}
       whileTap={disabled ? {} : { y: 3, scale: 0.98 }}
-      className={`relative font-black text-white rounded-xl px-6 py-3 transition-opacity ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+      // shrink-0: 좁은 화면에서 버튼이 찌그러지거나 밀려나지 않도록 고정
+      className={`relative shrink-0 whitespace-nowrap font-black text-white rounded-xl px-4 py-3 sm:px-6 transition-opacity ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
       style={{
         background: c.bg,
         border: `3px solid ${c.border}`,
@@ -58,13 +59,16 @@ export function PixelInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...props}
-      className={`px-5 py-4 rounded-xl font-black text-center outline-none text-gray-800 ${props.className ?? ''}`}
+      // min-w-0 필수: input은 기본 intrinsic 너비를 가지는데 flex 아이템의
+      // min-width:auto 때문에 flex-1이어도 그 아래로 줄지 않아 형제 요소를
+      // 컨테이너 밖으로 밀어낸다(모바일에서 버튼이 화면 밖으로 사라졌던 원인).
+      className={`w-full min-w-0 px-3 py-3 sm:px-5 sm:py-4 rounded-xl font-black text-center outline-none text-gray-800 ${props.className ?? ''}`}
       style={{
         background: '#FFFBF2',
         border: '3px solid #C17B3A',
         boxShadow: '0 4px 0 rgba(91,58,26,0.25), inset 0 2px 4px rgba(91,58,26,0.08)',
         fontFamily: "'DNFBitBitv2', sans-serif",
-        fontSize: '1.5rem',
+        fontSize: 'clamp(1.05rem, 4.5vw, 1.5rem)',
         ...props.style,
       }}
     />
