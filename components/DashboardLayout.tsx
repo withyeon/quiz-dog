@@ -9,6 +9,7 @@ import {
   BookOpen,
   ChevronRight,
   Home,
+  LayoutDashboard,
   Library,
   LogOut,
   Menu,
@@ -26,12 +27,22 @@ interface DashboardLayoutProps {
 }
 
 const navItems = [
-  { href: '/teacher', label: '홈', icon: Home, id: 'home' },
+  // '홈으로'는 교사 영역을 벗어나 서비스 메인으로 나가는 출구 링크 (active 표시 없음)
+  { href: '/', label: '홈으로', icon: Home, id: 'landing' },
+  { href: '/teacher', label: '대시보드', icon: LayoutDashboard, id: 'dashboard' },
   { href: '/teacher/library', label: '자료실', icon: Library, id: 'library' },
   { href: '/teacher/analytics', label: '게임 기록', icon: BarChart3, id: 'history' },
   { href: '/teacher/dashboard', label: '게임 시작', icon: PlayCircle, id: 'play' },
   { href: '/teacher/settings', label: '설정', icon: Settings, id: 'settings' },
 ]
+
+// 현재 경로에 해당하는 내비 항목의 active 여부.
+// '/'(홈으로)는 startsWith로 모든 경로에 걸리므로 항상 비활성 처리한다.
+function isNavItemActive(id: string, href: string, pathname: string | null): boolean {
+  if (id === 'landing') return false
+  if (id === 'dashboard') return pathname === '/teacher'
+  return Boolean(pathname?.startsWith(href))
+}
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
@@ -48,10 +59,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     await signOut()
     router.push('/')
   }
-  const currentItem = navItems.find((item) => {
-    if (item.id === 'home') return pathname === '/teacher'
-    return pathname?.startsWith(item.href)
-  }) ?? navItems[0]
+  // 헤더 제목용 현재 항목 — '홈으로'(출구 링크)는 제외하고 찾는다.
+  const currentItem = navItems.find((item) => isNavItemActive(item.id, item.href, pathname))
+    ?? navItems.find((item) => item.id === 'dashboard')!
 
   // 라우트가 바뀌면 모바일 메뉴 닫기
   useEffect(() => {
@@ -96,9 +106,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <nav className="flex-1 space-y-1 px-3">
           {navItems.map((item) => {
-            const active = item.id === 'home'
-              ? pathname === '/teacher'
-              : Boolean(pathname?.startsWith(item.href))
+            const active = isNavItemActive(item.id, item.href, pathname)
 
             return (
               <Link
@@ -206,9 +214,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <nav className="flex-1 space-y-1 overflow-y-auto px-3">
               {navItems.map((item) => {
-                const active = item.id === 'home'
-                  ? pathname === '/teacher'
-                  : Boolean(pathname?.startsWith(item.href))
+                const active = isNavItemActive(item.id, item.href, pathname)
 
                 return (
                   <Link
