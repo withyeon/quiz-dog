@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Pencil, ScanLine, Sparkles } from 'lucide-react'
+import { ArrowLeft, Pencil, ScanLine, Sparkles, Plus, Minus } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { extractTextFromPPTX } from '@/lib/extractors/ppt'
 import { filterNickname } from '@/lib/utils/profanityFilter'
@@ -17,17 +17,19 @@ import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
 import { toast } from '@/components/ui/Toaster'
 
 type SourceType = 'topic' | 'youtube' | 'file' | 'exam'
-type ManualQuestionType = 'CHOICE' | 'SHORT' | 'OX' | 'MIXED'
+type ManualQuestionType = 'CHOICE' | 'SHORT' | 'OX'
 type AiQuestionType = 'CHOICE' | 'OX' | 'SHORT'
+type TypeCounts = Record<AiQuestionType, number>
 const MAX_AI_QUESTION_COUNT = 20
-const QUESTION_COUNT_PRESETS = [5, 10, 15, 20]
-const AI_TYPE_OPTIONS: Array<{ id: AiQuestionType; label: string }> = [
-  { id: 'CHOICE', label: '객관식' },
-  { id: 'OX', label: 'OX' },
-  { id: 'SHORT', label: '주관식' },
+// 유형별 개수를 정하면 총 문항 수가 자동으로 계산된다.
+const AI_TYPE_OPTIONS: Array<{ id: AiQuestionType; label: string; hint: string }> = [
+  { id: 'CHOICE', label: '객관식', hint: '보기 4개 중 정답 고르기' },
+  { id: 'OX', label: 'OX', hint: '맞다/틀리다 판단' },
+  { id: 'SHORT', label: '주관식', hint: '짧은 답 직접 입력' },
 ]
+const DEFAULT_TYPE_COUNTS: TypeCounts = { CHOICE: 3, OX: 1, SHORT: 1 }
 
-function createBlankQuestion(type: Exclude<ManualQuestionType, 'MIXED'>): GeneratedQuestion {
+function createBlankQuestion(type: ManualQuestionType): GeneratedQuestion {
   return {
     type,
     question_text: '',
@@ -45,8 +47,12 @@ export default function CreateQuestionPage() {
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [examFile, setExamFile] = useState<File | null>(null)
-  const [questionCount, setQuestionCount] = useState('5')
-  const [questionTypes, setQuestionTypes] = useState<AiQuestionType[]>(['CHOICE', 'OX', 'SHORT'])
+  // 유형별 생성 개수 (AI). 합계가 총 문항 수가 된다.
+  const [typeCounts, setTypeCounts] = useState<TypeCounts>(DEFAULT_TYPE_COUNTS)
+  // 시험지 추출은 유형 구분이 없으므로 최대 개수만 사용.
+  const [examCount, setExamCount] = useState(10)
+  // 선택: AI에게 추가로 전달할 요청사항
+  const [userPrompt, setUserPrompt] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([])
@@ -55,6 +61,18 @@ export default function CreateQuestionPage() {
   const [subject, setSubject] = useState('')
   const [grade, setGrade] = useState('')
   const [isPublic, setIsPublic] = useState(false)
+
+  const totalTypeCount = typeCounts.CHOICE + typeCounts.OX + typeCounts.SHORT
+
+  const adjustTypeCount = (type: AiQuestionType, delta: number) => {
+    setTypeCounts((prev) => {
+      const next = Math.max(0, Math.min(MAX_AI_QUESTION_COUNT, prev[type] + delta))
+      // 합계가 최대치를 넘지 않도록 제한
+      const others = totalTypeCount - prev[type]
+      if (others + next > MAX_AI_QUESTION_COUNT) return prev
+      return { ...prev, [type]: next }
+    })
+  }
 
   const handleGenerate = async () => {
     if (sourceType === 'topic' && !topic.trim()) {
@@ -73,17 +91,29 @@ export default function CreateQuestionPage() {
       toast.error('시험지 파일을 선택해주세요.')
       return
     }
+    if (sourceType !== 'exam' && totalTypeCount < 1) {
+      toast.error('문항 유형별 개수를 1개 이상 정해주세요.')
+      return
+    }
 
     setIsGenerating(true)
     try {
       const formData = new FormData()
       formData.append('sourceType', sourceType!)
-      const normalizedQuestionCount = Math.min(MAX_AI_QUESTION_COUNT, Math.max(1, Number(questionCount) || 5))
+      // 시험지: 최대 개수만. 그 외: 유형별 개수 합계가 총 문항 수.
+      const normalizedQuestionCount = sourceType === 'exam'
+        ? Math.min(MAX_AI_QUESTION_COUNT, Math.max(1, examCount))
+        : Math.min(MAX_AI_QUESTION_COUNT, Math.max(1, totalTypeCount))
       formData.append('questionCount', normalizedQuestionCount.toString())
-      // 시험지 추출은 원본 문제 유형을 그대로 옮기므로 유형 제한을 보내지 않는다.
-      if (sourceType !== 'exam' && questionTypes.length > 0) {
-        formData.append('questionTypes', JSON.stringify(questionTypes))
+      // 시험지 추출은 원본 문제 유형을 그대로 옮기므로 유형/개수 지정을 보내지 않는다.
+      if (sourceType !== 'exam') {
+        // 개수가 0인 유형은 제외
+        const activeCounts = Object.fromEntries(
+          (Object.entries(typeCounts) as Array<[AiQuestionType, number]>).filter(([, n]) => n > 0),
+        )
+        formData.append('questionCounts', JSON.stringify(activeCounts))
       }
+      if (userPrompt.trim()) formData.append('userPrompt', userPrompt.trim())
       if (subject) formData.append('subject', subject)
       if (grade) formData.append('grade', grade)
 
@@ -186,11 +216,7 @@ export default function CreateQuestionPage() {
   }
 
   const handleCreateManual = (type: ManualQuestionType) => {
-    const newQuestions = type === 'MIXED'
-      ? [createBlankQuestion('CHOICE'), createBlankQuestion('SHORT'), createBlankQuestion('OX')]
-      : [createBlankQuestion(type)]
-
-    setGeneratedQuestions((prev) => [...prev, ...newQuestions])
+    setGeneratedQuestions((prev) => [...prev, createBlankQuestion(type)])
     setIsReviewing(true)
   }
 
@@ -328,7 +354,7 @@ export default function CreateQuestionPage() {
                   <div>
                     <h2 className="text-lg font-extrabold text-slate-900">옵션</h2>
                     <p className="text-sm font-medium text-slate-500">
-                      {sourceType === 'exam' ? '과목 · 학년 · 문제 수' : '과목 · 학년 · 문제 수 · 유형'}
+                      {sourceType === 'exam' ? '과목 · 학년 · 문제 수' : '과목 · 학년 · 문항 구성'}
                     </p>
                   </div>
                 </div>
@@ -364,95 +390,105 @@ export default function CreateQuestionPage() {
                   </div>
                 </div>
 
-                {/* 문제 수 — 프리셋 칩 + 직접 입력 */}
-                <div className="mt-4">
-                  <label className="mb-2 block text-sm font-semibold text-slate-600">
-                    {sourceType === 'exam' ? '최대 문제 수' : '생성 문제 수'}
-                  </label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {QUESTION_COUNT_PRESETS.map((preset) => {
-                      const active = questionCount === String(preset)
-                      return (
-                        <button
-                          key={preset}
-                          type="button"
-                          onClick={() => setQuestionCount(String(preset))}
-                          className={`h-11 min-w-[64px] rounded-xl border px-4 text-sm font-black transition ${
-                            active
-                              ? 'border-sky-400 bg-sky-50 text-sky-700'
-                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                          }`}
-                        >
-                          {preset}개
-                        </button>
-                      )
-                    })}
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="number"
-                        min="1"
-                        max={MAX_AI_QUESTION_COUNT}
-                        value={questionCount}
-                        onChange={(e) => {
-                          const nextValue = e.target.value
-                          if (/^\d*$/.test(nextValue)) setQuestionCount(nextValue)
-                        }}
-                        aria-label="문제 수 직접 입력"
-                        className="h-11 w-20 rounded-xl border border-slate-200 px-3 text-center text-sm font-bold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                      />
-                      <span className="text-sm font-semibold text-slate-500">개 직접</span>
-                    </div>
-                  </div>
-                  <p className="mt-1.5 text-xs font-medium text-slate-400">한 번에 최대 {MAX_AI_QUESTION_COUNT}문제</p>
-                </div>
-
-                {/* 문항 유형 — 시험지 추출은 원본 유형을 유지하므로 표시하지 않음 */}
-                {sourceType !== 'exam' && (
+                {/* 문항 구성 — 유형별 개수를 정하면 총 문항 수가 자동 계산 */}
+                {sourceType !== 'exam' ? (
                   <div className="mt-4">
-                    <label className="mb-2 block text-sm font-semibold text-slate-600">문항 유형</label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-600">문항 구성</label>
+                      <span className="rounded-lg bg-sky-50 px-3 py-1 text-sm font-black text-sky-700">
+                        총 {totalTypeCount}문항
+                      </span>
+                    </div>
+                    <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
                       {AI_TYPE_OPTIONS.map((option) => {
-                        const active = questionTypes.includes(option.id)
+                        const count = typeCounts[option.id]
                         return (
-                          <button
+                          <div
                             key={option.id}
-                            type="button"
-                            onClick={() => {
-                              setQuestionTypes((prev) => {
-                                if (prev.includes(option.id)) {
-                                  // 최소 1개는 남긴다
-                                  const next = prev.filter((t) => t !== option.id)
-                                  return next.length > 0 ? next : prev
-                                }
-                                return [...prev, option.id]
-                              })
-                            }}
-                            aria-pressed={active}
-                            className={`inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-black transition ${
-                              active
-                                ? 'border-sky-400 bg-sky-50 text-sky-700'
-                                : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
-                            }`}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-white px-3.5 py-2.5"
                           >
-                            <span className={`grid h-5 w-5 place-items-center rounded-md text-[11px] ${
-                              active ? 'bg-sky-500 text-white' : 'bg-slate-100 text-slate-400'
-                            }`}>
-                              {active ? '✓' : ''}
-                            </span>
-                            {option.label}
-                          </button>
+                            <div className="min-w-0">
+                              <div className="text-sm font-black text-slate-800">
+                                {option.label} {count > 0 && <span className="text-sky-600">({count}개)</span>}
+                              </div>
+                              <div className="text-xs font-medium text-slate-400">{option.hint}</div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => adjustTypeCount(option.id, -1)}
+                                disabled={count <= 0}
+                                aria-label={`${option.label} 줄이기`}
+                                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Minus className="h-4 w-4" />
+                              </button>
+                              <span className="w-8 text-center text-base font-black tabular-nums text-slate-900">{count}</span>
+                              <button
+                                type="button"
+                                onClick={() => adjustTypeCount(option.id, 1)}
+                                disabled={totalTypeCount >= MAX_AI_QUESTION_COUNT}
+                                aria-label={`${option.label} 늘리기`}
+                                className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
                         )
                       })}
                     </div>
                     <p className="mt-1.5 text-xs font-medium text-slate-400">
-                      선택한 유형으로 문제를 만들어요. 여러 개 고르면 골고루 섞여요.
+                      원하는 유형만 개수를 올리면 돼요. 합계가 총 문항 수가 되고, 한 번에 최대 {MAX_AI_QUESTION_COUNT}문제까지.
                     </p>
                   </div>
+                ) : (
+                  <div className="mt-4">
+                    <label className="mb-2 block text-sm font-semibold text-slate-600">최대 문제 수</label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setExamCount((c) => Math.max(1, c - 1))}
+                        disabled={examCount <= 1}
+                        aria-label="줄이기"
+                        className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+                      >
+                        <Minus className="h-4 w-4" />
+                      </button>
+                      <span className="w-12 text-center text-lg font-black tabular-nums text-slate-900">{examCount}</span>
+                      <button
+                        type="button"
+                        onClick={() => setExamCount((c) => Math.min(MAX_AI_QUESTION_COUNT, c + 1))}
+                        disabled={examCount >= MAX_AI_QUESTION_COUNT}
+                        aria-label="늘리기"
+                        className="grid h-11 w-11 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                      <span className="ml-2 text-xs font-medium text-slate-400">시험지에서 최대 {examCount}문제까지 추출</span>
+                    </div>
+                  </div>
                 )}
+
+                {/* 추가 요청 (선택) — AI에게 전달할 특별 지시 */}
+                <div className="mt-4">
+                  <label htmlFor="ai-user-prompt" className="mb-2 block text-sm font-semibold text-slate-600">
+                    추가 요청 <span className="font-medium text-slate-400">(선택)</span>
+                  </label>
+                  <textarea
+                    id="ai-user-prompt"
+                    value={userPrompt}
+                    onChange={(e) => setUserPrompt(e.target.value.slice(0, 500))}
+                    rows={2}
+                    placeholder="예: 속담의 뜻을 제시하고 그 속담을 맞히는 주관식으로 내주세요."
+                    className="w-full resize-none rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm font-medium text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                  />
+                  <p className="mt-1 text-right text-xs font-medium text-slate-400">{userPrompt.length}/500</p>
+                </div>
                 <Button
                   onClick={handleGenerate}
-                  disabled={isGenerating}
-                  className="mt-5 h-12 w-full rounded-xl bg-sky-500 text-base font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
+                  disabled={isGenerating || (sourceType !== 'exam' && totalTypeCount < 1)}
+                  className="mt-5 h-12 w-full rounded-xl bg-sky-500 text-base font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                   size="lg"
                 >
                   {isGenerating
@@ -461,7 +497,9 @@ export default function CreateQuestionPage() {
                       : '문제 만드는 중…'
                     : sourceType === 'exam'
                       ? '시험지에서 문제 추출'
-                      : '문제 만들기'
+                      : totalTypeCount < 1
+                        ? '유형별 개수를 정해주세요'
+                        : `${totalTypeCount}문제 만들기`
                   }
                 </Button>
                 {sourceType === 'exam' && (

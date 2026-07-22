@@ -50,7 +50,7 @@ interface QuestionReviewEditorProps {
   setIsPublic: (value: boolean) => void
   onBack: () => void
   onSave: () => void
-  onCreateManual: (type: 'CHOICE' | 'SHORT' | 'OX' | 'MIXED') => void
+  onCreateManual: (type: 'CHOICE' | 'SHORT' | 'OX') => void
   isSaving?: boolean
 }
 
@@ -408,12 +408,6 @@ export default function QuestionReviewEditor({
               className="rounded-lg bg-amber-100 px-4 py-2 text-sm font-black text-amber-700 transition-colors hover:bg-amber-200"
             >
               + OX
-            </button>
-            <button
-              onClick={() => onCreateManual('MIXED')}
-              className="rounded-lg bg-sky-100 px-4 py-2 text-sm font-black text-black transition-colors hover:bg-sky-200"
-            >
-              + 혼합 유형
             </button>
           </div>
         </div>

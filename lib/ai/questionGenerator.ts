@@ -10,6 +10,10 @@ export interface QuestionInput {
   subject?: string
   /** 생성에 사용할 문항 유형을 제한. 비우면 AI가 자유롭게 섞어서 출제. */
   allowedTypes?: GeneratedQuestion['type'][]
+  /** 유형별 정확한 생성 개수. 있으면 allowedTypes보다 우선. */
+  typeCounts?: Partial<Record<GeneratedQuestion['type'], number>>
+  /** 교사가 추가로 전달한 요청사항 (선택). */
+  userPrompt?: string
 }
 
 const TYPE_LABEL: Record<GeneratedQuestion['type'], string> = {
@@ -57,12 +61,28 @@ function truncateText(text: string): string {
 }
 
 function buildGenerationPrompt(input: QuestionInput, questionCount: number, repairNote?: string): string {
+  const counts = input.typeCounts
+    ? (Object.entries(input.typeCounts) as Array<[GeneratedQuestion['type'], number]>)
+        .filter(([, n]) => n > 0)
+    : []
   const allowed = (input.allowedTypes && input.allowedTypes.length > 0)
     ? input.allowedTypes
     : null
-  const typeRestriction = allowed
-    ? `- 반드시 다음 유형만 사용하세요: ${allowed.map((t) => TYPE_LABEL[t]).join(', ')}. 그 외 유형은 절대 만들지 마세요.\n- 가능하면 지정된 유형들을 골고루 섞어 출제하세요.`
-    : '- CHOICE(객관식) 위주로 하되 OX, SHORT를 적절히 섞어 다양하게 출제하세요.'
+
+  let typeRestriction: string
+  if (counts.length > 0) {
+    // 유형별 정확 개수 지정
+    typeRestriction = `- 유형별로 정확히 다음 개수만큼 생성하세요: ${counts.map(([t, n]) => `${TYPE_LABEL[t]} ${n}개`).join(', ')}.\n- 지정된 유형 외에는 절대 만들지 말고, 각 유형의 개수를 정확히 맞추세요.`
+  } else if (allowed) {
+    typeRestriction = `- 반드시 다음 유형만 사용하세요: ${allowed.map((t) => TYPE_LABEL[t]).join(', ')}. 그 외 유형은 절대 만들지 마세요.\n- 가능하면 지정된 유형들을 골고루 섞어 출제하세요.`
+  } else {
+    typeRestriction = '- CHOICE(객관식) 위주로 하되 OX, SHORT를 적절히 섞어 다양하게 출제하세요.'
+  }
+
+  // 교사 추가 요청은 품질 규칙보다 우선 (단, 형식·개수·유형 규칙은 유지)
+  const userRequest = input.userPrompt && input.userPrompt.trim()
+    ? `\n\n[교사의 추가 요청 — 최대한 반영하되 아래 형식·개수·유형 규칙은 반드시 지킬 것]\n${input.userPrompt.trim()}`
+    : ''
 
   const typeRules = `출제 품질 규칙:
 - 정확히 ${questionCount}개를 생성하세요. 더 적거나 많으면 실패입니다.
@@ -109,7 +129,7 @@ ${repairSection}
 
 ${jsonFormat}
 
-${typeRules}`
+${typeRules}${userRequest}`
   }
 
   const text = truncateText(input.text || '')
@@ -124,7 +144,7 @@ ${jsonFormat}
 
 ${typeRules}
 - 텍스트 기반 생성에서는 제공된 텍스트의 사실만 사용하고, 텍스트에 없는 세부 사실을 지어내지 마세요.
-- 텍스트가 부족하면 일반 상식으로 채우지 말고, 확인 가능한 핵심 내용 중심으로 문제를 구성하세요.`
+- 텍스트가 부족하면 일반 상식으로 채우지 말고, 확인 가능한 핵심 내용 중심으로 문제를 구성하세요.${userRequest}`
 }
 
 function parseQuestionsFromJSON(text: string): GeneratedQuestion[] {
