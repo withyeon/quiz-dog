@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Pencil, CheckCircle2, MessageSquare, XCircle, ScanLine, Sparkles, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, Pencil, ScanLine, Sparkles } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { extractTextFromPPTX } from '@/lib/extractors/ppt'
 import { filterNickname } from '@/lib/utils/profanityFilter'
@@ -193,6 +193,14 @@ export default function CreateQuestionPage() {
     setIsReviewing(true)
   }
 
+  // 직접 작성: 유형을 미리 고르지 않고 빈 문제 1개로 바로 편집기에 진입한다.
+  // (유형은 편집기에서 문항별로 자유롭게 바꾸거나, '+객관식/+주관식/+OX'로 추가)
+  const startManual = () => {
+    setActiveTab('manual')
+    setGeneratedQuestions((prev) => (prev.length > 0 ? prev : [createBlankQuestion('CHOICE')]))
+    setIsReviewing(true)
+  }
+
   // ======= 검수(리뷰) 화면 =======
   if (isReviewing) {
     return (
@@ -242,7 +250,7 @@ export default function CreateQuestionPage() {
           <div className="flex w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
             <button
               type="button"
-              onClick={() => setActiveTab('manual')}
+              onClick={startManual}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
                 activeTab === 'manual'
                   ? 'bg-sky-500 text-white shadow-sm'
@@ -268,98 +276,28 @@ export default function CreateQuestionPage() {
         </div>
 
       {activeTab === 'manual' ? (
-        <div className="space-y-6 animate-in fade-in duration-300">
-          <div className="grid gap-5 lg:grid-cols-[310px_minmax(0,1fr)]">
-            <aside className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                <SlidersHorizontal className="h-5 w-5" />
-              </div>
-              <h2 className="text-xl font-extrabold text-slate-900">빈 문제로 시작</h2>
-              <p className="mt-2 text-sm font-medium leading-6 text-slate-500">
-                유형을 고르면 바로 내용을 채울 수 있어요. 저장 전까지 자유롭게 수정.
-              </p>
-              <div className="mt-5 rounded-xl bg-slate-50 p-3 text-xs font-semibold leading-5 text-slate-500">
-                유형 선택 → 문제 작성 → 과목·학년 → 저장
-              </div>
-            </aside>
-
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <motion.button
-                whileHover={{ y: -3 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleCreateManual('CHOICE')}
-                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-sky-300 hover:shadow-md"
-              >
-                <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-100 text-sky-600">
-                    <CheckCircle2 className="h-6 w-6" />
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-sky-100 group-hover:text-black">
-                    1-4
-                  </span>
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900">객관식</div>
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">보기와 정답을 빠르게 구성하는 기본 문제 유형</p>
-                <div className="mt-6 text-sm font-bold text-black">시작하기</div>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ y: -3 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleCreateManual('SHORT')}
-                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-cyan-300 hover:shadow-md"
-              >
-                <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-100 text-cyan-700">
-                    <MessageSquare className="h-6 w-6" />
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-cyan-100 group-hover:text-cyan-700">
-                    입력
-                  </span>
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900">주관식</div>
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">짧은 답, 빈칸, 용어 확인에 어울리는 작성형 문제</p>
-                <div className="mt-6 text-sm font-bold text-cyan-700">시작하기</div>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ y: -3 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleCreateManual('OX')}
-                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-amber-300 hover:shadow-md"
-              >
-                <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-amber-100 text-amber-700">
-                    <XCircle className="h-6 w-6" />
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-amber-100 group-hover:text-amber-700">
-                    O/X
-                  </span>
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900">OX</div>
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">개념 판단이나 빠른 확인에 좋은 OX 문제</p>
-                <div className="mt-6 text-sm font-bold text-amber-700">시작하기</div>
-              </motion.button>
-
-              <motion.button
-                whileHover={{ y: -3 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleCreateManual('MIXED')}
-                className="group min-h-56 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:border-sky-300 hover:shadow-md"
-              >
-                <div className="mb-8 flex items-center justify-between">
-                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-sky-100 text-sky-600">
-                    <Sparkles className="h-6 w-6" />
-                  </div>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-500 group-hover:bg-sky-100 group-hover:text-black">
-                    3종
-                  </span>
-                </div>
-                <div className="text-2xl font-extrabold text-slate-900">혼합 유형</div>
-                <p className="mt-3 text-sm font-medium leading-6 text-slate-500">객관식·주관식·OX를 한 번에 추가</p>
-                <div className="mt-6 text-sm font-bold text-black">시작하기</div>
-              </motion.button>
+        <div className="animate-in fade-in duration-300">
+          <div className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm sm:p-10">
+            <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-sky-100 text-sky-600">
+              <Pencil className="h-7 w-7" />
             </div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">빈 문제로 바로 시작</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm font-medium leading-6 text-slate-500">
+              문제를 입력하면서 유형(객관식·주관식·OX)을 문항마다 자유롭게 고를 수 있어요.
+              저장 전까지 얼마든지 추가하고 수정할 수 있습니다.
+            </p>
+            <motion.button
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={startManual}
+              className="mx-auto mt-6 flex h-12 items-center justify-center gap-2 rounded-xl bg-sky-500 px-8 text-base font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+            >
+              <Pencil className="h-5 w-5" />
+              문제 만들기 시작
+            </motion.button>
+            <p className="mt-4 text-xs font-semibold text-slate-400">
+              문제 작성 → 과목·학년 → 저장
+            </p>
           </div>
         </div>
       ) : (
