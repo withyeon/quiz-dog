@@ -251,18 +251,6 @@ export default function CreateQuestionPage() {
           <div className="flex w-full rounded-xl border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
             <button
               type="button"
-              onClick={startManual}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
-                activeTab === 'manual'
-                  ? 'bg-sky-500 text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-black'
-              }`}
-            >
-              <Pencil className="h-4 w-4" />
-              직접 작성
-            </button>
-            <button
-              type="button"
               onClick={() => setActiveTab('ai')}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
                 activeTab === 'ai'
@@ -272,6 +260,18 @@ export default function CreateQuestionPage() {
             >
               <ScanLine className="h-4 w-4" />
               AI로 만들기
+            </button>
+            <button
+              type="button"
+              onClick={startManual}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition sm:flex-none ${
+                activeTab === 'manual'
+                  ? 'bg-sky-500 text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-black'
+              }`}
+            >
+              <Pencil className="h-4 w-4" />
+              직접 작성
             </button>
           </div>
         </div>
