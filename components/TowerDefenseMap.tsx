@@ -41,10 +41,32 @@ const towerImagePaths: Record<TowerTypeId, string> = {
 }
 
 const enemyImagePaths: Record<string, string> = {
-    NORMAL: '/tower/enemy/normal.svg',
-    FAST: '/tower/enemy/fast.svg',
+    NORMAL: '/tower/enemy/normal/normal.svg',
+    FAST: '/tower/enemy/fast/fast.svg',
     STRONG: '/tower/enemy/strong.svg',
     BOSS: '/tower/enemy/boss.svg',
+}
+
+const normalEnemyFramePaths = [
+    '/tower/enemy/normal/normal_1.svg',
+    '/tower/enemy/normal/normal_2.svg',
+    '/tower/enemy/normal/normal_3.svg',
+    '/tower/enemy/normal/normal_4.svg',
+]
+
+const fastEnemyFramePaths = [
+    '/tower/enemy/fast/fast_1.svg',
+    '/tower/enemy/fast/fast_2.svg',
+    '/tower/enemy/fast/fast_3.svg',
+    '/tower/enemy/fast/fast_4.svg',
+]
+
+function getAnimationOffset(id: string): number {
+    let hash = 0
+    for (let index = 0; index < id.length; index += 1) {
+        hash = ((hash << 5) - hash + id.charCodeAt(index)) | 0
+    }
+    return Math.abs(hash)
 }
 
 const projectileImagePaths: Record<TowerTypeId, string> = {
@@ -173,6 +195,12 @@ export default function TowerDefenseMap({
         STRONG: null,
         BOSS: null,
     })
+    const normalEnemyFramesRef = useRef<Array<HTMLImageElement | null>>(
+        normalEnemyFramePaths.map(() => null)
+    )
+    const fastEnemyFramesRef = useRef<Array<HTMLImageElement | null>>(
+        fastEnemyFramePaths.map(() => null)
+    )
     const projectileImagesRef = useRef<Record<TowerTypeId, HTMLImageElement | null>>({
         BASIC: null,
         MAGIC: null,
@@ -235,6 +263,22 @@ export default function TowerDefenseMap({
             const img = new Image()
             img.onload = () => {
                 if (alive) enemyImagesRef.current[type] = img
+            }
+            img.src = path
+        })
+
+        normalEnemyFramePaths.forEach((path, frameIndex) => {
+            const img = new Image()
+            img.onload = () => {
+                if (alive) normalEnemyFramesRef.current[frameIndex] = img
+            }
+            img.src = path
+        })
+
+        fastEnemyFramePaths.forEach((path, frameIndex) => {
+            const img = new Image()
+            img.onload = () => {
+                if (alive) fastEnemyFramesRef.current[frameIndex] = img
             }
             img.src = path
         })
@@ -349,13 +393,26 @@ export default function TowerDefenseMap({
 
             enemies.forEach((enemy) => {
                 const enemyType = ENEMY_TYPES[enemy.type]
-                const enemyImage = enemyImagesRef.current[enemy.type]
                 const isEnraged = enemy.buffType === 'ENRAGE' && (enemy.buffedUntil ?? 0) > now
                 const size = isEnraged ? 58 : 50
+                const isFrozen = (enemy.frozenUntil ?? 0) > now
                 const isSlowed = Boolean(
                     (enemy.slowedUntil && enemy.slowedUntil > now)
-                    || (enemy.frozenUntil && enemy.frozenUntil > now)
+                    || isFrozen
                 )
+                const animationFrames = enemy.type === 'NORMAL'
+                    ? normalEnemyFramesRef.current
+                    : enemy.type === 'FAST'
+                        ? fastEnemyFramesRef.current
+                        : null
+                const baseFrameDuration = enemy.type === 'FAST' ? 220 : 320
+                const frameDuration = isSlowed ? baseFrameDuration * 1.7 : baseFrameDuration
+                const animationFrameIndex = isFrozen || !animationFrames
+                    ? 0
+                    : Math.floor((now + getAnimationOffset(enemy.id)) / frameDuration) % animationFrames.length
+                const enemyImage = animationFrames
+                    ? animationFrames[animationFrameIndex] ?? enemyImagesRef.current[enemy.type]
+                    : enemyImagesRef.current[enemy.type]
 
                 if (isEnraged) {
                     ctx.strokeStyle = 'rgba(239, 68, 68, 0.85)'
@@ -394,8 +451,8 @@ export default function TowerDefenseMap({
                 }
 
                 if (enemyImage) {
-                    const isFrozen = (enemy.frozenUntil ?? 0) > now
-                    const walkPhase = isFrozen ? 0 : now * (enemy.speed / 2500)
+                    const walkCyclesPerSecond = Math.max(0.55, Math.min(1.45, enemy.speed / 75))
+                    const walkPhase = isFrozen ? 0 : (now / 1000) * walkCyclesPerSecond
                     const bobY = Math.sin(walkPhase * Math.PI * 2) * 1.5
                     const lean = enemy.type === 'BOSS' ? 0 : Math.sin(walkPhase * Math.PI) * 0.05
 

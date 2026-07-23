@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -16,7 +16,9 @@ import { isTerminalRoomStatus } from '@/lib/game/roomStatus'
 import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
 import { getScoreDisplay } from '@/lib/game/scoreDisplay'
 import { formatServiceError } from '@/lib/services/errors'
-import { createPlayerForRoom, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
+import { createPlayerForRoom, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
+import { getPlayerById, updatePlayer } from '@/lib/services/players'
+import { clearLobbyPlayerId, loadLobbyPlayerId, saveLobbyPlayerId } from '@/lib/utils/lobbySession'
 
 export default function PlayPageClient({ roomCode }: { roomCode: string }) {
   const router = useRouter()
@@ -29,6 +31,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [tutorialGameMode, setTutorialGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
+  const joiningRef = useRef(false)
 
   const { players, loading, error, refreshPlayers } = usePlayersRealtime({
     roomCode,
@@ -72,6 +75,27 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
       .map((meta) => String(meta.playerId)),
   ), [presence])
 
+  useEffect(() => {
+    if (!roomCode || playerId) return
+    const savedPlayerId = loadLobbyPlayerId(roomCode)
+    if (!savedPlayerId) return
+
+    joiningRef.current = true
+    void getPlayerById(savedPlayerId).then((savedPlayer) => {
+      if (!savedPlayer || savedPlayer.room_code !== roomCode || savedPlayer.is_kicked) {
+        clearLobbyPlayerId(roomCode)
+        return
+      }
+      setPlayerId(savedPlayer.id)
+      setNickname(savedPlayer.nickname)
+      const character = CHARACTERS.find((candidate) => candidate.imagePath === savedPlayer.avatar)
+      if (character) setSelectedCharacter(character)
+      setIsJoined(true)
+      void updatePlayer(savedPlayer.id, { is_online: true })
+    }).catch(() => clearLobbyPlayerId(roomCode))
+      .finally(() => { joiningRef.current = false })
+  }, [playerId, roomCode])
+
   // 같은 방 다른 친구들이 이미 고른 캐릭터(본인 제외) → 중복 선택 방지용
   const takenCharacterIds = useMemo(() => {
     const taken = new Set<string>()
@@ -96,6 +120,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
   // 방 입장
   const handleJoinRoom = async () => {
+    if (joiningRef.current) return
     setJoinError(null)
     if (!nickname.trim()) {
       setJoinError('닉네임을 입력해주세요.')
@@ -109,6 +134,7 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
       return
     }
 
+    joiningRef.current = true
     try {
       const roomData = await getRoomByCode(roomCode)
       if (!roomData) {
@@ -137,14 +163,21 @@ export default function PlayPageClient({ roomCode }: { roomCode: string }) {
 
       setPlayerId(playerData.id)
       setIsJoined(true)
+      saveLobbyPlayerId(roomCode, playerData.id)
       void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
 
       if (roomData.status === 'playing') {
         router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, playerData.id))
       }
     } catch (err) {
-      console.error('Error joining room:', err)
-      setJoinError('방 입장에 실패했어요: ' + formatServiceError(err))
+      if (!isNicknameConflictError(err)) {
+        console.warn('방 입장 실패:', formatServiceError(err))
+      }
+      setJoinError(isNicknameConflictError(err)
+        ? '이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.'
+        : '방 입장에 실패했어요: ' + formatServiceError(err))
+    } finally {
+      joiningRef.current = false
     }
   }
 

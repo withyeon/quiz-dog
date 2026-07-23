@@ -18,8 +18,9 @@ import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl, isGameModeId, typ
 import { isTerminalRoomStatus } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
 import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
-import { createPlayerForRoom, getRoomByCode, nicknameExists } from '@/lib/services/rooms'
-import { updatePlayer } from '@/lib/services/players'
+import { createPlayerForRoom, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
+import { getPlayerById, updatePlayer } from '@/lib/services/players'
+import { clearLobbyPlayerId, loadLobbyPlayerId, saveLobbyPlayerId } from '@/lib/utils/lobbySession'
 import { ShibaDog, DogGroup } from '@/components/PixelDogs'
 import { PixelBtn, PixelInput, PixelPanel, PlayerAvatar } from '@/components/lobby/LobbyUI'
 import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
@@ -50,6 +51,7 @@ function LobbyPage() {
   const [tutorialOpen, setTutorialOpen] = useState(false)
   const [tutorialGameMode, setTutorialGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
+  const joiningRef = useRef(false)
 
   useEffect(() => {
     const code = searchParams.get('code')?.replace(/[^0-9]/g, '').slice(0, 6) ?? ''
@@ -100,6 +102,30 @@ function LobbyPage() {
   }, [step, isJoined, takenCharacterIds, selectedCharacter.id])
 
   const { room, refreshRoom } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })
+
+  // 새로고침/뒤로 가기 후 같은 학생을 새로 만들지 않고 이 탭의 기존 참가자를 복구한다.
+  useEffect(() => {
+    if (!roomCode || step === 'code' || playerId) return
+    const savedPlayerId = loadLobbyPlayerId(roomCode)
+    if (!savedPlayerId) return
+
+    joiningRef.current = true
+    void getPlayerById(savedPlayerId).then((savedPlayer) => {
+      if (!savedPlayer || savedPlayer.room_code !== roomCode || savedPlayer.is_kicked) {
+        clearLobbyPlayerId(roomCode)
+        return
+      }
+      setPlayerId(savedPlayer.id)
+      setNickname(savedPlayer.nickname)
+      const character = CHARACTERS.find((candidate) => candidate.imagePath === savedPlayer.avatar)
+      if (character) setSelectedCharacter(character)
+      setIsJoined(true)
+      setStep('character')
+      void updatePlayer(savedPlayer.id, { is_online: true })
+    }).catch(() => clearLobbyPlayerId(roomCode))
+      .finally(() => { joiningRef.current = false })
+  }, [playerId, roomCode, step])
+
   const resyncLobby = useRoomResync(refreshRoom, refreshPlayers)
   const handleRoomEvent = (event: RoomChannelEvent) => {
     if (event.type !== 'tutorial:show' && event.type !== 'tutorial:slide' && event.type !== 'tutorial:hide') return
@@ -184,6 +210,9 @@ function LobbyPage() {
       return
     }
 
+    if (joiningRef.current) return
+    joiningRef.current = true
+
     // 첫 입장: 이때만 방/닉네임을 검증하고 플레이어를 생성한다.
     try {
       const roomData = await getRoomByCode(roomCode)
@@ -215,14 +244,22 @@ function LobbyPage() {
 
       setPlayerId(playerData.id)
       setIsJoined(true)
+      saveLobbyPlayerId(roomCode, playerData.id)
       void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
 
       if (roomData.status === 'playing') {
         router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, playerData.id))
       }
     } catch (err) {
-      console.error('Error joining room:', err)
-      toast.error('방 입장에 실패했어요: ' + formatServiceError(err))
+      if (isNicknameConflictError(err)) {
+        setNicknameError('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
+        setStep('nickname')
+      } else {
+        console.warn('방 입장 실패:', formatServiceError(err))
+        toast.error('방 입장에 실패했어요: ' + formatServiceError(err))
+      }
+    } finally {
+      joiningRef.current = false
     }
   }
 

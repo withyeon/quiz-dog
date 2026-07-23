@@ -226,9 +226,10 @@ export async function createPlayerForRoom(input: {
   gameMode?: string | null
 }): Promise<{ id: string }> {
   const mode = isGameModeId(input.gameMode) ? input.gameMode : DEFAULT_GAME_MODE
+  const normalizedNickname = input.nickname.trim()
   const payload: PlayerInsert = {
     room_code: input.roomCode,
-    nickname: input.nickname,
+    nickname: normalizedNickname,
     score: 0,
     gold: 0,
     avatar: input.avatar,
@@ -270,19 +271,24 @@ export async function nicknameExists(
   nickname: string,
   excludePlayerId?: string | null,
 ): Promise<boolean> {
-  let query = supabase
+  const normalizedNickname = nickname.trim().toLocaleLowerCase('ko-KR')
+  const { data, error } = await (supabase
     .from('players')
-    .select('id')
-    .eq('room_code', roomCode)
-    .eq('nickname', nickname)
-
-  // 본인(이미 입장한 플레이어)은 중복 검사에서 제외 — 닉네임/캐릭터 변경 시 자기 자신과 충돌 방지
-  if (excludePlayerId) {
-    query = query.neq('id', excludePlayerId)
-  }
-
-  const { data, error } = await query.limit(1)
+    .select('id, nickname')
+    .eq('room_code', roomCode) as any)
 
   if (error) throw error
-  return (data ?? []).length > 0
+  return ((data ?? []) as Array<{ id: string; nickname: string }>).some((player) => (
+    player.id !== excludePlayerId
+    && player.nickname.trim().toLocaleLowerCase('ko-KR') === normalizedNickname
+  ))
+}
+
+export function isNicknameConflictError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; message?: unknown; details?: unknown }
+  const text = `${String(candidate.message ?? '')} ${String(candidate.details ?? '')}`.toLowerCase()
+  return candidate.code === '23505'
+    || text.includes('players_room_nickname_unique')
+    || text.includes('nickname already exists in room')
 }
