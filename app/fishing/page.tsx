@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Award, Clock, Gamepad2, PackageCheck, Settings, Star, Target, XCircle, Zap } from 'lucide-react'
 import QuizView from '@/components/QuizView'
+import GameTimeBadge from '@/components/GameTimeBadge'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
@@ -133,6 +134,11 @@ export default function FishingPage() {
         transition: 'transform 300ms ease',
       }}
     >
+      <GameTimeBadge
+        startedAt={room?.started_at}
+        durationSeconds={room?.duration_seconds}
+        status={room?.status}
+      />
       <div className="pointer-events-none fixed inset-0 z-0 bg-[linear-gradient(180deg,rgba(240,249,255,0.22)_0%,rgba(255,255,255,0.16)_44%,rgba(248,250,252,0.28)_100%)]" />
       <div className="pointer-events-none fixed inset-x-0 top-0 z-0 h-80 bg-[linear-gradient(135deg,rgba(224,242,254,0.28),rgba(255,255,255,0.22)_48%,rgba(254,249,195,0.18))]" />
 

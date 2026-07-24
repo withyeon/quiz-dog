@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import QuizView from '@/components/QuizView'
+import GameTimeBadge from '@/components/GameTimeBadge'
 import TowerDefenseMap from '@/components/TowerDefenseMap'
 import Countdown from '@/components/Countdown'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
@@ -378,6 +379,11 @@ export default function TowerPage() {
 
     return (
         <main className="tower-command-screen min-h-dvh overflow-x-hidden font-bitbit text-slate-900">
+            <GameTimeBadge
+                startedAt={room?.started_at}
+                durationSeconds={room?.duration_seconds}
+                status={room?.status}
+            />
             <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1500px] flex-col px-4 py-5 sm:px-6 lg:px-8">
                 {shouldShowPreStartQuiz && (
                     <PreStartQuizGate

@@ -135,12 +135,12 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         : isBattle
           ? "battle-frost-panel font-bitbit p-5 sm:p-7 max-w-3xl mx-auto"
         : isGlass
-          ? "lg-panel lg-ink-outline font-bitbit p-6 sm:p-8 max-w-2xl mx-auto"
+          ? "lg-panel lg-ink-outline font-bitbit p-6 sm:p-8 [@media(max-height:760px)]:p-4 max-w-2xl mx-auto"
         : "font-bitbit bg-white rounded-xl shadow-2xl p-8 max-w-2xl mx-auto border-2 border-gray-200")}
     >
-      <div className="mb-6">
+      <div className="mb-6 [@media(max-height:760px)]:mb-3">
         {timeLimit && (
-          <div className={`flex justify-between items-center mb-4 p-3 ${
+          <div className={`flex justify-between items-center mb-4 p-3 [@media(max-height:760px)]:mb-2 [@media(max-height:760px)]:py-1.5 ${
             isGoldQuest
               ? 'rounded-lg border border-teal-900/10 bg-[#0c3b42] text-white shadow-lg shadow-teal-950/10'
               : isBattle
@@ -157,14 +157,14 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
             }`}>{timeLeft}초</div>
           </div>
         )}
-        <h2 className={`gold-quest-title text-2xl sm:text-3xl font-black leading-tight mb-4 ${
+        <h2 className={`gold-quest-title text-2xl sm:text-3xl [@media(max-height:760px)]:text-xl font-black leading-tight mb-4 [@media(max-height:760px)]:mb-2 ${
           isGoldQuest ? 'text-[#17262a]' : isBattle ? 'text-[#13202b]' : isGlass ? 'lg-question-title' : 'text-gray-900'
         }`}>
           {displayBlankText(question.question_text)}
         </h2>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 [@media(max-height:760px)]:space-y-2">
         {/* 단답형 문제 */}
         {question.type === 'SHORT' && (
           <div className="space-y-4">
@@ -285,7 +285,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               whileHover={!paused && submittedAnswer === '' ? { scale: 1.02, x: 5 } : {}}
               whileTap={!paused && submittedAnswer === '' ? { scale: 0.98 } : {}}
               className={isGlass
-                ? `w-full text-left px-6 py-5 transition-all lg-option ${submittedAnswer === ''
+                ? `w-full text-left px-6 py-5 [@media(max-height:760px)]:py-3 transition-all lg-option ${submittedAnswer === ''
                   ? 'lg-option-idle cursor-pointer'
                   : isSelected && !hasResolved
                     ? 'lg-option-active'

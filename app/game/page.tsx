@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import { AlertTriangle, Anchor, CheckCircle2, Coins, Radio, ShieldCheck, XCircle } from 'lucide-react'
 import QuizView from '@/components/QuizView'
+import GameTimeBadge from '@/components/GameTimeBadge'
 import ShieldPromptModal from '@/components/ShieldPromptModal'
 import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
@@ -31,8 +32,24 @@ type AttackResponsePayload = {
   requestId: string
   attackerPlayerId: string
   targetPlayerId: string
+  /** 피해자가 방어권으로 막았는지 */
   blocked: boolean
+  /** 피해자가 실제로 골드 이동(강탈/교환)을 서버에 확정했는지 */
+  applied: boolean
 }
+
+/** 공격 요청에 대한 피해자의 최종 결과 (공격자 대기 resolver로 전달) */
+type AttackResult = {
+  blocked: boolean
+  applied: boolean
+}
+
+// 골드 뺏기(엘프/마법사) 방어권: 피해자가 방어 여부를 결정할 수 있는 시간.
+const SHIELD_DECISION_MS = 5000
+// 공격자가 피해자 응답을 기다릴 때 결정 시간 위에 더 얹는 네트워크 왕복 여유.
+// (요청 도달 + 응답 도달 지연을 흡수) — 이 버퍼가 너무 작으면 정상 방어가
+// 타임아웃 뒤 도착해 무시되어 방어가 간헐적으로 실패한다.
+const SHIELD_NETWORK_BUFFER_MS = 3000
 
 export default function GamePage() {
   const {
@@ -93,7 +110,13 @@ export default function GamePage() {
   const [shieldAsk, setShieldAsk] = useState<{ message: string; expiresAt: number } | null>(null)
   const shieldResolverRef = useRef<((useShield: boolean) => void) | null>(null)
   const hasShieldRef = useRef(false)
-  const attackResolversRef = useRef(new Map<string, (blocked: boolean) => void>())
+  const attackResolversRef = useRef(new Map<string, (result: AttackResult) => void>())
+  // 피해자 측에서 공격을 확정할 때 최신 players/mutator가 필요하다. 구독 effect가
+  // players 변화마다 재구독하지 않도록(이벤트 유실 방지) ref로 최신값을 들고 있는다.
+  const playersRef = useRef(players)
+  const goldMutatorRef = useRef(goldMutator)
+  useEffect(() => { playersRef.current = players }, [players])
+  useEffect(() => { goldMutatorRef.current = goldMutator }, [goldMutator])
   // 정답 후 상자 화면 자동 전환 타이머 (수동 클릭과 중복 실행 방지)
   const correctTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 상자/플레이어 선택 후 다음 문제 자동 이동 타이머 (중복 점프 방지)
@@ -179,6 +202,24 @@ export default function GamePage() {
     return () => window.clearTimeout(timer)
   }, [shieldNotice])
 
+  // 피해자 측에서 들어온 공격(강탈/교환)을 서버에 원자적으로 확정한다.
+  // 방어권 판정의 진실 소스는 피해자이므로, 골드 이동도 피해자가 직접 확정해야
+  // 공격자 타임아웃 경쟁으로 방어가 무시되는 일이 없다. 확정 성공 시 true.
+  const commitIncomingAttack = useCallback(async (payload: AttackRequestPayload): Promise<boolean> => {
+    try {
+      const attacker = playersRef.current.find((p) => p.id === payload.attackerPlayerId) ?? null
+      const self = playersRef.current.find((p) => p.id === payload.targetPlayerId) ?? null
+      if (!attacker || !self) return false
+      // payload.event.targetPlayerId === 피해자(self). applyBoxEvent 내부의
+      // steal(victim=targetPlayerId, thief=attackerId) / swap(attackerId, victim)와 동일하게 동작.
+      await applyBoxEvent(payload.event, payload.attackerPlayerId, attacker, self, goldMutatorRef.current)
+      return true
+    } catch (error) {
+      console.error('Error applying incoming attack (victim side):', error)
+      return false
+    }
+  }, [])
+
   useEffect(() => {
     if (!playerId) return
 
@@ -189,7 +230,7 @@ export default function GamePage() {
         const resolve = attackResolversRef.current.get(payload.requestId)
         if (!resolve) return
         attackResolversRef.current.delete(payload.requestId)
-        resolve(payload.blocked)
+        resolve({ blocked: payload.blocked, applied: payload.applied })
         return
       }
 
@@ -199,58 +240,60 @@ export default function GamePage() {
 
       const attackName = payload.event.itemName || '공격'
 
-      // 방어권이 없으면 즉시 알리고 응답한다 (모달로 붙잡지 않는다).
-      if (!hasShieldRef.current) {
-        toast.info(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`)
-        void sendRoomEvent('gold_quest:attack_response', {
-          requestId: payload.requestId,
-          attackerPlayerId: payload.attackerPlayerId,
-          targetPlayerId: playerId,
-          blocked: false,
-        } satisfies AttackResponsePayload)
-        return
-      }
-
-      // 방어권이 있으면 모달로 묻는다. 공격자는 6초까지 대기하므로 5초 제한.
+      // 피해자가 방어 여부를 결정하고, 막지 않았다면 '피해자가 직접' 골드 이동을
+      // 확정한 뒤 그 결과(blocked/applied)를 공격자에게 회신한다.
       void (async () => {
-        const useShield = await askShield(
-          `${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`,
-          5000,
-        )
+        let blocked = false
 
-        if (useShield) {
-          setHasShield(false)
-          setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
-          playSFX('item')
+        if (hasShieldRef.current) {
+          const useShield = await askShield(
+            `${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`,
+            SHIELD_DECISION_MS,
+          )
+          if (useShield) {
+            blocked = true
+            setHasShield(false)
+            setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
+            playSFX('item')
+          } else {
+            toast.info(`${payload.attackerNickname}님의 ${attackName} 효과를 맞았습니다.`)
+          }
         } else {
-          toast.info(`${payload.attackerNickname}님의 ${attackName} 효과를 맞았습니다.`)
+          toast.info(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`)
         }
 
+        // 막지 않았으면 피해자가 골드 이동을 확정한다(성공해야 applied=true).
+        const applied = blocked ? false : await commitIncomingAttack(payload)
+
         void sendRoomEvent('gold_quest:attack_response', {
           requestId: payload.requestId,
           attackerPlayerId: payload.attackerPlayerId,
           targetPlayerId: playerId,
-          blocked: useShield,
+          blocked,
+          applied,
         } satisfies AttackResponsePayload)
       })()
     })
-  }, [askShield, playerId, playSFX, sendRoomEvent])
+  }, [askShield, commitIncomingAttack, playerId, playSFX, sendRoomEvent])
 
-  const waitForShieldResponse = async (event: BoxEvent, targetPlayer: Player): Promise<boolean> => {
-    if (!playerId || !currentPlayer) return false
+  const waitForShieldResponse = async (event: BoxEvent, targetPlayer: Player): Promise<AttackResult> => {
+    if (!playerId || !currentPlayer) return { blocked: false, applied: false }
     const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-    const blocked = await new Promise<boolean>((resolve) => {
+    return new Promise<AttackResult>((resolve) => {
+      // 골드 이동은 피해자가 확정하므로, 이 타임아웃은 correctness가 아니라
+      // 공격자 화면이 무한 대기하지 않도록 하는 UI 폴백이다. 응답 없이 만료되면
+      // {blocked:false, applied:false} — 아무 효과 없음(안전한 실패)으로 처리한다.
       const timer = window.setTimeout(() => {
         attackResolversRef.current.delete(requestId)
-        resolve(false)
-      }, 6000)
+        resolve({ blocked: false, applied: false })
+      }, SHIELD_DECISION_MS + SHIELD_NETWORK_BUFFER_MS)
 
-      attackResolversRef.current.set(requestId, (nextBlocked) => {
+      attackResolversRef.current.set(requestId, (result) => {
         window.clearTimeout(timer)
-        resolve(nextBlocked)
+        resolve(result)
       })
 
       void sendRoomEvent('gold_quest:attack_request', {
@@ -261,8 +304,6 @@ export default function GamePage() {
         event,
       } satisfies AttackRequestPayload)
     })
-
-    return blocked
   }
   useEffect(() => {
     if (currentView !== 'playerSelect' || !pendingEvent || pendingEvent.type === 'KING') return
@@ -469,30 +510,29 @@ export default function GamePage() {
         event.message = `${targetPlayer.nickname}님과 골드를 교환했다.`
       }
 
-      const targetBlocked = await waitForShieldResponse(event, targetPlayer)
-      if (targetBlocked) {
-        const blockedEvent: BoxEvent = {
-          type: 'FAIRY',
-          message: `${targetPlayer.nickname}님이 방어권으로 공격을 막았다.`,
-          itemName: '방어권',
-          icon: '🛡️',
-        }
-        setBoxEvent(blockedEvent)
+      // 골드 이동은 '피해자'가 확정한다(방어권 판정의 진실 소스이므로).
+      // 공격자는 그 결과만 받아 화면에 표시한다 — 타임아웃 경쟁으로 방어가
+      // 무시되던 문제를 없앤다.
+      const result = await waitForShieldResponse(event, targetPlayer)
 
-        scheduleAdvance(() => {
-          setSelectedChest(null)
-          setBoxEvent(null)
-          setPendingEvent(null)
-          setIsProcessingReward(false)
-          goToNextQuestion()
-        }, 3000)
-        return
-      }
+      const outcomeEvent: BoxEvent = result.blocked
+        ? {
+            type: 'FAIRY',
+            message: `${targetPlayer.nickname}님이 방어권으로 공격을 막았다.`,
+            itemName: '방어권',
+            icon: '🛡️',
+          }
+        : result.applied
+          ? event
+          : {
+              // 피해자가 응답하지 않아(이탈/지연) 골드 이동이 확정되지 않음.
+              type: 'FAIRY',
+              message: `${targetPlayer.nickname}님에게 효과가 닿지 않았다.`,
+              itemName: '실패',
+              icon: '💨',
+            }
 
-      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, goldMutator)
-
-      // 이벤트 메시지 업데이트
-      setBoxEvent(event)
+      setBoxEvent(outcomeEvent)
 
       // 3초 후 다음 문제로
       scheduleAdvance(() => {
@@ -534,6 +574,11 @@ export default function GamePage() {
 
   return (
     <main className="gold-quest-ambient min-h-dvh p-4 sm:p-6 lg:p-8 relative overflow-hidden font-bitbit">
+      <GameTimeBadge
+        startedAt={room?.started_at}
+        durationSeconds={room?.duration_seconds}
+        status={room?.status}
+      />
       <div className="max-w-6xl mx-auto relative z-10">
         <motion.header
           initial={{ opacity: 0, y: -20 }}

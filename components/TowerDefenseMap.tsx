@@ -43,8 +43,8 @@ const towerImagePaths: Record<TowerTypeId, string> = {
 const enemyImagePaths: Record<string, string> = {
     NORMAL: '/tower/enemy/normal/normal.svg',
     FAST: '/tower/enemy/fast/fast.svg',
-    STRONG: '/tower/enemy/strong.svg',
-    BOSS: '/tower/enemy/boss.svg',
+    STRONG: '/tower/enemy/strong/strong.svg',
+    BOSS: '/tower/enemy/boss/boss.svg',
 }
 
 const normalEnemyFramePaths = [
@@ -59,6 +59,20 @@ const fastEnemyFramePaths = [
     '/tower/enemy/fast/fast_2.svg',
     '/tower/enemy/fast/fast_3.svg',
     '/tower/enemy/fast/fast_4.svg',
+]
+
+const strongEnemyFramePaths = [
+    '/tower/enemy/strong/strong_1.svg',
+    '/tower/enemy/strong/strong_2.svg',
+    '/tower/enemy/strong/strong_3.svg',
+    '/tower/enemy/strong/strong_4.svg',
+]
+
+const bossEnemyFramePaths = [
+    '/tower/enemy/boss/boss_1.svg',
+    '/tower/enemy/boss/boss_2.svg',
+    '/tower/enemy/boss/boss_3.svg',
+    '/tower/enemy/boss/boss_4.svg',
 ]
 
 function getAnimationOffset(id: string): number {
@@ -201,6 +215,12 @@ export default function TowerDefenseMap({
     const fastEnemyFramesRef = useRef<Array<HTMLImageElement | null>>(
         fastEnemyFramePaths.map(() => null)
     )
+    const strongEnemyFramesRef = useRef<Array<HTMLImageElement | null>>(
+        strongEnemyFramePaths.map(() => null)
+    )
+    const bossEnemyFramesRef = useRef<Array<HTMLImageElement | null>>(
+        bossEnemyFramePaths.map(() => null)
+    )
     const projectileImagesRef = useRef<Record<TowerTypeId, HTMLImageElement | null>>({
         BASIC: null,
         MAGIC: null,
@@ -279,6 +299,22 @@ export default function TowerDefenseMap({
             const img = new Image()
             img.onload = () => {
                 if (alive) fastEnemyFramesRef.current[frameIndex] = img
+            }
+            img.src = path
+        })
+
+        strongEnemyFramePaths.forEach((path, frameIndex) => {
+            const img = new Image()
+            img.onload = () => {
+                if (alive) strongEnemyFramesRef.current[frameIndex] = img
+            }
+            img.src = path
+        })
+
+        bossEnemyFramePaths.forEach((path, frameIndex) => {
+            const img = new Image()
+            img.onload = () => {
+                if (alive) bossEnemyFramesRef.current[frameIndex] = img
             }
             img.src = path
         })
@@ -404,8 +440,16 @@ export default function TowerDefenseMap({
                     ? normalEnemyFramesRef.current
                     : enemy.type === 'FAST'
                         ? fastEnemyFramesRef.current
-                        : null
-                const baseFrameDuration = enemy.type === 'FAST' ? 220 : 320
+                        : enemy.type === 'STRONG'
+                            ? strongEnemyFramesRef.current
+                            : enemy.type === 'BOSS'
+                                ? bossEnemyFramesRef.current
+                                : null
+                const baseFrameDuration = enemy.type === 'FAST'
+                    ? 220
+                    : enemy.type === 'STRONG' || enemy.type === 'BOSS'
+                        ? 380
+                        : 320
                 const frameDuration = isSlowed ? baseFrameDuration * 1.7 : baseFrameDuration
                 const animationFrameIndex = isFrozen || !animationFrames
                     ? 0

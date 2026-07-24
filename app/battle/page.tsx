@@ -13,6 +13,7 @@ import {
   Users,
 } from 'lucide-react'
 import QuizView from '@/components/QuizView'
+import GameTimeBadge from '@/components/GameTimeBadge'
 import BattleArena from '@/components/BattleArena'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
@@ -659,6 +660,11 @@ export default function BattlePage() {
     <main
       className="battle-shell relative min-h-dvh overflow-x-hidden font-bitbit"
     >
+      <GameTimeBadge
+        startedAt={room?.started_at}
+        durationSeconds={room?.duration_seconds}
+        status={room?.status}
+      />
       <SnowEffect
         isActive={showSnowEffect}
         intensity={showEliminationEffect || isEliminated ? 'blizzard' : 'normal'}

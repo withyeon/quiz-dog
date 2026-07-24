@@ -360,7 +360,8 @@ export default function MafiaView({
         </div>
       </div>
 
-      <div className="absolute bottom-36 left-0 right-0 top-16 flex items-center justify-center p-3 sm:p-5 md:right-80">
+      <div className="absolute bottom-28 left-0 right-0 top-16 overflow-y-auto md:right-80">
+        <div className="flex min-h-full items-center justify-center p-3 sm:p-5">
         <AnimatePresence mode="wait">
           {currentView === 'quiz' && currentQuestion && (
             <motion.div key="quiz" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-4xl">
@@ -472,9 +473,10 @@ export default function MafiaView({
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
 
-      <aside className="absolute bottom-36 right-0 top-16 hidden w-80 overflow-y-auto border-l-2 border-yellow-600 bg-black/60 p-5 md:block">
+      <aside className="absolute bottom-28 right-0 top-16 hidden w-80 overflow-y-auto border-l-2 border-yellow-600 bg-black/60 p-5 md:block">
         <h2 className="mb-4 flex items-center gap-2 text-3xl font-bold text-yellow-400">
           <Users className="h-7 w-7" /> 조직원
         </h2>
@@ -494,11 +496,11 @@ export default function MafiaView({
       </aside>
 
       <div className="absolute bottom-0 left-0 right-0 z-20 border-t-2 border-yellow-600 bg-black/90 shadow-lg backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 py-3">
-          <h3 className="mb-2 flex items-center gap-2 text-xl font-bold text-yellow-400">
-            <Radio className="h-5 w-5" /> 도청 장치
+        <div className="mx-auto max-w-7xl px-4 py-2">
+          <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-yellow-400 sm:text-lg">
+            <Radio className="h-4 w-4 sm:h-5 sm:w-5" /> 도청 장치
           </h3>
-          <div className="h-28 overflow-y-auto rounded-lg bg-black/55 p-3 font-mono text-base">
+          <div className="h-14 overflow-y-auto rounded-lg bg-black/55 p-2 font-mono text-sm sm:h-16 sm:text-base">
             {gameLog.map((log) => (
               <div key={log.id} className={log.type === 'success' ? 'text-green-400' : log.type === 'warning' ? 'text-yellow-400' : log.type === 'danger' ? 'text-red-400' : 'text-gray-300'}>
                 [{new Date(log.timestamp).toLocaleTimeString()}] {log.message}

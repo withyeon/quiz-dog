@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import GansikRunGame from '@/components/간식런Game'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
+import GameTimeBadge from '@/components/GameTimeBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Clock, Target, Package } from 'lucide-react'
@@ -141,6 +142,11 @@ export default function GansikRunPage() {
 
   return (
     <div className="min-h-dvh relative overflow-hidden" style={{ fontFamily: "'DNFBitBitv2', sans-serif", background: 'linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 40%, #0f2027 100%)' }}>
+      <GameTimeBadge
+        startedAt={room?.started_at}
+        durationSeconds={room?.duration_seconds}
+        status={room?.status}
+      />
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
