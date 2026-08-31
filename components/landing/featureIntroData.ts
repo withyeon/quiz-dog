@@ -15,6 +15,8 @@ export type FeatureIntroItem = {
   description: string
   features: string[]
   buttonLabel: string
+  /** 카드 버튼이 이동할 기능 소개 페이지 위치 */
+  href: string
   iconSrc?: string
   fallbackEmoji: string
 }
@@ -26,6 +28,7 @@ export function getFeatureIntroItems(gameModeCount: number): FeatureIntroItem[] 
       description: '문서만 올리면 퀴즈 완성!',
       features: ['유튜브 자막 추출', 'PDF 문서 분석', '다양한 문제 유형'],
       buttonLabel: '기능 보기 →',
+      href: '/features#ai',
       iconSrc: FEATURE_ICON_AI,
       fallbackEmoji: '🤖',
     },
@@ -34,6 +37,7 @@ export function getFeatureIntroItems(gameModeCount: number): FeatureIntroItem[] 
       description: '퀴즈가 바로 게임이 돼요!',
       features: ['실시간 대결', '팀 플레이', '개인 미션'],
       buttonLabel: '게임 보기 →',
+      href: '/features#games',
       iconSrc: FEATURE_ICON_GAME,
       fallbackEmoji: '🎮',
     },
@@ -42,6 +46,7 @@ export function getFeatureIntroItems(gameModeCount: number): FeatureIntroItem[] 
       description: '학습 결과를 한눈에 확인!',
       features: ['실시간 통계', '엑셀 다운로드', '개인별 분석'],
       buttonLabel: '리포트 보기 →',
+      href: '/features#report',
       iconSrc: FEATURE_ICON_REPORT,
       fallbackEmoji: '📊',
     },

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { CheckCircle2 } from 'lucide-react'
 import type { FeatureIntroItem } from '@/components/landing/featureIntroData'
@@ -94,20 +95,21 @@ export default function FeatureMenuCard({
           ))}
         </ul>
 
-        {/* 버튼 */}
-        <motion.button
-          type="button"
-          whileHover={{ scale: 1.02, opacity: 0.92 }}
-          whileTap={{ scale: 0.98 }}
-          className="w-full rounded-xl py-3.5 text-base font-black text-white sm:py-4 sm:text-lg"
-          style={{
-            background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
-            boxShadow: '0 4px 16px rgba(14,165,233,0.30)',
-            fontFamily: "'DNFBitBitv2', sans-serif",
-          }}
-        >
-          {item.buttonLabel}
-        </motion.button>
+        {/* 버튼 — 기능 소개 페이지의 해당 섹션으로 이동 */}
+        <Link href={item.href} className="block">
+          <motion.span
+            whileHover={{ scale: 1.02, opacity: 0.92 }}
+            whileTap={{ scale: 0.98 }}
+            className="block w-full rounded-xl py-3.5 text-center text-base font-black text-white sm:py-4 sm:text-lg"
+            style={{
+              background: 'linear-gradient(135deg, #38bdf8, #0ea5e9)',
+              boxShadow: '0 4px 16px rgba(14,165,233,0.30)',
+              fontFamily: "'DNFBitBitv2', sans-serif",
+            }}
+          >
+            {item.buttonLabel}
+          </motion.span>
+        </Link>
       </motion.div>
     </motion.article>
   )

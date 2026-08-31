@@ -108,7 +108,7 @@ export default function Navbar() {
               자료실
             </Link>
             <Link
-              href="/#features"
+              href="/features"
               className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
               기능 소개
@@ -198,7 +198,7 @@ export default function Navbar() {
             
             <div className="border-t pt-3 mt-3 space-y-3">
               <Link
-                href="/#features"
+                href="/features"
                 className="flex items-center gap-2 font-bold text-xl nav-outlined-text"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
