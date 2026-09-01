@@ -21,6 +21,7 @@ import {
     ENEMY_TYPES,
     PATH_POINTS,
     PLAYER_START_HP,
+    TOWER_QUIZ_TIME_LIMIT,
     calculateQuizGoldReward,
     getDistance,
     QUIZ_HP_PENALTY,
@@ -164,7 +165,7 @@ export default function TowerPage() {
 
         if (correct) {
             playSFX('correct')
-            const goldReward = calculateQuizGoldReward(timeElapsed, 30)
+            const goldReward = calculateQuizGoldReward(timeElapsed, TOWER_QUIZ_TIME_LIMIT)
             const nextCombo = quizProgress.correct
             setGold(prev => prev + goldReward)
             setTotalGoldEarned(prev => prev + goldReward)
@@ -538,7 +539,7 @@ export default function TowerPage() {
                                 question={currentQuestion}
                                 onAnswer={handleAnswer}
                                 onCorrectClick={returnToPlaying}
-                                timeLimit={30}
+                                timeLimit={TOWER_QUIZ_TIME_LIMIT}
                                 paused={isPaused}
                                 variant="glass"
                             />

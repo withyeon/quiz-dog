@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, MousePointer2 } from 'lucide-react'
+import { useDemoPhaseIndex } from '@/components/tutorial/TutorialDemoFrame'
 
 /**
  * 해적왕의 보물찾기 — 자동 재생되는 "플레이 영상" 데모.
@@ -72,23 +73,8 @@ function TapPointer() {
 }
 
 export default function GoldQuestTutorialDemo() {
-  const [phaseIndex, setPhaseIndex] = useState(0)
-  const [cycle, setCycle] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    const current = PHASES[phaseIndex]
-    timerRef.current = setTimeout(() => {
-      setPhaseIndex((prev) => {
-        const next = (prev + 1) % PHASES.length
-        if (next === 0) setCycle((c) => c + 1)
-        return next
-      })
-    }, current.duration)
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [phaseIndex])
+  // 선생님이 규칙을 넘기면 그 순서를 따라가고, 아니면 스스로 넘어간다.
+  const { phaseIndex, cycle } = useDemoPhaseIndex(PHASES)
 
   const phase = PHASES[phaseIndex].key
 

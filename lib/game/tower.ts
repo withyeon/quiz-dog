@@ -141,6 +141,10 @@ export const PLAYER_START_HP = 100
 export const PLAYER_START_GOLD = 300
 export const MAX_TOWER_LEVEL = 4
 export const QUIZ_HP_PENALTY = 5
+// 웨이브 시작 전에 풀어야 하는 퀴즈 수. 전부 정답이면 아이템 선택이 열립니다.
+export const TOWER_QUIZZES_PER_WAVE = 3
+// 퀴즈 제한 시간(초). 골드 보상 계산의 기준이기도 합니다.
+export const TOWER_QUIZ_TIME_LIMIT = 30
 export const TOWER_COLLISION_RADIUS = 42
 export const PATH_BUILD_BLOCK_RADIUS = 46
 
@@ -315,6 +319,17 @@ export function calculateQuizGoldReward(
 ): number {
     const timeRatio = Math.max(0, Math.min(1, (timeLimit - answerTime) / timeLimit))
     return Math.floor(60 + timeRatio * 60)
+}
+
+/**
+ * 퀴즈 정답으로 받을 수 있는 골드 범위.
+ * 튜토리얼 문구와 데모가 이 값을 쓰므로 보상 공식이 바뀌어도 설명이 틀어지지 않습니다.
+ */
+export function getQuizGoldRange(): { min: number; max: number } {
+    return {
+        min: calculateQuizGoldReward(TOWER_QUIZ_TIME_LIMIT, TOWER_QUIZ_TIME_LIMIT),
+        max: calculateQuizGoldReward(0, TOWER_QUIZ_TIME_LIMIT),
+    }
 }
 
 /**

@@ -1,11 +1,13 @@
 'use client'
 
+import { useEffect } from 'react'
 import Image from 'next/image'
 import { ArrowLeft, ArrowRight, Check, EyeOff, Play, X } from 'lucide-react'
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
 import { getGameTutorial } from '@/lib/game/tutorials'
 import GoldQuestTutorialDemo from '@/components/GoldQuestTutorialDemo'
 import { GAME_DEMO_REGISTRY } from '@/components/tutorial/gameDemos'
+import { TutorialStepProvider } from '@/components/tutorial/TutorialDemoFrame'
 
 type GameStartTutorialModalProps = {
   gameMode: GameModeId
@@ -37,6 +39,27 @@ export default function GameStartTutorialModal({
   const isTeacher = role === 'teacher'
   const isFirst = safeStepIndex === 0
   const isLast = safeStepIndex >= tutorial.slides.length - 1
+  const lastStep = Math.max(tutorial.slides.length - 1, 0)
+  // 선생님만 슬라이드를 넘긴다. 학생 화면은 tutorial:slide 이벤트로 따라온다.
+  const canControlSteps = isTeacher && Boolean(onStepChange)
+
+  // 교실 TV에서는 리모컨/키보드로 넘기는 편이 편하다.
+  useEffect(() => {
+    if (!isOpen || !canControlSteps) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowRight' || event.key === 'PageDown') {
+        event.preventDefault()
+        onStepChange?.(Math.min(safeStepIndex + 1, lastStep))
+      } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+        event.preventDefault()
+        onStepChange?.(Math.max(safeStepIndex - 1, 0))
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [canControlSteps, isOpen, lastStep, onStepChange, safeStepIndex])
 
   if (!isOpen || !slide) return null
 
@@ -83,23 +106,51 @@ export default function GameStartTutorialModal({
 
         {/* 본문: 좌측 플레이 영상 / 우측 규칙 요약 */}
         <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-5 sm:p-8 lg:flex-row lg:overflow-hidden">
+          {/* 왼쪽 영상은 오른쪽 규칙과 같은 순서로 움직인다 */}
           <div className="relative min-h-[560px] flex-1 lg:min-h-0">
-            <DemoComponent />
+            <TutorialStepProvider value={{ stepIndex: safeStepIndex, stepCount: tutorial.slides.length }}>
+              <DemoComponent />
+            </TutorialStepProvider>
           </div>
 
-          <div className="flex w-full flex-col gap-3 lg:w-[320px] lg:shrink-0 lg:overflow-y-auto">
-            <p className="text-sm font-black text-amber-400">핵심 규칙</p>
-            {tutorial.slides.map((item, index) => (
-              <div key={item.title} className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-400 text-sm font-black text-[#17262a]">
-                    {index + 1}
-                  </span>
-                  <h3 className="text-base font-black text-white">{item.title}</h3>
-                </div>
-                <p className="mt-2 text-sm font-bold leading-6 text-white/70">{item.body}</p>
+          <div className="flex w-full flex-col gap-4 lg:w-[400px] lg:shrink-0">
+            <div className="flex items-center gap-1.5">
+              {tutorial.slides.map((item, index) => (
+                <div
+                  key={item.title}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${
+                    index <= safeStepIndex ? 'bg-amber-400' : 'bg-white/20'
+                  }`}
+                />
+              ))}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-black text-amber-400">핵심 규칙</p>
+              <p className="text-sm font-black text-white/45">
+                {safeStepIndex + 1} / {tutorial.slides.length}
+              </p>
+            </div>
+
+            {/* 지금 설명할 규칙 한 장만 크게 */}
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-6">
+              <div className="flex items-start gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-xl font-black text-[#17262a]">
+                  {safeStepIndex + 1}
+                </span>
+                <h3 className="mt-1 text-2xl font-black leading-tight text-white sm:text-3xl">{slide.title}</h3>
               </div>
-            ))}
+              <p className="mt-4 text-lg font-bold leading-8 text-white/75 sm:text-xl">{slide.body}</p>
+            </div>
+
+            {!isLast && (
+              <div className="rounded-2xl border border-white/5 bg-white/[0.02] px-5 py-3">
+                <p className="text-xs font-black tracking-wide text-white/35">다음</p>
+                <p className="mt-1 truncate text-base font-black text-white/50">
+                  {tutorial.slides[safeStepIndex + 1].title}
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -123,14 +174,35 @@ export default function GameStartTutorialModal({
           )}
 
           {isTeacher && (
-            <button
-              type="button"
-              onClick={onStart}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 text-base font-black text-[#17262a] shadow-lg shadow-amber-500/20 transition hover:bg-amber-300"
-            >
-              <Play className="h-5 w-5" fill="currentColor" />
-              게임 시작
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 hidden text-xs font-bold text-white/35 xl:inline">← → 키로도 넘겨요</span>
+              <button
+                type="button"
+                onClick={() => goToStep(safeStepIndex - 1)}
+                disabled={isFirst}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/15 text-white/70 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label="이전 규칙"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => goToStep(safeStepIndex + 1)}
+                disabled={isLast}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-white/15 px-5 text-base font-black text-white transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                다음
+                <ArrowRight className="h-5 w-5" />
+              </button>
+              <button
+                type="button"
+                onClick={onStart}
+                className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 text-base font-black text-[#17262a] shadow-lg shadow-amber-500/20 transition hover:bg-amber-300"
+              >
+                <Play className="h-5 w-5" fill="currentColor" />
+                게임 시작
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -207,16 +279,18 @@ export default function GameStartTutorialModal({
             <div className="rounded-lg border border-slate-200 bg-white p-5">
               <h3 className="text-2xl font-black tracking-normal text-black">{slide.title}</h3>
               <p className="mt-3 text-base font-bold leading-7 text-slate-600">{slide.body}</p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                {slide.points.map((point, index) => (
-                  <div key={point} className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
-                    <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500 text-sm font-black text-white">
-                      {index + 1}
+              {slide.points && slide.points.length > 0 && (
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  {slide.points.map((point, index) => (
+                    <div key={point} className="rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
+                      <div className="mb-2 flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500 text-sm font-black text-white">
+                        {index + 1}
+                      </div>
+                      <p className="text-sm font-black leading-6 text-slate-700">{point}</p>
                     </div>
-                    <p className="text-sm font-black leading-6 text-slate-700">{point}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

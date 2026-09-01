@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, MousePointer2 } from 'lucide-react'
@@ -12,6 +12,64 @@ import { Check, MousePointer2 } from 'lucide-react'
  */
 
 export type DemoPhase = { key: string; duration: number; step: number; caption: string }
+
+/**
+ * 선생님이 오른쪽 "핵심 규칙"을 넘기면 왼쪽 영상도 같은 순서로 따라간다.
+ * 이 값이 없으면(미리보기 등) 예전처럼 시간에 맞춰 혼자 넘어간다.
+ */
+export type TutorialStepInfo = { stepIndex: number; stepCount: number }
+
+const TutorialStepContext = createContext<TutorialStepInfo | null>(null)
+
+export function TutorialStepProvider({ value, children }: { value: TutorialStepInfo; children: ReactNode }) {
+  return <TutorialStepContext.Provider value={value}>{children}</TutorialStepContext.Provider>
+}
+
+/** 규칙 개수와 장면 개수가 달라도 첫 장과 마지막 장은 항상 맞아떨어지게 나눈다. */
+function mapStepToPhase(stepIndex: number, stepCount: number, phaseCount: number): number {
+  if (phaseCount <= 1) return 0
+  if (stepCount <= 1) return Math.min(Math.max(stepIndex, 0), phaseCount - 1)
+  const ratio = (phaseCount - 1) / (stepCount - 1)
+  return Math.min(phaseCount - 1, Math.max(0, Math.round(stepIndex * ratio)))
+}
+
+/**
+ * 지금 보여줄 장면 번호.
+ * 선생님이 넘기는 중이면 규칙 순서에 맞춰 고정하고, 아니면 스스로 넘어간다.
+ */
+export function useDemoPhaseIndex(phases: { duration: number }[]): { phaseIndex: number; cycle: number } {
+  const step = useContext(TutorialStepContext)
+  const isControlled = step !== null
+  const phaseCount = phases.length
+  const phasesRef = useRef(phases)
+  phasesRef.current = phases
+
+  const [autoIndex, setAutoIndex] = useState(0)
+  const [autoCycle, setAutoCycle] = useState(0)
+
+  useEffect(() => {
+    if (isControlled) return
+
+    // phases 배열은 호출부에서 매번 새로 만들어지므로 의존성에 두면 타이머가 계속 초기화된다.
+    const duration = phasesRef.current[autoIndex]?.duration ?? 2000
+    const timer = setTimeout(() => {
+      setAutoIndex((prev) => {
+        const next = (prev + 1) % phaseCount
+        if (next === 0) setAutoCycle((c) => c + 1)
+        return next
+      })
+    }, duration)
+
+    return () => clearTimeout(timer)
+  }, [autoIndex, isControlled, phaseCount])
+
+  if (isControlled) {
+    const controlledIndex = mapStepToPhase(step.stepIndex, step.stepCount, phaseCount)
+    return { phaseIndex: controlledIndex, cycle: controlledIndex }
+  }
+
+  return { phaseIndex: Math.min(autoIndex, Math.max(phaseCount - 1, 0)), cycle: autoCycle }
+}
 
 export const PLAYER_NAME = '밤톨이'
 export const PLAYER_IMAGE = '/assets/icons/mascot-pome-64.png'
@@ -67,25 +125,8 @@ type FrameProps = {
 }
 
 export function TutorialDemoFrame({ backgroundSrc, backgroundClassName, metric, phases, children }: FrameProps) {
-  const [phaseIndex, setPhaseIndex] = useState(0)
-  const [cycle, setCycle] = useState(0)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    const current = phases[phaseIndex]
-    timerRef.current = setTimeout(() => {
-      setPhaseIndex((prev) => {
-        const next = (prev + 1) % phases.length
-        if (next === 0) setCycle((c) => c + 1)
-        return next
-      })
-    }, current.duration)
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [phaseIndex, phases])
-
-  const phase = phases[phaseIndex].key
+  const { phaseIndex: safePhaseIndex, cycle } = useDemoPhaseIndex(phases)
+  const phase = phases[safePhaseIndex].key
   const m = metric?.(phase) ?? null
 
   return (
@@ -146,7 +187,7 @@ export function TutorialDemoFrame({ backgroundSrc, backgroundClassName, metric, 
             <div
               key={p.key}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
-                i === phaseIndex ? 'bg-amber-400' : i < phaseIndex ? 'bg-amber-400/50' : 'bg-white/30'
+                i === safePhaseIndex ? 'bg-amber-400' : i < safePhaseIndex ? 'bg-amber-400/50' : 'bg-white/30'
               }`}
             />
           ))}
@@ -161,9 +202,9 @@ export function TutorialDemoFrame({ backgroundSrc, backgroundClassName, metric, 
             className="mt-3 flex items-center justify-center gap-2.5 rounded-full bg-black/45 px-4 py-2.5 backdrop-blur"
           >
             <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-400 text-xs font-black text-[#17262a]">
-              {phases[phaseIndex].step}
+              {phases[safePhaseIndex].step}
             </span>
-            <span className="text-sm font-black text-white sm:text-base">{phases[phaseIndex].caption}</span>
+            <span className="text-sm font-black text-white sm:text-base">{phases[safePhaseIndex].caption}</span>
           </motion.div>
         </AnimatePresence>
       </div>

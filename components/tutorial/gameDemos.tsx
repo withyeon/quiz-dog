@@ -5,6 +5,16 @@ import { motion } from 'framer-motion'
 import type { ComponentType } from 'react'
 import type { GameModeId } from '@/lib/game/modes'
 import {
+  ENEMY_TYPES,
+  PLAYER_START_HP,
+  PLAYER_START_GOLD,
+  TOWER_QUIZZES_PER_WAVE,
+  TOWER_TYPES,
+  WAVES,
+  getQuizGoldRange,
+} from '@/lib/game/tower'
+import { SKILLS, type SkillId } from '@/lib/game/skills'
+import {
   TutorialDemoFrame,
   GlassQuizStep,
   StageCard,
@@ -400,59 +410,305 @@ function DontLookDownDemo() {
 }
 
 /* ─────────────── 7. 타워 디펜스 ─────────────── */
+/**
+ * 실제 게임 흐름 그대로 재현합니다.
+ *   (lib/game/tower.ts · hooks/useTowerDefenseGame.ts · app/tower/page.tsx)
+ * 장면 6개는 튜토리얼 규칙 6장과 1:1로 맞춰 두었습니다.
+ * 선생님이 규칙을 넘기면 같은 번호의 장면이 뜹니다.
+ * 화면에 나오는 숫자는 전부 상수에서 계산하므로 밸런스가 바뀌면 데모도 따라 바뀝니다.
+ */
+const TOWER_QUIZ_GOLD = getQuizGoldRange().max // 가장 빨리 맞혔을 때 받는 골드
+const TOWER_BUILD_COST = TOWER_TYPES.BASIC.cost // 화살 타워 설치비
+const TOWER_LEAK_DAMAGE = ENEMY_TYPES.NORMAL.leakDamage // 적 하나가 출구로 나갔을 때 깎이는 체력
+
+/** 골드는 정답(+) → 타워 설치(-) 순으로 오르내립니다. 실제 게임과 같은 흐름입니다. */
+const TOWER_GOLD_AFTER_QUIZ = PLAYER_START_GOLD + TOWER_QUIZ_GOLD
+const TOWER_GOLD_BY_PHASE: Record<string, { value: number; from?: number }> = {
+  goal: { value: PLAYER_START_GOLD },
+  leak: { value: PLAYER_START_GOLD },
+  quiz: { value: PLAYER_START_GOLD },
+  correct: { value: TOWER_GOLD_AFTER_QUIZ, from: PLAYER_START_GOLD },
+  item: { value: TOWER_GOLD_AFTER_QUIZ },
+  build: { value: TOWER_GOLD_AFTER_QUIZ - TOWER_BUILD_COST, from: TOWER_GOLD_AFTER_QUIZ },
+}
+
+/** 아이템 예시 3장 — 실제로는 getSkillChoices() 가 매번 3장을 무작위로 뽑아 줍니다. */
+const TOWER_ITEM_IDS: SkillId[] = ['OVERCLOCK', 'BLIZZARD', 'HEAL']
+const TOWER_PICKED_ITEM_INDEX = 1
+
+/** 웨이브 퀴즈 진행 표시 — 실제 화면의 "웨이브 퀴즈 n/3" 과 같은 뜻 */
+function WaveQuizCounter({ solved, goldGain }: { solved: number; goldGain?: number }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+      <div className="font-bitbit flex items-center gap-2.5 rounded-full bg-black/50 px-4 py-2 backdrop-blur">
+        <span className="text-sm font-black text-white sm:text-base">
+          웨이브 퀴즈 {solved}/{TOWER_QUIZZES_PER_WAVE}
+        </span>
+        <span className="flex items-center gap-1.5">
+          {Array.from({ length: TOWER_QUIZZES_PER_WAVE }, (_, i) => (
+            <motion.span
+              key={i}
+              animate={{ scale: i < solved ? 1 : 0.7 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+              className={`h-3 w-3 rounded-full ${i < solved ? 'bg-amber-400' : 'bg-white/30'}`}
+            />
+          ))}
+        </span>
+      </div>
+      {goldGain !== undefined && (
+        <motion.span
+          initial={{ opacity: 0, y: 10, scale: 0.8 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 16 }}
+          className="font-bitbit rounded-full bg-amber-400 px-4 py-2 text-sm font-black text-[#17262a] shadow-lg sm:text-base"
+        >
+          +{goldGain}골드
+        </motion.span>
+      )}
+    </div>
+  )
+}
+
+/** 적 한 마리 */
+function RoadEnemy({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div className={`relative h-12 w-12 ${className ?? ''}`} style={style}>
+      <Image src="/tower/enemy/normal/normal.svg" alt="" fill className="object-contain" sizes="48px" />
+    </div>
+  )
+}
+
+/**
+ * 잔디(세울 수 있는 곳) / 길(못 세우는 곳) 두 칸 무대.
+ * 규칙 1·2·6 이 같은 무대를 쓰고 장면만 달라집니다.
+ */
+function TowerRoadScene({ mode }: { mode: 'goal' | 'leak' | 'build' }) {
+  const isLeak = mode === 'leak'
+  const isBuild = mode === 'build'
+  const hp = isLeak ? PLAYER_START_HP - TOWER_LEAK_DAMAGE : PLAYER_START_HP
+
+  return (
+    <StageCard id="tower-road" className="w-full max-w-2xl">
+      <div className="font-bitbit relative h-60 overflow-hidden rounded-3xl border border-white/25 bg-slate-900/60 p-3 shadow-2xl backdrop-blur-md">
+        {/* 실제 게임 화면 위쪽에 뜨는 표시와 같은 것 */}
+        <div className="flex items-center justify-between">
+          <span className="rounded-full bg-black/50 px-3 py-1 text-xs font-black text-white/85">
+            웨이브 1 / {WAVES.length}
+          </span>
+          <motion.span
+            animate={isLeak ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+            transition={isLeak ? { duration: 0.6, repeat: Infinity, repeatDelay: 1.4 } : undefined}
+            className={`rounded-full px-3 py-1 text-xs font-black ${
+              isLeak ? 'bg-rose-500 text-white' : 'bg-black/50 text-white/85'
+            }`}
+          >
+            ❤️ 체력 {hp}
+          </motion.span>
+        </div>
+
+        {/* 잔디 — 타워를 세울 수 있는 곳 */}
+        <div className="mt-2 flex h-24 items-center gap-3 rounded-2xl bg-emerald-400/15 px-6">
+          {isBuild ? (
+            <>
+              <motion.div
+                initial={{ scale: 0.3, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', stiffness: 240, damping: 15 }}
+                className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white/85 ring-2 ring-emerald-300"
+              >
+                <Image src="/tower/basic.svg" alt="" width={64} height={64} className="h-16 w-16 object-contain" />
+                <TapPointer />
+              </motion.div>
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.35 }}
+                className="rounded-full bg-emerald-400 px-3 py-1.5 text-sm font-black text-[#17262a]"
+              >
+                여기는 세울 수 있어요
+              </motion.span>
+            </>
+          ) : (
+            <span className="text-sm font-black text-white/40">잔디 — 타워를 세우는 곳</span>
+          )}
+        </div>
+
+        {/* 길 — 적이 지나가는 곳, 타워를 못 세웁니다 */}
+        <div className="relative mt-2 flex h-20 items-center justify-between rounded-2xl border-2 border-dashed border-white/30 bg-white/10 px-3">
+          <span className="z-10 rounded-full bg-emerald-500/80 px-2.5 py-1 text-xs font-black text-white">입구</span>
+          <span className="z-10 rounded-full bg-rose-500/85 px-2.5 py-1 text-xs font-black text-white">출구</span>
+
+          {/* 규칙 1 — 적이 줄지어 몰려옵니다 */}
+          {mode === 'goal' && [0, 1, 2].map((i) => (
+            <motion.div
+              key={i}
+              className="absolute left-14 top-1/2 -translate-y-1/2"
+              animate={{ x: [0, 300] }}
+              transition={{ duration: 4.5, repeat: Infinity, ease: 'linear', delay: i * 1.5 }}
+            >
+              <RoadEnemy />
+            </motion.div>
+          ))}
+
+          {/* 규칙 2 — 적이 출구로 빠져나가면 체력이 깎입니다 */}
+          {isLeak && (
+            <>
+              <motion.div
+                className="absolute left-14 top-1/2 -translate-y-1/2"
+                animate={{ x: [0, 330], opacity: [1, 1, 0] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: 'linear', times: [0, 0.85, 1] }}
+              >
+                <RoadEnemy />
+              </motion.div>
+              <motion.span
+                className="absolute right-2 top-0 z-20 rounded-full bg-rose-500 px-3 py-1 text-sm font-black text-white shadow-lg"
+                animate={{ opacity: [0, 0, 1, 1, 0], y: [0, 0, -14, -20, -26] }}
+                transition={{ duration: 2.4, repeat: Infinity, times: [0, 0.8, 0.88, 0.95, 1] }}
+              >
+                -{TOWER_LEAK_DAMAGE}
+              </motion.span>
+            </>
+          )}
+
+          {/* 규칙 6 — 길 위에는 못 세우고, 타워가 적을 막습니다 */}
+          {isBuild && (
+            <>
+              <motion.span
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.55, type: 'spring', stiffness: 320, damping: 18 }}
+                className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full bg-rose-500 px-4 py-1.5 text-sm font-black text-white shadow-lg"
+              >
+                ✕ 길 위에는 못 세워요
+              </motion.span>
+              <motion.div
+                className="absolute left-14 top-1/2 -translate-y-1/2"
+                animate={{ x: [0, 40, 40], scale: [1, 1, 0], rotate: [0, 0, 40], opacity: [1, 1, 0] }}
+                transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 0.6, times: [0, 0.55, 0.75] }}
+              >
+                <RoadEnemy />
+              </motion.div>
+            </>
+          )}
+        </div>
+
+        {/* 타워가 쏘는 화살 */}
+        {isBuild && (
+          <motion.div
+            className="absolute left-[68px] top-[92px] h-6 w-6"
+            animate={{ x: [0, 0, 60], y: [0, 0, 84], opacity: [0, 1, 0] }}
+            transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 0.6, times: [0, 0.42, 0.62] }}
+          >
+            <Image src="/tower/projectile/arrow.svg" alt="" fill className="object-contain" sizes="24px" />
+          </motion.div>
+        )}
+      </div>
+
+      {isBuild && (
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 16, delay: 1.9 }}
+          className="lg-banner-correct font-bitbit mx-auto mt-4 w-fit px-5 py-2 text-center text-base font-black text-white drop-shadow sm:text-lg"
+        >
+          막았어요! 출구까지 못 갔어요
+        </motion.div>
+      )}
+    </StageCard>
+  )
+}
+
 function TowerDemo() {
   return (
     <TutorialDemoFrame
       backgroundSrc="/background/tower-defense.png"
-      metric={risingMetric({ emoji: '⭐', base: 30, gain: 20, suffix: '점' })}
-      phases={buildPhases([
-        '퀴즈를 맞혀요',
-        '정답! 타워 설치권을 얻었어요',
-        '길목에 타워를 설치해요',
-        '적 처치! 방어 성공',
-      ])}
+      metric={(phase) => ({
+        emoji: '💰',
+        value: TOWER_GOLD_BY_PHASE[phase]?.value ?? PLAYER_START_GOLD,
+        from: TOWER_GOLD_BY_PHASE[phase]?.from,
+        suffix: '골드',
+      })}
+      /* 규칙 6장과 1:1 — lib/game/tutorials.ts 의 tower 슬라이드 순서와 같습니다 */
+      phases={[
+        { key: 'goal', duration: 2800, step: 1, caption: `웨이브 ${WAVES.length}번을 다 막으면 이겨요` },
+        { key: 'leak', duration: 2800, step: 2, caption: `출구로 나가면 체력이 ${TOWER_LEAK_DAMAGE} 깎여요` },
+        { key: 'quiz', duration: 2400, step: 3, caption: `웨이브 전에 퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제!` },
+        { key: 'correct', duration: 1800, step: 4, caption: `빨리 맞혀서 ${TOWER_QUIZ_GOLD}골드!` },
+        { key: 'item', duration: 2400, step: 5, caption: `${TOWER_QUIZZES_PER_WAVE}문제 다 맞히면 아이템 하나` },
+        { key: 'build', duration: 3400, step: 6, caption: '길을 피해 타워를 세워 적을 막아요' },
+      ]}
     >
-      {({ phase }) =>
-        phase === 'quiz' || phase === 'correct' ? (
-          <GlassQuizStep
-            question="성을 지키는 높은 건물은?"
-            options={['타워', '풍선', '연못', '구름']}
-            correctIndex={0}
-            answered={isAnswered(phase)}
-          />
-        ) : (
-          <Scene>
-            <div className="rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit relative flex h-40 items-center justify-between p-5">
-              {/* 타워 */}
-              <motion.div
-                animate={phase === 'action' ? { scale: [0.5, 1.15, 1] } : {}}
-                transition={{ duration: 0.5 }}
-                className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-white/85"
-              >
-                <Image src="/tower/basic.svg" alt="" width={72} height={72} className="h-18 w-18 object-contain" />
-                {phase === 'action' && <TapPointer />}
-              </motion.div>
-              {/* 투사체 */}
-              <motion.div
-                className="text-2xl"
-                animate={isResult(phase) ? { x: [0, 80], opacity: [1, 0] } : { x: 0, opacity: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                ⭐
-              </motion.div>
-              {/* 적 */}
-              <motion.div
-                animate={isResult(phase) ? { scale: 0, rotate: 40 } : { scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-                className="relative h-16 w-16"
-              >
-                <Image src="/tower/enemy/normal.svg" alt="" fill className="object-contain" sizes="64px" />
-              </motion.div>
-            </div>
-            <ResultBadge show={isResult(phase)} text="적 처치! +20점" />
-          </Scene>
-        )
-      }
+      {({ phase }) => {
+        /* 3·4단계 — 웨이브를 시작하려면 퀴즈부터 다 풀어야 합니다 */
+        if (phase === 'quiz' || phase === 'correct') {
+          const answered = isAnswered(phase)
+          return (
+            <StageCard id="tower-quiz" className="w-full max-w-xl">
+              <WaveQuizCounter
+                solved={answered ? TOWER_QUIZZES_PER_WAVE : TOWER_QUIZZES_PER_WAVE - 1}
+                goldGain={answered ? TOWER_QUIZ_GOLD : undefined}
+              />
+              <GlassQuizStep
+                question="세종대왕이 만든 글자는?"
+                options={['한글', '한자', '숫자', '그림']}
+                correctIndex={0}
+                answered={answered}
+              />
+            </StageCard>
+          )
+        }
+
+        /* 5단계 — 세 문제를 모두 맞혔을 때만 아이템 3장이 나옵니다 */
+        if (phase === 'item') {
+          return (
+            <StageCard id="tower-items" className="w-full max-w-xl">
+              <div className="font-bitbit rounded-3xl border border-white/25 bg-slate-900/60 p-5 shadow-2xl backdrop-blur-md">
+                <p className="mb-4 text-center text-base font-black text-amber-300">아이템 하나를 골라요</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {TOWER_ITEM_IDS.map((id, i) => {
+                    const skill = SKILLS[id]
+                    const picked = i === TOWER_PICKED_ITEM_INDEX
+                    return (
+                      <motion.div
+                        key={id}
+                        initial={{ opacity: 0, y: 26 }}
+                        animate={picked ? { opacity: 1, y: [26, 0, 0, -10] } : { opacity: 1, y: 0 }}
+                        transition={
+                          picked
+                            ? { duration: 1.3, times: [0, 0.2, 0.62, 1] }
+                            : { delay: i * 0.12, type: 'spring', stiffness: 280, damping: 22 }
+                        }
+                        className={`relative flex flex-col items-center gap-2 rounded-2xl p-4 ${
+                          picked ? 'bg-white/90' : 'bg-white/20'
+                        }`}
+                      >
+                        <span className={`flex h-14 w-14 items-center justify-center rounded-xl ${skill.color} text-3xl shadow-lg`}>
+                          {skill.emoji}
+                        </span>
+                        <span className={`text-base font-black ${picked ? 'text-[#17262a]' : 'text-white'}`}>
+                          {skill.name}
+                        </span>
+                        {picked && (
+                          <motion.span
+                            className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-amber-300"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.85 }}
+                          />
+                        )}
+                        {picked && <TapPointer />}
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              </div>
+            </StageCard>
+          )
+        }
+
+        /* 1·2·6단계 — 길과 잔디를 보여주는 무대 */
+        return <TowerRoadScene mode={phase === 'goal' ? 'goal' : phase === 'leak' ? 'leak' : 'build'} />
+      }}
     </TutorialDemoFrame>
   )
 }

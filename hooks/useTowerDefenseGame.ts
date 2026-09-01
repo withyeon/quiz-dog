@@ -9,6 +9,8 @@ import {
     PLAYER_START_HP,
     PLAYER_START_GOLD,
     QUIZ_HP_PENALTY,
+    TOWER_QUIZZES_PER_WAVE,
+    TOWER_QUIZ_TIME_LIMIT,
     PATH_POINTS,
     calculateQuizGoldReward,
     canPlaceTowerAtPoint,
@@ -37,7 +39,8 @@ import {
 } from '@/lib/game/particles'
 import type { SFXType } from '@/hooks/useAudio'
 
-export const TOWER_QUIZZES_PER_WAVE = 3
+// 상수 정의는 lib/game/tower.ts 로 이동. 기존 import 경로 호환을 위해 재수출합니다.
+export { TOWER_QUIZZES_PER_WAVE }
 
 type WaveQuizProgress = {
     answered: number
@@ -380,7 +383,7 @@ export function useTowerDefenseGame({
         setWaveEnemiesRemaining(spawnQueue.length)
     }, [currentWave, playSFX])
 
-    const grantQuizGold = useCallback((timeElapsed: number, timeLimit = 30) => {
+    const grantQuizGold = useCallback((timeElapsed: number, timeLimit = TOWER_QUIZ_TIME_LIMIT) => {
         const goldReward = calculateQuizGoldReward(timeElapsed, timeLimit)
         setGold(prev => prev + goldReward)
         setTotalGoldEarned(prev => prev + goldReward)

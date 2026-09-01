@@ -1,9 +1,11 @@
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
+import { TOWER_QUIZZES_PER_WAVE, WAVES, getQuizGoldRange } from '@/lib/game/tower'
 
 export type GameTutorialSlide = {
   title: string
   body: string
-  points: string[]
+  /** 데모 영상이 없는 모드에서만 쓰이는 보조 요약. 타워 디펜스처럼 문장만 쓰는 모드는 생략합니다. */
+  points?: string[]
 }
 
 export type GameTutorial = {
@@ -170,25 +172,36 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
     ],
   },
+  // 숫자는 모두 lib/game/tower.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(웨이브 · 출구 · 체력 · 골드 · 타워)만 씁니다.
   tower: {
     gameMode: 'tower',
     title: '타워 디펜스',
-    subtitle: '퀴즈를 풀어 타워를 설치하고 몰려오는 적을 막습니다.',
+    subtitle: '퀴즈를 풀어 골드를 모으고, 타워를 세워 적을 막아요.',
     slides: [
       {
-        title: '목표',
-        body: '방어선을 만들고 적의 진입을 최대한 막습니다.',
-        points: ['정답으로 설치 자원 확보', '타워 위치 선택', '웨이브 방어'],
+        title: `웨이브 ${WAVES.length}번 막으면 이겨요`,
+        body: '적이 계속 몰려와요',
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈 정답이 타워 설치와 강화의 동력이 됩니다.',
-        points: ['문제 풀기', '타워 선택', '맵 상황 확인'],
+        title: '출구로 나가면 체력 깎여요',
+        body: '체력 0이면 게임 끝',
       },
       {
-        title: '승리 기준',
-        body: '방어 성과와 점수 누적이 순위에 반영됩니다.',
-        points: ['적을 많이 막기', '자원 낭비 줄이기', '웨이브 흐름 읽기'],
+        title: `먼저 퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제`,
+        body: '다 풀어야 웨이브 시작',
+      },
+      {
+        title: '맞히면 골드를 받아요',
+        body: `빨리 풀면 ${getQuizGoldRange().max}골드!`,
+      },
+      {
+        title: `${TOWER_QUIZZES_PER_WAVE}문제 다 맞히면 아이템`,
+        body: '하나만 틀려도 못 받아요',
+      },
+      {
+        title: '골드로 타워를 세워요',
+        body: '길 위에는 못 세워요',
       },
     ],
   },
