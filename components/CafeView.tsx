@@ -14,7 +14,7 @@ import {
   formatTime,
 } from '@/lib/game/cafe'
 import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
-import { CAFE_ITEMS, getRandomItemChoices, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
+import { CAFE_ITEMS, GOLDEN_SPATULA_MULTIPLIER, getRandomItemChoices, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
 import { X, ShoppingCart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import QuizView from '@/components/QuizView'
@@ -420,7 +420,7 @@ export default function CafeView({
                     exit={{ scale: 0 }}
                     className="flex items-center gap-1 rounded-lg bg-amber-400 px-2 py-1 text-sm font-black text-amber-950"
                   >
-                    🥄 3배
+                    🥄 {GOLDEN_SPATULA_MULTIPLIER}배
                   </motion.div>
                 )}
               </AnimatePresence>

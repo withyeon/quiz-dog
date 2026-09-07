@@ -14,7 +14,15 @@ import Countdown from '@/components/Countdown'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import { useGameBase } from '@/hooks/useGameBase'
-import { BOX_EVENT_IMAGE, generateBoxEvent, applyBoxEvent, type BoxEvent } from '@/lib/game/goldQuest'
+import {
+  BOX_EVENT_IMAGE,
+  GOLD_STEAL_RATE,
+  SHIELD_STREAK,
+  applyBoxEvent,
+  generateBoxEvent,
+  toPercent,
+  type BoxEvent,
+} from '@/lib/game/goldQuest'
 import PlayerSelector from '@/components/PlayerSelector'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import AnswerReveal from '@/components/AnswerReveal'
@@ -381,10 +389,10 @@ export default function GamePage() {
 
     if (correct) {
       playSFX('correct')
-      // 연속 4정답 시 방어권 획득 (Gold Quest 전용, 적립 없음)
-      if (consecutiveCorrect + 1 >= 4 && !hasShield) {
+      // 연속 정답 시 방어권 획득 (Gold Quest 전용, 적립 없음)
+      if (consecutiveCorrect + 1 >= SHIELD_STREAK && !hasShield) {
         setHasShield(true)
-        setShieldNotice('4연속 정답 - 방어권 획득!')
+        setShieldNotice(`${SHIELD_STREAK}연속 정답 - 방어권 획득!`)
         playSFX('item')
       }
       // 정답: 상자 선택 화면으로 (1.5초 후 자동 이동)
@@ -501,11 +509,11 @@ export default function GamePage() {
 
       // Elf와 Wizard의 경우 훔칠 골드 양 계산
       if (pendingEvent.type === 'ELF' && targetPlayer.gold > 0) {
-        event.value = Math.floor(targetPlayer.gold * 0.1)
-        event.message = `${targetPlayer.nickname}님의 골드 10%를 가져왔다. +${event.value} 골드`
+        event.value = Math.floor(targetPlayer.gold * GOLD_STEAL_RATE.ELF)
+        event.message = `${targetPlayer.nickname}님의 골드 ${toPercent(GOLD_STEAL_RATE.ELF)}%를 가져왔다. +${event.value} 골드`
       } else if (pendingEvent.type === 'WIZARD' && targetPlayer.gold > 0) {
-        event.value = Math.floor(targetPlayer.gold * 0.25)
-        event.message = `${targetPlayer.nickname}님의 골드 25%를 가져왔다. +${event.value} 골드`
+        event.value = Math.floor(targetPlayer.gold * GOLD_STEAL_RATE.WIZARD)
+        event.message = `${targetPlayer.nickname}님의 골드 ${toPercent(GOLD_STEAL_RATE.WIZARD)}%를 가져왔다. +${event.value} 골드`
       } else if (pendingEvent.type === 'KING') {
         event.message = `${targetPlayer.nickname}님과 골드를 교환했다.`
       }
@@ -779,9 +787,9 @@ export default function GamePage() {
                   description={
                     `${pendingEvent.type === 'KING'
                       ? '교환할 상대를 선택하세요.'
-                      : pendingEvent.type === 'ELF'
-                        ? '골드 10%를 가져올 상대를 선택하세요.'
-                        : '골드 25%를 가져올 상대를 선택하세요.'} (${playerSelectTimeLeft}초)`
+                      : `골드 ${toPercent(
+                          pendingEvent.type === 'ELF' ? GOLD_STEAL_RATE.ELF : GOLD_STEAL_RATE.WIZARD,
+                        )}%를 가져올 상대를 선택하세요.`} (${playerSelectTimeLeft}초)`
                   }
                   icon={pendingEvent.icon || '⚔️'}
                   iconImage={BOX_EVENT_IMAGE[pendingEvent.type]}

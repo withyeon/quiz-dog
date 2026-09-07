@@ -9,7 +9,9 @@ function TutorialPreview() {
   const params = useSearchParams()
   const raw = params.get('game')
   const gameMode: GameModeId = isGameModeId(raw) ? raw : 'gold_quest'
-  const [stepIndex, setStepIndex] = useState(0)
+  // ?step=N 으로 특정 규칙 화면을 바로 열 수 있다 (스크린샷 확인용)
+  const initialStep = Number.parseInt(params.get('step') ?? '', 10)
+  const [stepIndex, setStepIndex] = useState(Number.isFinite(initialStep) && initialStep > 0 ? initialStep : 0)
   return (
     <GameStartTutorialModal
       key={gameMode}

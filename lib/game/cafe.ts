@@ -132,18 +132,21 @@ export const MENU_ITEMS: MenuItem[] = [
   },
 ]
 
+/** 가게 홍보를 사면 손님이 이 배수로 더 빨리 온다 */
+export const ADVERTISING_SPEED_MULTIPLIER = 2
+
 // 업그레이드 데이터
 export const UPGRADES: Upgrade[] = [
   {
     id: 'advertising',
     name: '가게 홍보',
-    description: '손님 등장 속도 2배 증가',
+    description: `손님 등장 속도 ${ADVERTISING_SPEED_MULTIPLIER}배 증가`,
     cost: 60_000,
     effect: (state) => ({
       ...state,
       upgrades: {
         ...state.upgrades,
-        customerSpeed: state.upgrades.customerSpeed * 2,
+        customerSpeed: state.upgrades.customerSpeed * ADVERTISING_SPEED_MULTIPLIER,
       },
     }),
   },
@@ -188,6 +191,18 @@ export const UPGRADES: Upgrade[] = [
   },
 ]
 
+/** 손님이 기다려 주는 시간 (초). 이 시간을 넘기면 그냥 가 버린다. */
+export const CUSTOMER_PATIENCE_SECONDS = 15
+
+/** 퀴즈 제한 시간 (초) */
+export const CAFE_QUIZ_TIME_LIMIT = 30
+
+/** 퀴즈 하나를 맞힐 때 채워지는 재고 수 */
+export const RESTOCK_PER_CORRECT = 1
+
+/** 처음부터 열려 있는 메뉴 */
+export const STARTER_MENU_ID = 'toast'
+
 // 손님 이모티콘 (하위 호환성)
 export const CUSTOMER_EMOJIS = ['🐱', '🐶', '🐰', '🐻', '🐼', '🐨', '🦊', '🐷', '🐸', '🐯']
 
@@ -205,7 +220,7 @@ export function getInitialState(): CafeGameState {
     cash: 0,
     totalCashEarned: 0,
     customersServed: 0,
-    unlockedMenus: ['toast'], // 토스트는 기본 제공
+    unlockedMenus: [STARTER_MENU_ID], // 토스트는 기본 제공
     menuStock: {}, // 재고는 퀴즈 정답 시 충전
     upgrades: {
       customerSpeed: 1.0,
@@ -229,7 +244,7 @@ export function restockMenu(state: CafeGameState, menuId: string): CafeGameState
     ...state,
     menuStock: {
       ...state.menuStock,
-      [menuId]: (state.menuStock[menuId] || 0) + 1,
+      [menuId]: (state.menuStock[menuId] || 0) + RESTOCK_PER_CORRECT,
     },
   }
 }
@@ -307,7 +322,7 @@ export function spawnCustomer(state: CafeGameState, currentTime: number): Custom
     order: randomMenu,
     emoji: randomEmoji, // 하위 호환성
     characterImage: characterImage,
-    patience: 15, // 15초 인내심
+    patience: CUSTOMER_PATIENCE_SECONDS,
     spawnTime: currentTime,
   }
 }

@@ -19,12 +19,15 @@ export interface CafeItem {
   rarity: 'common' | 'rare'
 }
 
+/** 황금 주걱을 쓰면 다음 서빙 수익이 몇 배가 되는지 */
+export const GOLDEN_SPATULA_MULTIPLIER = 3
+
 export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
   GOLDEN_SPATULA: {
     id: 'GOLDEN_SPATULA',
     name: '황금 주걱',
     emoji: '🥄',
-    description: '다음 서빙 수익 3배!',
+    description: `다음 서빙 수익 ${GOLDEN_SPATULA_MULTIPLIER}배!`,
     type: 'buff',
     rarity: 'rare',
   },
@@ -99,14 +102,20 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
   },
 }
 
+/** 정답 한 번에 고를 수 있는 아이템 후보 개수 */
+export const ITEM_CHOICE_COUNT = 3
+
+/** 이만큼 연속으로 맞히면 희귀 아이템이 후보에 들어온다 */
+export const RARE_ITEM_STREAK = 3
+
 export function getRandomItemChoices(consecutiveCorrect: number = 0): CafeItem[] {
   const commons = Object.values(CAFE_ITEMS).filter(item => item.rarity === 'common')
   const rares = Object.values(CAFE_ITEMS).filter(item => item.rarity === 'rare')
   const pool = [...commons]
 
-  if (consecutiveCorrect >= 3 && rares.length > 0) {
+  if (consecutiveCorrect >= RARE_ITEM_STREAK && rares.length > 0) {
     pool.push(rares[Math.floor(Math.random() * rares.length)])
   }
 
-  return [...pool].sort(() => Math.random() - 0.5).slice(0, 3)
+  return [...pool].sort(() => Math.random() - 0.5).slice(0, ITEM_CHOICE_COUNT)
 }

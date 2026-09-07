@@ -5,7 +5,6 @@ import Image from 'next/image'
 import { ArrowLeft, ArrowRight, Check, EyeOff, Play, X } from 'lucide-react'
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
 import { getGameTutorial } from '@/lib/game/tutorials'
-import GoldQuestTutorialDemo from '@/components/GoldQuestTutorialDemo'
 import { GAME_DEMO_REGISTRY } from '@/components/tutorial/gameDemos'
 import { TutorialStepProvider } from '@/components/tutorial/TutorialDemoFrame'
 
@@ -68,7 +67,7 @@ export default function GameStartTutorialModal({
   }
 
   // 전체화면 + 자동 재생 플레이 영상 데모 (게임별)
-  const DemoComponent = gameMode === 'gold_quest' ? GoldQuestTutorialDemo : GAME_DEMO_REGISTRY[gameMode]
+  const DemoComponent = GAME_DEMO_REGISTRY[gameMode]
   if (DemoComponent) {
     return (
       <div className="fixed inset-0 z-[60] flex flex-col bg-[#071821] text-white">

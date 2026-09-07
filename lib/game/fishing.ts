@@ -9,8 +9,11 @@ export interface ComboState {
   label: string       // 표시 레이블
 }
 
+/** 점수 2배(MAX 콤보)에 도달하는 연속 정답 수 */
+export const MAX_COMBO_STREAK = 5
+
 export function getComboState(consecutiveCorrect: number): ComboState {
-  if (consecutiveCorrect >= 5) return { count: consecutiveCorrect, multiplier: 2.0, label: 'MAX 콤보' }
+  if (consecutiveCorrect >= MAX_COMBO_STREAK) return { count: consecutiveCorrect, multiplier: 2.0, label: 'MAX 콤보' }
   if (consecutiveCorrect >= 4) return { count: consecutiveCorrect, multiplier: 1.7, label: '4 콤보' }
   if (consecutiveCorrect >= 3) return { count: consecutiveCorrect, multiplier: 1.4, label: '3 콤보' }
   if (consecutiveCorrect >= 2) return { count: consecutiveCorrect, multiplier: 1.2, label: '2 콤보' }
@@ -224,10 +227,17 @@ export function checkFrenzyEvent(): boolean {
   return Math.random() < 0.05
 }
 
+/** 정답 속도 등급 경계 (초). 이 시간 안에 맞히면 해당 등급이 된다. */
+export const ANSWER_SPEED_THRESHOLDS = {
+  perfect: 6,
+  fast: 12,
+  steady: 22,
+} as const
+
 export function getAnswerSpeedGrade(answerTime: number): AnswerSpeedGrade {
-  if (answerTime <= 6) return 'perfect'
-  if (answerTime <= 12) return 'fast'
-  if (answerTime <= 22) return 'steady'
+  if (answerTime <= ANSWER_SPEED_THRESHOLDS.perfect) return 'perfect'
+  if (answerTime <= ANSWER_SPEED_THRESHOLDS.fast) return 'fast'
+  if (answerTime <= ANSWER_SPEED_THRESHOLDS.steady) return 'steady'
   return 'slow'
 }
 
@@ -445,11 +455,22 @@ export function calculateTotalPoints(caughtDolls: Doll[]): number {
  * 문제 수에 따른 기계 업그레이드 레벨 계산
  * @param correctAnswers 맞춘 문제 수
  */
+/** 집게 등급별로 필요한 누적 정답 수 */
+export const MACHINE_RANK_THRESHOLDS: Record<MachineRank, number> = {
+  1: 0,
+  2: 5,
+  3: 10,
+  4: 15,
+  5: 20,
+}
+
+export const MAX_MACHINE_RANK: MachineRank = 5
+
 export function getMachineRank(correctAnswers: number): MachineRank {
-  if (correctAnswers >= 20) return 5
-  if (correctAnswers >= 15) return 4
-  if (correctAnswers >= 10) return 3
-  if (correctAnswers >= 5) return 2
+  if (correctAnswers >= MACHINE_RANK_THRESHOLDS[5]) return 5
+  if (correctAnswers >= MACHINE_RANK_THRESHOLDS[4]) return 4
+  if (correctAnswers >= MACHINE_RANK_THRESHOLDS[3]) return 3
+  if (correctAnswers >= MACHINE_RANK_THRESHOLDS[2]) return 2
   return 1
 }
 
@@ -462,11 +483,11 @@ export function getMachineRankProgress(correctAnswers: number): {
 } {
   const rank = getMachineRank(correctAnswers)
   const thresholds: Record<MachineRank, { current: number; next: number | null }> = {
-    1: { current: 0, next: 5 },
-    2: { current: 5, next: 10 },
-    3: { current: 10, next: 15 },
-    4: { current: 15, next: 20 },
-    5: { current: 20, next: null },
+    1: { current: MACHINE_RANK_THRESHOLDS[1], next: MACHINE_RANK_THRESHOLDS[2] },
+    2: { current: MACHINE_RANK_THRESHOLDS[2], next: MACHINE_RANK_THRESHOLDS[3] },
+    3: { current: MACHINE_RANK_THRESHOLDS[3], next: MACHINE_RANK_THRESHOLDS[4] },
+    4: { current: MACHINE_RANK_THRESHOLDS[4], next: MACHINE_RANK_THRESHOLDS[5] },
+    5: { current: MACHINE_RANK_THRESHOLDS[5], next: null },
   }
   const { current, next } = thresholds[rank]
 

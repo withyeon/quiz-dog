@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
 import type { BoxEvent } from '@/lib/game/goldQuest'
-import { BOX_EVENT_IMAGE } from '@/lib/game/goldQuest'
+import { BOX_EVENT_IMAGE, CHEST_COUNT } from '@/lib/game/goldQuest'
+
+const CHEST_INDEXES = Array.from({ length: CHEST_COUNT }, (_, i) => i)
 
 interface ChestViewProps {
   onChestSelect: (chestIndex: number) => void
@@ -19,19 +21,19 @@ export default function ChestView({
   reward,
   isProcessing,
 }: ChestViewProps) {
-  const [revealedChests, setRevealedChests] = useState<boolean[]>([false, false, false])
+  const [revealedChests, setRevealedChests] = useState<boolean[]>(() => CHEST_INDEXES.map(() => false))
 
   // 컴포넌트가 마운트되거나 selectedChest가 null이 되면 초기화
   useEffect(() => {
     if (selectedChest === null) {
-      setRevealedChests([false, false, false])
+      setRevealedChests(CHEST_INDEXES.map(() => false))
     }
   }, [selectedChest])
 
   // reward가 null이 되면 상태 초기화 (새로운 문제로 이동시)
   useEffect(() => {
     if (reward === null) {
-      setRevealedChests([false, false, false])
+      setRevealedChests(CHEST_INDEXES.map(() => false))
     }
   }, [reward])
 
@@ -86,7 +88,7 @@ export default function ChestView({
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6">
-        {[0, 1, 2].map((index) => (
+        {CHEST_INDEXES.map((index) => (
           <motion.button
             key={index}
             type="button"

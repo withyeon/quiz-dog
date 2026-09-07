@@ -19,7 +19,15 @@ import PreStartQuizGate from '@/components/PreStartQuizGate'
 import ScreenFlash from '@/components/ScreenFlash'
 import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
-import { formatMoney, getAnswerSpeed, getSpeedBonus, roundMoney } from '@/lib/game/convenienceStore'
+import {
+  QUIZZES_PER_PRODUCT,
+  QUIZ_TIME_LIMIT,
+  formatMoney,
+  getAnswerSpeed,
+  getSpeedBonus,
+  getWrongPenalty,
+  roundMoney,
+} from '@/lib/game/convenienceStore'
 import { STORE_BRAND_ICON } from '@/lib/game/storeAssets'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 import { isTerminalRoomStatus, type RoomStatus } from '@/lib/game/roomStatus'
@@ -331,11 +339,11 @@ export default function FactoryPage() {
 
       // 정답 속도 계산
       const answerTimeMs = Date.now() - questionStartTime.current
-      const speed = getAnswerSpeed(answerTimeMs, 30)
+      const speed = getAnswerSpeed(answerTimeMs, QUIZ_TIME_LIMIT)
       setLastAnswerSpeed(speed)
 
       // 속도 보너스 골드 지급
-      const bonus = getSpeedBonus(answerTimeMs, 30)
+      const bonus = getSpeedBonus(answerTimeMs, QUIZ_TIME_LIMIT)
       if (bonus > 0) {
         applyMoneyDelta(bonus)
         setSpeedBonusDisplay(bonus)
@@ -347,7 +355,7 @@ export default function FactoryPage() {
       setCorrectAnswersCount(newCorrectCount)
 
       // 3문제마다 발주(상품 선택) 모달 표시
-      if (newCorrectCount % 3 === 0) {
+      if (newCorrectCount % QUIZZES_PER_PRODUCT === 0) {
         setShowFlash(true)
         setTimeout(() => setShowFlash(false), 300)
         playSFX('item')
@@ -360,8 +368,8 @@ export default function FactoryPage() {
       playSFX('incorrect')
 
       // 오답 패널티: 상품을 빼앗기지는 않되, 매출 일부를 잃어 템포만 살짝 늦춘다.
-      if (moneyRef.current > 0) {
-        const penalty = roundMoney(Math.min(Math.max(moneyRef.current * 0.08, 100), 2000))
+      const penalty = getWrongPenalty(moneyRef.current)
+      if (penalty > 0) {
         applyMoneyDelta(-penalty)
         setWrongPenalty(penalty)
         setTimeout(() => setWrongPenalty(null), 2500)
@@ -496,7 +504,7 @@ export default function FactoryPage() {
                     animate={{ scale: 1 }}
                     className="whitespace-nowrap text-center text-xl font-bold text-sky-950 sm:text-2xl"
                   >
-                    {3 - (correctAnswersCount % 3)} 문제
+                    {QUIZZES_PER_PRODUCT - (correctAnswersCount % QUIZZES_PER_PRODUCT)} 문제
                   </motion.div>
                 </div>
 
@@ -561,7 +569,7 @@ export default function FactoryPage() {
                   question={currentQuestion}
                   onAnswer={handleAnswerSubmit}
                   onCorrectClick={goToNextQuiz}
-                  timeLimit={30}
+                  timeLimit={QUIZ_TIME_LIMIT}
                   paused={isPaused}
                   variant="glass"
                   className="lg-panel lg-ink-outline font-bitbit w-full p-5 sm:p-8"

@@ -60,6 +60,38 @@ export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
 
 export const GRID_SIZE = 9 // Factory 스타일: 3x3 생산/진열 슬롯
 
+/** 정답 몇 개마다 상품을 하나 받는지 */
+export const QUIZZES_PER_PRODUCT = 3
+
+/** 상품이 도착했을 때 고를 수 있는 후보 개수 */
+export const PRODUCT_OPTION_COUNT = 3
+
+/** 퀴즈 제한 시간 (초) */
+export const QUIZ_TIME_LIMIT = 30
+
+/** 정답까지 남은 1초당 받는 보너스 금액 */
+export const SPEED_BONUS_PER_SECOND = 50
+
+/** 오답 패널티: 보유 금액의 일정 비율을 잃되, 최소·최대 금액으로 묶는다 */
+export const WRONG_PENALTY_RATE = 0.08
+export const WRONG_PENALTY_MIN = 100
+export const WRONG_PENALTY_MAX = 2000
+
+/** 상품 업그레이드 최대 레벨 */
+export const MAX_PRODUCT_LEVEL = 5
+
+/** 카테고리 시너지: 같은 카테고리가 하나 늘 때마다 배율이 오른다 */
+export const SYNERGY_STEP = 0.5
+export const SYNERGY_CAP = 5.5
+
+/**
+ * 오답 패널티 금액. 가진 돈이 없으면 잃지 않는다.
+ */
+export function getWrongPenalty(money: number): number {
+  if (money <= 0) return 0
+  return roundMoney(Math.min(Math.max(money * WRONG_PENALTY_RATE, WRONG_PENALTY_MIN), WRONG_PENALTY_MAX))
+}
+
 // 고객 타입
 export type CustomerType = 'normal' | 'vip' | 'bulk'
 
@@ -125,41 +157,45 @@ export const STORE_EVENTS: StoreEvent[] = [
   },
 ]
 
+export type AnswerSpeed = 'fast' | 'normal' | 'slow'
+
+/**
+ * 정답 속도별 상품 등급 확률 (%). 빨리 맞힐수록 좋은 등급이 잘 나온다.
+ * 일반 확률은 나머지 전부.
+ */
+export const GACHA_TIER_CHANCE: Record<AnswerSpeed, { 전설: number; 영웅: number; 희귀: number }> = {
+  fast: { 전설: 15, 영웅: 30, 희귀: 35 },
+  normal: { 전설: 5, 영웅: 15, 희귀: 30 },
+  slow: { 전설: 2, 영웅: 8, 희귀: 30 },
+}
+
+/** 9칸을 다 채운 뒤에는 교체 전략이 시작되도록 고등급 비중을 더 올린다 (%p) */
+export const SHELF_FULL_TIER_BONUS = { 전설: 6, 영웅: 10, 희귀: 4 }
+
 /**
  * 가챠 시스템 (랜덤 뽑기)
  * @param answerSpeed - 정답 속도 ('fast' | 'normal' | 'slow'), 빠를수록 좋은 등급 확률 증가
  */
 export function generateProductOptions(
-  answerSpeed?: 'fast' | 'normal' | 'slow',
+  answerSpeed?: AnswerSpeed,
   shelfIsFull: boolean = false
 ): Product[] {
   const options: Product[] = []
 
   // 정답 속도에 따른 확률 보정
-  let legendChance = 5   // 전설 확률 (%)
-  let epicChance = 15    // 영웅 확률 (%)
-  let rareChance = 30    // 희귀 확률 (%)
-
-  if (answerSpeed === 'fast') {
-    legendChance = 15
-    epicChance = 30
-    rareChance = 35
-    // 일반 = 100 - 15 - 30 - 35 = 20%
-  } else if (answerSpeed === 'slow') {
-    legendChance = 2
-    epicChance = 8
-    rareChance = 30
-    // 일반 = 100 - 2 - 8 - 30 = 60%
-  }
+  const base = GACHA_TIER_CHANCE[answerSpeed ?? 'normal']
+  let legendChance = base.전설
+  let epicChance = base.영웅
+  let rareChance = base.희귀
 
   // 9칸을 모두 채운 뒤에는 Blooket Factory처럼 교체 전략이 시작되도록 고등급 비중 증가
   if (shelfIsFull) {
-    legendChance += 6
-    epicChance += 10
-    rareChance += 4
+    legendChance += SHELF_FULL_TIER_BONUS.전설
+    epicChance += SHELF_FULL_TIER_BONUS.영웅
+    rareChance += SHELF_FULL_TIER_BONUS.희귀
   }
 
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < PRODUCT_OPTION_COUNT; i++) {
     const rand = Math.random() * 100
     let tier: ProductTier = '일반'
 
@@ -190,7 +226,7 @@ export function generateProductOptions(
  * @param answerTimeMs - 정답까지 걸린 시간 (ms)
  * @param timeLimitSeconds - 제한 시간 (초)
  */
-export function getAnswerSpeed(answerTimeMs: number, timeLimitSeconds: number = 30): 'fast' | 'normal' | 'slow' {
+export function getAnswerSpeed(answerTimeMs: number, timeLimitSeconds: number = QUIZ_TIME_LIMIT): AnswerSpeed {
   const answerTimeSec = answerTimeMs / 1000
   const ratio = answerTimeSec / timeLimitSeconds
 
@@ -202,11 +238,10 @@ export function getAnswerSpeed(answerTimeMs: number, timeLimitSeconds: number = 
 /**
  * 정답 속도에 따른 보너스 골드 계산
  */
-export function getSpeedBonus(answerTimeMs: number, timeLimitSeconds: number = 30): number {
+export function getSpeedBonus(answerTimeMs: number, timeLimitSeconds: number = QUIZ_TIME_LIMIT): number {
   const remainingMs = (timeLimitSeconds * 1000) - answerTimeMs
   if (remainingMs <= 0) return 0
-  // 남은 시간 1초당 50원 보너스
-  return roundMoney((remainingMs / 1000) * 50)
+  return roundMoney((remainingMs / 1000) * SPEED_BONUS_PER_SECOND)
 }
 
 export function calculateProductIncome(product: Product, products: Product[]): number {
@@ -342,7 +377,7 @@ export function getTierColor(tier: ProductTier): string {
  */
 export function getUpgradeCost(product: Product): number {
   const level = product.level || 1
-  if (level >= 5) return Infinity // 최대 레벨
+  if (level >= MAX_PRODUCT_LEVEL) return Infinity // 최대 레벨
 
   const baseCost = product.income * 18
   return roundMoney(baseCost * Math.pow(1.85, level - 1))
@@ -357,7 +392,7 @@ export function upgradeProduct(
 ): { success: boolean; newProducts: Product[]; cost: number } {
   const index = products.findIndex(p => p.id === product.id)
 
-  if (index === -1 || (product.level || 1) >= 5) {
+  if (index === -1 || (product.level || 1) >= MAX_PRODUCT_LEVEL) {
     return { success: false, newProducts: products, cost: 0 }
   }
 
@@ -380,7 +415,15 @@ export function upgradeProduct(
  */
 export function getCategorySynergy(category: ProductCategory, products: Product[]): number {
   const count = products.filter(p => p.category === category).length
-  return Math.min(5.5, 1 + (count - 1) * 0.5) // 1.0x부터 최대 5.5x
+  return Math.min(SYNERGY_CAP, 1 + (count - 1) * SYNERGY_STEP) // 1.0x부터 최대 5.5x
+}
+
+/**
+ * 진열대를 한 카테고리로 가득 채웠을 때 실제로 나오는 최대 시너지 배율.
+ * 칸이 9개뿐이라 SYNERGY_CAP(5.5)까지는 닿지 않는다.
+ */
+export function getMaxReachableSynergy(): number {
+  return Math.min(SYNERGY_CAP, 1 + (GRID_SIZE - 1) * SYNERGY_STEP)
 }
 
 /**

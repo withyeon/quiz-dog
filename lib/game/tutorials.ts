@@ -1,5 +1,61 @@
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
+import {
+  CHEST_COUNT,
+  GOLD_LOSS_RATE,
+  GOLD_MULTIPLIER,
+  GOLD_STEAL_RATE,
+  MAX_GOLD_STACK,
+  SHIELD_STREAK,
+  toPercent,
+} from '@/lib/game/goldQuest'
 import { TOWER_QUIZZES_PER_WAVE, WAVES, getQuizGoldRange } from '@/lib/game/tower'
+import {
+  ANSWER_SPEED_THRESHOLDS,
+  DOLL_TYPES,
+  MACHINE_RANK_THRESHOLDS,
+  MAX_COMBO_STREAK,
+  MAX_MACHINE_RANK,
+  getAimGradeLabel,
+  getAimTierFloor,
+  getAnswerSpeedLabel,
+  getComboState,
+  getMachineRankName,
+} from '@/lib/game/fishing'
+import {
+  GACHA_TIER_CHANCE,
+  GRID_SIZE,
+  PRODUCT_OPTION_COUNT,
+  QUIZZES_PER_PRODUCT,
+  SPEED_BONUS_PER_SECOND,
+  WRONG_PENALTY_RATE,
+  getMaxReachableSynergy,
+} from '@/lib/game/convenienceStore'
+import {
+  CUSTOMER_PATIENCE_SECONDS,
+  MENU_ITEMS,
+  RESTOCK_PER_CORRECT,
+} from '@/lib/game/cafe'
+import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
+import {
+  CAFE_ITEMS,
+  GOLDEN_SPATULA_MULTIPLIER,
+  ITEM_CHOICE_COUNT,
+  RARE_ITEM_STREAK,
+} from '@/lib/game/cafeItems'
+
+/** 조준을 가장 잘 맞혔을 때 보장되는 최소 인형 등급 */
+const AIM_PERFECT_TIER = getAimTierFloor('perfect') ?? '영웅'
+/** 전설 인형이 줄 수 있는 최고 점수 */
+const LEGEND_MAX_SCORE = Math.max(...DOLL_TYPES.filter((doll) => doll.tier === '전설').map((doll) => doll.maxScore))
+
+/** 오답 때 잃는 비율(%) */
+const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
+/** 빨리 맞혔을 때 전설 확률이 평소의 몇 배가 되는지 */
+const FAST_LEGEND_ODDS_RATIO = Math.round(GACHA_TIER_CHANCE.fast.전설 / GACHA_TIER_CHANCE.normal.전설)
+/** 진열대를 한 종류로 채웠을 때 나오는 최대 시너지 배율 */
+const MAX_SYNERGY = getMaxReachableSynergy()
+
+const CAFE_BEST_SELL = MENU_ITEMS.reduce((best, menu) => (menu.sellPrice > best.sellPrice ? menu : best))
 
 export type GameTutorialSlide = {
   title: string
@@ -15,28 +71,41 @@ export type GameTutorial = {
   slides: GameTutorialSlide[]
 }
 
-const sharedQuizPoint = '퀴즈를 맞히면 게임에 필요한 행동이나 보상이 열립니다.'
-
 export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
+  // 숫자는 모두 lib/game/goldQuest.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(상자 · 골드 · 함정 · 방어권)만 씁니다.
   gold_quest: {
     gameMode: 'gold_quest',
     title: '해적왕의 보물찾기',
-    subtitle: '퀴즈를 풀어 골드를 모으고 보물을 향해 항해합니다.',
+    subtitle: '퀴즈를 맞히고 보물 상자를 열어 골드를 모아요.',
     slides: [
       {
-        title: '목표',
-        body: '가장 많은 골드와 보물을 모은 플레이어가 앞서갑니다.',
-        points: ['정답을 맞히면 골드 획득', '아이템과 공격으로 흐름 뒤집기', '끝까지 점수 유지하기'],
+        title: '퀴즈를 맞혀야 상자를 열어요',
+        body: '틀리면 이번 상자는 없어요',
       },
       {
-        title: '퀴즈와 보상',
-        body: sharedQuizPoint,
-        points: ['정답은 바로 보상으로 연결', '연속 정답은 유리한 흐름 생성', '오답이어도 다음 문제로 재도전'],
+        title: `상자 ${CHEST_COUNT}개 중 하나를 골라요`,
+        body: '열어봐야 무엇이 들었는지 알아요',
       },
       {
-        title: '승리 기준',
-        body: '종료 시점에 보유 골드가 높은 순서로 순위가 정해집니다.',
-        points: ['골드 현황 확인', '위험한 상대 견제', '마지막 문제까지 집중'],
+        title: '보물을 찾으면 골드를 받아요',
+        body: `황금 왕관은 ${MAX_GOLD_STACK}골드, 유니콘은 ${GOLD_MULTIPLIER.UNICORN}배!`,
+      },
+      {
+        title: '함정을 밟으면 골드가 줄어요',
+        body: `드래곤은 골드를 ${toPercent(GOLD_LOSS_RATE.DRAGON)}%나 가져가요`,
+      },
+      {
+        title: '친구 골드를 빼앗기도 해요',
+        body: `마법사를 찾으면 ${toPercent(GOLD_STEAL_RATE.WIZARD)}%까지 가져와요`,
+      },
+      {
+        title: `${SHIELD_STREAK}연속 정답이면 방어권`,
+        body: '함정도 도둑도 한 번 막아줘요',
+      },
+      {
+        title: '골드가 가장 많으면 1등',
+        body: '순위는 끝날 때까지 바뀌어요',
       },
     ],
   },
@@ -62,69 +131,126 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
     ],
   },
+  // 숫자는 모두 lib/game/fishing.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(집게 · 조준 · 내리기 · 인형 · 점수)만 씁니다.
   fishing: {
     gameMode: 'fishing',
     title: '두근두근 인형뽑기',
-    subtitle: '퀴즈를 풀고 뽑기 기회를 얻어 희귀 인형을 노립니다.',
+    subtitle: '퀴즈를 맞히고 집게를 조준해 좋은 인형을 뽑아요.',
     slides: [
       {
-        title: '목표',
-        body: '인형을 뽑아 점수를 쌓고 더 좋은 보상을 노립니다.',
-        points: ['정답으로 뽑기 기회 획득', '희귀 인형일수록 높은 점수', '기회를 아껴 쓰기'],
+        title: '퀴즈를 맞혀야 뽑아요',
+        body: '틀리면 이번 뽑기는 없어요',
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈와 뽑기가 번갈아 이어지며, 집중력과 운이 함께 필요합니다.',
-        points: ['문제 풀기', '뽑기 위치 선택', '획득 점수 확인'],
+        title: '빨리 맞히면 점수 UP',
+        body: `${ANSWER_SPEED_THRESHOLDS.perfect}초 안에 맞히면 ${getAnswerSpeedLabel('perfect')}!`,
       },
       {
-        title: '승리 기준',
-        body: '종료 시점에 뽑기 점수가 높은 플레이어가 앞섭니다.',
-        points: ['정답 수 늘리기', '좋은 인형 노리기', '시간 안에 빠르게 판단'],
+        title: '집게는 좌우로 움직여요',
+        body: '내리기를 눌러 멈춰요',
+      },
+      {
+        title: '노란 칸에 멈추면 대박',
+        body: `조준이 ${getAimGradeLabel('perfect')}이면 ${AIM_PERFECT_TIER} 인형 이상`,
+      },
+      {
+        title: '인형마다 점수가 달라요',
+        body: `전설 인형은 한 마리에 ${LEGEND_MAX_SCORE.toLocaleString()}점 넘게!`,
+      },
+      {
+        title: `연속 정답이면 점수 ${getComboState(MAX_COMBO_STREAK).multiplier}배`,
+        body: `${MAX_COMBO_STREAK}문제 연속으로 맞혀야 해요`,
+      },
+      {
+        title: '집게는 점점 좋아져요',
+        body: `${MACHINE_RANK_THRESHOLDS[2]}문제마다 한 단계, ${MACHINE_RANK_THRESHOLDS[MAX_MACHINE_RANK]}문제면 ${getMachineRankName(MAX_MACHINE_RANK)}!`,
+      },
+      {
+        title: '점수가 가장 높으면 1등',
+        body: '뽑은 인형 점수를 모두 더해요',
       },
     ],
   },
+  // 숫자는 모두 lib/game/convenienceStore.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(매대 · 진열 · 상품 · 등급 · 시너지 · 매출)만 씁니다.
   factory: {
     gameMode: 'factory',
     title: '전설의 편의점',
-    subtitle: '퀴즈를 풀며 상품을 운영하고 매출을 올리는 경영 게임입니다.',
+    subtitle: '퀴즈를 맞혀 상품을 받고, 매대를 채워 돈을 벌어요.',
     slides: [
       {
-        title: '목표',
-        body: '편의점을 잘 운영해 가장 많은 돈을 모읍니다.',
-        points: ['정답으로 운영 자원 확보', '상품과 매출 관리', '꾸준히 수익 올리기'],
+        title: '퀴즈를 맞혀야 벌어요',
+        body: `틀리면 가진 돈의 ${WRONG_PENALTY_PERCENT}%를 잃어요`,
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈 결과가 편의점 운영 흐름에 영향을 줍니다.',
-        points: ['문제 풀기', '상품 선택과 판매', '수익 변화 확인'],
+        title: '빨리 맞히면 보너스 UP',
+        body: `남은 1초마다 ${SPEED_BONUS_PER_SECOND}원씩!`,
       },
       {
-        title: '승리 기준',
-        body: '종료 시점에 보유 금액이 높은 플레이어가 높은 순위에 오릅니다.',
-        points: ['빠른 정답', '좋은 선택', '매출 누적'],
+        title: `${QUIZZES_PER_PRODUCT}문제 맞히면 상품 하나`,
+        body: `${PRODUCT_OPTION_COUNT}개 중에서 하나만 골라요`,
+      },
+      {
+        title: '진열하면 돈이 들어와요',
+        body: '상품마다 버는 시간이 달라요',
+      },
+      {
+        title: '등급이 높을수록 좋아요',
+        body: `빨리 맞히면 전설 확률 ${FAST_LEGEND_ODDS_RATIO}배`,
+      },
+      {
+        title: `${GRID_SIZE}칸이 꽉 차면 교체해요`,
+        body: '적게 버는 상품을 바꿔요',
+      },
+      {
+        title: '같은 종류끼리 모으세요',
+        body: `${GRID_SIZE}칸을 한 종류로 채우면 ${MAX_SYNERGY}배!`,
+      },
+      {
+        title: '돈이 가장 많으면 1등',
+        body: '끝날 때 가진 돈으로 정해요',
       },
     ],
   },
+  // 숫자는 모두 lib/game/cafe.ts · cafeItems.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(음식 채우기 · 재고 · 서빙 · 손님 · 상점 · 아이템)만 씁니다.
   cafe: {
     gameMode: 'cafe',
     title: '달콤 바삭 카페',
-    subtitle: '퀴즈로 주문을 처리하고 카페 점수를 쌓습니다.',
+    subtitle: '퀴즈를 맞혀 음식을 채우고, 손님을 서빙해 돈을 벌어요.',
     slides: [
       {
-        title: '목표',
-        body: '손님에게 음식을 잘 서빙해 높은 점수를 얻습니다.',
-        points: ['정답으로 서빙 진행', '아이템으로 흐름 강화', '점수 꾸준히 누적'],
+        title: '음식 채우기를 눌러요',
+        body: '퀴즈를 풀어야 음식을 만들어요',
       },
       {
-        title: '플레이 방식',
-        body: '문제를 맞히고 카페 운영 선택을 이어갑니다.',
-        points: ['주문 확인', '퀴즈 풀이', '보상 또는 아이템 선택'],
+        title: '맞히면 재고가 생겨요',
+        body: `해금된 메뉴 재고가 ${RESTOCK_PER_CORRECT}개 늘어요`,
       },
       {
-        title: '승리 기준',
-        body: '종료 시점에 카페 점수가 높은 플레이어가 앞섭니다.',
-        points: ['정확도 유지', '아이템 타이밍', '끊기지 않는 운영'],
+        title: '아이템을 하나 골라요',
+        body: `정답이면 ${ITEM_CHOICE_COUNT}개 중에서 골라요`,
+      },
+      {
+        title: '손님을 눌러 서빙해요',
+        body: '주문한 메뉴 재고가 있어야 해요',
+      },
+      {
+        title: `손님은 ${CUSTOMER_PATIENCE_SECONDS}초만 기다려요`,
+        body: `${MAX_CUSTOMERS_IN_LINE}명까지 줄을 서요`,
+      },
+      {
+        title: `${RARE_ITEM_STREAK}연속이면 희귀 아이템`,
+        body: `${CAFE_ITEMS.GOLDEN_SPATULA.name}은 다음 서빙 ${GOLDEN_SPATULA_MULTIPLIER}배!`,
+      },
+      {
+        title: '돈으로 메뉴를 열어요',
+        body: `${CAFE_BEST_SELL.name}는 한 개에 ${CAFE_BEST_SELL.sellPrice.toLocaleString()}원!`,
+      },
+      {
+        title: '돈이 가장 많으면 1등',
+        body: '끝날 때 가진 돈으로 정해요',
       },
     ],
   },
