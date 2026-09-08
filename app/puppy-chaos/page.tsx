@@ -10,6 +10,21 @@ import QuizView from '@/components/QuizView'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { useGameBase } from '@/hooks/useGameBase'
 import {
+  BONE_CARD_SCORE,
+  BONUS_ROUND_BASE_REWARD,
+  BONUS_ROUND_SECONDS,
+  CARD_PICK_SECONDS,
+  COMBO_STEPS,
+  CORRECT_ROUND_BASE_REWARD,
+  CORRECT_ROUND_SCORE,
+  CORRECT_ROUND_SECONDS,
+  GOLDEN_DOG_SCORE,
+  MULTIPLIER_BIG,
+  MULTIPLIER_SMALL,
+  POOP_BOMB_SCORE,
+  SCORE_THIEF_AMOUNT,
+  WRONG_ROUND_BASE_REWARD,
+  WRONG_ROUND_SECONDS,
   clampRoundReward,
   createPoopBombAttack,
   drawCardChoices,
@@ -21,6 +36,9 @@ import { createPuppyChaosEvent } from '@/lib/services/강아지대소동Events'
 import { updatePlayer } from '@/lib/services/players'
 import { checkQuestionAnswer } from '@/lib/services/questions'
 import { sortPlayersByScore } from '@/lib/utils/playerSorting'
+
+/** 콤보 이벤트(TV 알림)는 배수가 가장 높은 단계부터 알립니다 */
+const COMBO_EVENT_STREAK = Math.max(...COMBO_STEPS.map((step) => step.streak))
 
 const PUPPY_ICON = {
   trophy: '/puppy-chaos/trophy.svg',
@@ -80,7 +98,7 @@ export default function PuppyChaosPage() {
   const [phase, setPhase] = useState<Phase>('waiting')
   const [combo, setCombo] = useState(0)
   const [cards, setCards] = useState<PuppyChaosCard[]>([])
-  const [cardCountdown, setCardCountdown] = useState(5)
+  const [cardCountdown, setCardCountdown] = useState(CARD_PICK_SECONDS)
   const [selectedBoxIndex, setSelectedBoxIndex] = useState<number | null>(null)
   const [isOpeningBox, setIsOpeningBox] = useState(false)
   const [roundContext, setRoundContext] = useState<RoundContext | null>(null)
@@ -257,7 +275,7 @@ export default function PuppyChaosPage() {
     const comboAfter = correct ? combo + 1 : 0
     setCombo(comboAfter)
 
-    if (correct && comboAfter >= 5) {
+    if (correct && comboAfter >= COMBO_EVENT_STREAK) {
       void createPuppyChaosEvent({
         session_id: roomCode,
         type: 'combo',
@@ -275,9 +293,9 @@ export default function PuppyChaosPage() {
         isBonus: false,
         questionIndex,
         comboAfter,
-        scoreBeforeDodge: 100,
-        baseReward: 50,
-        durationSeconds: 7,
+        scoreBeforeDodge: CORRECT_ROUND_SCORE,
+        baseReward: CORRECT_ROUND_BASE_REWARD,
+        durationSeconds: CORRECT_ROUND_SECONDS,
         multiplier: getComboMultiplier(comboAfter),
         umbrella: false,
         cleaner: false,
@@ -294,8 +312,8 @@ export default function PuppyChaosPage() {
       questionIndex,
       comboAfter,
       scoreBeforeDodge: 0,
-      baseReward: 20,
-      durationSeconds: 4,
+      baseReward: WRONG_ROUND_BASE_REWARD,
+      durationSeconds: WRONG_ROUND_SECONDS,
       multiplier: 1,
       umbrella: false,
       cleaner: false,
@@ -314,13 +332,13 @@ export default function PuppyChaosPage() {
     let invincible = roundContext.invincible
 
     if (card.id === 'umbrella') umbrella = true
-    if (card.id === 'bone') scoreBeforeDodge += 50
-    if (card.id === 'multiplier_1_5') multiplier *= 1.5
-    if (card.id === 'multiplier_2') multiplier *= 2
+    if (card.id === 'bone') scoreBeforeDodge += BONE_CARD_SCORE
+    if (card.id === 'multiplier_1_5') multiplier *= MULTIPLIER_SMALL
+    if (card.id === 'multiplier_2') multiplier *= MULTIPLIER_BIG
     if (card.id === 'cleaner') cleaner = true
 
     if (card.id === 'golden_dog') {
-      scoreBeforeDodge += 500
+      scoreBeforeDodge += GOLDEN_DOG_SCORE
       invincible = true
       void createPuppyChaosEvent({
         session_id: roomCode,
@@ -331,7 +349,7 @@ export default function PuppyChaosPage() {
     }
 
     if (card.id === 'poop_bomb') {
-      scoreBeforeDodge += 80
+      scoreBeforeDodge += POOP_BOMB_SCORE
       const target = sortPlayersByScore(players.filter((player) => player.id !== currentPlayer.id && !player.is_kicked))[0]
       if (target) {
         const pending = parsePendingAttacks(target.pending_attacks)
@@ -343,7 +361,7 @@ export default function PuppyChaosPage() {
           type: 'attack_poop',
           actor_nickname: currentPlayer.nickname,
           target_nickname: target.nickname,
-          payload: { bonus: 80 },
+          payload: { bonus: POOP_BOMB_SCORE },
         })
       }
     }
@@ -352,16 +370,16 @@ export default function PuppyChaosPage() {
       const candidates = players.filter((player) => player.id !== currentPlayer.id && !player.is_kicked)
       const target = candidates[Math.floor(Math.random() * candidates.length)]
       if (target) {
-        scoreBeforeDodge += 50
+        scoreBeforeDodge += SCORE_THIEF_AMOUNT
         await updatePlayerAndBroadcast(target.id, {
-          score: (target.score ?? 0) - 50,
+          score: (target.score ?? 0) - SCORE_THIEF_AMOUNT,
         }, 'poop_dodge_score_thief')
         void createPuppyChaosEvent({
           session_id: roomCode,
           type: 'attack_steal',
           actor_nickname: currentPlayer.nickname,
           target_nickname: target.nickname,
-          payload: { amount: 50 },
+          payload: { amount: SCORE_THIEF_AMOUNT },
         })
       }
     }
@@ -390,7 +408,7 @@ export default function PuppyChaosPage() {
 
   useEffect(() => {
     if (phase !== 'cardSelect' || cards.length === 0) return
-    setCardCountdown(5)
+    setCardCountdown(CARD_PICK_SECONDS)
     const interval = window.setInterval(() => {
       setCardCountdown((value) => {
         if (value <= 1) {
@@ -413,8 +431,8 @@ export default function PuppyChaosPage() {
       questionIndex,
       comboAfter: combo,
       scoreBeforeDodge: 0,
-      baseReward: 25,
-      durationSeconds: 5,
+      baseReward: BONUS_ROUND_BASE_REWARD,
+      durationSeconds: BONUS_ROUND_SECONDS,
       multiplier: 1,
       umbrella: false,
       cleaner: false,

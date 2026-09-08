@@ -1,5 +1,14 @@
 import type { Metadata } from 'next'
 import { Noto_Sans_KR } from 'next/font/google'
+import {
+  GOOGLE_SITE_VERIFICATION,
+  NAVER_SITE_VERIFICATION,
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+  SITE_NAME,
+  SITE_TITLE,
+  SITE_URL,
+} from '@/lib/seo/site'
 import './globals.css'
 import { AudioProviderWrapper } from '@/components/AudioProviderWrapper'
 import { AuthProvider } from '@/contexts/AuthContext'
@@ -12,30 +21,95 @@ const notoSansKR = Noto_Sans_KR({
   variable: '--font-noto-sans-kr',
 })
 
-// 배포 도메인. 실제 도메인으로 NEXT_PUBLIC_SITE_URL 환경변수를 설정하면 OG 이미지가 절대경로로 노출됩니다.
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://quizdog.app'
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
-  title: '퀴즈독 - 강아지와 함께하는 재미있는 퀴즈 게임',
-  description: '강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요 🐕',
+  metadataBase: new URL(SITE_URL),
+  // 하위 페이지는 자기 제목만 정하면 "제목 | 퀴즈독" 형태로 붙는다.
+  title: {
+    default: SITE_TITLE,
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
+  applicationName: SITE_NAME,
+  authors: [{ name: '위드현 에듀테크' }],
+  creator: '위드현 에듀테크',
+  publisher: '위드현 에듀테크',
   icons: {
     icon: '/icon.svg',
   },
+  // 배포 도메인이 여러 개(vercel.app 등)여도 검색 결과가 quizdog.kr 하나로 모이게 한다.
+  alternates: {
+    canonical: '/',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  // 서치콘솔·서치어드바이저에서 받은 소유확인 코드를 환경변수로 넣으면 자동으로 메타태그가 붙는다.
+  verification: {
+    google: GOOGLE_SITE_VERIFICATION || undefined,
+    other: NAVER_SITE_VERIFICATION ? { 'naver-site-verification': NAVER_SITE_VERIFICATION } : {},
+  },
   openGraph: {
     type: 'website',
-    siteName: '퀴즈독',
-    title: '퀴즈독 - 강아지와 함께하는 재미있는 퀴즈 게임',
-    description: '강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요 🐕',
+    siteName: SITE_NAME,
+    url: SITE_URL,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: [{ url: '/og-image.png', width: 1200, height: 630, alt: '퀴즈독' }],
     locale: 'ko_KR',
   },
   twitter: {
     card: 'summary_large_image',
-    title: '퀴즈독 - 강아지와 함께하는 재미있는 퀴즈 게임',
-    description: '강아지와 함께하는 재미있는 퀴즈 게임! 교실을 게임으로 바꿔보세요 🐕',
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: ['/og-image.png'],
   },
+}
+
+/**
+ * 검색엔진에 "퀴즈독"이라는 이름과 이 사이트를 연결해 주는 구조화 데이터.
+ * 구글이 브랜드명 검색 결과(사이트링크·지식패널)를 만들 때 참고한다.
+ */
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': `${SITE_URL}/#organization`,
+      name: SITE_NAME,
+      alternateName: ['QuizDog', '퀴즈 독'],
+      legalName: '위드현 에듀테크',
+      url: SITE_URL,
+      logo: `${SITE_URL}/og-image.png`,
+      description: SITE_DESCRIPTION,
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: SITE_NAME,
+      alternateName: 'QuizDog',
+      url: SITE_URL,
+      inLanguage: 'ko-KR',
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+    {
+      '@type': 'WebApplication',
+      '@id': `${SITE_URL}/#webapp`,
+      name: SITE_NAME,
+      url: SITE_URL,
+      applicationCategory: 'EducationalApplication',
+      operatingSystem: '웹 브라우저',
+      inLanguage: 'ko-KR',
+      publisher: { '@id': `${SITE_URL}/#organization` },
+    },
+  ],
 }
 
 export default function RootLayout({
@@ -209,6 +283,11 @@ export default function RootLayout({
               })();
             `,
           }}
+        />
+        {/* 검색엔진용 구조화 데이터 (브랜드명 "퀴즈독" ↔ 이 사이트 연결) */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
       </head>
       <body className="antialiased">

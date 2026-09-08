@@ -22,8 +22,11 @@ import {
 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import PawBackgroundDecor from '@/components/PawBackgroundDecor'
+import GameModeCard from '@/components/landing/GameModeCard'
+import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import { gameAssets } from '@/assets/game-assets'
-import { gameModesData, visibleGameModeCount } from '@/components/landing/gameModesData'
+import { visibleGameModes, visibleGameModeCount } from '@/components/landing/gameModesData'
 
 /* ─────────────────────────────────────────────────────────────
    공통 조각
@@ -35,7 +38,7 @@ const FADE_UP = {
   viewport: { once: true, margin: '-60px' },
 }
 
-function SectionBadge({ children, color = '#2563EB', bg = '#DBEAFE', border = '#93C5FD' }: {
+function SectionBadge({ children, color = '#0369A1', bg = '#E0F2FE', border = '#7DD3FC' }: {
   children: React.ReactNode
   color?: string
   bg?: string
@@ -71,8 +74,10 @@ function SectionHeading({
       <SectionBadge color={badgeColor} bg={badgeBg} border={badgeBorder}>
         {badge}
       </SectionBadge>
-      <h2 className="mt-4 text-3xl font-black leading-tight text-[#0F172A] sm:text-4xl">{title}</h2>
-      <p className="mt-3 text-base text-slate-500 sm:text-lg">{subtitle}</p>
+      <h2 className="mt-5 text-4xl sm:text-5xl">
+        <PixelHeading>{title}</PixelHeading>
+      </h2>
+      <p className="-mt-1 text-base text-slate-500 sm:text-lg">{subtitle}</p>
     </motion.div>
   )
 }
@@ -122,22 +127,24 @@ function CtaButton({
   const style =
     variant === 'primary'
       ? {
-          background: 'linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 40%, #0ea5e9 100%)',
-          boxShadow: '0 8px 24px rgba(14,165,233,0.35), inset 0 1px 0 rgba(255,255,255,0.45)',
+          background: 'linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 45%, #0ea5e9 100%)',
+          boxShadow:
+            '0 6px 0 #0b8fc4, 0 12px 24px rgba(14,165,233,0.3), inset 0 1px 0 rgba(255,255,255,0.45)',
+          textShadow: '0 1px 0 rgba(0,0,0,0.18)',
           color: '#FFFFFF',
         }
       : {
           background: '#FFFFFF',
-          boxShadow: '0 4px 16px rgba(15,23,42,0.10)',
-          color: '#1E40AF',
-          border: '2px solid #BFDBFE',
+          boxShadow: '0 5px 0 rgba(186,230,253,0.9), 0 10px 20px rgba(14,165,233,0.14)',
+          color: '#0369A1',
+          border: '2px solid #BAE6FD',
         }
   return (
     <Link href={href} className={className}>
       <motion.span
-        whileHover={{ y: -3, scale: 1.02 }}
-        whileTap={{ y: 0, scale: 0.98 }}
-        className="inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-black sm:text-lg"
+        whileHover={{ y: -3 }}
+        whileTap={{ y: 0 }}
+        className="inline-flex items-center justify-center gap-2 rounded-full px-9 py-4 text-base font-black sm:text-lg"
         style={style}
       >
         {children}
@@ -168,14 +175,14 @@ const STEPS = [
     emoji: '🤖',
     title: 'AI가 문제를 만들어요',
     description: '유형별 개수까지 정해서 생성하고, 화면에서 바로 다듬을 수 있어요.',
-    color: '#7C3AED',
+    color: '#14B8A6',
   },
   {
     step: '03',
     emoji: '🎮',
     title: '게임 코드를 공유해요',
     description: '게임 모드를 고르고 코드를 띄우면 학생들이 곧바로 들어와요.',
-    color: '#F59E0B',
+    color: '#F43F5E',
   },
 ]
 
@@ -192,7 +199,7 @@ const AI_SOURCES = [
     title: '수업 자료에서',
     description: '학습지, 안내문, 발표 자료에서 낼 만한 문제를 골라요.',
     helper: 'PDF · DOCX · PPTX · PPT · TXT · CSV',
-    color: '#7C3AED',
+    color: '#14B8A6',
   },
   {
     icon: Youtube,
@@ -206,7 +213,7 @@ const AI_SOURCES = [
     title: '시험지 스캔에서',
     description: '스캔한 활동지나 사진 속 문제를 편집 가능한 형태로 옮겨요.',
     helper: 'PDF · JPG · PNG · WEBP',
-    color: '#F59E0B',
+    color: '#F97316',
   },
 ]
 
@@ -221,8 +228,8 @@ const AI_DETAILS = [
 const PLAY_TYPES = [
   { emoji: '🔢', name: '순서 풀이', description: '문제를 주어진 순서대로 풀어야 완료할 수 있어요.', color: '#0EA5E9' },
   { emoji: '🎯', name: '자유 풀이', description: '원하는 순서대로 자유롭게 문제를 선택해서 풀 수 있어요.', color: '#22C55E' },
-  { emoji: '⏱️', name: '라운드전', description: '라운드별로 문제를 풀며 다 함께 경쟁하는 방식이에요.', color: '#F59E0B' },
-  { emoji: '🤝', name: '팀전', description: '팀을 나눠서 함께 문제를 풀며 경쟁해요.', color: '#7C3AED' },
+  { emoji: '⏱️', name: '라운드전', description: '라운드별로 문제를 풀며 다 함께 경쟁하는 방식이에요.', color: '#F97316' },
+  { emoji: '🤝', name: '팀전', description: '팀을 나눠서 함께 문제를 풀며 경쟁해요.', color: '#F43F5E' },
 ]
 
 const STUDENT_POINTS = [
@@ -236,7 +243,7 @@ const STUDENT_POINTS = [
     icon: Users,
     title: '닉네임 + 강아지 캐릭터',
     description: '이름을 정하고 마음에 드는 강아지를 골라 대기실에서 기다려요.',
-    color: '#7C3AED',
+    color: '#14B8A6',
   },
   {
     icon: ShieldCheck,
@@ -248,7 +255,7 @@ const STUDENT_POINTS = [
     icon: Trophy,
     title: '실시간 순위표',
     description: '점수가 올라가는 게 바로 보여서 끝까지 집중이 유지돼요.',
-    color: '#F59E0B',
+    color: '#F97316',
   },
 ]
 
@@ -271,25 +278,26 @@ const LIBRARY_POINTS = [
 ───────────────────────────────────────────────────────────── */
 export default function FeaturesContent() {
   return (
-    <div
-      className="min-h-dvh font-bitbit"
-      style={{ background: 'linear-gradient(180deg, #E0EEFF 0%, #F0F4FF 55%, #F8F9FF 100%)' }}
-    >
+    <div className="relative min-h-dvh overflow-hidden bg-[#d9eef5] font-bitbit">
+      <PawBackgroundDecor />
+      <div className="page-texture-overlay" aria-hidden />
       <Navbar />
 
       {/* ══ 히어로 ═══════════════════════════════════════════ */}
-      <section className="px-4 pb-12 pt-32 sm:pt-36">
+      <section className="relative z-[2] px-4 pb-12 pt-32 sm:pt-36">
         <div className="mx-auto max-w-4xl text-center">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
             <SectionBadge>퀴즈독 기능 소개</SectionBadge>
 
-            <h1 className="mt-5 text-4xl font-black leading-tight text-[#0F172A] sm:text-5xl md:text-6xl">
-              수업 준비는 3분,
-              <br />
-              교실은 <span style={{ color: '#2E7BD4' }}>게임</span>으로
+            <h1 className="mt-5 text-4xl sm:text-5xl md:text-6xl">
+              <PixelHeading>
+                수업 준비는 3분,
+                <br />
+                교실은 <PixelAccent>게임</PixelAccent>으로
+              </PixelHeading>
             </h1>
 
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
+            <p className="mx-auto -mt-1 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg">
               자료만 올리면 AI가 문제를 만들고, 학생들은 코드 하나로 바로 입장해요.
               <br className="hidden sm:block" />
               퀴즈독이 교실에서 어떻게 쓰이는지 아래에서 확인해 보세요.
@@ -347,7 +355,7 @@ export default function FeaturesContent() {
       </section>
 
       {/* ══ 3단계 흐름 ═══════════════════════════════════════ */}
-      <section className="scroll-mt-32 px-4 py-16" id="how">
+      <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="how">
         <div className="mx-auto max-w-5xl">
           <SectionHeading
             badge="이렇게 쓰여요"
@@ -377,14 +385,11 @@ export default function FeaturesContent() {
       </section>
 
       {/* ══ AI 문제 생성 ═════════════════════════════════════ */}
-      <section className="scroll-mt-32 px-4 py-16" id="ai">
+      <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="ai">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             badge="🤖 AI 문제 생성"
-            badgeColor="#7C3AED"
-            badgeBg="#F3E8FF"
-            badgeBorder="#D8B4FE"
-            title={<>어떤 자료든 <span style={{ color: '#7C3AED' }}>문제집</span>이 됩니다</>}
+            title={<>어떤 자료든 <PixelAccent>문제집</PixelAccent>이 됩니다</>}
             subtitle="네 가지 방법 중 편한 걸로 시작하세요."
           />
 
@@ -432,7 +437,7 @@ export default function FeaturesContent() {
                 </div>
                 <ul className="space-y-3">
                   {AI_DETAILS.map((detail) => (
-                    <CheckLine key={detail} color="#7C3AED">
+                    <CheckLine key={detail} color="#0EA5E9">
                       {detail}
                     </CheckLine>
                   ))}
@@ -444,47 +449,21 @@ export default function FeaturesContent() {
       </section>
 
       {/* ══ 게임 모드 ════════════════════════════════════════ */}
-      <section className="scroll-mt-32 px-4 py-16" id="games">
+      <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="games">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             badge="🎮 게임 모드"
-            badgeColor="#B45309"
-            badgeBg="#FEF3C7"
-            badgeBorder="#FCD34D"
             title={
               <>
-                같은 문제집으로 <span style={{ color: '#F59E0B' }}>{visibleGameModeCount}가지</span> 게임
+                같은 문제집으로 <PixelAccent>{visibleGameModeCount}가지</PixelAccent> 게임
               </>
             }
             subtitle="문제집은 그대로 두고 게임만 바꿔도 완전히 다른 수업이 돼요."
           />
 
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-            {gameModesData.map((game, i) => (
-              <motion.div
-                key={game.name}
-                initial={{ opacity: 0, scale: 0.94 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true, margin: '-40px' }}
-                transition={{ delay: (i % 6) * 0.06 }}
-                whileHover={{ y: -4 }}
-              >
-                <div
-                  className="h-full rounded-2xl bg-white p-4 sm:p-5"
-                  style={{ boxShadow: CARD_SHADOW, borderTop: `3px solid ${game.color}` }}
-                >
-                  <Image
-                    src={game.titleImage}
-                    alt={game.name}
-                    width={540}
-                    height={180}
-                    className="mb-3 h-24 w-full object-contain sm:h-32"
-                  />
-                  <p className="text-center text-xs font-bold leading-relaxed text-slate-500 sm:text-sm">
-                    {game.description}
-                  </p>
-                </div>
-              </motion.div>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+            {visibleGameModes.map((game, i) => (
+              <GameModeCard key={game.name} game={game} index={i} animationsReady />
             ))}
           </div>
 
@@ -513,14 +492,14 @@ export default function FeaturesContent() {
       </section>
 
       {/* ══ 학생 참여 ════════════════════════════════════════ */}
-      <section className="scroll-mt-32 px-4 py-16" id="play">
+      <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="play">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             badge="🐾 학생 참여"
             badgeColor="#0369A1"
             badgeBg="#E0F2FE"
             badgeBorder="#7DD3FC"
-            title={<>코드 하나로 <span style={{ color: '#0EA5E9' }}>전원 입장</span></>}
+            title={<>코드 하나로 <PixelAccent>전원 입장</PixelAccent></>}
             subtitle="계정을 만들 필요가 없어서 1학년 교실에서도 바로 시작할 수 있어요."
           />
 
@@ -548,14 +527,14 @@ export default function FeaturesContent() {
       </section>
 
       {/* ══ 리포트 ═══════════════════════════════════════════ */}
-      <section className="scroll-mt-32 px-4 py-16" id="report">
+      <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="report">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             badge="📊 결과 리포트"
             badgeColor="#15803D"
             badgeBg="#DCFCE7"
             badgeBorder="#86EFAC"
-            title={<>게임이 끝나면 <span style={{ color: '#16A34A' }}>기록</span>이 남아요</>}
+            title={<>게임이 끝나면 <PixelAccent>기록</PixelAccent>이 남아요</>}
             subtitle="재미있게 놀고 끝나는 게 아니라, 무엇을 더 가르쳐야 할지가 보입니다."
           />
 
@@ -595,13 +574,13 @@ export default function FeaturesContent() {
       </section>
 
       {/* ══ 자료실 ═══════════════════════════════════════════ */}
-      <section className="scroll-mt-32 px-4 py-16" id="library">
+      <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="library">
         <div className="mx-auto max-w-5xl">
           <SectionHeading
             badge="📚 자료실"
-            badgeColor="#7C3AED"
-            badgeBg="#F3E8FF"
-            badgeBorder="#D8B4FE"
+            badgeColor="#0F766E"
+            badgeBg="#CCFBF1"
+            badgeBorder="#5EEAD4"
             title="다른 선생님의 문제집을 그대로"
             subtitle="처음부터 만들지 않아도 돼요. 공개된 문제집을 가져와 우리 반에 맞게 고쳐 쓰세요."
           />
@@ -611,13 +590,13 @@ export default function FeaturesContent() {
               <div className="grid gap-8 p-8 md:grid-cols-[auto_1fr] md:items-center">
                 <span
                   className="inline-flex h-20 w-20 items-center justify-center rounded-2xl"
-                  style={{ background: 'rgba(124,58,237,0.10)' }}
+                  style={{ background: 'rgba(20,184,166,0.12)' }}
                 >
-                  <Library className="h-10 w-10 text-[#7C3AED]" strokeWidth={2.5} />
+                  <Library className="h-10 w-10 text-[#14B8A6]" strokeWidth={2.5} />
                 </span>
                 <ul className="space-y-3">
                   {LIBRARY_POINTS.map((point) => (
-                    <CheckLine key={point} color="#7C3AED">
+                    <CheckLine key={point} color="#14B8A6">
                       {point}
                     </CheckLine>
                   ))}
@@ -629,7 +608,7 @@ export default function FeaturesContent() {
           <motion.div {...FADE_UP} className="mt-6 text-center">
             <Link
               href="/teacher/library"
-              className="inline-flex items-center gap-2 text-base font-black text-[#7C3AED] hover:underline"
+              className="inline-flex items-center gap-2 text-base font-black text-[#0F766E] hover:underline"
             >
               자료실 둘러보기
               <ArrowRight className="h-4 w-4" />
@@ -639,7 +618,7 @@ export default function FeaturesContent() {
       </section>
 
       {/* ══ 마지막 CTA ═══════════════════════════════════════ */}
-      <section className="px-4 py-20">
+      <section className="relative z-[2] px-4 py-20">
         <div className="mx-auto max-w-3xl">
           <motion.div initial={{ opacity: 0, scale: 0.96 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }}>
             <div
@@ -648,15 +627,17 @@ export default function FeaturesContent() {
             >
               <span
                 className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-black text-white"
-                style={{ background: 'linear-gradient(90deg, #7C3AED, #A855F7)' }}
+                style={{ background: 'linear-gradient(90deg, #0ea5e9, #38bdf8)' }}
               >
                 🎉 베타 테스트 기간 전 기능 무료
               </span>
 
-              <h2 className="mb-4 mt-5 text-3xl font-black leading-tight text-[#0F172A] sm:text-4xl">
-                다음 수업부터 바로 써보세요
+              <h2 className="mt-5 text-4xl sm:text-5xl">
+                <PixelHeading>
+                  다음 수업부터 <PixelAccent>바로</PixelAccent> 써보세요
+                </PixelHeading>
               </h2>
-              <p className="mb-8 text-base font-bold text-slate-500 sm:text-lg">
+              <p className="mb-8 -mt-1 text-base font-bold text-slate-500 sm:text-lg">
                 선생님 계정만 만들면 준비 끝. 학생은 언제나 무료입니다.
               </p>
 

@@ -33,46 +33,46 @@ interface TowerDefenseMapProps {
 }
 
 const towerImagePaths: Record<TowerTypeId, string> = {
-    BASIC: '/tower/basic.svg',
-    MAGIC: '/tower/magic.svg',
-    BOMB: '/tower/bomb.svg',
-    LASER: '/tower/laser.svg',
-    SLOW: '/tower/slow.svg',
+    BASIC: '/tower/basic.webp',
+    MAGIC: '/tower/magic.webp',
+    BOMB: '/tower/bomb.webp',
+    LASER: '/tower/laser.webp',
+    SLOW: '/tower/slow.webp',
 }
 
 const enemyImagePaths: Record<string, string> = {
-    NORMAL: '/tower/enemy/normal/normal.svg',
-    FAST: '/tower/enemy/fast/fast.svg',
-    STRONG: '/tower/enemy/strong/strong.svg',
-    BOSS: '/tower/enemy/boss/boss.svg',
+    NORMAL: '/tower/enemy/normal/normal.webp',
+    FAST: '/tower/enemy/fast/fast.webp',
+    STRONG: '/tower/enemy/strong/strong.webp',
+    BOSS: '/tower/enemy/boss/boss.webp',
 }
 
 const normalEnemyFramePaths = [
-    '/tower/enemy/normal/normal_1.svg',
-    '/tower/enemy/normal/normal_2.svg',
-    '/tower/enemy/normal/normal_3.svg',
-    '/tower/enemy/normal/normal_4.svg',
+    '/tower/enemy/normal/normal_1.webp',
+    '/tower/enemy/normal/normal_2.webp',
+    '/tower/enemy/normal/normal_3.webp',
+    '/tower/enemy/normal/normal_4.webp',
 ]
 
 const fastEnemyFramePaths = [
-    '/tower/enemy/fast/fast_1.svg',
-    '/tower/enemy/fast/fast_2.svg',
-    '/tower/enemy/fast/fast_3.svg',
-    '/tower/enemy/fast/fast_4.svg',
+    '/tower/enemy/fast/fast_1.webp',
+    '/tower/enemy/fast/fast_2.webp',
+    '/tower/enemy/fast/fast_3.webp',
+    '/tower/enemy/fast/fast_4.webp',
 ]
 
 const strongEnemyFramePaths = [
-    '/tower/enemy/strong/strong_1.svg',
-    '/tower/enemy/strong/strong_2.svg',
-    '/tower/enemy/strong/strong_3.svg',
-    '/tower/enemy/strong/strong_4.svg',
+    '/tower/enemy/strong/strong_1.webp',
+    '/tower/enemy/strong/strong_2.webp',
+    '/tower/enemy/strong/strong_3.webp',
+    '/tower/enemy/strong/strong_4.webp',
 ]
 
 const bossEnemyFramePaths = [
-    '/tower/enemy/boss/boss_1.svg',
-    '/tower/enemy/boss/boss_2.svg',
-    '/tower/enemy/boss/boss_3.svg',
-    '/tower/enemy/boss/boss_4.svg',
+    '/tower/enemy/boss/boss_1.webp',
+    '/tower/enemy/boss/boss_2.webp',
+    '/tower/enemy/boss/boss_3.webp',
+    '/tower/enemy/boss/boss_4.webp',
 ]
 
 function getAnimationOffset(id: string): number {
@@ -84,11 +84,11 @@ function getAnimationOffset(id: string): number {
 }
 
 const projectileImagePaths: Record<TowerTypeId, string> = {
-    BASIC: '/tower/projectile/arrow.svg',
-    MAGIC: '/tower/projectile/magic_orb.svg',
-    BOMB: '/tower/projectile/bomb.svg',
-    LASER: '/tower/projectile/laser_beam.svg',
-    SLOW: '/tower/projectile/ice_shard.svg',
+    BASIC: '/tower/projectile/arrow.webp',
+    MAGIC: '/tower/projectile/magic_orb.webp',
+    BOMB: '/tower/projectile/bomb.webp',
+    LASER: '/tower/projectile/laser_beam.webp',
+    SLOW: '/tower/projectile/ice_shard.webp',
 }
 
 function getCanvasPoint(canvas: HTMLCanvasElement, event: MouseEvent<HTMLCanvasElement>) {
@@ -269,7 +269,7 @@ export default function TowerDefenseMap({
         backgroundImage.onload = () => {
             if (alive) backgroundImageRef.current = backgroundImage
         }
-        backgroundImage.src = '/tower/ui/background.png'
+        backgroundImage.src = '/tower/ui/background.webp'
 
         Object.entries(towerImagePaths).forEach(([type, path]) => {
             const img = new Image()

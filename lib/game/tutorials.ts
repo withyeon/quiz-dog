@@ -42,6 +42,21 @@ import {
   ITEM_CHOICE_COUNT,
   RARE_ITEM_STREAK,
 } from '@/lib/game/cafeItems'
+import {
+  BONE_PICKUP_REWARD,
+  BONUS_ROUND_SECONDS,
+  CARD_DEFS,
+  CARD_PICK_SECONDS,
+  CLEANER_DELAY_SECONDS,
+  COMBO_STEPS,
+  CORRECT_ROUND_SCORE,
+  CORRECT_ROUND_SECONDS,
+  GOLDEN_DOG_SCORE,
+  POOP_HIT_PENALTY,
+  SCORE_THIEF_AMOUNT,
+  CARD_CHOICE_COUNT as PUPPY_CARD_CHOICE_COUNT,
+} from '@/lib/game/강아지대소동'
+import { withJosa } from '@/lib/utils/korean'
 
 /** 조준을 가장 잘 맞혔을 때 보장되는 최소 인형 등급 */
 const AIM_PERFECT_TIER = getAimTierFloor('perfect') ?? '영웅'
@@ -56,6 +71,11 @@ const FAST_LEGEND_ODDS_RATIO = Math.round(GACHA_TIER_CHANCE.fast.전설 / GACHA_
 const MAX_SYNERGY = getMaxReachableSynergy()
 
 const CAFE_BEST_SELL = MENU_ITEMS.reduce((best, menu) => (menu.sellPrice > best.sellPrice ? menu : best))
+
+/** 강아지 대소동 콤보 단계 — 낮은 연속수부터 순서대로 (3연속 1.5배 → 5연속 2배) */
+const PUPPY_COMBO_STEPS = [...COMBO_STEPS].sort((a, b) => a.streak - b.streak)
+const PUPPY_COMBO_SMALL = PUPPY_COMBO_STEPS[0]
+const PUPPY_COMBO_BIG = PUPPY_COMBO_STEPS[PUPPY_COMBO_STEPS.length - 1]
 
 export type GameTutorialSlide = {
   title: string
@@ -375,25 +395,48 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
     ],
   },
+  // 숫자는 모두 lib/game/강아지대소동.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(랜덤박스 · 대소동 · 똥 · 뼈다귀 · 콤보 · 점수)만 씁니다.
   poop_dodge: {
     gameMode: 'poop_dodge',
     title: '강아지 대소동',
-    subtitle: '퀴즈를 풀고 카드를 뽑아 교실의 대소동을 버팁니다.',
+    subtitle: '퀴즈를 맞혀 랜덤박스를 열고, 떨어지는 똥을 피해요.',
     slides: [
       {
-        title: '목표',
-        body: '카드 효과를 활용하며 점수를 지키고 높입니다.',
-        points: ['정답으로 카드 기회 획득', '공격과 방어 효과 확인', '보너스 라운드까지 집중'],
+        title: `퀴즈를 맞히면 +${CORRECT_ROUND_SCORE}점`,
+        body: '틀리면 점수 없이 대소동만 해요',
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈를 맞힌 뒤 카드 선택으로 상황이 바뀝니다.',
-        points: ['문제 풀기', '카드 뽑기', '효과 적용 확인'],
+        title: `랜덤박스 ${PUPPY_CARD_CHOICE_COUNT}개 중 하나를 골라요`,
+        body: `${CARD_PICK_SECONDS}초가 지나면 저절로 열려요`,
       },
       {
-        title: '승리 기준',
-        body: '종료 시점의 점수와 생존 흐름이 순위를 결정합니다.',
-        points: ['점수 누적', '위험 효과 방어', '마지막 카드까지 활용'],
+        title: '좌우로 움직여 똥을 피해요',
+        body: `${CORRECT_ROUND_SECONDS}초만 버티면 끝!`,
+      },
+      {
+        title: `똥에 맞으면 -${POOP_HIT_PENALTY}점`,
+        body: `뼈다귀를 먹으면 +${BONE_PICKUP_REWARD}점`,
+      },
+      {
+        title: '우산과 청소기가 지켜줘요',
+        body: `우산은 한 번 막고, 청소기는 ${CLEANER_DELAY_SECONDS}초 뒤 싹!`,
+      },
+      {
+        title: `${PUPPY_COMBO_SMALL.streak}연속이면 ${PUPPY_COMBO_SMALL.multiplier}배`,
+        body: `${PUPPY_COMBO_BIG.streak}연속으로 맞히면 ${PUPPY_COMBO_BIG.multiplier}배!`,
+      },
+      {
+        title: '친구를 방해하는 카드도 있어요',
+        body: `${withJosa(CARD_DEFS.poop_bomb.label, '은/는')} 1등에게, ${withJosa(CARD_DEFS.score_thief.label, '은/는')} 친구 점수 ${SCORE_THIEF_AMOUNT}을 가져와요`,
+      },
+      {
+        title: `${withJosa(CARD_DEFS.golden_dog.label, '이/가')} 나오면 대박`,
+        body: `+${GOLDEN_DOG_SCORE}점에 무적까지!`,
+      },
+      {
+        title: '점수가 가장 많으면 1등',
+        body: `시간이 끝나면 보너스 대소동 ${BONUS_ROUND_SECONDS}초를 더 해요`,
       },
     ],
   },

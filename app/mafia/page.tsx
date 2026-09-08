@@ -123,7 +123,7 @@ export default function MafiaPage() {
             <Card className="w-full max-w-2xl border-4 border-yellow-600 bg-black/90 shadow-2xl backdrop-blur-sm">
               <CardHeader className="pb-4 text-center">
                 <div className="mb-4 flex justify-center">
-                  <Image src="/title/mafia.svg" alt="쉿! 마피아" width={520} height={180} className="h-28 w-auto max-w-full object-contain" priority />
+                  <Image src="/title/mafia.webp" alt="쉿! 마피아" width={520} height={180} className="h-28 w-auto max-w-full object-contain" priority />
                 </div>
                 <CardTitle className="mb-2 text-4xl font-bold text-yellow-400">
                   친구를 속이고, 조사하고, 금고를 터세요

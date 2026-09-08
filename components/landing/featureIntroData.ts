@@ -1,54 +1,52 @@
-/**
- * 기능 소개 카드 아이콘.
- * 비워두면 fallbackEmoji를 그대로 사용한다(요청을 아예 보내지 않음).
- * PNG를 준비했다면 여기에 경로만 넣으면 이미지로 바뀐다.
- *
- * 주의: 존재하지 않는 경로를 넣으면 방문자마다 /_next/image 400 요청이 발생하고
- * 이모지로 폴백되기까지 아이콘이 깜빡인다.
- */
-export const FEATURE_ICON_AI = ''
-export const FEATURE_ICON_GAME = ''
-export const FEATURE_ICON_REPORT = ''
+import { Sparkles, KeyRound, BarChart3, Library, type LucideIcon } from 'lucide-react'
 
+/**
+ * 랜딩 '기능 소개' 섹션 카드.
+ * 카드는 /features 페이지의 같은 주제 섹션으로 연결된다(앵커가 어긋나지 않게 주의).
+ * 게임 모드는 바로 위 '게임 라인업' 섹션에서 이미 보여주므로 여기서는 다루지 않는다.
+ */
 export type FeatureIntroItem = {
   title: string
   description: string
   features: string[]
-  buttonLabel: string
-  /** 카드 버튼이 이동할 기능 소개 페이지 위치 */
+  /** 카드가 이동할 기능 소개 페이지 위치 */
   href: string
-  iconSrc?: string
-  fallbackEmoji: string
+  icon: LucideIcon
+  /** 아이콘 타일·체크·호버 테두리에 쓰는 강조색 */
+  accent: string
 }
 
-export function getFeatureIntroItems(gameModeCount: number): FeatureIntroItem[] {
-  return [
-    {
-      title: 'AI 문제 생성',
-      description: '문서만 올리면 퀴즈 완성!',
-      features: ['유튜브 자막 추출', 'PDF 문서 분석', '다양한 문제 유형'],
-      buttonLabel: '기능 보기 →',
-      href: '/features#ai',
-      iconSrc: FEATURE_ICON_AI,
-      fallbackEmoji: '🤖',
-    },
-    {
-      title: `${gameModeCount}가지 게임 모드`,
-      description: '퀴즈가 바로 게임이 돼요!',
-      features: ['실시간 대결', '팀 플레이', '개인 미션'],
-      buttonLabel: '게임 보기 →',
-      href: '/features#games',
-      iconSrc: FEATURE_ICON_GAME,
-      fallbackEmoji: '🎮',
-    },
-    {
-      title: '상세 리포트',
-      description: '학습 결과를 한눈에 확인!',
-      features: ['실시간 통계', '엑셀 다운로드', '개인별 분석'],
-      buttonLabel: '리포트 보기 →',
-      href: '/features#report',
-      iconSrc: FEATURE_ICON_REPORT,
-      fallbackEmoji: '📊',
-    },
-  ]
-}
+export const FEATURE_INTRO_ITEMS: FeatureIntroItem[] = [
+  {
+    title: 'AI 문제 생성',
+    description: '자료만 올리면 문제집이 됩니다',
+    features: ['유튜브 영상에서', '학습지·PDF에서', '시험지 스캔에서'],
+    href: '/features#ai',
+    icon: Sparkles,
+    accent: '#0EA5E9',
+  },
+  {
+    title: '학생 참여',
+    description: '코드 하나로 전원 입장',
+    features: ['가입도 설치도 없이', '닉네임 + 강아지 캐릭터', '비속어 자동 차단'],
+    href: '/features#play',
+    icon: KeyRound,
+    accent: '#F43F5E',
+  },
+  {
+    title: '결과 리포트',
+    description: '게임 한 판이 형성평가로',
+    features: ['문항별 정답률', '학생별 상세 기록', '지난 게임 기록 보관'],
+    href: '/features#report',
+    icon: BarChart3,
+    accent: '#10B981',
+  },
+  {
+    title: '자료실',
+    description: '다른 선생님 문제집을 그대로',
+    features: ['공개 문제집 가져오기', '우리 반에 맞게 수정', '처음부터 안 만들어도 돼요'],
+    href: '/features#library',
+    icon: Library,
+    accent: '#14B8A6',
+  },
+]

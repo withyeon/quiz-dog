@@ -318,7 +318,7 @@ export default function DontLookDownPage() {
                         <div className="text-center max-w-2xl">
                             <div className="mb-8 flex justify-center">
                                 <Image
-                                    src="/title/jump_jump.svg"
+                                    src="/title/jump_jump.webp"
                                     alt="점프점프"
                                     width={780}
                                     height={264}

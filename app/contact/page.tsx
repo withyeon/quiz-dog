@@ -5,8 +5,9 @@ import { COMPANY } from '@/lib/legal/company'
 import FeedbackForm from '@/components/FeedbackForm'
 
 export const metadata: Metadata = {
-  title: '문의하기 - 퀴즈독',
-  description: '퀴즈독에 문의하기',
+  title: '문의하기',
+  description: '퀴즈독 이용 중 궁금한 점이나 불편한 점을 알려주세요. 운영자가 직접 확인하고 답변드립니다.',
+  alternates: { canonical: '/contact' },
 }
 
 export default function ContactPage() {

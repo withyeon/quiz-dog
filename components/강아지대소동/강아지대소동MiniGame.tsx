@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import NextImage from 'next/image'
+import {
+  BONE_PICKUP_REWARD,
+  CLEANER_DELAY_SECONDS,
+  POOP_HIT_PENALTY,
+} from '@/lib/game/강아지대소동'
 
 type FallingObject = {
   id: number
@@ -52,7 +57,6 @@ type DodgeMiniGameProps = {
 
 const PLAYER_SIZE = 52
 const OBJECT_SIZE = 34
-const BONE_REWARD = 20
 const MASCOT_SRC = '/mascot_pome.png'
 const BACKGROUND_SRC = '/background/puppy-chaos.png'
 const BONE_SRC = '/puppy-chaos/bone.svg'
@@ -244,7 +248,9 @@ export default function DodgeMiniGame({
     const complete = () => {
       if (completedRef.current) return
       completedRef.current = true
-      const rawReward = baseReward * multiplier - hitsRef.current * 10 + bonesRef.current * BONE_REWARD
+      const rawReward = baseReward * multiplier
+        - hitsRef.current * POOP_HIT_PENALTY
+        + bonesRef.current * BONE_PICKUP_REWARD
       onComplete({
         hits: hitsRef.current,
         bones: bonesRef.current,
@@ -307,7 +313,7 @@ export default function DodgeMiniGame({
           nextIdRef.current += 1
         }
 
-        if (cleaner && !cleanerUsedRef.current && elapsedRef.current >= 2000) {
+        if (cleaner && !cleanerUsedRef.current && elapsedRef.current >= CLEANER_DELAY_SECONDS * 1000) {
           cleanerUsedRef.current = true
           objectsRef.current = []
         }

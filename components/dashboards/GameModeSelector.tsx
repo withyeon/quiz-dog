@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { GAME_MODES, type GameModeId } from '@/lib/game/modes'
+import { VISIBLE_GAME_MODES, type GameModeId } from '@/lib/game/modes'
 
 interface GameModeSelectorProps {
   selectedMode: GameModeId
@@ -13,7 +13,7 @@ export default function GameModeSelector({ selectedMode, onSelectMode }: GameMod
     <div className="mb-6">
       <label className="block text-sm font-semibold text-gray-900 mb-4">게임 모드 선택</label>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {GAME_MODES.map((mode) => {
+        {VISIBLE_GAME_MODES.map((mode) => {
           const isSelected = selectedMode === mode.id
           return (
             <button

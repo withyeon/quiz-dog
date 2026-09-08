@@ -703,7 +703,7 @@ export default function BattlePage() {
                 <div className="flex items-start gap-3">
                   <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-white shadow-lg">
                     <Image
-                      src="/title/battle-royale.svg"
+                      src="/title/battle-royale.webp"
                       alt="눈싸움 대작전"
                       width={56}
                       height={56}

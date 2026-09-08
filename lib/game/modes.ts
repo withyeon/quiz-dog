@@ -27,7 +27,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '해적왕의 보물찾기',
     shortLabel: '골드 퀘스트',
     emoji: '🏴‍☠️',
-    image: '/title/gold-quest.svg',
+    image: '/title/gold-quest.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Chiptune: Exploration',
@@ -43,7 +43,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '눈싸움 대작전',
     shortLabel: '배틀로얄',
     emoji: '❄️',
-    image: '/title/battle-royale.svg',
+    image: '/title/battle-royale.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Battle',
@@ -59,7 +59,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '두근두근 인형뽑기',
     shortLabel: '인형뽑기',
     emoji: '🕹️',
-    image: '/title/fishing.svg',
+    image: '/title/fishing.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Chiptune 2',
@@ -75,7 +75,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '전설의 편의점',
     shortLabel: '편의점',
     emoji: '🏪',
-    image: '/title/factory.svg',
+    image: '/title/factory.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Action A',
@@ -91,7 +91,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '달콤 바삭 카페',
     shortLabel: '카페',
     emoji: '☕',
-    image: '/title/cafe.svg',
+    image: '/title/cafe.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Flowerbed Fields',
@@ -107,7 +107,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '쉿! 마피아',
     shortLabel: '마피아',
     emoji: '🕴️',
-    image: '/title/mafia.svg',
+    image: '/title/mafia.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Horror B',
@@ -123,7 +123,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '점프점프',
     shortLabel: '돈룩다운',
     emoji: '⛰️',
-    image: '/title/jump_jump.svg',
+    image: '/title/jump_jump.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Chiptune 1B2',
@@ -139,7 +139,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '타워 디펜스',
     shortLabel: '타워',
     emoji: '🏰',
-    image: '/title/tower-defense.svg',
+    image: '/title/tower-defense.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: "Chiptune Medieval: The Bard's Tale",
@@ -155,7 +155,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '좀비를 피해라!',
     shortLabel: '좀비',
     emoji: '🧟',
-    image: '/title/zombie.svg',
+    image: '/title/zombie.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Horror',
@@ -171,7 +171,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '간식런',
     shortLabel: '간식런',
     emoji: '🐕',
-    image: '/title/gansik-run.svg',
+    image: '/title/gansik-run.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Chiptune 1C2',
@@ -187,7 +187,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '강아지 대소동',
     shortLabel: '대소동',
     emoji: '☂️',
-    image: '/title/puppy-chaos.svg',
+    image: '/title/puppy-chaos.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: '8-bit Battle Loop',
@@ -198,6 +198,29 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     requiresQuestionSet: true,
   },
 ] as const
+
+/**
+ * 출시 시점에 아직 다듬는 중이라 목록에서 잠시 감추는 게임.
+ * 선생님 게임 선택 화면·랜딩·기능 소개에서만 빠지고,
+ * 라우트와 getGameModeConfig는 그대로 동작하므로 이미 만들어진 방은 문제없이 진행된다.
+ * 공개할 때는 여기서 id만 빼면 모든 목록에 한 번에 다시 나온다.
+ */
+export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = [
+  'battle_royale',
+  'mafia',
+  'dontlookdown',
+  'zombie',
+  'treat_rush',
+]
+
+export function isHiddenGameMode(mode: string | null | undefined): boolean {
+  return HIDDEN_GAME_MODE_IDS.includes(mode as GameModeId)
+}
+
+/** 선생님이 고를 수 있는 게임 (숨김 처리된 게임 제외) */
+export const VISIBLE_GAME_MODES: readonly GameModeConfig[] = GAME_MODES.filter(
+  (mode) => !isHiddenGameMode(mode.id)
+)
 
 export const DEFAULT_GAME_MODE: GameModeId = 'gold_quest'
 

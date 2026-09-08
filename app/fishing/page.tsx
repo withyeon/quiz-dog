@@ -165,7 +165,7 @@ export default function FishingPage() {
               <div className="flex min-w-0 items-center gap-3">
                 <div className="min-w-0">
                   <Image
-                    src="/title/fishing.svg"
+                    src="/title/fishing.webp"
                     alt="인형뽑기"
                     width={360}
                     height={96}

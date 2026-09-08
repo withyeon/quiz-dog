@@ -15,11 +15,11 @@ interface TowerCardProps {
 }
 
 const towerImagePaths: Record<TowerTypeId, string> = {
-    BASIC: '/tower/basic.svg',
-    MAGIC: '/tower/magic.svg',
-    BOMB: '/tower/bomb.svg',
-    LASER: '/tower/laser.svg',
-    SLOW: '/tower/slow.svg',
+    BASIC: '/tower/basic.webp',
+    MAGIC: '/tower/magic.webp',
+    BOMB: '/tower/bomb.webp',
+    LASER: '/tower/laser.webp',
+    SLOW: '/tower/slow.webp',
 }
 
 const towerTone: Record<TowerTypeId, { rail: string; icon: string; selected: string; text: string }> = {

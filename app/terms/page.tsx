@@ -4,8 +4,9 @@ import Footer from '@/components/Footer'
 import { COMPANY, getBusinessInfoLines } from '@/lib/legal/company'
 
 export const metadata: Metadata = {
-  title: '이용약관 - 퀴즈독',
-  description: '퀴즈독 서비스 이용약관',
+  title: '이용약관',
+  description: '퀴즈독 서비스 이용 조건과 회원·유료서비스·환불에 관한 약관입니다.',
+  alternates: { canonical: '/terms' },
 }
 
 const UPDATED_AT = '2026년 6월 7일'

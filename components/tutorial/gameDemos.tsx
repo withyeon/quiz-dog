@@ -36,6 +36,7 @@ import { SKILLS, type SkillId } from '@/lib/game/skills'
 import GoldQuestTutorialDemo from '@/components/GoldQuestTutorialDemo'
 import FactoryTutorialDemo from '@/components/tutorial/FactoryTutorialDemo'
 import CafeTutorialDemo from '@/components/tutorial/CafeTutorialDemo'
+import PuppyChaosTutorialDemo from '@/components/tutorial/PuppyChaosTutorialDemo'
 import {
   TutorialDemoFrame,
   GlassQuizStep,
@@ -730,7 +731,7 @@ function WaveQuizCounter({ solved, goldGain }: { solved: number; goldGain?: numb
 function RoadEnemy({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <div className={`relative h-12 w-12 ${className ?? ''}`} style={style}>
-      <Image src="/tower/enemy/normal/normal.svg" alt="" fill className="object-contain" sizes="48px" />
+      <Image src="/tower/enemy/normal/normal.webp" alt="" fill className="object-contain" sizes="48px" />
     </div>
   )
 }
@@ -773,7 +774,7 @@ function TowerRoadScene({ mode }: { mode: 'goal' | 'leak' | 'build' }) {
                 transition={{ type: 'spring', stiffness: 240, damping: 15 }}
                 className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white/85 ring-2 ring-emerald-300"
               >
-                <Image src="/tower/basic.svg" alt="" width={64} height={64} className="h-16 w-16 object-contain" />
+                <Image src="/tower/basic.webp" alt="" width={64} height={64} className="h-16 w-16 object-contain" />
                 <TapPointer />
               </motion.div>
               <motion.span
@@ -856,7 +857,7 @@ function TowerRoadScene({ mode }: { mode: 'goal' | 'leak' | 'build' }) {
             animate={{ x: [0, 0, 60], y: [0, 0, 84], opacity: [0, 1, 0] }}
             transition={{ duration: 3.2, repeat: Infinity, repeatDelay: 0.6, times: [0, 0.42, 0.62] }}
           >
-            <Image src="/tower/projectile/arrow.svg" alt="" fill className="object-contain" sizes="24px" />
+            <Image src="/tower/projectile/arrow.webp" alt="" fill className="object-contain" sizes="24px" />
           </motion.div>
         )}
       </div>
@@ -1071,60 +1072,7 @@ function TreatRushDemo() {
   )
 }
 
-/* ─────────────── 10. 강아지 대소동 ─────────────── */
-function PoopDodgeDemo() {
-  return (
-    <TutorialDemoFrame
-      backgroundSrc="/background/puppy-chaos.png"
-      metric={risingMetric({ emoji: '⭐', base: 50, gain: 40, suffix: '점' })}
-      phases={buildPhases([
-        '퀴즈를 맞혀요',
-        '정답! 카드 뽑기 기회를 얻었어요',
-        '카드 한 장을 골라 뽑아요',
-        '우산 획득! 공격을 막아요',
-      ])}
-    >
-      {({ phase }) =>
-        phase === 'quiz' || phase === 'correct' ? (
-          <GlassQuizStep
-            question="비 올 때 쓰는 것은?"
-            options={['우산', '부채', '장갑', '안경']}
-            correctIndex={0}
-            answered={isAnswered(phase)}
-          />
-        ) : (
-          <Scene>
-            <div className="flex items-center justify-center gap-3">
-              {[0, 1, 2].map((i) => {
-                const picked = i === 1
-                const revealed = isResult(phase) && picked
-                return (
-                  <motion.div
-                    key={i}
-                    animate={revealed ? { rotateY: 0, y: -16 } : {}}
-                    className={`relative flex h-32 w-24 items-center justify-center rounded-2xl ${
-                      revealed ? 'bg-white/90 ring-2 ring-amber-300' : 'bg-indigo-500/80'
-                    } ${isResult(phase) && !picked ? 'opacity-50' : ''}`}
-                  >
-                    {revealed ? (
-                      <Image src="/puppy-chaos/umbrella.svg" alt="" width={64} height={64} className="h-16 w-16 object-contain" />
-                    ) : (
-                      <span className="text-3xl text-white/90">?</span>
-                    )}
-                    {phase === 'action' && picked && <TapPointer />}
-                  </motion.div>
-                )
-              })}
-            </div>
-            <ResultBadge show={isResult(phase)} text="우산 카드! 공격 방어" />
-          </Scene>
-        )
-      }
-    </TutorialDemoFrame>
-  )
-}
-
-/* 레지스트리 — gold_quest 는 장면이 많아 파일을 따로 두었습니다 */
+/* 레지스트리 — 장면이 많은 모드는 파일을 따로 두었습니다 */
 export const GAME_DEMO_REGISTRY: Partial<Record<GameModeId, ComponentType>> = {
   gold_quest: GoldQuestTutorialDemo,
   battle_royale: BattleRoyaleDemo,
@@ -1136,5 +1084,5 @@ export const GAME_DEMO_REGISTRY: Partial<Record<GameModeId, ComponentType>> = {
   tower: TowerDemo,
   zombie: ZombieDemo,
   treat_rush: TreatRushDemo,
-  poop_dodge: PoopDodgeDemo,
+  poop_dodge: PuppyChaosTutorialDemo,
 }
