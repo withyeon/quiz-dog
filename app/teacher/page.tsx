@@ -8,6 +8,8 @@ import Image from 'next/image'
 import {
   ArrowRight,
   BookOpen,
+  Search,
+  Users,
   Copy,
   FileQuestion,
   Heart,
@@ -27,10 +29,12 @@ import {
   type QuestionSetIndexItem,
   type QuestionSetSummary,
 } from '@/lib/services/questionSets'
+import { getGameStatsForOwner } from '@/lib/services/reports'
 import { formatServiceError } from '@/lib/services/errors'
 import { getLocalLikedQuestionSetIds, getLibraryClientId } from '@/lib/utils/libraryClientId'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/components/ui/Toaster'
+import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 
 type QuestionSet = QuestionSetSummary
 type LikedQuestionSet = QuestionSetIndexItem & {
@@ -38,6 +42,14 @@ type LikedQuestionSet = QuestionSetIndexItem & {
 }
 
 type SourceType = 'topic' | 'youtube' | 'text' | 'pdf'
+
+type SortKey = 'recent' | 'title' | 'questions'
+
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'recent', label: '최신순' },
+  { key: 'title', label: '이름순' },
+  { key: 'questions', label: '문항 많은순' },
+]
 
 function isGeneratedLibraryTitle(title: string, setId: string): boolean {
   const normalizedTitle = title.trim()
@@ -65,6 +77,9 @@ function TeacherPageContent() {
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([])
   const [likedQuestionSets, setLikedQuestionSets] = useState<LikedQuestionSet[]>([])
   const [loading, setLoading] = useState(true)
+  const [gameStats, setGameStats] = useState({ gameCount: 0, playerCount: 0 })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortKey, setSortKey] = useState<SortKey>('recent')
 
   useEffect(() => {
     if (!createType && userId) {
@@ -77,12 +92,15 @@ function TeacherPageContent() {
     if (!userId) return
     try {
       setLoading(true)
-      const [sets, likedIndexItems] = await Promise.all([
+      const [sets, likedIndexItems, stats] = await Promise.all([
         listQuestionSetsWithCounts(userId),
         listQuestionSetIndexFromQuestions(getLibraryClientId()),
+        // 게임 통계는 실패해도 문제집 목록은 보여야 하므로 따로 처리한다
+        getGameStatsForOwner(userId).catch(() => ({ gameCount: 0, playerCount: 0 })),
       ])
       const localLikedSetIds = getLocalLikedQuestionSetIds()
       setQuestionSets(sets)
+      setGameStats(stats)
       setLikedQuestionSets(
         likedIndexItems
           .filter((item) => item.liked_by_client || localLikedSetIds.has(item.set_id))
@@ -112,7 +130,7 @@ function TeacherPageContent() {
 
   const handleStartGame = (setId: string) => {
     // 게임 모드 선택 화면(대시보드)으로 이동
-    router.push(`/teacher/dashboard?set=${encodeURIComponent(setId)}`)
+    router.push(`/teacher/play?set=${encodeURIComponent(setId)}`)
   }
 
   const handleDuplicate = async (set: QuestionSet) => {
@@ -146,6 +164,16 @@ function TeacherPageContent() {
   }
 
   const totalQuestions = questionSets.reduce((sum, set) => sum + set.question_count, 0)
+
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const visibleSets = questionSets
+    .filter((set) => !normalizedQuery || set.title.toLowerCase().includes(normalizedQuery))
+    .sort((a, b) => {
+      if (sortKey === 'title') return a.title.localeCompare(b.title, 'ko')
+      if (sortKey === 'questions') return b.question_count - a.question_count
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
   const recentSets = [...questionSets]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 3)
@@ -153,9 +181,7 @@ function TeacherPageContent() {
   return (
     <div className="mx-auto max-w-7xl">
       {loading ? (
-        <div className="flex min-h-[520px] items-center justify-center">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
-        </div>
+        <LoadingState label="문제집을 불러오는 중" minHeight="min-h-[520px]" card={false} />
       ) : questionSets.length === 0 ? (
         <div className="space-y-8">
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -264,8 +290,8 @@ function TeacherPageContent() {
             {[
               { icon: BookOpen, label: '문제집', value: questionSets.length.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
               { icon: FileQuestion, label: '총 문항', value: totalQuestions.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
-              { icon: Heart, label: '좋아요', value: likedQuestionSets.length.toLocaleString(), tone: 'bg-rose-50 text-rose-600' },
-              { icon: Play, label: '최근', value: recentSets.length.toLocaleString(), tone: 'bg-amber-100 text-amber-600' },
+              { icon: Play, label: '진행한 게임', value: gameStats.gameCount.toLocaleString(), tone: 'bg-emerald-50 text-emerald-600' },
+              { icon: Users, label: '참여 학생', value: gameStats.playerCount.toLocaleString(), tone: 'bg-rose-50 text-rose-600' },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -281,21 +307,74 @@ function TeacherPageContent() {
 
           <section className="grid gap-6 xl:grid-cols-[1fr_360px]">
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-              <div className="flex flex-col gap-3 border-b border-slate-100 p-5 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <h2 className="text-xl font-extrabold tracking-tight text-slate-900">문제집 목록</h2>
-                  <p className="mt-1 text-sm font-medium text-slate-500">게임 시작 · 문항 수정</p>
+              <div className="border-b border-slate-100 p-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-xl font-extrabold tracking-tight text-slate-900">문제집 목록</h2>
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      {normalizedQuery
+                        ? `검색 결과 ${visibleSets.length}개`
+                        : `게임 시작 · 문항 수정 · 전체 ${questionSets.length}개`}
+                    </p>
+                  </div>
+                  <Link
+                    href="/teacher/create"
+                    className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+                  >
+                    <Plus className="h-4 w-4" />
+                    새 문제집
+                  </Link>
                 </div>
-                <Link
-                  href="/teacher/create"
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
-                >
-                  <Plus className="h-4 w-4" />
-                  새 문제집
-                </Link>
+
+                {/* 문제집이 쌓이면 스크롤로 찾기 어려워서 검색·정렬을 둔다 */}
+                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                  <div className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="문제집 이름 검색"
+                      aria-label="문제집 이름 검색"
+                      className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm font-medium text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-300 focus:ring-2 focus:ring-sky-100"
+                    />
+                  </div>
+                  <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+                    {SORT_OPTIONS.map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => setSortKey(option.key)}
+                        className={`flex-1 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold transition ${
+                          sortKey === option.key
+                            ? 'bg-white text-sky-700 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className="divide-y divide-slate-100">
-                {questionSets.map((set) => (
+                {visibleSets.length === 0 && (
+                  <EmptyState
+                    card={false}
+                    icon={Search}
+                    title={`'${searchQuery.trim()}' 와 일치하는 문제집이 없어요`}
+                    description="다른 이름으로 찾아보세요"
+                    action={
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+                      >
+                        검색어 지우기
+                      </button>
+                    }
+                  />
+                )}
+                {visibleSets.map((set) => (
                   <div key={set.id} className="flex flex-col gap-4 p-5 transition hover:bg-slate-50 md:flex-row md:items-center">
                       <div className="flex min-w-0 flex-1 items-center gap-4">
                       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
@@ -313,7 +392,12 @@ function TeacherPageContent() {
                     <div className="flex flex-wrap gap-2 md:justify-end">
                       <button
                         onClick={() => handleStartGame(set.id)}
-                        className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+                        className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white transition hover:-translate-y-0.5"
+                        style={{
+                          background: 'linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 45%, #0ea5e9 100%)',
+                          boxShadow: '0 3px 0 #0b8fc4, 0 6px 12px rgba(14,165,233,0.22)',
+                          textShadow: '0 1px 0 rgba(0,0,0,0.18)',
+                        }}
                       >
                         <Play className="h-4 w-4 fill-current" />
                         게임 시작
@@ -482,7 +566,7 @@ function LikedQuestionSetsPanel({
 
 export default function TeacherPage() {
   return (
-    <Suspense fallback={<div className="min-h-dvh flex items-center justify-center">로딩 중...</div>}>
+    <Suspense fallback={<LoadingState label="불러오는 중" minHeight="min-h-[520px]" card={false} />}>
       <TeacherPageContent />
     </Suspense>
   )

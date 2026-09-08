@@ -16,8 +16,11 @@ import { checkSupabaseConfig } from '@/lib/supabase/client'
 import { assertQuestionSetHasQuestions, createRoom, finishRoom, pauseRoom, startRoom } from '@/lib/services/rooms'
 import { updatePlayer } from '@/lib/services/players'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function PuppyChaosTeacherPage() {
+  const { user } = useAuth()
+  const ownerId = user?.id ?? null
   const router = useRouter()
   const [roomCode, setRoomCode] = useState('')
   const [isBusy, setIsBusy] = useState(false)
@@ -111,7 +114,7 @@ export default function PuppyChaosTeacherPage() {
           reason: 'poop_dodge_time_up',
         })
         try {
-          await saveGameReportSnapshot(room, players)
+          await saveGameReportSnapshot(room, players, ownerId)
         } catch (reportError) {
           console.error('강아지 대소동 결과 저장 실패:', reportError)
         }
@@ -164,7 +167,7 @@ export default function PuppyChaosTeacherPage() {
     broadcastRoomPatch({ status: 'finished' }, 'poop_dodge_end')
     void sendEvent('game:finished', { finishedBy: 'teacher', reason: 'poop_dodge_end' })
     try {
-      if (room) await saveGameReportSnapshot(room, players)
+      if (room) await saveGameReportSnapshot(room, players, ownerId)
     } catch (reportError) {
       console.error('강아지 대소동 결과 저장 실패:', reportError)
     }

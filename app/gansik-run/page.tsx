@@ -332,7 +332,7 @@ export default function GansikRunPage() {
                     }}>
                     🔄 다시 하기
                   </Button>
-                  <Button onClick={() => router.push('/teacher/dashboard')} size="lg" variant="outline"
+                  <Button onClick={() => router.push('/teacher/play')} size="lg" variant="outline"
                     className="flex-1 font-bold text-xl py-5 cursor-pointer"
                     style={{
                       border: '2px solid rgba(255,255,255,0.15)',

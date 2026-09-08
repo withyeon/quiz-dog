@@ -23,11 +23,13 @@ import { getGameModeConfig, isGameModeId } from '@/lib/game/modes'
 import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import {
   getGameReportById,
-  listRecentGameReports,
+  listGameReportsForOwner,
   parseReportPlayers,
   type GameReportWithQuestionSetTitle,
 } from '@/lib/services/reports'
 import { formatServiceError } from '@/lib/services/errors'
+import { useAuth } from '@/contexts/AuthContext'
+import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 import {
   buildResultAnalytics,
   formatResponseTime,
@@ -91,6 +93,8 @@ function AnalyticsPageContent() {
   const selectedReportId = searchParams?.get('report')
 
   const [reports, setReports] = useState<GameReportWithQuestionSetTitle[]>([])
+  const { user } = useAuth()
+  const ownerId = user?.id ?? null
   const [selectedReport, setSelectedReport] = useState<GameReportWithQuestionSetTitle | null>(null)
   const [selectedQuestions, setSelectedQuestions] = useState<AnalyticsQuestion[]>([])
   const [loading, setLoading] = useState(true)
@@ -100,6 +104,7 @@ function AnalyticsPageContent() {
     let cancelled = false
 
     const loadReports = async () => {
+      if (!ownerId) return
       setLoading(true)
       setErrorMessage(null)
       setSelectedReport(null)
@@ -107,7 +112,7 @@ function AnalyticsPageContent() {
 
       try {
         const [recentReports, detailReport] = await Promise.all([
-          listRecentGameReports(50),
+          listGameReportsForOwner(ownerId, 50),
           selectedReportId ? getGameReportById(selectedReportId) : Promise.resolve(null),
         ])
         const detailQuestions = detailReport?.set_id
@@ -135,14 +140,14 @@ function AnalyticsPageContent() {
     return () => {
       cancelled = true
     }
-  }, [selectedReportId])
+  }, [selectedReportId, ownerId])
 
   // 상세 보기 모드
   if (selectedReportId) {
     const report = selectedReport ?? reports.find((item) => item.id === selectedReportId) ?? null
 
     if (loading) {
-      return <div className="p-8 text-center font-bold text-slate-500">불러오는 중…</div>
+      return <LoadingState label="기록을 불러오는 중" card={false} />
     }
 
     if (!report) {
@@ -210,7 +215,7 @@ function AnalyticsPageContent() {
         {report.set_id && (
           <div className="mt-6 text-center">
             <Button
-              onClick={() => router.push(`/teacher/dashboard?set=${encodeURIComponent(report.set_id!)}`)}
+              onClick={() => router.push(`/teacher/play?set=${encodeURIComponent(report.set_id!)}`)}
               className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
             >
               <Play className="mr-2 h-4 w-4" /> 이 문제집으로 다시 시작
@@ -233,19 +238,21 @@ function AnalyticsPageContent() {
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-slate-500">불러오는 중…</div>
+        <LoadingState label="게임 기록을 불러오는 중" />
       ) : reports.length === 0 ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-          <Image src="/mascot_pome.png" alt="퀴즈독" width={72} height={72} className="mx-auto mb-4 h-16 w-16 object-contain" />
-          <h2 className="mb-2 text-xl font-extrabold text-slate-800">아직 기록이 없어요</h2>
-          <p className="mb-6 font-medium text-slate-500">게임을 진행하면 결과가 자동으로 저장돼요</p>
-          <Button
-            onClick={() => router.push('/teacher/dashboard')}
-            className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
-          >
-            <Play className="mr-2 h-4 w-4" /> 게임 시작
-          </Button>
-        </div>
+        <EmptyState
+          mascot
+          title="아직 기록이 없어요"
+          description="게임을 진행하면 결과가 자동으로 저장돼요"
+          action={
+            <Button
+              onClick={() => router.push('/teacher/play')}
+              className="rounded-xl bg-sky-500 text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
+            >
+              <Play className="mr-2 h-4 w-4" /> 게임 시작
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {reports.map((report, index) => {

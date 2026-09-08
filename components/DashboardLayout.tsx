@@ -9,13 +9,11 @@ import {
   BookOpen,
   ChevronRight,
   Home,
-  LayoutDashboard,
   Library,
   LogOut,
   Menu,
   PlayCircle,
   Plus,
-  Settings,
   ShieldCheck,
   X,
 } from 'lucide-react'
@@ -29,18 +27,17 @@ interface DashboardLayoutProps {
 const navItems = [
   // '홈으로'는 교사 영역을 벗어나 서비스 메인으로 나가는 출구 링크 (active 표시 없음)
   { href: '/', label: '홈으로', icon: Home, id: 'landing' },
-  { href: '/teacher', label: '대시보드', icon: LayoutDashboard, id: 'dashboard' },
+  { href: '/teacher', label: '내 문제집', icon: BookOpen, id: 'sets' },
+  { href: '/teacher/play', label: '게임 시작', icon: PlayCircle, id: 'play' },
   { href: '/teacher/library', label: '자료실', icon: Library, id: 'library' },
   { href: '/teacher/analytics', label: '게임 기록', icon: BarChart3, id: 'history' },
-  { href: '/teacher/dashboard', label: '게임 시작', icon: PlayCircle, id: 'play' },
-  { href: '/teacher/settings', label: '설정', icon: Settings, id: 'settings' },
 ]
 
 // 현재 경로에 해당하는 내비 항목의 active 여부.
 // '/'(홈으로)는 startsWith로 모든 경로에 걸리므로 항상 비활성 처리한다.
 function isNavItemActive(id: string, href: string, pathname: string | null): boolean {
   if (id === 'landing') return false
-  if (id === 'dashboard') return pathname === '/teacher'
+  if (id === 'sets') return pathname === '/teacher'
   return Boolean(pathname?.startsWith(href))
 }
 
@@ -61,7 +58,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   }
   // 헤더 제목용 현재 항목 — '홈으로'(출구 링크)는 제외하고 찾는다.
   const currentItem = navItems.find((item) => isNavItemActive(item.id, item.href, pathname))
-    ?? navItems.find((item) => item.id === 'dashboard')!
+    ?? navItems.find((item) => item.id === 'sets')!
 
   // 라우트가 바뀌면 모바일 메뉴 닫기
   useEffect(() => {
@@ -112,15 +109,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <Link
                 key={item.id}
                 href={item.href}
-                className={`flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition ${
+                className={`relative flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition ${
                   active
                     ? 'bg-sky-50 text-sky-700'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-black'
                 }`}
               >
+                {active && (
+                  <span
+                    className="absolute left-0 top-1/2 h-6 w-1 -translate-y-1/2 rounded-r-full bg-sky-500"
+                    aria-hidden
+                  />
+                )}
                 <item.icon className="h-5 w-5" />
                 <span className="flex-1">{item.label}</span>
-                {active && <ChevronRight className="h-4 w-4 text-slate-400" />}
+                {active && <ChevronRight className="h-4 w-4 text-sky-400" />}
               </Link>
             )
           })}
@@ -299,16 +302,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
             <div className="flex items-center gap-2">
               <Link
-                href="/teacher"
-                className="hidden h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold text-slate-600 transition hover:bg-slate-100 sm:flex"
+                href="/teacher/play"
+                className="flex h-10 items-center gap-2 rounded-xl px-5 text-sm font-black text-white transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-sky-200"
+                style={{
+                  background: 'linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 45%, #0ea5e9 100%)',
+                  boxShadow: '0 4px 0 #0b8fc4, 0 8px 16px rgba(14,165,233,0.25)',
+                  textShadow: '0 1px 0 rgba(0,0,0,0.18)',
+                }}
               >
-                <BookOpen className="h-4 w-4" />
-                문제집
-              </Link>
-              <Link
-                href="/teacher/dashboard"
-                className="flex h-10 items-center gap-2 rounded-2xl bg-sky-500 px-5 text-sm font-black text-white shadow-lg shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-sky-200"
-              >
+                <PlayCircle className="h-4 w-4" />
                 게임 시작
               </Link>
             </div>

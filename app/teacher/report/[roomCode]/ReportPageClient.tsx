@@ -53,7 +53,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
                     {errorMessage ? `게임 방 정보를 불러오지 못했습니다. ${errorMessage}` : '게임 방 정보를 찾을 수 없습니다.'}
                 </p>
                 <button
-                    onClick={() => router.push('/teacher/dashboard')}
+                    onClick={() => router.push('/teacher/play')}
                     className="rounded-xl bg-sky-500 px-6 py-2 font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
                 >
                     게임 시작으로
@@ -70,7 +70,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
                     <p className="mt-2">게임이 끝나면 결과를 볼 수 있어요.</p>
                 </div>
                 <button
-                    onClick={() => router.push('/teacher/dashboard')}
+                    onClick={() => router.push('/teacher/play')}
                     className="rounded-xl bg-sky-500 px-6 py-2 font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
                 >
                     게임 시작으로
@@ -88,7 +88,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
                         <p className="text-slate-500 mt-2">참가코드 <span className="font-mono font-bold">{roomCode}</span></p>
                     </div>
                     <button
-                        onClick={() => router.push('/teacher/dashboard')}
+                        onClick={() => router.push('/teacher/play')}
                         className="rounded-xl border border-slate-200 bg-white px-6 py-3 font-semibold text-slate-600 shadow-sm transition-colors hover:bg-slate-50"
                     >
                         게임 시작으로

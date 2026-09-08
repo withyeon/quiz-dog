@@ -68,7 +68,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
           {errorMessage ? `종료 화면을 불러오지 못했어요. ${errorMessage}` : '게임 결과를 찾을 수 없어요.'}
         </p>
         <button
-          onClick={() => router.push('/teacher/dashboard')}
+          onClick={() => router.push('/teacher/play')}
           className="rounded-xl bg-sky-500 px-5 py-3 font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"
         >
           게임 시작으로
@@ -92,7 +92,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
         durationSeconds,
       })
 
-      router.replace(`/teacher/dashboard?room=${encodeURIComponent(room.room_code)}`)
+      router.replace(`/teacher/play?room=${encodeURIComponent(room.room_code)}`)
     } catch (error) {
       console.error('Error restarting game:', error)
       toast.error('다시 시작에 실패했습니다: ' + formatServiceError(error))

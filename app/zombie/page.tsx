@@ -328,7 +328,7 @@ export default function ZombiePage() {
                     ))}
                   </div>
                 </div>
-                <Button onClick={() => router.push('/teacher/dashboard')} size="lg" variant="outline" className="w-full border-4 border-gray-600 py-6 text-xl font-bold text-gray-300">
+                <Button onClick={() => router.push('/teacher/play')} size="lg" variant="outline" className="w-full border-4 border-gray-600 py-6 text-xl font-bold text-gray-300">
                   대시보드로
                 </Button>
               </CardContent>

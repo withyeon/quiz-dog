@@ -35,16 +35,94 @@ async function hydrateReportsWithQuestionSetTitles(
   }))
 }
 
-export async function saveGameReportSnapshot(room: RoomRow, players: PlayerRow[]): Promise<void> {
-  const { error } = await supabase.from('game_reports').insert({
+/**
+ * game_reports.owner_id 는 migrations/add_game_reports_owner.sql 을 실행한 뒤에만 존재한다.
+ * 마이그레이션 전 환경에서도 저장·조회가 깨지지 않도록, 컬럼이 없다는 응답을 한 번 받으면
+ * 이후에는 컬럼 없이 동작한다(같은 세션 안에서만 기억).
+ */
+let ownerColumnAvailable: boolean | null = null
+
+function isMissingOwnerColumn(error: unknown): boolean {
+  const message = (error as { message?: string } | null)?.message ?? ''
+  return message.includes('owner_id')
+}
+
+export async function saveGameReportSnapshot(
+  room: RoomRow,
+  players: PlayerRow[],
+  ownerId?: string | null,
+): Promise<void> {
+  const snapshot = {
     room_code: room.room_code,
     set_id: room.set_id,
     game_mode: room.game_mode,
     player_count: players.length,
     players_data: players,
-  } as any)
+  }
+
+  if (ownerId && ownerColumnAvailable !== false) {
+    const { error } = await supabase
+      .from('game_reports')
+      .insert({ ...snapshot, owner_id: ownerId } as any)
+
+    if (!error) {
+      ownerColumnAvailable = true
+      return
+    }
+    if (!isMissingOwnerColumn(error)) throw error
+    ownerColumnAvailable = false
+  }
+
+  const { error } = await supabase.from('game_reports').insert(snapshot as any)
+  if (error) throw error
+}
+
+/** 내 문제집 id 목록 — 소유자 컬럼이 없던 시절의 기록을 찾아내는 데 쓴다 */
+async function listOwnedQuestionSetIds(ownerId: string): Promise<string[]> {
+  const { data, error } = await (supabase
+    .from('question_sets') as any)
+    .select('id')
+    .eq('owner_id', ownerId)
 
   if (error) throw error
+  return ((data ?? []) as Array<{ id: string }>).map((set) => set.id)
+}
+
+/**
+ * 내 게임 기록만 고르는 조건.
+ * owner_id(진행한 사람) 우선, 그 컬럼이 없거나 값이 비어 있던 예전 기록은 내 문제집 기준으로 찾는다.
+ */
+async function selectOwnerReports<T>(
+  ownerId: string,
+  columns: string,
+  apply: (query: any) => any,
+): Promise<T[]> {
+  const ownedSetIds = await listOwnedQuestionSetIds(ownerId)
+  const quotedSetIds = ownedSetIds.map((id) => `"${id}"`).join(',')
+
+  if (ownerColumnAvailable !== false) {
+    const conditions = [`owner_id.eq.${ownerId}`]
+    if (ownedSetIds.length > 0) conditions.push(`set_id.in.(${quotedSetIds})`)
+
+    const { data, error } = await apply(
+      (supabase.from('game_reports') as any).select(columns).or(conditions.join(',')),
+    )
+
+    if (!error) {
+      ownerColumnAvailable = true
+      return (data ?? []) as T[]
+    }
+    if (!isMissingOwnerColumn(error)) throw error
+    ownerColumnAvailable = false
+  }
+
+  if (ownedSetIds.length === 0) return []
+
+  const { data, error } = await apply(
+    (supabase.from('game_reports') as any).select(columns).in('set_id', ownedSetIds),
+  )
+  if (error) throw error
+  return (data ?? []) as T[]
 }
 
 export async function listRecentGameReports(limit = 50): Promise<GameReportWithQuestionSetTitle[]> {
@@ -56,6 +134,39 @@ export async function listRecentGameReports(limit = 50): Promise<GameReportWithQ
 
   if (error) throw error
   return hydrateReportsWithQuestionSetTitles((data ?? []) as GameReportRow[])
+}
+
+/**
+ * 로그인한 선생님의 게임 기록만 가져온다.
+ *
+ * game_reports 테이블에는 소유자 컬럼이 없어서, 내가 가진 문제집(question_sets.owner_id)의
+ * set_id에 해당하는 기록만 골라낸다. 이 필터가 없으면 다른 선생님이 진행한 게임 기록
+ * (학생 닉네임·답안 포함)까지 보이게 된다.
+ */
+export async function listGameReportsForOwner(
+  ownerId: string,
+  limit = 50,
+): Promise<GameReportWithQuestionSetTitle[]> {
+  const rows = await selectOwnerReports<GameReportRow>(ownerId, '*', (query) =>
+    query.order('created_at', { ascending: false }).limit(limit),
+  )
+  return hydrateReportsWithQuestionSetTitles(rows)
+}
+
+/** 선생님 대시보드 상단 통계 — 내 문제집으로 진행한 게임 수와 누적 참여 학생 수 */
+export async function getGameStatsForOwner(
+  ownerId: string,
+): Promise<{ gameCount: number; playerCount: number }> {
+  const rows = await selectOwnerReports<{ player_count: number | null }>(
+    ownerId,
+    'player_count',
+    (query) => query,
+  )
+
+  return {
+    gameCount: rows.length,
+    playerCount: rows.reduce((sum, row) => sum + (row.player_count ?? 0), 0),
+  }
 }
 
 export async function getGameReportById(reportId: string): Promise<GameReportWithQuestionSetTitle | null> {

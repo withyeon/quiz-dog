@@ -31,6 +31,7 @@ import {
   setLocalQuestionSetLiked,
 } from '@/lib/utils/libraryClientId'
 import { toast } from '@/components/ui/Toaster'
+import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 
 type QuestionSet = {
   set_id: string
@@ -364,7 +365,7 @@ function LibraryPageContent() {
   }
 
   const handleStartGame = (setId: string) => {
-    router.push(`/teacher/dashboard?set=${encodeURIComponent(setId)}`)
+    router.push(`/teacher/play?set=${encodeURIComponent(setId)}`)
   }
 
   return (
@@ -491,23 +492,21 @@ function LibraryPageContent() {
           </div>
 
           {loading ? (
-            <div className="flex min-h-80 items-center justify-center rounded-2xl border border-slate-200 bg-white">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
-            </div>
+            <LoadingState label="자료실을 불러오는 중" />
           ) : filteredSets.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50">
-                <Search className="h-6 w-6 text-sky-400" />
-              </div>
-              <h2 className="mt-4 text-lg font-extrabold text-slate-800">맞는 문제집이 없어요</h2>
-              <p className="mt-2 text-sm font-medium text-slate-500">검색어나 필터를 넓혀 보세요</p>
-              <button
-                onClick={resetFilters}
-                className="mt-5 rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
-              >
-                필터 초기화
-              </button>
-            </div>
+            <EmptyState
+              icon={Search}
+              title="맞는 문제집이 없어요"
+              description="검색어나 필터를 넓혀 보세요"
+              action={
+                <button
+                  onClick={resetFilters}
+                  className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+                >
+                  필터 초기화
+                </button>
+              }
+            />
           ) : (
             filteredSets.map((set) => (
               <article

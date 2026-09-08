@@ -3,7 +3,6 @@
 import { toast } from '@/components/ui/Toaster'
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
@@ -13,10 +12,15 @@ import { useAudioContext } from '@/components/AudioProvider'
 import GameCodeModal from '@/components/GameCodeModal'
 import GameStartTutorialModal from '@/components/GameStartTutorialModal'
 import GameModeSelector from '@/components/dashboards/GameModeSelector'
+import PlaySteps from '@/components/teacher/play/PlaySteps'
+import QuestionSetPicker from '@/components/teacher/play/QuestionSetPicker'
+import WaitingPlayers from '@/components/teacher/play/WaitingPlayers'
+import GameDurationPicker from '@/components/teacher/play/GameDurationPicker'
+import RoomCodePanel from '@/components/teacher/play/RoomCodePanel'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
 import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
 import QRCodeSVG from 'react-qr-code'
-import { Play, Pause, Square, RotateCcw, Clock } from 'lucide-react'
+import { Play, Pause, Square, RotateCcw } from 'lucide-react'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
 import { getZombieMeta, roomPlayerToZombiePlayer } from '@/lib/game/zombie'
@@ -35,11 +39,13 @@ import {
   updateRoomGameMode,
 } from '@/lib/services/rooms'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
+import { useAuth } from '@/contexts/AuthContext'
 import { listQuestionSetsWithCounts, type QuestionSetSummary } from '@/lib/services/questionSets'
-import { getPlayerDisplayNickname, isAvatarPath } from '@/lib/utils/playerDisplay'
 
 export default function TeacherDashboard() {
   const router = useRouter()
+  const { user } = useAuth()
+  const ownerId = user?.id ?? null
   const [roomCode, setRoomCode] = useState('')
   // 게임 시작에 쓸 문제집 — 예전에는 URL(?set=)로만 받아서 대시보드에서 고를 방법이 없었다.
   const [questionSets, setQuestionSets] = useState<QuestionSetSummary[]>([])
@@ -234,7 +240,7 @@ export default function TeacherDashboard() {
         })
         await finishPromise
         try {
-          await saveGameReportSnapshot(room, players)
+          await saveGameReportSnapshot(room, players, ownerId)
         } catch (reportError) {
           console.error('Error saving timed game report snapshot:', reportError)
         }
@@ -258,7 +264,7 @@ export default function TeacherDashboard() {
     tick()
     const interval = window.setInterval(tick, 1000)
     return () => window.clearInterval(interval)
-  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
+  }, [ownerId, broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
   useEffect(() => {
     if (room?.status === 'paused' && room.duration_seconds) {
@@ -314,7 +320,7 @@ export default function TeacherDashboard() {
         })
         await finishPromise
         try {
-          await saveGameReportSnapshot(room, players)
+          await saveGameReportSnapshot(room, players, ownerId)
         } catch (reportError) {
           console.error('Error saving zombie game report snapshot:', reportError)
         }
@@ -327,7 +333,7 @@ export default function TeacherDashboard() {
     }
 
     void finishByZombieWin()
-  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
+  }, [ownerId, broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
   // 눈싸움 대작전: 한 팀 전멸(또는 개인전 최후 생존) 시 자동 종료
   useEffect(() => {
@@ -364,7 +370,7 @@ export default function TeacherDashboard() {
         })
         await finishPromise
         try {
-          await saveGameReportSnapshot(room, players)
+          await saveGameReportSnapshot(room, players, ownerId)
         } catch (reportError) {
           console.error('Error saving battle game report snapshot:', reportError)
         }
@@ -377,7 +383,7 @@ export default function TeacherDashboard() {
     }
 
     void finishByBattleEnd()
-  }, [broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
+  }, [ownerId, broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
   // 게임 모드 변경 핸들러 (방이 있으면 DB도 업데이트)
   const handleGameModeChange = async (newMode: GameModeId) => {
@@ -557,7 +563,7 @@ export default function TeacherDashboard() {
 
       // 게임 종료 순간의 최종 성적 스냅샷을 영구 보관함(game_reports)에 저장
       try {
-        await saveGameReportSnapshot(room, players)
+        await saveGameReportSnapshot(room, players, ownerId)
       } catch (reportError) {
         console.error('Error saving game report snapshot:', reportError)
       }
@@ -648,28 +654,17 @@ export default function TeacherDashboard() {
     }
   }
 
-  const renderPlayerAvatar = (avatar: string | null, nickname: string) => {
-    const normalizedAvatar = String(avatar || '').trim()
-    const displayNickname = getPlayerDisplayNickname(nickname, avatar)
-
-    if (isAvatarPath(normalizedAvatar)) {
-      return (
-        <Image
-          src={normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`}
-          alt={displayNickname}
-          fill
-          className="object-contain scale-125"
-          sizes="56px"
-        />
-      )
-    }
-
-    return normalizedAvatar || '🐶'
-  }
-
   return (
     <div>
-      <h1 className="mb-8 text-4xl font-black tracking-tight text-slate-900">게임 시작</h1>
+      <h1 className="mb-5 text-4xl font-black tracking-tight text-slate-900">게임 시작</h1>
+
+      <PlaySteps
+        hasRoom={Boolean(roomCode)}
+        roomStatus={room?.status}
+        requiresQuestionSet={activeModeConfig.requiresQuestionSet}
+        hasSelectedSet={Boolean(selectedSetId)}
+        playerCount={players.length}
+      />
 
       {/* 방 설정 */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -684,148 +679,21 @@ export default function TeacherDashboard() {
 
         {roomCode ? (
           <div className="space-y-4">
-            {/* 공통 게임 시간 설정 */}
-            {(
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <label className="mb-2 flex items-center gap-2 text-lg font-bold text-amber-800">
-                  <Clock className="h-5 w-5" /> 게임 시간
-                </label>
-                <div className="flex flex-wrap items-center gap-3">
-                  {[3, 5, 7, 10].map((minutes) => (
-                    <button
-                      key={minutes}
-                      onClick={() => setTimedDurationMinutes(minutes)}
-                      className={`px-4 py-2 rounded-lg font-bold border-2 transition-all ${timedDurationMinutes === minutes
-                        ? 'border-amber-500 bg-amber-200 text-amber-900'
-                        : 'border-amber-200 bg-white text-amber-800 hover:border-amber-400'
-                        }`}
-                    >
-                      {minutes}분
-                    </button>
-                  ))}
-                  <label
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-bold border-2 transition-all ${![3, 5, 7, 10].includes(timedDurationMinutes)
-                      ? 'border-amber-500 bg-amber-200 text-amber-900'
-                      : 'border-amber-200 bg-white text-amber-800'
-                      }`}
-                  >
-                    <span className="text-sm">직접 입력</span>
-                    <input
-                      type="number"
-                      min={1}
-                      max={120}
-                      value={timedDurationMinutes}
-                      onChange={(e) => {
-                        const next = Math.min(120, Math.max(1, Math.floor(Number(e.target.value) || 0)))
-                        setTimedDurationMinutes(next)
-                      }}
-                      className="w-14 rounded-md border-2 border-amber-200 bg-white px-2 py-1 text-center text-amber-900 focus:border-amber-400 focus:outline-none"
-                    />
-                    <span className="text-sm">분</span>
-                  </label>
-                </div>
-                <p className="mt-2 text-sm font-medium text-amber-700">
-                  시간이 끝나면 자동 종료 · 순위 공개 (1~120분)
-                </p>
-              </div>
-            )}
+            <GameDurationPicker minutes={timedDurationMinutes} onChange={setTimedDurationMinutes} />
 
             {roomStatus !== 'finished' && <TeacherBgmControl />}
 
-            {roomStatus === 'waiting' ? (
-              <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-                <div className="rounded-3xl bg-gradient-to-br from-sky-400 via-sky-500 to-cyan-500 p-6 text-white shadow-xl shadow-sky-200">
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-black text-sky-50">참가코드</p>
-                      <div className="mt-1 text-6xl font-black tracking-wider">{roomCode}</div>
-                    </div>
-                    {activeModeConfig.image ? (
-                        <div className="relative h-24 w-56">
-                          <Image
-                            src={activeModeConfig.image}
-                            alt={activeModeConfig.shortLabel}
-                            fill
-                            className="object-contain"
-                            sizes="224px"
-                          />
-                        </div>
-                      ) : (
-                        <div className="text-7xl">{activeModeConfig.emoji}</div>
-                      )}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-3 text-sky-50">
-                    <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-black">참가자 {players.length}명</span>
-                    {/* 어떤 문제집으로 시작했는지 확인할 수 있게 표시 — 엉뚱한 문제집으로 수업을 시작하는 사고 방지 */}
-                    {activeSetLabel && (
-                      <span className="rounded-full bg-white/15 px-3 py-1.5 text-sm font-black">
-                        📖 {activeSetLabel}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="rounded-3xl border border-sky-100 bg-white p-6 text-center shadow-xl shadow-sky-100">
-                  <p className="mb-3 text-sm font-black text-slate-500">QR 코드로 입장</p>
-                  <button
-                    type="button"
-                    onClick={() => setShowLargeQrModal(true)}
-                    className="mx-auto inline-block rounded-2xl border-2 border-sky-100 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg"
-                    aria-label="QR 코드 크게 보기"
-                  >
-                    <QRCodeSVG
-                      value={inviteUrl}
-                      size={260}
-                      level="H"
-                    />
-                  </button>
-                  <p className="mt-2 text-xs font-bold text-slate-400">QR을 누르면 크게 볼 수 있어요</p>
-                  <button
-                    onClick={handleCopyInvite}
-                    className="mt-4 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100"
-                  >
-                    초대 링크 복사
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="mx-auto flex w-full max-w-3xl flex-wrap items-center justify-center gap-5 rounded-3xl border border-sky-100 bg-white px-6 py-5 text-center shadow-xl shadow-sky-100">
-                <div>
-                  <p className="text-xs font-black text-sky-500">참가코드</p>
-                  <div className="text-4xl font-black tracking-wider text-black">{roomCode}</div>
-                </div>
-                {timerDisplaySeconds !== null && (
-                  <div className={`flex flex-col items-center rounded-2xl px-6 py-3 ${
-                    timerDisplaySeconds <= 60
-                      ? 'bg-red-50 ring-2 ring-red-400'
-                      : timerDisplaySeconds <= 120
-                        ? 'bg-amber-50 ring-2 ring-amber-300'
-                        : 'bg-slate-50 ring-1 ring-slate-200'
-                  }`}>
-                    <p className={`text-xs font-black ${timerDisplaySeconds <= 60 ? 'text-red-500' : timerDisplaySeconds <= 120 ? 'text-amber-600' : 'text-slate-500'}`}>
-                      {roomStatus === 'paused' ? '⏸ 일시정지' : '⏱ 남은 시간'}
-                    </p>
-                    <div className={`text-5xl font-black tabular-nums ${timerDisplaySeconds <= 60 ? 'text-red-600' : timerDisplaySeconds <= 120 ? 'text-amber-600' : 'text-slate-800'}`}>
-                      {timerDisplaySeconds >= 60
-                        ? `${Math.floor(timerDisplaySeconds / 60)}분 ${String(timerDisplaySeconds % 60).padStart(2, '0')}초`
-                        : `${timerDisplaySeconds}초`}
-                    </div>
-                  </div>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowLargeQrModal(true)}
-                  className="rounded-2xl border-2 border-sky-100 bg-white p-3 shadow-sm transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-lg"
-                  aria-label="QR 코드 크게 보기"
-                >
-                  <QRCodeSVG
-                    value={inviteUrl}
-                    size={110}
-                    level="H"
-                  />
-                </button>
-              </div>
-            )}
+            <RoomCodePanel
+              roomCode={roomCode}
+              roomStatus={roomStatus}
+              inviteUrl={inviteUrl}
+              modeConfig={activeModeConfig}
+              playerCount={players.length}
+              activeSetLabel={activeSetLabel}
+              timerDisplaySeconds={timerDisplaySeconds}
+              onShowLargeQr={() => setShowLargeQrModal(true)}
+              onCopyInvite={handleCopyInvite}
+            />
 
             {roomStatus === 'waiting' && (
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -844,36 +712,7 @@ export default function TeacherDashboard() {
                   </button>
                 </div>
 
-                {players.length === 0 ? (
-                  <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center">
-                    <Image src="/mascot_pome.png" alt="퀴즈독" width={56} height={56} className="mx-auto mb-3 h-14 w-14 object-contain" />
-                    <p className="text-lg font-bold text-slate-700">참가자 없음</p>
-                    <p className="mt-1 text-sm font-medium text-slate-500">
-                      학생이 코드를 입력하면 여기에 표시돼요
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {players.map((player) => {
-                      const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
-
-                      return (
-                        <div
-                          key={player.id}
-                          className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 shadow-sm"
-                        >
-                          <div className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-white text-3xl ring-1 ring-slate-200">
-                            {renderPlayerAvatar(player.avatar, displayNickname)}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="truncate text-base font-black text-black">{displayNickname}</div>
-                            <div className="mt-1 text-xs font-bold text-emerald-600">준비 완료</div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                <WaitingPlayers players={players} />
               </div>
             )}
 
@@ -922,49 +761,14 @@ export default function TeacherDashboard() {
             {/* 문제집 선택 — 예전에는 URL(?set=)로만 지정할 수 있어서
                 대시보드에서 바로 게임을 시작할 방법이 없었다. */}
             {activeModeConfig.requiresQuestionSet && (
-              <div className="mx-auto mb-8 max-w-xl text-left">
-                <label htmlFor="dashboard-set-select" className="mb-2 block text-sm font-black text-gray-700">
-                  문제집 선택
-                </label>
-
-                {setsLoading ? (
-                  <div className="rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-500">
-                    문제집을 불러오는 중...
-                  </div>
-                ) : setsError ? (
-                  <div className="rounded-xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">
-                    문제집을 불러오지 못했어요: {setsError}
-                  </div>
-                ) : questionSets.length === 0 ? (
-                  <div className="rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-4 text-sm font-semibold text-amber-900">
-                    <p className="mb-3">아직 문항이 있는 문제집이 없어요. 먼저 문제집을 만들어주세요.</p>
-                    <button
-                      onClick={() => router.push('/teacher/create')}
-                      className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-black text-white transition hover:bg-amber-600"
-                    >
-                      문제집 만들러 가기
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <select
-                      id="dashboard-set-select"
-                      value={selectedSetId}
-                      onChange={(e) => setSelectedSetId(e.target.value)}
-                      className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-100"
-                    >
-                      {questionSets.map((set) => (
-                        <option key={set.id} value={set.id}>
-                          {set.title} ({set.question_count}문제)
-                        </option>
-                      ))}
-                    </select>
-                    <p className="mt-2 text-xs font-semibold text-gray-500">
-                      학생들이 풀게 될 문제집이에요. 총 {questionSets.length}개 중에서 고를 수 있어요.
-                    </p>
-                  </>
-                )}
-              </div>
+              <QuestionSetPicker
+                questionSets={questionSets}
+                selectedSetId={selectedSetId}
+                loading={setsLoading}
+                error={setsError}
+                onSelect={setSelectedSetId}
+                onCreateQuestionSet={() => router.push('/teacher/create')}
+              />
             )}
 
             <div className="text-center">
