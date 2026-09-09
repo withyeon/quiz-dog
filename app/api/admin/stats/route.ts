@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin/auth'
 import { getAdminSupabase } from '@/lib/supabase/admin'
 import { listAllAuthUsers } from '@/lib/admin/users'
+import { sweepStaleRoomsQuietly } from '@/lib/services/roomExpiry'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = getAdminSupabase()
+
+    // '진행 중 게임' 수치가 방치된 방까지 세지 않도록 먼저 정리한다.
+    await sweepStaleRoomsQuietly(supabase)
+
     const users = await listAllAuthUsers()
 
     const todayStart = startOfTodayKST()

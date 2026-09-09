@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireAdmin } from '@/lib/admin/auth'
 import { getAdminSupabase } from '@/lib/supabase/admin'
+import { sweepStaleRoomsQuietly } from '@/lib/services/roomExpiry'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,10 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = getAdminSupabase()
+
+    // 방치된 방을 먼저 정리해야 목록의 '진행 중 / 대기 중'이 실제 상태와 맞는다.
+    await sweepStaleRoomsQuietly(supabase)
+
     const url = new URL(request.url)
     const activeOnly = url.searchParams.get('active') === '1'
 

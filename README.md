@@ -24,6 +24,10 @@ SUPABASE_SECRET_KEY=your-secret-key-here
 # NEXT_PUBLIC_SUPABASE_ANON_KEY=your-legacy-anon-key-here
 # SUPABASE_SERVICE_ROLE_KEY=your-legacy-service-role-key-here
 
+# 방치된 게임 룸 자동 종료 크론용 (Vercel Cron 사용 시)
+# Vercel 프로젝트 환경변수에 넣으면 크론 요청이 이 값으로 인증된다.
+CRON_SECRET=아무-긴-랜덤-문자열
+
 # AI API 설정 (문제 생성 기능 사용 시 필수)
 # Gemini API 또는 OpenAI API 중 하나만 설정
 GEMINI_API_KEY=your-gemini-api-key-here
