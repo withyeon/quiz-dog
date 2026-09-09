@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { Loader2, Trash2, Users, RefreshCw } from 'lucide-react'
+import { Loader2, Trash2, Users, RefreshCw, BrushCleaning } from 'lucide-react'
 import { fetchAdminJson, fetchAdmin } from '@/lib/admin/fetchAdmin'
 import { getGameModeConfig } from '@/lib/game/modes'
 import { toast } from '@/components/ui/Toaster'
@@ -40,6 +40,7 @@ export default function AdminSessionsPage() {
   const [error, setError] = useState('')
   const [activeOnly, setActiveOnly] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [sweeping, setSweeping] = useState(false)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -52,6 +53,28 @@ export default function AdminSessionsPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  // 선생님이 종료를 안 누르고 탭을 닫은 방을 즉시 정리한다.
+  // (목록을 열 때도 자동으로 도는 작업이지만, 결과를 눈으로 확인하고 싶을 때 쓴다)
+  const sweepStale = async () => {
+    setSweeping(true)
+    try {
+      const data = await fetchAdminJson<{ expiredCount: number; skippedLive: string[] }>(
+        '/api/cron/expire-rooms',
+        { method: 'POST' },
+      )
+      if (data.expiredCount > 0) {
+        toast.success(`방치된 방 ${data.expiredCount}개를 종료 처리했습니다.`)
+      } else {
+        toast.success('정리할 방치된 방이 없습니다.')
+      }
+      load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '정리에 실패했습니다.')
+    } finally {
+      setSweeping(false)
+    }
+  }
 
   const remove = async (roomCode: string) => {
     if (!confirm(`'${roomCode}' 게임 룸과 참여자 데이터를 삭제할까요?`)) return
@@ -88,6 +111,19 @@ export default function AdminSessionsPage() {
             />
             진행 중만
           </label>
+          <button
+            onClick={sweepStale}
+            disabled={sweeping}
+            title="3시간 이상 방치된 대기방, 6시간 이상 방치된 진행 중 게임을 종료 처리합니다. 학생이 활동 중인 방은 건드리지 않습니다."
+            className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {sweeping ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <BrushCleaning className="h-4 w-4" />
+            )}
+            방치된 방 정리
+          </button>
           <button
             onClick={load}
             className="flex items-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"

@@ -37,6 +37,9 @@ export const PLAYER_ACTIVITY_GRACE_MS = 1 * HOUR
 /** 한 번에 처리할 최대 방 수 — 스윕이 요청을 오래 붙잡지 않도록 */
 const SWEEP_LIMIT = 500
 
+/** UPDATE 한 번에 담을 방 코드 수 (URL 길이 제한 회피) */
+const UPDATE_CHUNK_SIZE = 100
+
 const ACTIVE_STATUSES = Object.keys(ROOM_IDLE_LIMIT_MS)
 const MAX_IDLE_LIMIT_MS = Math.max(...Object.values(ROOM_IDLE_LIMIT_MS))
 
@@ -128,12 +131,17 @@ export async function expireStaleRooms(
     return { scanned: candidates.length, expired: [], skippedLive: [...liveCodes] }
   }
 
-  const { error: updateError } = await (supabase.from('rooms') as any)
-    .update({ status: 'finished' })
-    .in('room_code', expiredCodes)
-    .in('status', ACTIVE_STATUSES) // 조회 이후 선생님이 직접 끝냈다면 덮어쓰지 않는다
+  // PostgREST 는 in(...) 목록을 URL 쿼리에 싣는다. 처음 도입할 때처럼 수백 개가 한꺼번에
+  // 걸리는 상황에서 URL 길이 제한에 부딪히지 않도록 나눠 보낸다.
+  for (let i = 0; i < expiredCodes.length; i += UPDATE_CHUNK_SIZE) {
+    const chunk = expiredCodes.slice(i, i + UPDATE_CHUNK_SIZE)
+    const { error: updateError } = await (supabase.from('rooms') as any)
+      .update({ status: 'finished' })
+      .in('room_code', chunk)
+      .in('status', ACTIVE_STATUSES) // 조회 이후 선생님이 직접 끝냈다면 덮어쓰지 않는다
 
-  if (updateError) throw updateError
+    if (updateError) throw updateError
+  }
 
   return { scanned: candidates.length, expired: expiredCodes, skippedLive: [...liveCodes] }
 }
