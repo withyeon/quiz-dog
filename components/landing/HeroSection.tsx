@@ -234,17 +234,22 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
 
           <h1 className="mt-6 text-4xl leading-tight sm:text-5xl lg:text-6xl">
             <PixelHeading>
-              자료만 올리면
-              <br />
-              수업이 <PixelAccent>게임</PixelAccent>이 됩니다
+              수업을 <PixelAccent>게임</PixelAccent>처럼
             </PixelHeading>
           </h1>
 
           <p
-            className="mx-auto -mt-1 max-w-xl text-base leading-relaxed sm:text-lg lg:mx-0"
+            className="mx-auto -mt-1 max-w-xl text-lg font-black leading-relaxed sm:text-xl lg:mx-0"
+            style={{ color: '#1E3A8A' }}
+          >
+            흥미 없던 아이도 즐겁게 참여하고, 배움은 자연스럽게 따라옵니다.
+          </p>
+
+          <p
+            className="mx-auto mt-3 max-w-xl text-base leading-relaxed sm:text-lg lg:mx-0"
             style={{ color: '#334155' }}
           >
-            PDF·유튜브 링크만 올리면 AI가 문제를 만들어요.
+            자료만 올리면 AI가 문제를 만들어요.
             <br className="hidden sm:block" />
             아이들은 코드 한 번으로 들어와 {visibleGameModeCount}가지 게임으로 복습합니다.
           </p>

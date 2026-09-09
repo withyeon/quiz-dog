@@ -9,6 +9,7 @@ import PawBackgroundDecor from '@/components/PawBackgroundDecor'
 import HeroSection from '@/components/landing/HeroSection'
 import HowItWorksSection from '@/components/landing/HowItWorksSection'
 import GameLineupSection from '@/components/landing/GameLineupSection'
+import MottoSection from '@/components/landing/MottoSection'
 import FeatureIntroSection from '@/components/landing/FeatureIntroSection'
 import { visibleGameModeCount } from '@/components/landing/gameModesData'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
@@ -61,10 +62,13 @@ export default function LandingPage() {
       {/* ══ 3. 게임 라인업 ═════════════════════════════════════ */}
       <GameLineupSection animationsReady={animationsReady} />
 
-      {/* ══ 4. 기능 소개 ═══════════════════════════════════════ */}
+      {/* ══ 4. 우리가 게임으로 하는 이유 (모토) ════════════════ */}
+      <MottoSection animationsReady={animationsReady} />
+
+      {/* ══ 5. 기능 소개 ═══════════════════════════════════════ */}
       <FeatureIntroSection gameModeCount={visibleGameModeCount} animationsReady={animationsReady} />
 
-      {/* ══ 5. 마지막 CTA ══════════════════════════════════════ */}
+      {/* ══ 6. 마지막 CTA ══════════════════════════════════════ */}
       <section className="relative px-4 py-20 sm:px-6 sm:py-24 lg:px-8" style={{ zIndex: 2 }}>
         <div className="mx-auto max-w-4xl text-center">
           <motion.div
