@@ -160,7 +160,7 @@ export function TutorialDemoFrame({ backgroundSrc, backgroundClassName, metric, 
             initial={{ scale: m.from !== undefined && m.from !== m.value ? 1.25 : 1 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 320, damping: 16 }}
-            className="flex items-center gap-2 rounded-full bg-white/90 px-3.5 py-1.5 shadow-lg ring-1 ring-white/60 backdrop-blur"
+            className="flex items-center gap-2 rounded-full bg-white/90 px-3.5 py-1.5 shadow-lg ring-1 ring-white/60"
           >
             {m.icon ? (
               <Image src={m.icon} alt="" width={22} height={22} className="h-5 w-5 object-contain" />

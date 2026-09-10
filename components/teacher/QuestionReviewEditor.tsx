@@ -415,7 +415,7 @@ export default function QuestionReviewEditor({
 
       {/* 하단 저장 바 */}
       <div className="sticky bottom-4 mt-6 z-50">
-        <div className="flex gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+        <div className="flex gap-3 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg">
           <Button
             variant="outline"
             onClick={onBack}

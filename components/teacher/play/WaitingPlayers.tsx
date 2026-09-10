@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { getPlayerDisplayNickname, isAvatarPath } from '@/lib/utils/playerDisplay'
+import { getPlayerDisplayNickname, isAvatarPath, resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 import type { Database } from '@/types/database.types'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
@@ -13,7 +13,7 @@ function PlayerAvatar({ avatar, nickname }: { avatar: string | null; nickname: s
   if (isAvatarPath(normalizedAvatar)) {
     return (
       <Image
-        src={normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`}
+        src={resolveAvatarSrc(normalizedAvatar)}
         alt={nickname}
         fill
         className="object-contain scale-125"
@@ -31,7 +31,7 @@ export default function WaitingPlayers({ players }: { players: PlayerRow[] }) {
     return (
       <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/70 px-6 py-10 text-center">
         <Image
-          src="/mascot_pome.png"
+          src="/mascot_pome.webp"
           alt=""
           width={56}
           height={56}

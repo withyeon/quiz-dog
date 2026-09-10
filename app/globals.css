@@ -13,48 +13,6 @@
   font-display: swap;
 }
 
-@font-face {
-  font-family: 'MomemontGukguk';
-  font-style: normal;
-  font-weight: 400;
-  src: url('/fonts/MemomentKkukkukk.otf') format('opentype'),
-       url('/fonts/MemomentKkukkukk.ttf') format('truetype');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Suhgung12';
-  font-style: normal;
-  font-weight: 400;
-  src: url('/fonts/Suhgung12.otf') format('opentype'),
-       url('/fonts/Suhgung12.ttf') format('truetype');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'OkDanDan';
-  font-style: normal;
-  font-weight: 700;
-  src: url('/fonts/OkDanDan-Bold.otf') format('opentype');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'BMKkubulim';
-  font-style: normal;
-  font-weight: 400;
-  src: url('/fonts/BMKkubulim.otf') format('opentype');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'BMJUA';
-  font-style: normal;
-  font-weight: 400;
-  src: url('/fonts/BMJUA_otf.otf') format('opentype');
-  font-display: swap;
-}
-
 @layer base {
   * {
     @apply border-border;
@@ -79,7 +37,7 @@
     isolation: isolate;
     background:
       linear-gradient(180deg, rgba(7, 31, 42, 0.52), rgba(10, 42, 48, 0.46) 44%, rgba(34, 30, 24, 0.48)),
-      url('/background/gold-quest.png');
+      url('/background/gold-quest.webp');
     background-size: cover;
     background-position: center center;
     background-attachment: fixed;
@@ -89,7 +47,7 @@
     isolation: isolate;
     background:
       linear-gradient(180deg, rgba(255, 251, 235, 0.28) 0%, rgba(255, 255, 255, 0.2) 48%, rgba(236, 253, 245, 0.2) 100%),
-      url('/background/factory.png');
+      url('/background/factory.webp');
     background-size: cover;
     background-position: center center;
     background-attachment: fixed;
@@ -99,7 +57,7 @@
     isolation: isolate;
     background:
       linear-gradient(180deg, rgba(240, 249, 255, 0.2), rgba(255, 255, 255, 0.16) 48%, rgba(248, 250, 252, 0.24)),
-      url('/background/fishing.png');
+      url('/background/fishing.webp');
     background-size: cover;
     background-position: center center;
     background-attachment: fixed;
@@ -109,7 +67,7 @@
     isolation: isolate;
     background:
       linear-gradient(180deg, rgba(5, 8, 15, 0.58), rgba(12, 12, 20, 0.5) 46%, rgba(0, 0, 0, 0.62)),
-      url('/background/mafia.png');
+      url('/background/mafia.webp');
     background-size: cover;
     background-position: center center;
     background-attachment: fixed;
@@ -536,13 +494,6 @@
     font-family: 'DNFBitBitv2', sans-serif !important;
   }
 
-  .font-gukguk {
-    font-family: 'MomemontGukguk', sans-serif;
-  }
-
-  .font-suhgung {
-    font-family: 'Suhgung12', sans-serif;
-  }
   
   .star-pattern {
     background-image: 
@@ -740,7 +691,7 @@
     color: #13202b;
     background:
       linear-gradient(180deg, rgba(246, 250, 253, 0.62) 0%, rgba(232, 244, 248, 0.48) 46%, rgba(248, 250, 247, 0.58) 100%),
-      url('/background/battle-royale.png');
+      url('/background/battle-royale.webp');
     background-size: cover;
     background-position: center center;
     background-attachment: fixed;
@@ -1209,6 +1160,42 @@
   @keyframes result-glow-bronze {
     0%, 100% { box-shadow: 0 0 0 rgba(251, 146, 60, 0), 0 20px 55px rgba(0, 0, 0, 0.45); }
     50% { box-shadow: 0 0 55px rgba(251, 146, 60, 0.5), 0 20px 55px rgba(0, 0, 0, 0.45); }
+  }
+
+  /* ── 시상대(Top 3) 무대 ────────────────────────────── */
+
+  /* 1등 뒤에서 내려오는 빛줄기 */
+  .result-beam {
+    background: linear-gradient(180deg, rgba(255, 236, 170, 0.45) 0%, rgba(255, 214, 102, 0.16) 45%, transparent 78%);
+    clip-path: polygon(38% 0%, 62% 0%, 100% 100%, 0% 100%);
+    animation: result-beam 3.6s ease-in-out infinite;
+  }
+  @keyframes result-beam {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 0.95; }
+  }
+
+  /* 시상대가 놓인 무대 바닥 */
+  .result-floor {
+    background:
+      radial-gradient(60% 100% at 50% 0%, rgba(255, 255, 255, 0.35), transparent 72%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 85%);
+  }
+
+  /* 시상대 아래로 비치는 반사 */
+  .result-reflection {
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 75%);
+    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 75%);
+    transform: scaleY(-1);
+    filter: blur(2px);
+    opacity: 0.28;
+  }
+
+  /* 시상대 숫자 — 파낸 듯한 음각 */
+  .result-engraved {
+    text-shadow:
+      0 2px 0 rgba(255, 255, 255, 0.5),
+      0 -2px 3px rgba(0, 0, 0, 0.25);
   }
 
   /* 기다리는 동안 통통 튀는 점 */

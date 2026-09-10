@@ -116,7 +116,7 @@ function LoginPageContent() {
       {/* Logo */}
       <Link href="/" className="mb-8">
         <Image
-          src="/header-logo.svg"
+          src="/header-logo.webp"
           alt="퀴즈독"
           width={180}
           height={54}

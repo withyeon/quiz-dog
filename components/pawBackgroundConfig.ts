@@ -1,6 +1,6 @@
 /** 발자국 이미지 경로 — 파일 교체 시 이 상수만 수정 */
-export const PAW_SRC = '/main/images/paw.svg'
-export const PAW2_SRC = '/main/images/paw2.svg'
+export const PAW_SRC = '/main/images/paw.webp'
+export const PAW2_SRC = '/main/images/paw2.webp'
 
 export type PawPrintConfig = {
   variant: 'paw' | 'paw2'

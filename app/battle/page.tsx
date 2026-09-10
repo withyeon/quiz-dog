@@ -734,7 +734,7 @@ export default function BattlePage() {
                     tone={healthTone}
                   />
                   <HudTile
-                    icon={<Image src="/trophy.svg" alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" />}
+                    icon={<Image src="/trophy.webp" alt="" width={14} height={14} className="h-3.5 w-3.5 object-contain" />}
                     label="순위"
                     value={`${currentRank}`}
                     detail={`${players.length}명 중`}
@@ -920,7 +920,7 @@ export default function BattlePage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-40 flex flex-col items-center justify-center overflow-y-auto bg-slate-950/90 p-5 backdrop-blur-md"
+                  className="fixed inset-0 z-40 flex flex-col items-center justify-center overflow-y-auto bg-slate-950/90 p-5"
                 >
                   <motion.div
                     animate={{ y: [0, -10, 0] }}

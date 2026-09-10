@@ -14,7 +14,7 @@ export default function Footer() {
           <div className="col-span-1 md:col-span-2">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <Image
-                src="/header-logo.svg"
+                src="/header-logo.webp"
                 alt="퀴즈독"
                 width={200}
                 height={60}

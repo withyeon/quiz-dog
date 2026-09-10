@@ -44,7 +44,7 @@ export function getScoreDisplay(player: ScorePlayer, gameMode: string | null | u
       value,
       label: '골드',
       text: `${formatNumber(value)} 골드`,
-      icon: '/gold-quest/gold-stack.svg',
+      icon: '/gold-quest/gold-stack.webp',
       tone: 'gold',
     }
   }

@@ -197,7 +197,7 @@ export default function CafePage() {
             exit={{ opacity: 0 }}
             className="min-h-dvh flex items-center justify-center p-4"
           >
-            <Card className="w-full max-w-2xl border-4 border-amber-300 shadow-2xl bg-white/95 backdrop-blur-sm">
+            <Card className="w-full max-w-2xl border-4 border-amber-300 shadow-2xl bg-white/95">
               <CardHeader className="text-center pb-4">
                 <div className="text-6xl mb-4">☕</div>
                 <CardTitle className="text-4xl font-bold text-gray-900 mb-2">
@@ -268,7 +268,7 @@ export default function CafePage() {
             exit={{ opacity: 0, scale: 0.9 }}
             className="min-h-dvh flex items-center justify-center p-4"
           >
-            <Card className="w-full max-w-3xl border-4 border-amber-300 shadow-2xl bg-white/95 backdrop-blur-sm">
+            <Card className="w-full max-w-3xl border-4 border-amber-300 shadow-2xl bg-white/95">
               <CardHeader className="text-center pb-4">
                 <CardTitle className="text-4xl font-bold text-gray-900 mb-2">
                   게임 종료!

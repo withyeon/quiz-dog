@@ -856,7 +856,7 @@ export default function GamePage() {
           <section className="gold-quest-ink-panel p-4 sm:p-5 text-[#17262a]">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="gold-quest-title flex items-center gap-2 text-xl font-black">
-                <Image src="/trophy.svg" alt="" width={20} height={20} className="h-5 w-5 object-contain" />
+                <Image src="/trophy.webp" alt="" width={20} height={20} className="h-5 w-5 object-contain" />
                 골드 순위
               </h2>
               <div className="text-xs font-bold text-slate-500">{rankedPlayers.length}명 참가</div>
@@ -909,7 +909,7 @@ export default function GamePage() {
                       </div>
                       <div className="text-right">
                         <div className="flex items-center justify-end gap-1.5 text-lg font-black text-amber-700 tabular-nums">
-                          <Image src="/gold-quest/gold-stack.svg" alt="" width={18} height={18} className="h-[18px] w-[18px]" />
+                          <Image src="/gold-quest/gold-stack.webp" alt="" width={18} height={18} className="h-[18px] w-[18px]" />
                           {gold}
                         </div>
                         <div className="text-xs font-bold text-slate-500">골드</div>

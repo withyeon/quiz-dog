@@ -4,7 +4,7 @@ import React from 'react'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { isAvatarPath } from '@/lib/utils/playerDisplay'
+import { isAvatarPath, resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 
 /* ─────────────────────────────────────────────────────────────
@@ -146,7 +146,7 @@ export function GameModeButton({
 export function PlayerAvatar({ nickname, avatar, isReady = false }: { nickname: string; avatar: string; isReady?: boolean }) {
   const normalizedAvatar = avatar.trim()
   const hasImageAvatar = isAvatarPath(normalizedAvatar)
-  const avatarSrc = normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`
+  const avatarSrc = resolveAvatarSrc(normalizedAvatar)
 
   return (
     <motion.div

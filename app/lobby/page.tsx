@@ -11,6 +11,7 @@ import { filterNickname } from '@/lib/utils/profanityFilter'
 import CharacterSelector from '@/components/CharacterSelector'
 import Minigame from '@/components/Minigame'
 import { CHARACTERS, type Character } from '@/lib/utils/characters'
+import { resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import GameStartTutorialModal from '@/components/GameStartTutorialModal'
@@ -315,7 +316,7 @@ function LobbyPage() {
               <PixelPanel label="🐶 퀴즈독 입장하기" labelColor="#C17B3A">
                 <div className="p-5 pt-10 sm:p-10 sm:pt-12">
                   <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2.5, repeat: Infinity }} className="mb-6">
-                    <Image src="/quizdog-logo.svg" alt="퀴즈독" width={320} height={100} className="w-full max-w-xs mx-auto" priority />
+                    <Image src="/quizdog-logo.webp" alt="퀴즈독" width={320} height={100} className="w-full max-w-xs mx-auto" priority />
                   </motion.div>
 
                   <div className="flex justify-center mb-8">
@@ -444,7 +445,7 @@ function LobbyPage() {
                   <PixelPanel label="✨ 선택된 캐릭터" labelColor="#E87A1A">
                     <div className="p-6 pt-8 text-center">
                       <div className="relative w-32 h-32 mx-auto mb-3">
-                        <Image src={selectedCharacter.imagePath} alt={selectedCharacter.name} fill className="object-contain" sizes="128px" />
+                        <Image src={resolveAvatarSrc(selectedCharacter.imagePath)} alt={selectedCharacter.name} fill className="object-contain" sizes="128px" />
                       </div>
                       <h3 className="text-xl font-black mb-4" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>{selectedCharacter.name}</h3>
 

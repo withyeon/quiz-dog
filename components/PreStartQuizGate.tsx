@@ -30,8 +30,10 @@ export default function PreStartQuizGate({
   const progress = Math.min(submittedCount, total)
   const progressLabel = `${progress}/${total}`
 
+  // 배경 흐림(backdrop-blur)은 뺐다. 뒤를 82% 어둡게 덮고 있어 시각적 차이는 거의 없는데,
+  // 전체 화면 backdrop-filter는 합성 비용이 커서 저사양 태블릿에서 이 화면만 15fps까지 떨어졌다.
   return (
-    <div className="fixed inset-0 z-[80] flex min-h-dvh items-center justify-center overflow-y-auto bg-slate-950/82 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[80] flex min-h-dvh items-center justify-center overflow-y-auto bg-slate-950/[0.82] p-4">
       <motion.section
         initial={{ opacity: 0, y: 18, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}

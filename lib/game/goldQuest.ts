@@ -58,12 +58,12 @@ export function toPercent(rate: number): number {
 
 /** 골드 상자 목록 — 누적 확률 · 골드 · 아이템 이름 · 이미지 */
 const GOLD_STACKS = [
-  { chance: 0.05, value: 10, itemName: '동전 주머니', found: '낡은 동전 주머니를 발견했다!', image: '/gold-quest/coin-pouch.svg' },
-  { chance: 0.175, value: 20, itemName: '골드 주머니', found: '무거운 골드 주머니를 발견했다!', image: '/gold-quest/money-bag.svg' },
-  { chance: 0.35, value: 30, itemName: '나무 상자', found: '수상한 나무 상자를 발견했다!', image: '/gold-quest/wooden-crate.svg' },
-  { chance: 0.5, value: 40, itemName: '반짝이는 주머니', found: '반짝이는 주머니를 발견했다!', image: '/gold-quest/gold-pile.svg' },
-  { chance: 0.635, value: 50, itemName: '보물 상자', found: '무거운 보물 상자를 발견했다!', image: '/gold-quest/treasure-chest.svg' },
-  { chance: 0.71, value: 100, itemName: '황금 왕관', found: '전설의 황금 왕관을 발견했다!', image: '/gold-quest/golden-crown.svg' },
+  { chance: 0.05, value: 10, itemName: '동전 주머니', found: '낡은 동전 주머니를 발견했다!', image: '/gold-quest/coin-pouch.webp' },
+  { chance: 0.175, value: 20, itemName: '골드 주머니', found: '무거운 골드 주머니를 발견했다!', image: '/gold-quest/money-bag.webp' },
+  { chance: 0.35, value: 30, itemName: '나무 상자', found: '수상한 나무 상자를 발견했다!', image: '/gold-quest/wooden-crate.webp' },
+  { chance: 0.5, value: 40, itemName: '반짝이는 주머니', found: '반짝이는 주머니를 발견했다!', image: '/gold-quest/gold-pile.webp' },
+  { chance: 0.635, value: 50, itemName: '보물 상자', found: '무거운 보물 상자를 발견했다!', image: '/gold-quest/treasure-chest.webp' },
+  { chance: 0.71, value: 100, itemName: '황금 왕관', found: '전설의 황금 왕관을 발견했다!', image: '/gold-quest/golden-crown.webp' },
 ] as const
 
 type GoldStack = (typeof GOLD_STACKS)[number]
@@ -86,15 +86,15 @@ function goldStackNamed(itemName: GoldStack['itemName']): BoxEvent {
 
 /** public/gold-quest 이미지 파일명 (이벤트 타입별) */
 export const BOX_EVENT_IMAGE: Record<BoxEventType, string> = {
-  GOLD_STACK: '/gold-quest/gold-stack.svg',
-  JESTER: '/gold-quest/jester.svg',
-  UNICORN: '/gold-quest/unicorn.svg',
-  SLIME_MONSTER: '/gold-quest/slime.svg',
-  DRAGON: '/gold-quest/dragon.svg',
-  KING: '/gold-quest/king.svg',
-  ELF: '/gold-quest/elf.svg',
-  WIZARD: '/gold-quest/wizard.svg',
-  FAIRY: '/gold-quest/fairy.svg',
+  GOLD_STACK: '/gold-quest/gold-stack.webp',
+  JESTER: '/gold-quest/jester.webp',
+  UNICORN: '/gold-quest/unicorn.webp',
+  SLIME_MONSTER: '/gold-quest/slime.webp',
+  DRAGON: '/gold-quest/dragon.webp',
+  KING: '/gold-quest/king.webp',
+  ELF: '/gold-quest/elf.webp',
+  WIZARD: '/gold-quest/wizard.webp',
+  FAIRY: '/gold-quest/fairy.webp',
 }
 
 /**

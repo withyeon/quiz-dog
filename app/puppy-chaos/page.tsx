@@ -41,10 +41,10 @@ import { sortPlayersByScore } from '@/lib/utils/playerSorting'
 const COMBO_EVENT_STREAK = Math.max(...COMBO_STEPS.map((step) => step.streak))
 
 const PUPPY_ICON = {
-  trophy: '/puppy-chaos/trophy.svg',
-  play: '/puppy-chaos/play.svg',
-  exit: '/puppy-chaos/exit.svg',
-  randomBox: '/puppy-chaos/random-box.svg',
+  trophy: '/puppy-chaos/trophy.webp',
+  play: '/puppy-chaos/play.webp',
+  exit: '/puppy-chaos/exit.webp',
+  randomBox: '/puppy-chaos/random-box.webp',
 } as const
 
 type Phase = 'waiting' | 'quiz' | 'cardSelect' | 'dodge' | 'roundResult' | 'bonus' | 'finalResult'
@@ -516,7 +516,7 @@ export default function PuppyChaosPage() {
       className="min-h-dvh bg-[#E0F2FE] bg-cover bg-center bg-no-repeat p-4 text-slate-950"
       style={{
         fontFamily: "'DNFBitBitv2', sans-serif",
-        backgroundImage: "linear-gradient(180deg, rgba(224, 242, 254, 0.12), rgba(255, 255, 255, 0.16)), url('/background/puppy-chaos.png')",
+        backgroundImage: "linear-gradient(180deg, rgba(224, 242, 254, 0.12), rgba(255, 255, 255, 0.16)), url('/background/puppy-chaos.webp')",
       }}
     >
       <div className="mx-auto flex min-h-[calc(100dvh-32px)] w-full max-w-3xl flex-col gap-4">

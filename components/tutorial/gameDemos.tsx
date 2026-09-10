@@ -103,7 +103,7 @@ function ResultBadge({ show, text }: { show: boolean; text: string }) {
 function BattleRoyaleDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/battle-royale.png"
+      backgroundSrc="/background/battle-royale.webp"
       metric={risingMetric({ emoji: '❄️', base: 0, gain: 1, suffix: '명중' })}
       phases={buildPhases([
         '퀴즈를 맞혀요',
@@ -187,10 +187,10 @@ const FISHING_AIM_TIER_FLOOR = getAimTierFloor('perfect') ?? '영웅' // 노란 
 const FISHING_TIERS: DollTier[] = ['일반', '희귀', '영웅', '전설']
 
 /** 데모에서 뽑는 전설 인형 — 배경이 비치는 그림이라 무대 위에 얹어도 깔끔합니다 */
-const FISHING_DEMO_DOLL = DOLL_TYPES.find((doll) => doll.image === '/fishing/16.svg') ?? DOLL_TYPES[DOLL_TYPES.length - 1]
-const FISHING_DEMO_DOLL_IMAGE = FISHING_DEMO_DOLL.image ?? '/fishing/16.svg'
+const FISHING_DEMO_DOLL = DOLL_TYPES.find((doll) => doll.image === '/fishing/16.webp') ?? DOLL_TYPES[DOLL_TYPES.length - 1]
+const FISHING_DEMO_DOLL_IMAGE = FISHING_DEMO_DOLL.image ?? '/fishing/16.webp'
 /** 바닥에 깔아 두는 인형들 — 가운데가 집게로 건져 올릴 인형입니다 */
-const FISHING_FLOOR_DOLLS = ['/fishing/1.svg', '/fishing/6.svg', FISHING_DEMO_DOLL_IMAGE, '/fishing/4.svg', '/fishing/5.svg']
+const FISHING_FLOOR_DOLLS = ['/fishing/1.webp', '/fishing/6.webp', FISHING_DEMO_DOLL_IMAGE, '/fishing/4.webp', '/fishing/5.webp']
 
 /**
  * 조준을 완벽히 맞히면(정확도 1.0) tryFishing 의 기본 점수가 maxScore 가 됩니다.
@@ -506,7 +506,7 @@ function FishingRankScene() {
 function FishingDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/fishing.png"
+      backgroundSrc="/background/fishing.webp"
       metric={(phase) => ({
         emoji: '🧸',
         value: FISHING_POINTS_BY_PHASE[phase]?.value ?? FISHING_TOTAL_POINTS,
@@ -573,7 +573,7 @@ function FishingDemo() {
 function MafiaDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/mafia.png"
+      backgroundSrc="/background/mafia.webp"
       metric={risingMetric({ emoji: '🔑', base: 60, gain: 50, suffix: '점' })}
       phases={buildPhases([
         '퀴즈를 맞혀요',
@@ -647,7 +647,7 @@ function DontLookDownDemo() {
                 { x: 30, y: 60 },
               ].map((p, i) => (
                 <div key={i} className="absolute" style={{ left: p.x, top: p.y }}>
-                  <Image src={`/dontlookdown/platforms/${i + 2}.svg`} alt="" width={88} height={28} className="h-7 w-22 object-contain" />
+                  <Image src={`/dontlookdown/platforms/${i + 2}.webp`} alt="" width={88} height={28} className="h-7 w-22 object-contain" />
                 </div>
               ))}
               {/* 캐릭터: action=중간발판, result=위발판 */}
@@ -879,7 +879,7 @@ function TowerRoadScene({ mode }: { mode: 'goal' | 'leak' | 'build' }) {
 function TowerDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/tower-defense.png"
+      backgroundSrc="/background/tower-defense.webp"
       metric={(phase) => ({
         emoji: '💰',
         value: TOWER_GOLD_BY_PHASE[phase]?.value ?? PLAYER_START_GOLD,
@@ -1003,7 +1003,7 @@ function ZombieDemo() {
                 transition={{ duration: 0.5 }}
                 className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-white/85"
               >
-                <Image src="/zombie/shield.svg" alt="" width={72} height={72} className="h-18 w-18 object-contain" />
+                <Image src="/zombie/shield.webp" alt="" width={72} height={72} className="h-18 w-18 object-contain" />
                 {phase === 'action' && <TapPointer />}
               </motion.div>
               <div className="relative h-14 w-14 overflow-hidden rounded-full bg-white/85 ring-2 ring-white">
@@ -1053,7 +1053,7 @@ function TreatRushDemo() {
               </motion.div>
               {/* 장애물 */}
               <motion.div className="relative z-10 h-12 w-12" animate={isResult(phase) ? { x: -180 } : { x: 0 }} transition={{ duration: 0.6 }}>
-                <Image src="/mini-game/rock.svg" alt="" fill className="object-contain" sizes="48px" />
+                <Image src="/mini-game/rock.webp" alt="" fill className="object-contain" sizes="48px" />
               </motion.div>
               {/* 간식 박스 */}
               <motion.span

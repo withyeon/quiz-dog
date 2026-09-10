@@ -349,7 +349,7 @@ function ShopScene() {
 export default function CafeTutorialDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/cafe.png"
+      backgroundSrc="/background/cafe.webp"
       metric={(phase) => ({
         emoji: '💰',
         value: MONEY_BY_PHASE[phase]?.value ?? MONEY_AFTER_GOLDEN,

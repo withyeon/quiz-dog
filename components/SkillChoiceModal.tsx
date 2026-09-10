@@ -23,7 +23,7 @@ export default function SkillChoiceModal({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/72 p-5 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/[0.72] p-5 backdrop-blur-md"
         >
             <motion.div
                 initial={{ opacity: 0, scale: 0.92, y: -24 }}

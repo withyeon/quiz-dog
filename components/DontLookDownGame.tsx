@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import QuizView from './QuizView'
-import { isAvatarPath } from '@/lib/utils/playerDisplay'
+import { isAvatarPath, resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 import {
     DB_THROTTLE_MS,
     POWERUP_COLLECT_RADIUS,
@@ -256,8 +256,7 @@ export default function DontLookDownGame({
     const getAvatarImage = (avatar: string) => {
         const normalized = avatar.trim()
         if (!isAvatarPath(normalized)) return undefined
-        const avatarPath = normalized.startsWith('/') ? normalized : `/${normalized}`
-        return avatarImagesRef.current[avatarPath]
+        return avatarImagesRef.current[resolveAvatarSrc(normalized)]
     }
 
     // ============ props → refs 동기화 ============
@@ -273,12 +272,12 @@ export default function DontLookDownGame({
         const avatarPaths = new Set<string>()
         const normalizedCharacterImage = characterImage.trim()
         if (isAvatarPath(normalizedCharacterImage)) {
-            avatarPaths.add(normalizedCharacterImage.startsWith('/') ? normalizedCharacterImage : `/${normalizedCharacterImage}`)
+            avatarPaths.add(resolveAvatarSrc(normalizedCharacterImage))
         }
         for (const player of players) {
             const avatar = String(player.avatar || '').trim()
             if (isAvatarPath(avatar)) {
-                avatarPaths.add(avatar.startsWith('/') ? avatar : `/${avatar}`)
+                avatarPaths.add(resolveAvatarSrc(avatar))
             }
         }
 
@@ -1039,7 +1038,7 @@ export default function DontLookDownGame({
                             initial={{ opacity: 0, x: 40, scale: 0.96 }}
                             animate={{ opacity: 1, x: 0, scale: 1 }}
                             exit={{ opacity: 0, x: 40, scale: 0.96 }}
-                            className="rounded-2xl border-4 border-sky-300 bg-white/95 p-3 shadow-2xl backdrop-blur pointer-events-auto"
+                            className="rounded-2xl border-4 border-sky-300 bg-white/95 p-3 shadow-2xl pointer-events-auto"
                             onClick={e => e.stopPropagation()}
                         >
                             <div className="mb-2 flex items-center justify-between px-1">

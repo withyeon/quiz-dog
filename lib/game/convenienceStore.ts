@@ -37,25 +37,25 @@ export function formatMoney(value: number): string {
 
 export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
   // 일반 (Common) - 50%
-  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.svg', tier: '일반', income: 100, incomeSeconds: 2, orderSeconds: 2, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
-  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.svg', tier: '일반', income: 180, incomeSeconds: 2, orderSeconds: 2, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
-  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.svg', tier: '일반', income: 250, incomeSeconds: 3, orderSeconds: 2, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
-  { baseId: 'p4', name: '초콜릿', emoji: '🍫', image: '/store/chocolate.svg', tier: '일반', income: 500, incomeSeconds: 3, orderSeconds: 3, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
+  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.webp', tier: '일반', income: 100, incomeSeconds: 2, orderSeconds: 2, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
+  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.webp', tier: '일반', income: 180, incomeSeconds: 2, orderSeconds: 2, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
+  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.webp', tier: '일반', income: 250, incomeSeconds: 3, orderSeconds: 2, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
+  { baseId: 'p4', name: '초콜릿', emoji: '🍫', image: '/store/chocolate.webp', tier: '일반', income: 500, incomeSeconds: 3, orderSeconds: 3, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
 
   // 희귀 (Rare) - 30%
   { baseId: 'p5', name: '바나나 우유', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 300, incomeSeconds: 2, orderSeconds: 3, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
-  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.svg', tier: '희귀', income: 700, incomeSeconds: 4, orderSeconds: 4, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
-  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.svg', tier: '희귀', income: 900, incomeSeconds: 5, orderSeconds: 4, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
+  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.webp', tier: '희귀', income: 700, incomeSeconds: 4, orderSeconds: 4, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
+  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.webp', tier: '희귀', income: 900, incomeSeconds: 5, orderSeconds: 4, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
 
   // 영웅 (Epic) - 15%
-  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.svg', tier: '영웅', income: 900, incomeSeconds: 4, orderSeconds: 6, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
-  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.svg', tier: '영웅', income: 1200, incomeSeconds: 5, orderSeconds: 7, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
-  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.svg', tier: '영웅', income: 1500, incomeSeconds: 6, orderSeconds: 7, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
+  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.webp', tier: '영웅', income: 900, incomeSeconds: 4, orderSeconds: 6, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
+  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.webp', tier: '영웅', income: 1200, incomeSeconds: 5, orderSeconds: 7, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
+  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.webp', tier: '영웅', income: 1500, incomeSeconds: 6, orderSeconds: 7, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
 
   // 전설 (Legendary) - 5%
-  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.svg', tier: '전설', income: 2500, incomeSeconds: 8, orderSeconds: 10, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
-  { baseId: 'p12', name: '식빵', emoji: '🍞', image: '/store/character_bread.svg', tier: '전설', income: 1000, incomeSeconds: 1, orderSeconds: 10, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
-  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.svg', tier: '전설', income: 3000, incomeSeconds: 10, orderSeconds: 12, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
+  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.webp', tier: '전설', income: 2500, incomeSeconds: 8, orderSeconds: 10, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
+  { baseId: 'p12', name: '식빵', emoji: '🍞', image: '/store/character_bread.webp', tier: '전설', income: 1000, incomeSeconds: 1, orderSeconds: 10, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
+  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.webp', tier: '전설', income: 3000, incomeSeconds: 10, orderSeconds: 12, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
 ]
 
 export const GRID_SIZE = 9 // Factory 스타일: 3x3 생산/진열 슬롯

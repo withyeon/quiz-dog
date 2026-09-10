@@ -311,7 +311,7 @@ export default function ZombieView({
 
           {currentView === 'actionSelect' && myPlayer && (
             <motion.div key="actionSelect" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-2xl px-4">
-              <Card className={`border-4 ${borderColor} bg-black/90 backdrop-blur-sm`}>
+              <Card className={`border-4 ${borderColor} bg-black/90`}>
                 <CardContent className="p-4 text-center sm:p-8">
                   <h2 className={`mb-4 text-2xl font-bold sm:mb-6 sm:text-3xl ${accentColor}`}>정답! 행동을 선택하세요</h2>
                   {isZombie ? (
@@ -347,7 +347,7 @@ export default function ZombieView({
 
           {currentView === 'targetSelect' && (
             <motion.div key="targetSelect" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-3xl px-4">
-              <Card className={`border-4 ${borderColor} bg-black/90 backdrop-blur-sm`}>
+              <Card className={`border-4 ${borderColor} bg-black/90`}>
                 <CardContent className="p-6">
                   <h2 className={`mb-4 text-center text-3xl font-bold ${accentColor}`}>{isZombie ? '공격할 친구 선택' : '스캔할 친구 선택'}</h2>
                   <div className="grid max-h-[50vh] grid-cols-2 gap-3 overflow-y-auto">
@@ -446,7 +446,7 @@ export default function ZombieView({
         </div>
       </div>
 
-      <div className={`absolute bottom-0 left-0 right-0 z-20 border-t-2 ${borderColor} bg-black/90 shadow-lg backdrop-blur-sm`}>
+      <div className={`absolute bottom-0 left-0 right-0 z-20 border-t-2 ${borderColor} bg-black/90 shadow-lg`}>
         <div className="mx-auto max-w-7xl px-4 py-2">
           <h3 className={`mb-1 flex items-center gap-2 text-sm font-bold ${accentColor}`}>
             <ZombieIcon name="log" size={18} alt="" />

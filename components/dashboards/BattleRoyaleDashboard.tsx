@@ -249,9 +249,9 @@ function PlayerCard({
             transition={{ boxShadow: isDanger ? { duration: 0.9, repeat: Infinity } : undefined }}
             className={`relative overflow-hidden rounded-lg border p-3 ${
                 isLeader
-                    ? 'border-amber-300 bg-amber-300/14'
+                    ? 'border-amber-300 bg-amber-300/[0.14]'
                     : isDanger
-                        ? 'border-rose-300 bg-rose-500/14'
+                        ? 'border-rose-300 bg-rose-500/[0.14]'
                         : 'border-white/10 bg-white/10'
             } ${!isAlive ? 'grayscale' : ''}`}
         >

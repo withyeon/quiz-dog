@@ -49,7 +49,7 @@ export default function ChestView({
 
   const getRewardImage = (event: BoxEvent) => {
     if (event.image) return event.image
-    if (event.itemName === '방어권') return '/gold-quest/shield.svg'
+    if (event.itemName === '방어권') return '/gold-quest/shield.webp'
     return BOX_EVENT_IMAGE[event.type]
   }
 
@@ -82,7 +82,7 @@ export default function ChestView({
     >
       <div className="mb-6">
         <h2 className="gold-quest-title flex items-center gap-3 text-3xl sm:text-4xl font-black text-[#17262a]">
-          <Image src="/gold-quest/gold-stack.svg" alt="" width={36} height={36} className="h-9 w-9 flex-shrink-0 object-contain" />
+          <Image src="/gold-quest/gold-stack.webp" alt="" width={36} height={36} className="h-9 w-9 flex-shrink-0 object-contain" />
           보물 상자 선택
         </h2>
       </div>
@@ -125,7 +125,7 @@ export default function ChestView({
                 />
               ) : (
                 <Image
-                  src="/gold-quest/quest.svg"
+                  src="/gold-quest/quest.webp"
                   alt="보물상자"
                   width={120}
                   height={120}

@@ -182,7 +182,7 @@ export default function ZombiePage() {
       <AnimatePresence mode="wait">
         {currentView === 'lobby' && (
           <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-4">
-            <Card className="w-full max-w-2xl border-4 border-green-600 bg-black/90 shadow-2xl backdrop-blur-sm">
+            <Card className="w-full max-w-2xl border-4 border-green-600 bg-black/90 shadow-2xl">
               <CardHeader className="pb-4 text-center">
                 <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 2, repeat: Infinity }} className="mb-4 flex justify-center">
                   <ZombieIcon name="zombie" size={80} alt="좀비" />
@@ -285,7 +285,7 @@ export default function ZombiePage() {
 
         {currentView === 'result' && (
           <motion.div key="result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex min-h-dvh items-center justify-center p-4">
-            <Card className={`w-full max-w-3xl border-4 ${winner === 'human' ? 'border-blue-500' : 'border-green-500'} bg-black/90 shadow-2xl backdrop-blur-sm`}>
+            <Card className={`w-full max-w-3xl border-4 ${winner === 'human' ? 'border-blue-500' : 'border-green-500'} bg-black/90 shadow-2xl`}>
               <CardHeader className="pb-4 text-center">
                 <div className="mb-4 flex justify-center">
                   {winner === 'human' ? (

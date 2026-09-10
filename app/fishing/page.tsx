@@ -159,7 +159,7 @@ export default function FishingPage() {
       <div className="relative z-30 p-3 sm:p-4">
         {/* ── 상단 헤더 ── */}
         <div className="mx-auto mb-4 max-w-7xl">
-          <div className="rounded-xl border border-white/80 bg-white/90 px-4 py-3 shadow-lg shadow-slate-200/60 backdrop-blur">
+          <div className="rounded-xl border border-white/80 bg-white/90 px-4 py-3 shadow-lg shadow-slate-200/60">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               {/* 타이틀 */}
               <div className="flex min-w-0 items-center gap-3">
@@ -272,7 +272,7 @@ export default function FishingPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="rounded-xl border-4 border-pink-200 bg-white/90 p-10 text-center shadow-2xl shadow-pink-100/60 backdrop-blur"
+              className="rounded-xl border-4 border-pink-200 bg-white/90 p-10 text-center shadow-2xl shadow-pink-100/60"
             >
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-200">
                 <Gamepad2 size={34} />
@@ -512,7 +512,7 @@ export default function FishingPage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-xl border border-red-200 bg-white/90 p-10 text-center shadow-xl shadow-red-100/60 backdrop-blur"
+              className="rounded-xl border border-red-200 bg-white/90 p-10 text-center shadow-xl shadow-red-100/60"
             >
               <motion.div
                 animate={{ rotate: [0, -10, 10, -10, 0] }}

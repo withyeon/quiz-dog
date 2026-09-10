@@ -57,7 +57,7 @@ export default function Navbar() {
     <nav
           className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 font-bitbit ${
         isScrolled
-          ? 'bg-sky-50/95 backdrop-blur-md shadow-lg border-b-2 border-sky-200'
+          ? 'bg-sky-50/95 shadow-lg border-b-2 border-sky-200'
           : 'bg-sky-50/30 backdrop-blur-sm'
       }`}
     >
@@ -71,7 +71,7 @@ export default function Navbar() {
               className="relative flex items-center gap-0"
             >
               <Image
-                src="/header-logo.svg"
+                src="/header-logo.webp"
                 alt="퀴즈독"
                 width={200}
                 height={60}

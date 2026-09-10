@@ -495,7 +495,7 @@ export default function MafiaView({
         </div>
       </aside>
 
-      <div className="absolute bottom-0 left-0 right-0 z-20 border-t-2 border-yellow-600 bg-black/90 shadow-lg backdrop-blur-sm">
+      <div className="absolute bottom-0 left-0 right-0 z-20 border-t-2 border-yellow-600 bg-black/90 shadow-lg">
         <div className="mx-auto max-w-7xl px-4 py-2">
           <h3 className="mb-1 flex items-center gap-2 text-base font-bold text-yellow-400 sm:text-lg">
             <Radio className="h-4 w-4 sm:h-5 sm:w-5" /> 도청 장치

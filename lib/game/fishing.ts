@@ -47,25 +47,25 @@ export interface Doll {
 
 // 인형 데이터: 정답 보상과 조작 정확도에 따라 희귀도 가중치가 달라진다.
 export const DOLL_TYPES: Omit<Doll, 'id' | 'score'>[] = [
-  { name: '수줍은 곰 인형', emoji: '🧸', image: '/fishing/1.svg', tier: '일반', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 18 },
-  { name: '리본 오리 인형', emoji: '🦆', image: '/fishing/4.svg', tier: '일반', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 17 },
-  { name: '햇살 곰 인형', emoji: '🧸', image: '/fishing/2.svg', tier: '일반', minScore: 45, maxScore: 85, color: 'text-amber-600', catchChance: 13 },
-  { name: '초록 점퍼 인형', emoji: '🐸', image: '/fishing/5.svg', tier: '일반', minScore: 55, maxScore: 105, color: 'text-amber-600', catchChance: 13 },
+  { name: '수줍은 곰 인형', emoji: '🧸', image: '/fishing/1.webp', tier: '일반', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 18 },
+  { name: '리본 오리 인형', emoji: '🦆', image: '/fishing/4.webp', tier: '일반', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 17 },
+  { name: '햇살 곰 인형', emoji: '🧸', image: '/fishing/2.webp', tier: '일반', minScore: 45, maxScore: 85, color: 'text-amber-600', catchChance: 13 },
+  { name: '초록 점퍼 인형', emoji: '🐸', image: '/fishing/5.webp', tier: '일반', minScore: 55, maxScore: 105, color: 'text-amber-600', catchChance: 13 },
 
-  { name: '눈꽃 곰 인형', emoji: '🧸', image: '/fishing/3.svg', tier: '희귀', minScore: 110, maxScore: 180, color: 'text-blue-500', catchChance: 6 },
-  { name: '말랑 거북 인형', emoji: '🐢', image: '/fishing/8.svg', tier: '희귀', minScore: 125, maxScore: 210, color: 'text-blue-500', catchChance: 5.5 },
-  { name: '밤하늘 고양이', emoji: '🐱', image: '/fishing/9.svg', tier: '희귀', minScore: 150, maxScore: 260, color: 'text-blue-500', catchChance: 4.5 },
-  { name: '하트 개구리 인형', emoji: '🐸', image: '/fishing/6.svg', tier: '희귀', minScore: 180, maxScore: 330, color: 'text-blue-500', catchChance: 3.5 },
+  { name: '눈꽃 곰 인형', emoji: '🧸', image: '/fishing/3.webp', tier: '희귀', minScore: 110, maxScore: 180, color: 'text-blue-500', catchChance: 6 },
+  { name: '말랑 거북 인형', emoji: '🐢', image: '/fishing/8.webp', tier: '희귀', minScore: 125, maxScore: 210, color: 'text-blue-500', catchChance: 5.5 },
+  { name: '밤하늘 고양이', emoji: '🐱', image: '/fishing/9.webp', tier: '희귀', minScore: 150, maxScore: 260, color: 'text-blue-500', catchChance: 4.5 },
+  { name: '하트 개구리 인형', emoji: '🐸', image: '/fishing/6.webp', tier: '희귀', minScore: 180, maxScore: 330, color: 'text-blue-500', catchChance: 3.5 },
 
-  { name: '레몬 크랩 쿠션', emoji: '🦀', image: '/fishing/10.svg', tier: '영웅', minScore: 260, maxScore: 460, color: 'text-purple-600', catchChance: 2.6 },
-  { name: '도넛 블롭 인형', emoji: '🍩', image: '/fishing/11.svg', tier: '영웅', minScore: 320, maxScore: 560, color: 'text-purple-600', catchChance: 2.2 },
-  { name: '네온 개구리 인형', emoji: '🐸', image: '/fishing/7.svg', tier: '영웅', minScore: 380, maxScore: 680, color: 'text-purple-600', catchChance: 1.9 },
+  { name: '레몬 크랩 쿠션', emoji: '🦀', image: '/fishing/10.webp', tier: '영웅', minScore: 260, maxScore: 460, color: 'text-purple-600', catchChance: 2.6 },
+  { name: '도넛 블롭 인형', emoji: '🍩', image: '/fishing/11.webp', tier: '영웅', minScore: 320, maxScore: 560, color: 'text-purple-600', catchChance: 2.2 },
+  { name: '네온 개구리 인형', emoji: '🐸', image: '/fishing/7.webp', tier: '영웅', minScore: 380, maxScore: 680, color: 'text-purple-600', catchChance: 1.9 },
 
-  { name: '별빛 문어 인형', emoji: '🐙', image: '/fishing/12.svg', tier: '전설', minScore: 580, maxScore: 980, color: 'text-yellow-500', catchChance: 1.1 },
-  { name: '해적 복어 인형', emoji: '🐡', image: '/fishing/14.svg', tier: '전설', minScore: 720, maxScore: 1200, color: 'text-yellow-500', catchChance: 0.8 },
-  { name: '진홍 문어 인형', emoji: '🐙', image: '/fishing/13.svg', tier: '전설', minScore: 850, maxScore: 1450, color: 'text-yellow-500', catchChance: 0.6 },
-  { name: '무지개 일각 인형', emoji: '🦄', image: '/fishing/16.svg', tier: '전설', minScore: 1200, maxScore: 2200, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.7)]', catchChance: 0.35 },
-  { name: 'UFO 스페셜 인형', emoji: '🛸', image: '/fishing/15.svg', tier: '전설', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
+  { name: '별빛 문어 인형', emoji: '🐙', image: '/fishing/12.webp', tier: '전설', minScore: 580, maxScore: 980, color: 'text-yellow-500', catchChance: 1.1 },
+  { name: '해적 복어 인형', emoji: '🐡', image: '/fishing/14.webp', tier: '전설', minScore: 720, maxScore: 1200, color: 'text-yellow-500', catchChance: 0.8 },
+  { name: '진홍 문어 인형', emoji: '🐙', image: '/fishing/13.webp', tier: '전설', minScore: 850, maxScore: 1450, color: 'text-yellow-500', catchChance: 0.6 },
+  { name: '무지개 일각 인형', emoji: '🦄', image: '/fishing/16.webp', tier: '전설', minScore: 1200, maxScore: 2200, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.7)]', catchChance: 0.35 },
+  { name: 'UFO 스페셜 인형', emoji: '🛸', image: '/fishing/15.webp', tier: '전설', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
 ]
 
 // 인형뽑기 상태

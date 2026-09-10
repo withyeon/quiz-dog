@@ -38,10 +38,10 @@ import {
  * 밸런스가 바뀌면 데모도 따라 바뀝니다.
  */
 
-const POOP = '/puppy-chaos/poop.svg'
-const FAST_POOP = '/puppy-chaos/fast-poop.svg'
-const BONE = '/puppy-chaos/bone.svg'
-const RANDOM_BOX = '/puppy-chaos/random-box.svg'
+const POOP = '/puppy-chaos/poop.webp'
+const FAST_POOP = '/puppy-chaos/fast-poop.webp'
+const BONE = '/puppy-chaos/bone.webp'
+const RANDOM_BOX = '/puppy-chaos/random-box.webp'
 /** 무대에 서는 강아지 — HUD의 밤톨이와 같은 마스코트의 큰 버전 */
 const MASCOT = '/assets/icons/mascot-pome-128.png'
 
@@ -687,7 +687,7 @@ function RankScene() {
 export default function PuppyChaosTutorialDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/puppy-chaos.png"
+      backgroundSrc="/background/puppy-chaos.webp"
       metric={(phase) => ({
         emoji: '⭐',
         value: SCORE_BY_PHASE[phase]?.value ?? BASE_SCORE,

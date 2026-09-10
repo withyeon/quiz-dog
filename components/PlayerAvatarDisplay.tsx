@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { isAvatarPath } from '@/lib/utils/playerDisplay'
+import { isAvatarPath, resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 
 type PlayerAvatarDisplayProps = {
   avatar?: string | null
@@ -26,7 +26,7 @@ export default function PlayerAvatarDisplay({
     return (
       <span className={`inline-flex items-center justify-center ${className}`}>
         <Image
-          src={normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`}
+          src={resolveAvatarSrc(normalizedAvatar)}
           alt={nickname || '플레이어'}
           fill
           className={imageClassName}

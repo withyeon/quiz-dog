@@ -32,12 +32,27 @@ function isTransientFetchFailure(error: unknown): boolean {
   return message.includes('Failed to fetch') || message.includes('NetworkError') || message.includes('Load failed')
 }
 
+/**
+ * 방 정보는 2초마다 다시 읽고(누락 대비 안전망) postgres_changes로도 들어온다.
+ * 내용이 그대로여도 setRoom에 새 객체를 넣으면 참조가 바뀌어 게임 화면 전체가
+ * 다시 그려진다 — 아무 일도 없는데 모든 기기가 2초마다 리렌더되던 원인이다.
+ * 내용이 같으면 이전 객체를 유지해 리렌더를 건너뛴다.
+ */
+function isSameRoom(a: Room | null, b: Room | null): boolean {
+  if (a === b) return true
+  if (!a || !b) return false
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
 export function useRoomRealtime({
   roomCode,
   enabled = true,
   onRoomUpdate,
 }: UseRoomRealtimeOptions) {
   const [room, setRoom] = useState<Room | null>(null)
+  // setRoom 갱신 함수는 언제 실행될지 보장되지 않으므로,
+  // "내용이 바뀌었는가" 판단은 항상 이 ref로 동기적으로 한다.
+  const roomRef = useRef<Room | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -48,17 +63,24 @@ export function useRoomRealtime({
     onRoomUpdateRef.current = onRoomUpdate
   }, [onRoomUpdate])
 
-  const applyRoomPatch = useCallback((patch: RoomPatch) => {
-    setRoom((prev) => {
-      if (!prev) return prev
-      const nextRoom = { ...prev, ...patch, room_code: prev.room_code } as Room
-      onRoomUpdateRef.current?.(nextRoom)
-      return nextRoom
-    })
+  /** 내용이 실제로 바뀔 때만 상태를 교체하고 onRoomUpdate를 알린다. */
+  const commitRoom = useCallback((next: Room | null) => {
+    if (isSameRoom(roomRef.current, next)) return false
+    roomRef.current = next
+    setRoom(next)
+    if (next) onRoomUpdateRef.current?.(next)
+    return true
   }, [])
+
+  const applyRoomPatch = useCallback((patch: RoomPatch) => {
+    const prev = roomRef.current
+    if (!prev) return
+    commitRoom({ ...prev, ...patch, room_code: prev.room_code } as Room)
+  }, [commitRoom])
 
   const refreshRoom = useCallback(async ({ silent = false }: RefreshOptions = {}) => {
     if (!enabled) {
+      roomRef.current = null
       setRoom(null)
       setLoading(false)
       setError(null)
@@ -66,6 +88,7 @@ export function useRoomRealtime({
     }
 
     if (!roomCode) {
+      roomRef.current = null
       setRoom(null)
       setLoading(false)
       setError(null)
@@ -93,8 +116,7 @@ export function useRoomRealtime({
       if (fetchError) throw fetchError
 
       if (seq === loadSeqRef.current) {
-        setRoom(data)
-        if (data) onRoomUpdateRef.current?.(data)
+        commitRoom(data)
       }
     } catch (err) {
       if (seq === loadSeqRef.current) {
@@ -114,10 +136,11 @@ export function useRoomRealtime({
         setLoading(false)
       }
     }
-  }, [enabled, roomCode])
+  }, [commitRoom, enabled, roomCode])
 
   useEffect(() => {
     if (!enabled || !roomCode) {
+      roomRef.current = null
       setRoom(null)
       setLoading(false)
       setError(null)
@@ -145,9 +168,7 @@ export function useRoomRealtime({
         },
         (payload) => {
           if (payload.new) {
-            const updatedRoom = payload.new as Room
-            setRoom(updatedRoom)
-            onRoomUpdateRef.current?.(updatedRoom)
+            commitRoom(payload.new as Room)
           }
         }
       )

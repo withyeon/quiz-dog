@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import type { Database } from '@/types/database.types'
 import { PLAYER_CLASSES, TEAM_INFO, type PlayerClass, type Team } from '@/lib/game/battleRoyale'
-import { isAvatarPath } from '@/lib/utils/playerDisplay'
+import { isAvatarPath, resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
@@ -74,7 +74,7 @@ function getRankTone(index: number, isAlive: boolean) {
 function PlayerAvatar({ avatar, nickname, isAlive }: { avatar: string | null; nickname: string; isAlive: boolean }) {
   const normalizedAvatar = String(avatar || '').trim()
   const isImageAvatar = isAvatarPath(normalizedAvatar)
-  const avatarSrc = normalizedAvatar.startsWith('/') ? normalizedAvatar : `/${normalizedAvatar}`
+  const avatarSrc = resolveAvatarSrc(normalizedAvatar)
 
   return (
     <div className={`relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[8px] border bg-white shadow-sm ${
@@ -154,7 +154,7 @@ export default function BattleArena({
             {aliveCount}명 생존
           </div>
           <h2 className="flex items-center gap-2 text-2xl font-black tracking-normal text-slate-900">
-            <Image src="/trophy.svg" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
+            <Image src="/trophy.webp" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
             생존자 현황판
           </h2>
         </div>

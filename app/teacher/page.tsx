@@ -214,7 +214,7 @@ function TeacherPageContent() {
                 <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-100">
                   <div className="flex items-center gap-3">
                     <Image
-                      src="/mascot_pome.png"
+                      src="/mascot_pome.webp"
                       alt="퀴즈독"
                       width={48}
                       height={48}

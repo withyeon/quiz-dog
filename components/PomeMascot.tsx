@@ -17,7 +17,7 @@ export default function PomeMascot({
 }: PomeMascotProps) {
   return (
     <Image
-      src="/mascot_pome.png"
+      src="/mascot_pome.webp"
       alt="퀴즈독 마스코트"
       width={96}
       height={96}

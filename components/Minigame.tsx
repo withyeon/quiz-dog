@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 
 interface MinigameProps {
   characterImage: string
@@ -53,11 +54,11 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
       img.src = src
       img.onload = () => { ref.current = img }
     }
-    load(characterImage, playerImgRef)
-    load('/mini-game/bomb.svg', bombImgRef)
-    load('/mini-game/rock.svg', rockImgRef)
-    load('/mini-game/bone.svg', boneImgRef)
-    load('/background/mini-game.png', bgImgRef)
+    load(resolveAvatarSrc(characterImage), playerImgRef)
+    load('/mini-game/bomb.webp', bombImgRef)
+    load('/mini-game/rock.webp', rockImgRef)
+    load('/mini-game/bone.webp', boneImgRef)
+    load('/background/mini-game.webp', bgImgRef)
   }, [characterImage])
 
   useEffect(() => {

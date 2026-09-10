@@ -95,7 +95,7 @@ export function LeaderboardPanel({ players, playerId }: { players: FishingPlayer
     return (
         <div className="rounded-xl border border-slate-200 bg-white/90 p-4 shadow-lg shadow-slate-200/50">
             <h3 className="mb-3 flex items-center gap-2 text-base font-extrabold text-slate-800">
-                <Image src="/trophy.svg" alt="" width={16} height={16} className="h-4 w-4 object-contain" /> 순위
+                <Image src="/trophy.webp" alt="" width={16} height={16} className="h-4 w-4 object-contain" /> 순위
             </h3>
             <div className="space-y-2">
                 {sorted.slice(0, 5).map((player, index) => {

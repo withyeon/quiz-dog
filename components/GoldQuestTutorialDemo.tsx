@@ -140,7 +140,7 @@ function ChestScene({ opened }: { opened: boolean }) {
                 }`}
               >
                 <Image
-                  src={isOpen ? '/gold-quest/golden-crown.svg' : '/gold-quest/quest.svg'}
+                  src={isOpen ? '/gold-quest/golden-crown.webp' : '/gold-quest/quest.webp'}
                   alt=""
                   width={110}
                   height={110}
@@ -174,8 +174,8 @@ function ChestScene({ opened }: { opened: boolean }) {
           className="font-bitbit mt-4 flex flex-wrap items-center justify-center gap-2"
         >
           {[
-            { image: '/gold-quest/unicorn.svg', label: `유니콘 ${GOLD_MULTIPLIER.UNICORN}배` },
-            { image: '/gold-quest/jester.svg', label: `광대 ${GOLD_MULTIPLIER.JESTER}배` },
+            { image: '/gold-quest/unicorn.webp', label: `유니콘 ${GOLD_MULTIPLIER.UNICORN}배` },
+            { image: '/gold-quest/jester.webp', label: `광대 ${GOLD_MULTIPLIER.JESTER}배` },
           ].map((item) => (
             <span
               key={item.label}
@@ -202,7 +202,7 @@ function TrapScene() {
           transition={{ type: 'spring', stiffness: 240, damping: 15 }}
           className="relative h-32 w-32 sm:h-40 sm:w-40"
         >
-          <Image src="/gold-quest/dragon.svg" alt="" fill className="object-contain drop-shadow-xl" sizes="160px" />
+          <Image src="/gold-quest/dragon.webp" alt="" fill className="object-contain drop-shadow-xl" sizes="160px" />
         </motion.div>
         <p className="mt-3 text-base font-black text-white sm:text-lg">드래곤에게 습격당했다</p>
         <motion.span
@@ -229,7 +229,7 @@ function StealScene() {
     <StageCard id="gold-quest-steal" className="w-full max-w-xl">
       <Panel>
         <div className="mb-4 flex items-center justify-center gap-3">
-          <Image src="/gold-quest/wizard.svg" alt="" width={56} height={56} className="h-12 w-12 object-contain" />
+          <Image src="/gold-quest/wizard.webp" alt="" width={56} height={56} className="h-12 w-12 object-contain" />
           <p className="text-base font-black text-amber-300 sm:text-lg">
             골드 {toPercent(GOLD_STEAL_RATE.WIZARD)}%를 가져올 친구를 골라요
           </p>
@@ -294,7 +294,7 @@ function ShieldScene() {
             animate={blocked ? { x: [0, 20, 10], opacity: [1, 1, 0.35] } : { x: 0, opacity: 1 }}
             transition={{ duration: 0.8 }}
           >
-            <Image src="/gold-quest/slime.svg" alt="" fill className="object-contain" sizes="64px" />
+            <Image src="/gold-quest/slime.webp" alt="" fill className="object-contain" sizes="64px" />
           </motion.div>
           <motion.div
             initial={{ scale: 0.5, opacity: 0 }}
@@ -302,14 +302,14 @@ function ShieldScene() {
             transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.5 }}
             className="relative h-28 w-28 sm:h-32 sm:w-32"
           >
-            <Image src="/gold-quest/shield.svg" alt="" fill className="object-contain drop-shadow-xl" sizes="128px" />
+            <Image src="/gold-quest/shield.webp" alt="" fill className="object-contain drop-shadow-xl" sizes="128px" />
           </motion.div>
           <motion.div
             className="relative h-16 w-16"
             animate={blocked ? { x: [0, -20, -10], opacity: [1, 1, 0.35] } : { x: 0, opacity: 1 }}
             transition={{ duration: 0.8 }}
           >
-            <Image src="/gold-quest/elf.svg" alt="" fill className="object-contain" sizes="64px" />
+            <Image src="/gold-quest/elf.webp" alt="" fill className="object-contain" sizes="64px" />
           </motion.div>
         </div>
       </Panel>
@@ -321,9 +321,9 @@ function ShieldScene() {
 export default function GoldQuestTutorialDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/gold-quest.png"
+      backgroundSrc="/background/gold-quest.webp"
       metric={(phase): HudMetric => ({
-        icon: '/gold-quest/gold-stack.svg',
+        icon: '/gold-quest/gold-stack.webp',
         value: GOLD_BY_PHASE[phase]?.value ?? START_GOLD,
         from: GOLD_BY_PHASE[phase]?.from,
         suffix: 'G',

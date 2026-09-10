@@ -120,7 +120,7 @@ export default function MafiaPage() {
             exit={{ opacity: 0 }}
             className="relative z-10 flex min-h-dvh items-center justify-center p-4"
           >
-            <Card className="w-full max-w-2xl border-4 border-yellow-600 bg-black/90 shadow-2xl backdrop-blur-sm">
+            <Card className="w-full max-w-2xl border-4 border-yellow-600 bg-black/90 shadow-2xl">
               <CardHeader className="pb-4 text-center">
                 <div className="mb-4 flex justify-center">
                   <Image src="/title/mafia.webp" alt="쉿! 마피아" width={520} height={180} className="h-28 w-auto max-w-full object-contain" priority />

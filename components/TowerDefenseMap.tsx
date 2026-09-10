@@ -196,6 +196,24 @@ export default function TowerDefenseMap({
     const animationFrameRef = useRef<number>()
     const backgroundImageRef = useRef<HTMLImageElement | null>(null)
 
+    // 캔버스 그리기에 필요한 최신 값 묶음.
+    //
+    // 타워디펜스 시뮬레이션은 50ms(초당 20회)마다 enemies·projectiles·particles를
+    // 새 배열로 갈아끼운다. 이 값들을 아래 렌더 루프 useEffect의 의존성에 그대로 두면
+    // 초당 20번씩 루프가 해제·재생성되고, 그때마다 animate()가 동기로 한 번 더 돌아
+    // 캔버스를 통째로 다시 그린다(rAF 60회 + 상태변경 20회 = 초당 80회 전체 리드로우).
+    // 값은 ref로 넘기고 루프는 마운트 시 한 번만 돌게 한다.
+    const drawStateRef = useRef({
+        towers, enemies, projectiles, particles,
+        shakeIntensity, selectedTowerType, selectedTower,
+        hoveredPosition,
+    })
+    drawStateRef.current = {
+        towers, enemies, projectiles, particles,
+        shakeIntensity, selectedTowerType, selectedTower,
+        hoveredPosition,
+    }
+
     const towerImagesRef = useRef<Record<TowerTypeId, HTMLImageElement | null>>({
         BASIC: null,
         MAGIC: null,
@@ -341,6 +359,11 @@ export default function TowerDefenseMap({
 
         const animate = () => {
             const now = Date.now()
+            const {
+                towers, enemies, projectiles, particles,
+                shakeIntensity, selectedTowerType, selectedTower,
+                hoveredPosition,
+            } = drawStateRef.current
 
             ctx.clearRect(0, 0, MAP_WIDTH, MAP_HEIGHT)
 
@@ -673,7 +696,7 @@ export default function TowerDefenseMap({
                 cancelAnimationFrame(animationFrameRef.current)
             }
         }
-    }, [towers, enemies, selectedTowerType, hoveredPosition, selectedTower, projectiles, particles, shakeIntensity])
+    }, [])
 
     return (
         <div className="relative">
@@ -687,7 +710,7 @@ export default function TowerDefenseMap({
                 className={`block aspect-[4/3] h-auto w-full rounded-lg border-4 border-gray-800 bg-white shadow-2xl ${selectedTowerType ? 'cursor-crosshair' : 'cursor-pointer'}`}
             />
 
-            <div className="absolute right-4 top-4 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-lg backdrop-blur-sm">
+            <div className="absolute right-4 top-4 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-lg">
                 <span className="text-xs font-black text-slate-700">{towers.length}개 설치</span>
             </div>
         </div>

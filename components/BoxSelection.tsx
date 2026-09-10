@@ -90,7 +90,7 @@ export default function BoxSelection({
                 />
               ) : (
                 <Image
-                  src="/gold-quest/quest.svg"
+                  src="/gold-quest/quest.webp"
                   alt="보물상자"
                   width={64}
                   height={64}

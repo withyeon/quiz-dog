@@ -76,6 +76,10 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
   const [quizTimer, setQuizTimer] = useState<number>(GAME.QUIZ_TIMEOUT)
   const [rouletteItem, setRouletteItem] = useState<ItemType | null>(null)
   const [showRoulette, setShowRoulette] = useState(false)
+  // 룰렛을 새로 열 때만 증가한다. key에 Date.now()를 쓰면 게임 루프가
+  // HUD를 갱신하려고 리렌더할 때마다 key가 달라져서 룰렛이 통째로
+  // 다시 마운트되고, 애니메이션이 처음부터 반복되며 끝나지 않는다.
+  const [rouletteRound, setRouletteRound] = useState(0)
   const [screenAttacks, setScreenAttacks] = useState<ActiveScreenAttack[]>([])
   const [itemCutIn, setItemCutIn] = useState<ItemType | null>(null)
 
@@ -213,7 +217,10 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
       if (cutInTimerRef.current) clearTimeout(cutInTimerRef.current)
       if (rouletteTimerRef.current) clearTimeout(rouletteTimerRef.current)
       cutInTimerRef.current = setTimeout(() => setItemCutIn(null), 500)
-      rouletteTimerRef.current = setTimeout(() => setShowRoulette(true), 360)
+      rouletteTimerRef.current = setTimeout(() => {
+        setRouletteRound((prev) => prev + 1)
+        setShowRoulette(true)
+      }, 360)
 
       if (onItemActivated) {
         void Promise.resolve(onItemActivated(item, s)).then((result) => {
@@ -652,7 +659,7 @@ export default function GansikRunGame({ questions, onGameEnd, playerId, onItemAc
       <AnimatePresence>
         {showRoulette && rouletteItem && (
           <ItemRoulette
-            key={`roulette-${rouletteItem}-${Date.now()}`}
+            key={`roulette-${rouletteRound}`}
             item={rouletteItem}
             onComplete={handleRouletteComplete}
           />

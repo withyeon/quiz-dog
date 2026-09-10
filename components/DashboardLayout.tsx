@@ -81,7 +81,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         <div className="flex h-16 items-center px-5">
           <Link href="/" className="flex items-center">
             <Image
-              src="/header-logo.svg"
+              src="/header-logo.webp"
               alt="퀴즈독"
               width={240}
               height={80}
@@ -186,7 +186,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <div className="flex h-16 items-center justify-between px-4">
               <Link href="/" className="flex items-center" onClick={() => setMobileNavOpen(false)}>
                 <Image
-                  src="/header-logo.svg"
+                  src="/header-logo.webp"
                   alt="퀴즈독"
                   width={200}
                   height={66}
@@ -287,7 +287,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               </button>
               <Link href="/" className="flex items-center lg:hidden">
                 <Image
-                  src="/header-logo.svg"
+                  src="/header-logo.webp"
                   alt="퀴즈독"
                   width={180}
                   height={60}

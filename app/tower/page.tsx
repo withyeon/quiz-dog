@@ -573,7 +573,7 @@ export default function TowerPage() {
                 </AnimatePresence>
 
                 {currentView === 'result' && (
-                    <div className="fixed inset-0 z-50 overflow-auto bg-slate-950/82 backdrop-blur-md">
+                    <div className="fixed inset-0 z-50 overflow-auto bg-slate-950/[0.82] backdrop-blur-md">
                         <GameResult
                             players={players}
                             currentPlayerId={playerId}

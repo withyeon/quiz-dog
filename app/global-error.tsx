@@ -43,7 +43,7 @@ export default function GlobalError({
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/mascot_pome.png"
+            src="/mascot_pome.webp"
             alt=""
             width={112}
             height={112}

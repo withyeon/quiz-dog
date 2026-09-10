@@ -182,7 +182,7 @@ export default function FishingMachine({
                 animate={{ opacity: [0.35, 0.72, 0.35] }}
                 transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <div className="h-full w-full bg-gradient-to-b from-amber-200/24 via-amber-200/18 to-transparent" />
+                <div className="h-full w-full bg-gradient-to-b from-amber-200/[0.24] via-amber-200/[0.18] to-transparent" />
               </motion.div>
             )}
 

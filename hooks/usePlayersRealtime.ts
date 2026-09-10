@@ -36,6 +36,25 @@ function normalizePlayer(player: Player): Player {
   return normalizePlayerDisplayFields(player)
 }
 
+/**
+ * 같은 점수 변화가 세 경로로 중복 도착한다:
+ *   (1) player:patch broadcast  (2) postgres_changes UPDATE  (3) 3초 주기 재동기화 SELECT
+ * 매번 새 배열을 만들면 내용이 똑같아도 참조가 바뀌어 참가자 목록을 쓰는 화면 전체가
+ * 다시 그려진다. 학생 30명 방에서는 이게 초당 여러 번 일어나 저사양 태블릿에서 끊긴다.
+ * 내용이 같으면 이전 배열을 그대로 돌려줘서 리렌더를 건너뛴다.
+ */
+function isSamePlayer(a: Player | undefined, b: Player): boolean {
+  return a !== undefined && JSON.stringify(a) === JSON.stringify(b)
+}
+
+function isSamePlayerList(prev: Player[], next: Player[]): boolean {
+  if (prev.length !== next.length) return false
+  for (let i = 0; i < prev.length; i += 1) {
+    if (JSON.stringify(prev[i]) !== JSON.stringify(next[i])) return false
+  }
+  return true
+}
+
 function getLoadErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && 'message' in error) {
@@ -83,8 +102,10 @@ export function usePlayersRealtime({
       let didPatch = false
       const next = prev.map((player) => {
         if (player.id !== playerId) return player
+        const patched = normalizePlayer({ ...player, ...patch, id: player.id } as Player)
+        if (isSamePlayer(player, patched)) return player
         didPatch = true
-        return normalizePlayer({ ...player, ...patch, id: player.id } as Player)
+        return patched
       })
       return didPatch ? sortPlayersByScore(next) : prev
     })
@@ -126,7 +147,8 @@ export function usePlayersRealtime({
       if (fetchError) throw fetchError
 
       if (seq === loadSeqRef.current) {
-        setPlayers(sortPlayersByScore(((data ?? []) as Player[]).map(normalizePlayer)))
+        const fetched = sortPlayersByScore(((data ?? []) as Player[]).map(normalizePlayer))
+        setPlayers((prev) => (isSamePlayerList(prev, fetched) ? prev : fetched))
       }
     } catch (err) {
       if (seq === loadSeqRef.current) {
@@ -202,8 +224,9 @@ export function usePlayersRealtime({
           if (!payload.new) return
           const updatedPlayer = normalizePlayer(payload.new as Player)
           setPlayers((prev) => {
-            const exists = prev.some((player) => player.id === updatedPlayer.id)
-            const next = exists
+            const current = prev.find((player) => player.id === updatedPlayer.id)
+            if (isSamePlayer(current, updatedPlayer)) return prev
+            const next = current
               ? prev.map((player) => player.id === updatedPlayer.id ? updatedPlayer : player)
               : [...prev, updatedPlayer]
             return sortPlayersByScore(next)

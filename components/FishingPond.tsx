@@ -78,7 +78,7 @@ export default function FishingPond({
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: index * 0.1 }}
-              className={`bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border-2 ${isCurrentPlayer
+              className={`bg-white/90 rounded-xl p-4 shadow-lg border-2 ${isCurrentPlayer
                   ? 'border-yellow-500 shadow-yellow-500/50 scale-105'
                   : 'border-gray-300'
                 }`}
@@ -163,7 +163,7 @@ export default function FishingPond({
 
       {/* 현재 플레이어의 뽑은 인형 상세 */}
       {currentPlayerCaughtDolls.length > 0 && (
-        <div className="relative z-10 mt-6 bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg border-2 border-yellow-500">
+        <div className="relative z-10 mt-6 bg-white/90 rounded-xl p-4 shadow-lg border-2 border-yellow-500">
           <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
             <span>🕹️</span>
             <span>내가 뽑은 인형</span>

@@ -155,7 +155,7 @@ export default function Leaderboard({
                   {sortBy === 'gold' ? (
                     <>
                       <div className="text-3xl font-bold text-yellow-600 flex items-center justify-end gap-2">
-                        <Image src="/gold-quest/gold-stack.svg" alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" />
+                        <Image src="/gold-quest/gold-stack.webp" alt="" width={30} height={30} className="h-[30px] w-[30px] object-contain" />
                         <span>{(player.gold ?? 0).toLocaleString()}</span>
                         <span className="text-xl">골드</span>
                       </div>

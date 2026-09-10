@@ -471,7 +471,7 @@ export default function FactoryPage() {
       <div className="relative z-10 p-4">
         {/* 헤더 */}
         <div className="max-w-6xl mx-auto mb-4">
-          <div className="rounded-xl border-2 border-emerald-200/90 bg-white/92 p-4 shadow-xl shadow-emerald-900/10 backdrop-blur-md">
+          <div className="rounded-xl border-2 border-emerald-200/90 bg-white/92 p-4 shadow-xl shadow-emerald-900/10">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative h-12 w-12 flex-shrink-0 sm:h-16 sm:w-16">
@@ -549,7 +549,7 @@ export default function FactoryPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="bg-white/90 backdrop-blur-sm rounded-xl p-8 shadow-lg text-center"
+              className="bg-white/90 rounded-xl p-8 shadow-lg text-center"
             >
               <div className="mb-4 flex items-center justify-center gap-3">
                 <Image src={STORE_BRAND_ICON} alt="편의점" width={48} height={48} unoptimized className="object-contain" />

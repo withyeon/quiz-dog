@@ -58,7 +58,7 @@ export default function VictoryCelebration({
           }}
           className="mb-4"
         >
-          <Image src="/trophy.svg" alt="트로피" width={128} height={128} className="w-32 h-32" />
+          <Image src="/trophy.webp" alt="트로피" width={128} height={128} className="w-32 h-32" />
         </motion.div>
 
         <motion.h1

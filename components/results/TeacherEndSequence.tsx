@@ -22,6 +22,8 @@ type TeacherEndSequenceProps = {
   questions: AnalyticsQuestion[]
   onRestart?: () => void
   isRestarting?: boolean
+  /** 시작 단계 — /dev/result-preview 에서 특정 화면을 바로 열어볼 때만 쓴다 */
+  initialStage?: Stage
 }
 
 type RankedPlayer = ReturnType<typeof buildResultAnalytics>['players'][number]
@@ -48,7 +50,8 @@ const RESULT_ANNOUNCEMENT_TRACK = {
 const RANK_THEME = {
   1: {
     label: '1등은...',
-    medal: '/trophy.svg',
+    medal: '/trophy.webp',
+    cardRing: 'ring-amber-300',
     accent: 'text-amber-300',
     frame: 'from-amber-200 via-yellow-400 to-amber-600',
     podium: 'from-amber-200 via-yellow-400 to-amber-600 text-amber-950',
@@ -58,7 +61,8 @@ const RANK_THEME = {
   },
   2: {
     label: '2등은...',
-    medal: '/silver.svg',
+    medal: '/silver.webp',
+    cardRing: 'ring-slate-300',
     accent: 'text-slate-100',
     frame: 'from-white via-slate-200 to-slate-400',
     podium: 'from-slate-100 via-slate-300 to-slate-500 text-slate-900',
@@ -68,7 +72,8 @@ const RANK_THEME = {
   },
   3: {
     label: '3등은...',
-    medal: '/bronze.svg',
+    medal: '/bronze.webp',
+    cardRing: 'ring-orange-300',
     accent: 'text-orange-300',
     frame: 'from-orange-200 via-orange-400 to-orange-700',
     podium: 'from-orange-200 via-orange-400 to-orange-700 text-orange-950',
@@ -98,12 +103,13 @@ export default function TeacherEndSequence({
   questions,
   onRestart,
   isRestarting = false,
+  initialStage = 0,
 }: TeacherEndSequenceProps) {
   const analytics = useMemo(
     () => buildResultAnalytics(players, questions, room),
     [players, questions, room],
   )
-  const [stage, setStage] = useState<Stage>(0)
+  const [stage, setStage] = useState<Stage>(initialStage)
   const [reviewIndex, setReviewIndex] = useState(0)
   const { playBGM, stopBGM } = useAudioContext()
   const topThree = useMemo(() => analytics.players.slice(0, 3), [analytics])
@@ -197,24 +203,36 @@ export default function TeacherEndSequence({
 
         {stage === 4 && (
           <section className="flex min-h-dvh flex-col justify-center p-6 sm:p-10">
-            <h1 className="result-drop-in mb-4 text-center text-[clamp(48px,7vw,96px)] font-black tracking-normal">
+            <h1 className="result-drop-in mb-3 text-center text-[clamp(48px,7vw,96px)] font-black tracking-normal">
               오늘의 <span className="result-gold-text">Top 3</span>
             </h1>
-            <p className="result-fade-up mb-10 text-center text-[clamp(20px,2.4vw,34px)] font-black text-sky-200/90 [animation-delay:0.3s]">
-              모두 정말 잘했어요! 큰 박수 부탁해요 👏
+            <p className="result-fade-up mb-8 text-center text-[clamp(18px,2.2vw,32px)] font-black text-sky-200/90 [animation-delay:0.3s]">
+              참가자 {analytics.players.length}명 중 · 모두 정말 잘했어요! 👏
             </p>
-            <div className="mx-auto flex w-full max-w-6xl items-end justify-center gap-3 sm:gap-5">
-              {topThree[1] && (
-                <PodiumSpot rank={2} player={topThree[1]} gameMode={room.game_mode} height="h-52 sm:h-64 lg:h-72" delay="0.15s" />
-              )}
-              {topThree[0] && (
-                <PodiumSpot rank={1} player={topThree[0]} gameMode={room.game_mode} height="h-72 sm:h-[22rem] lg:h-96" delay="0.45s" />
-              )}
-              {topThree[2] && (
-                <PodiumSpot rank={3} player={topThree[2]} gameMode={room.game_mode} height="h-44 sm:h-52 lg:h-60" delay="0s" />
-              )}
+
+            <div className="relative mx-auto w-full max-w-6xl">
+              {/* 1등 자리로 내려오는 조명 */}
+              <div
+                className="result-beam pointer-events-none absolute -top-16 left-1/2 h-[85%] w-[52%] max-w-lg -translate-x-1/2"
+                aria-hidden
+              />
+
+              <div className="relative flex items-end justify-center gap-2 sm:gap-5">
+                {topThree[1] && (
+                  <PodiumSpot rank={2} player={topThree[1]} gameMode={room.game_mode} height="h-40 sm:h-56 lg:h-64" delay="0.15s" />
+                )}
+                {topThree[0] && (
+                  <PodiumSpot rank={1} player={topThree[0]} gameMode={room.game_mode} height="h-56 sm:h-80 lg:h-[22rem]" delay="0.45s" />
+                )}
+                {topThree[2] && (
+                  <PodiumSpot rank={3} player={topThree[2]} gameMode={room.game_mode} height="h-32 sm:h-44 lg:h-52" delay="0s" />
+                )}
+              </div>
+
+              {/* 무대 바닥과 바닥에 비치는 반사 */}
+              <div className="result-floor h-4 w-full rounded-b-2xl ring-1 ring-white/25" />
+              <div className="result-reflection h-20 w-full rounded-t-3xl bg-gradient-to-b from-white/30 to-transparent" aria-hidden />
             </div>
-            <div className="mx-auto mt-0 h-3 w-full max-w-6xl rounded-b-xl bg-gradient-to-b from-white/25 to-transparent" />
           </section>
         )}
 
@@ -230,7 +248,7 @@ export default function TeacherEndSequence({
         {stage === 6 && (
           <section className="flex min-h-dvh flex-col items-center justify-center p-8 text-center">
             <Image
-              src="/quizdog-logo.svg"
+              src="/quizdog-logo.webp"
               alt="퀴즈독"
               width={400}
               height={125}
@@ -337,9 +355,7 @@ function RevealStage({
                 avatar={player?.avatar}
                 nickname={player?.nickname}
                 fallback="🐶"
-                className={`relative h-28 w-28 overflow-hidden rounded-3xl bg-white text-6xl shadow-lg ring-4 sm:h-32 sm:w-32 ${
-                  rank === 1 ? 'ring-amber-300' : rank === 2 ? 'ring-slate-300' : 'ring-orange-300'
-                }`}
+                className={`relative h-28 w-28 overflow-hidden rounded-3xl bg-white text-6xl shadow-lg ring-4 sm:h-32 sm:w-32 ${theme.cardRing}`}
                 sizes="128px"
               />
               <span className={`absolute -bottom-3 -right-3 flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-b text-2xl font-black shadow-lg ${theme.podium}`}>
@@ -380,47 +396,60 @@ function PodiumSpot({
 }) {
   const theme = RANK_THEME[rank]
   const scoreDisplay = getScoreDisplay({ score: player?.score ?? 0 }, gameMode)
+  const isWinner = rank === 1
 
   return (
-    <div className="flex w-full max-w-xs flex-col items-center">
-      <div className="result-fade-up mb-4 w-full" style={{ animationDelay: `calc(${delay} + 0.35s)` }}>
-        {rank === 1 && <div className="mb-1 text-center text-4xl sm:text-5xl">👑</div>}
-        <div className="rounded-3xl bg-white px-4 py-4 text-center text-slate-950 shadow-[0_14px_35px_rgba(0,0,0,0.35)] sm:px-6">
-          <div className="flex flex-col items-center gap-2">
-            <PlayerAvatarDisplay
-              avatar={player?.avatar}
-              nickname={player?.nickname}
-              fallback="🐶"
-              className={`relative h-14 w-14 overflow-hidden rounded-2xl bg-white text-4xl ring-4 sm:h-16 sm:w-16 ${
-                rank === 1 ? 'ring-amber-300' : rank === 2 ? 'ring-slate-300' : 'ring-orange-300'
-              }`}
-              sizes="64px"
-            />
-            <span className="max-w-full truncate text-[clamp(24px,3vw,46px)] font-black leading-tight tracking-normal">
-              {player?.nickname || '-'}
-            </span>
-          </div>
-          <div className={`mt-2 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-[clamp(18px,2.2vw,32px)] font-black ${theme.chip}`}>
+    <div className="flex w-full max-w-xs min-w-0 flex-col items-center">
+      {isWinner && (
+        <div className="result-bob mb-1 text-4xl drop-shadow-[0_6px_14px_rgba(0,0,0,0.45)] sm:text-6xl">👑</div>
+      )}
+
+      {/* 선수 카드 — 시상대 위에 올라선 것처럼 살짝 겹쳐 둔다 */}
+      <div
+        className="result-fade-up relative z-10 -mb-5 w-full px-1"
+        style={{ animationDelay: `calc(${delay} + 0.35s)` }}
+      >
+        <div
+          className={`rounded-3xl bg-white px-2 pb-6 pt-4 text-center text-slate-950 shadow-[0_16px_40px_rgba(0,0,0,0.4)] ring-2 sm:px-4 ${theme.cardRing}`}
+        >
+          <PlayerAvatarDisplay
+            avatar={player?.avatar}
+            nickname={player?.nickname}
+            fallback="🐶"
+            className={`relative mx-auto h-12 w-12 overflow-hidden rounded-2xl bg-white text-3xl ring-4 sm:h-16 sm:w-16 sm:text-4xl ${theme.cardRing}`}
+            sizes="64px"
+          />
+          <span className="mt-2 block max-w-full truncate text-[clamp(18px,3vw,44px)] font-black leading-tight">
+            {player?.nickname || '-'}
+          </span>
+          <span
+            className={`mt-2 inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-[clamp(14px,2.2vw,30px)] font-black sm:px-4 sm:py-1.5 ${theme.chip}`}
+          >
             {scoreDisplay.icon && (
-              <Image src={scoreDisplay.icon} alt="" width={28} height={28} className="h-6 w-6 object-contain" />
+              <Image src={scoreDisplay.icon} alt="" width={28} height={28} className="h-5 w-5 shrink-0 object-contain sm:h-6 sm:w-6" />
             )}
-            {scoreDisplay.text}
-          </div>
+            <span className="truncate">{scoreDisplay.text}</span>
+          </span>
         </div>
       </div>
 
+      {/* 시상대 블록 */}
       <div
-        className={`result-rise result-shine ${height} flex w-full flex-col items-center justify-center gap-2 rounded-t-3xl bg-gradient-to-b ${theme.podium} shadow-[0_-6px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
+        className={`result-rise result-shine relative ${height} flex w-full flex-col items-center justify-end gap-1 overflow-hidden rounded-t-2xl bg-gradient-to-b pb-4 pt-8 ${theme.podium} shadow-[0_-6px_40px_rgba(0,0,0,0.35)] ring-1 ring-white/40`}
         style={{ animationDelay: delay }}
       >
+        {/* 윗면 — 두께가 있는 단상처럼 보이게 하는 밝은 띠 */}
+        <span className="absolute inset-x-0 top-0 h-2.5 bg-white/45" aria-hidden />
+        <span className="absolute inset-x-0 top-2.5 h-px bg-black/10" aria-hidden />
+
         <Image
           src={theme.medal}
           alt=""
           width={64}
           height={64}
-          className="h-10 w-10 object-contain drop-shadow sm:h-14 sm:w-14"
+          className="h-8 w-8 object-contain drop-shadow sm:h-12 sm:w-12"
         />
-        <span className="text-[clamp(56px,7vw,110px)] font-black leading-none drop-shadow-[0_3px_0_rgba(255,255,255,0.35)]">
+        <span className="result-engraved text-[clamp(40px,6vw,96px)] font-black leading-none">
           {rank}
         </span>
       </div>

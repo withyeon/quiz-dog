@@ -84,7 +84,7 @@ export interface Platform {
 }
 
 export const PLATFORM_IMAGE_COUNT = 9
-export const getPlatformImagePath = (imageId: number) => `/dontlookdown/platforms/${imageId}.svg`
+export const getPlatformImagePath = (imageId: number) => `/dontlookdown/platforms/${imageId}.webp`
 
 export interface GameSettings {
     duration: number           // 게임 시간 (초)
@@ -214,7 +214,7 @@ export const SPAWNABLE_POWERUP_TYPES = [
 ] as const satisfies readonly PowerUpType[]
 
 export function getPowerUpImagePath(type: PowerUpType): string {
-    return `/dontlookdown/powerup/${type}.svg`
+    return `/dontlookdown/powerup/${type}.webp`
 }
 
 // 기본 설정

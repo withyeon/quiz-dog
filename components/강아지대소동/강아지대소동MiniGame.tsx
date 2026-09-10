@@ -57,12 +57,12 @@ type DodgeMiniGameProps = {
 
 const PLAYER_SIZE = 52
 const OBJECT_SIZE = 34
-const MASCOT_SRC = '/mascot_pome.png'
-const BACKGROUND_SRC = '/background/puppy-chaos.png'
-const BONE_SRC = '/puppy-chaos/bone.svg'
-const POOP_SRC = '/puppy-chaos/poop.svg'
-const FAST_POOP_SRC = '/puppy-chaos/fast-poop.svg'
-const GOLDEN_DOG_SRC = '/puppy-chaos/golden-dog.svg'
+const MASCOT_SRC = '/mascot_pome.webp'
+const BACKGROUND_SRC = '/background/puppy-chaos.webp'
+const BONE_SRC = '/puppy-chaos/bone.webp'
+const POOP_SRC = '/puppy-chaos/poop.webp'
+const FAST_POOP_SRC = '/puppy-chaos/fast-poop.webp'
+const GOLDEN_DOG_SRC = '/puppy-chaos/golden-dog.webp'
 
 function rectsOverlap(a: DOMRectLike, b: DOMRectLike) {
   return a.x < b.x + b.width
@@ -115,6 +115,11 @@ export default function DodgeMiniGame({
   const completedRef = useRef(false)
   const cleanerUsedRef = useRef(false)
   const pausedRef = useRef(paused)
+  // 부모(app/puppy-chaos/page.tsx)가 onComplete를 인라인 함수로 넘기기 때문에
+  // 이걸 게임 루프 useEffect의 의존성에 두면 부모가 리렌더될 때마다
+  // 루프가 통째로 재시작되고 캔버스가 초기화(깜빡임)된다. ref로 최신 값만 들고 있는다.
+  const onCompleteRef = useRef(onComplete)
+  useEffect(() => { onCompleteRef.current = onComplete }, [onComplete])
   const touchActiveRef = useRef(false)
   const shakeRef = useRef(0)
   const nearMissRef = useRef(0)
@@ -251,7 +256,7 @@ export default function DodgeMiniGame({
       const rawReward = baseReward * multiplier
         - hitsRef.current * POOP_HIT_PENALTY
         + bonesRef.current * BONE_PICKUP_REWARD
-      onComplete({
+      onCompleteRef.current({
         hits: hitsRef.current,
         bones: bonesRef.current,
         blockedByUmbrella: umbrellaUsedRef.current ? 1 : 0,
@@ -487,7 +492,7 @@ export default function DodgeMiniGame({
         window.cancelAnimationFrame(rafRef.current)
       }
     }
-  }, [baseReward, cleaner, durationSeconds, invincible, multiplier, onComplete, poopBombed, questionIndex, umbrella])
+  }, [baseReward, cleaner, durationSeconds, invincible, multiplier, poopBombed, questionIndex, umbrella])
 
   const moveButton = (direction: 'left' | 'right') => {
     playerVelocityRef.current += direction === 'left' ? -0.0015 : 0.0015
@@ -547,7 +552,7 @@ export default function DodgeMiniGame({
 
       {showBombWarning && (
         <div className="absolute inset-x-4 top-20 flex items-center justify-center gap-3 rounded-3xl border-4 border-red-900 bg-red-100 px-5 py-4 text-center text-2xl font-black text-red-700 shadow-[4px_4px_0_#7f1d1d]">
-          <NextImage src="/puppy-chaos/poop-bomb.svg" alt="" width={48} height={48} className="h-12 w-12 object-contain" unoptimized />
+          <NextImage src="/puppy-chaos/poop-bomb.webp" alt="" width={48} height={48} className="h-12 w-12 object-contain" unoptimized />
           <span>똥폭탄 공격받음! 떨어지는 속도가 빨라져요</span>
         </div>
       )}

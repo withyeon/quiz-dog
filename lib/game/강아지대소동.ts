@@ -77,7 +77,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'common',
     label: '우산',
     emoji: '☂️',
-    icon: '/puppy-chaos/umbrella.svg',
+    icon: '/puppy-chaos/umbrella.webp',
     description: '한 번은 괜찮아!',
   },
   bone: {
@@ -85,7 +85,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'common',
     label: '뼈다귀',
     emoji: '🦴',
-    icon: '/puppy-chaos/bone.svg',
+    icon: '/puppy-chaos/bone.webp',
     description: `점수 +${BONE_CARD_SCORE}!`,
   },
   multiplier_1_5: {
@@ -93,7 +93,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'common',
     label: `${MULTIPLIER_SMALL}배`,
     emoji: '✨',
-    icon: '/puppy-chaos/multiplier-1-5.svg',
+    icon: '/puppy-chaos/multiplier-1-5.webp',
     description: `이번 판 보상 ${MULTIPLIER_SMALL}배`,
   },
   cleaner: {
@@ -101,7 +101,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'rare',
     label: '청소기',
     emoji: '🧹',
-    icon: '/puppy-chaos/cleaner.svg',
+    icon: '/puppy-chaos/cleaner.webp',
     description: `${CLEANER_DELAY_SECONDS}초 후 화면을 싹!`,
   },
   multiplier_2: {
@@ -109,7 +109,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'rare',
     label: `${MULTIPLIER_BIG}배`,
     emoji: '⭐',
-    icon: '/puppy-chaos/multiplier-2.svg',
+    icon: '/puppy-chaos/multiplier-2.webp',
     description: `이번 판 보상 ${MULTIPLIER_BIG}배!`,
   },
   poop_bomb: {
@@ -117,7 +117,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'attack',
     label: '똥폭탄',
     emoji: '💣',
-    icon: '/puppy-chaos/poop-bomb.svg',
+    icon: '/puppy-chaos/poop-bomb.webp',
     description: '1등에게 대소동을!',
   },
   score_thief: {
@@ -125,7 +125,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'attack',
     label: '점수 도둑',
     emoji: '🦹',
-    icon: '/puppy-chaos/score-thief.svg',
+    icon: '/puppy-chaos/score-thief.webp',
     description: `랜덤 친구 점수 ${SCORE_THIEF_AMOUNT} 훔치기!`,
   },
   golden_dog: {
@@ -133,7 +133,7 @@ export const CARD_DEFS: Record<PuppyChaosCardId, PuppyChaosCard> = {
     rarity: 'legendary',
     label: '황금 강아지',
     emoji: '👑',
-    icon: '/puppy-chaos/golden-dog.svg',
+    icon: '/puppy-chaos/golden-dog.webp',
     description: `이번 판은 무적! +${GOLDEN_DOG_SCORE}!`,
   },
 }

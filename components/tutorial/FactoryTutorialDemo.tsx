@@ -412,7 +412,7 @@ function SynergyScene() {
 export default function FactoryTutorialDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/factory.png"
+      backgroundSrc="/background/factory.webp"
       metric={(phase) => ({
         emoji: '💰',
         value: MONEY_BY_PHASE[phase]?.value ?? MONEY_AFTER_TICK,

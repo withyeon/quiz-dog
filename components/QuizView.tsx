@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
 import { useAudioContext } from '@/components/AudioProvider'
@@ -34,6 +34,20 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
   const [timeLeft, setTimeLeft] = useState(timeLimit || 30)
   const { playSFX } = useAudioContext()
 
+  // 카운트다운이 참조하는 값들을 ref로 들고 있는다.
+  //
+  // 부모 페이지들은 onAnswer로 매 렌더마다 새로 만들어지는 함수를 넘긴다
+  // (예: app/game/page.tsx의 handleAnswerSubmit은 useCallback이 아니다).
+  // 그 함수를 handleAnswerSelect → 카운트다운 useEffect 의존성으로 흘려보내면,
+  // 부모가 1초 안에 한 번이라도 리렌더될 때마다 setInterval(…, 1000)이
+  // 해제·재생성되어 카운트다운이 아예 줄어들지 않는다.
+  // 학생이 30명 있는 방은 실시간 갱신 때문에 초당 여러 번 리렌더된다.
+  const handleAnswerSelectRef = useRef<(answer: string) => void | Promise<void>>(() => {})
+  const submittedAnswerRef = useRef(submittedAnswer)
+  const isSubmittingRef = useRef(isSubmitting)
+  submittedAnswerRef.current = submittedAnswer
+  isSubmittingRef.current = isSubmitting
+
   const MotionDiv = motion.div
   const MotionButton = motion.button
   const isGoldQuest = variant === 'goldQuest'
@@ -64,6 +78,8 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
     }
   }, [paused, submittedAnswer, isSubmitting, playSFX, onAnswer, question.answer])
 
+  handleAnswerSelectRef.current = handleAnswerSelect
+
   // 시간 제한 카운트다운
   useEffect(() => {
     if (paused || submittedAnswer || !timeLimit) return // 이미 제출했거나 시간 제한이 없으면 중단
@@ -80,8 +96,8 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
           }
           // 다음 tick에서 onAnswer 호출 (상태 업데이트 후)
           setTimeout(() => {
-            if (!submittedAnswer && !isSubmitting) {
-              void handleAnswerSelect('') // 시간 초과 처리
+            if (!submittedAnswerRef.current && !isSubmittingRef.current) {
+              void handleAnswerSelectRef.current('') // 시간 초과 처리
             }
           }, 0)
           return 0
@@ -95,7 +111,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         clearInterval(timerId)
       }
     }
-  }, [paused, submittedAnswer, timeLimit, isSubmitting, handleAnswerSelect])
+  }, [paused, submittedAnswer, timeLimit])
 
   // 문제가 바뀔 때마다 시간 리셋
   useEffect(() => {

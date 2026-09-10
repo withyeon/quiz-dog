@@ -8,7 +8,7 @@ export default function NotFound() {
       <div className="w-full max-w-md rounded-2xl border-4 border-[#0c3b42]/15 bg-white/85 p-8 text-center shadow-2xl backdrop-blur-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/mascot_pome.png"
+          src="/mascot_pome.webp"
           alt=""
           width={120}
           height={120}

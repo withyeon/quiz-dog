@@ -57,7 +57,7 @@ export function EmptyState({
     >
       {mascot ? (
         <Image
-          src="/mascot_pome.png"
+          src="/mascot_pome.webp"
           alt=""
           width={72}
           height={72}
