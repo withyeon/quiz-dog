@@ -66,6 +66,7 @@ export default function DontLookDownPage() {
         checkAnswer,
         goToNextQuestion,
         commitPlayerPatch,
+          sessionStartedAt,
     } = useGameBase({ expectedGameMode: 'dontlookdown' })
 
     const [gameSettings, setGameSettings] = useState<GameSettings>(DEFAULT_SETTINGS)
@@ -84,8 +85,9 @@ export default function DontLookDownPage() {
     const platformsRef = useRef<Platform[]>([])
     const dldPlayersRef = useRef<Map<string, DLDPlayer>>(new Map())
     const hasFinishedGameRef = useRef(false)
-    const resolvedGameStartTime = room?.started_at
-        ? gameStartTime || new Date(room.started_at).getTime()
+    // 과제 방은 학생 개인 시작 시각(sessionStartedAt)을 쓴다
+    const resolvedGameStartTime = sessionStartedAt
+        ? gameStartTime || new Date(sessionStartedAt).getTime()
         : gameStartTime
     const roomDurationSeconds = typeof room?.duration_seconds === 'number'
         ? room.duration_seconds
@@ -141,7 +143,7 @@ export default function DontLookDownPage() {
         })
         setDldPlayers(initialPlayers)
         setGameStartTime(Date.now())
-    }, [isPreStartQuizComplete, room?.started_at, room?.status, currentView, players, gameSettings, playerId, setCurrentView])
+    }, [isPreStartQuizComplete, sessionStartedAt, room?.status, currentView, players, gameSettings, playerId, setCurrentView])
 
     // Update platformsRef when platforms change
     useEffect(() => {

@@ -9,6 +9,26 @@ export type GameQuestion = {
   question_text: string
   options: string[]
   answer: string
+  /** 문제 그림 공개 URL. 없으면 null */
+  image_url: string | null
+}
+
+// image_url 컬럼이 아직 없는 DB(마이그레이션 전)에서도 게임이 멈추지 않게,
+// 컬럼 없음 오류면 그림 없이 다시 읽는다.
+function isMissingImageColumn(error: unknown): boolean {
+  const e = error as { code?: string; message?: string } | null
+  if (!e) return false
+  return e.code === '42703' || e.code === 'PGRST204' || /image_url/.test(e.message ?? '')
+}
+
+async function selectQuestions(setId: string, columns: string, order: boolean) {
+  let query = (supabase.from('questions') as any).select(columns).eq('set_id', setId)
+  if (order) query = query.order('created_at', { ascending: true })
+  const result = await query
+  if (result.error && columns.includes('image_url') && isMissingImageColumn(result.error)) {
+    return selectQuestions(setId, columns.replace(/,\s*image_url/, ''), order)
+  }
+  return result
 }
 
 export type AnalyticsQuestion = GameQuestion & {
@@ -35,10 +55,7 @@ export async function listQuestionsForGame(
   setId: string,
   options: { shuffle?: boolean } = {},
 ): Promise<GameQuestion[]> {
-  const { data, error } = await (supabase
-    .from('questions') as any)
-    .select('id, type, question_text, options')
-    .eq('set_id', setId)
+  const { data, error } = await selectQuestions(setId, 'id, type, question_text, options, image_url', false)
 
   if (error) throw error
 
@@ -47,6 +64,7 @@ export async function listQuestionsForGame(
     type: QuestionType
     question_text: string
     options: Json
+    image_url?: string | null
   }>).map((question) => ({
     id: question.id,
     type: question.type,
@@ -54,6 +72,7 @@ export async function listQuestionsForGame(
     options: normalizeQuestionOptions(question.options),
     // Do not expose the real answer to clients. Keep a placeholder for legacy props.
     answer: '',
+    image_url: question.image_url ?? null,
   }))
 
   return options.shuffle ? shuffleQuestions(questions) : questions
@@ -92,11 +111,11 @@ export async function getQuestionAnswer(questionId: string): Promise<string | nu
 export async function listQuestionsForAnalytics(
   setId: string,
 ): Promise<AnalyticsQuestion[]> {
-  const { data, error } = await (supabase
-    .from('questions') as any)
-    .select('id, set_id, type, question_text, options, answer, created_at')
-    .eq('set_id', setId)
-    .order('created_at', { ascending: true })
+  const { data, error } = await selectQuestions(
+    setId,
+    'id, set_id, type, question_text, options, answer, created_at, image_url',
+    true,
+  )
 
   if (error) throw error
 
@@ -108,6 +127,7 @@ export async function listQuestionsForAnalytics(
     options: Json
     answer: string
     created_at: string
+    image_url?: string | null
   }>).map((question) => ({
     id: question.id,
     set_id: question.set_id,
@@ -116,5 +136,6 @@ export async function listQuestionsForAnalytics(
     options: normalizeQuestionOptions(question.options),
     answer: question.answer,
     created_at: question.created_at,
+    image_url: question.image_url ?? null,
   }))
 }

@@ -73,6 +73,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
         const questionStats = questions.map((q, idx) => ({
             index: idx,
             text: displayBlankText(q.question_text),
+            imageUrl: (q as { image_url?: string | null }).image_url ?? null,
             answer: (q as any).answer || '',
             type: (q as any).type || '',
             correctCount: 0,
@@ -421,6 +422,10 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                                                             q.type === 'BLANK' ? '빈칸' : q.type
                                             }</span>
                                     </div>
+                                    {q.imageUrl && (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img src={q.imageUrl} alt="" className="mb-1.5 max-h-24 w-auto rounded-md border border-gray-200 object-contain" />
+                                    )}
                                     <p className="text-gray-800 text-sm">{q.text}</p>
                                     <div className="flex items-center gap-4 mt-1.5 text-xs text-gray-500">
                                         <span>정답: <span className="font-bold text-gray-700">{q.answer}</span></span>

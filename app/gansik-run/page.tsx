@@ -36,10 +36,13 @@ type PageView = 'lobby' | 'playing' | 'result'
  * (게임은 시작 전 퀴즈를 푼 뒤에야 시작하므로 방 시작 시각보다 늦다.)
  * 시간이 없는 방이면 기본 5분.
  */
-function resolveRunDuration(room: { started_at?: string | null; duration_seconds?: number | null } | null | undefined): number {
+function resolveRunDuration(
+  room: { duration_seconds?: number | null } | null | undefined,
+  sessionStartedAt: string | null | undefined,
+): number {
   const total = Number(room?.duration_seconds)
-  if (!room?.started_at || !Number.isFinite(total) || total <= 0) return GAME.DURATION
-  const startedMs = new Date(room.started_at).getTime()
+  if (!sessionStartedAt || !Number.isFinite(total) || total <= 0) return GAME.DURATION
+  const startedMs = new Date(sessionStartedAt).getTime()
   if (!Number.isFinite(startedMs)) return GAME.DURATION
   const remaining = Math.floor((startedMs + total * 1000 - Date.now()) / 1000)
   return Math.max(15, Math.min(total, remaining))
@@ -57,6 +60,7 @@ export default function GansikRunPage() {
     showCountdown, handleCountdownComplete,
     players, currentPlayer, commitPlayerPatch, commitPlayerDelta, sendRoomEvent,
     recordAnswer,
+      sessionStartedAt,
   } = useGameBase({ expectedGameMode: 'treat_rush' })
 
   const [pageView, setPageView] = useState<PageView>('lobby')
@@ -75,6 +79,7 @@ export default function GansikRunPage() {
       options: (q.options ?? []) as string[],
       answer: q.answer,
       type: q.type as GansikRunQuestion['type'],
+      image_url: q.image_url ?? null,
     }))
     const offset = preStartQuizTotal % mapped.length
     return [...mapped.slice(offset), ...mapped.slice(0, offset)]
@@ -88,10 +93,11 @@ export default function GansikRunPage() {
   }, [recordAnswer, serverQuestions])
 
   const startRun = useCallback(() => {
-    setRunDuration(resolveRunDuration(room))
+    // 과제 방이면 이 학생이 들어온 시각부터 남은 시간을 센다
+    setRunDuration(resolveRunDuration(room, sessionStartedAt ?? new Date().toISOString()))
     setPageView('playing')
     playBGM('game')
-  }, [playBGM, room])
+  }, [playBGM, room, sessionStartedAt])
 
   // Room sync: 카운트다운(3초) → 시작 전 퀴즈 → 자동 출발.
   // 예전에는 카운트다운을 렌더하지 않아 isCountdownComplete가 영원히 false였고,
@@ -212,7 +218,7 @@ export default function GansikRunPage() {
       {/* 플레이 중에는 게임 HUD가 같은 시간을 보여주므로 상단 배지를 겹치지 않게 숨긴다 */}
       {pageView !== 'playing' && (
         <GameTimeBadge
-          startedAt={room?.started_at}
+          startedAt={sessionStartedAt}
           durationSeconds={room?.duration_seconds}
           status={room?.status}
         />

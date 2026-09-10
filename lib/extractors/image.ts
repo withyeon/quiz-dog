@@ -113,12 +113,17 @@ ${countInstruction}
       "type": "CHOICE" | "SHORT" | "OX" | "BLANK",
       "question_text": "문제 텍스트",
       "options": ["보기1", "보기2", "보기3", "보기4"],
-      "answer": "정답 (알 수 있는 경우)"
+      "answer": "정답 (알 수 있는 경우)",
+      "figure_box": [ymin, xmin, ymax, xmax] 또는 null
     }
   ]
 }
 
 규칙:
+- 문제를 풀려면 꼭 봐야 하는 그림·도형·표·그래프·지도가 이미지 안에 있으면, 그 그림 영역만
+  figure_box에 [ymin, xmin, ymax, xmax] 형식(이미지 높이·너비를 각각 0~1000으로 본 비율)으로 적으세요.
+  문제 글자나 보기 글자는 상자에 넣지 말고 그림만 감싸세요. 그림이 없는 문제는 null입니다.
+- 두 문제가 같은 그림을 공유하면 두 문제 모두 같은 figure_box를 적으세요.
 - 보기가 있는 문제는 type: "CHOICE", options에 보기를 넣으세요.
 - O/X 문제는 type: "OX", options: ["O", "X"]
 - 단답형은 type: "SHORT", options: []

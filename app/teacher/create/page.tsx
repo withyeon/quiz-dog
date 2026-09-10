@@ -12,6 +12,7 @@ import { filterNickname } from '@/lib/utils/profanityFilter'
 import QuestionReviewEditor from '@/components/teacher/QuestionReviewEditor'
 import QuestionSourceSelector from '@/components/teacher/QuestionSourceSelector'
 import { createQuestionSetWithQuestions } from '@/lib/services/questionSets'
+import { getTeacherAccessToken } from '@/lib/services/questionImages'
 import { formatServiceError } from '@/lib/services/errors'
 import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
 import { toast } from '@/components/ui/Toaster'
@@ -127,8 +128,11 @@ export default function CreateQuestionPage() {
         formData.append('file', examFile)
       }
 
+      // 시험지 스캔의 그림을 잘라 붙이려면 서버가 "누구 그림인지" 알아야 한다 → 로그인 토큰 동봉
+      const accessToken = await getTeacherAccessToken()
       const response = await fetch('/api/generate-questions', {
         method: 'POST',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: formData,
       })
 
@@ -142,6 +146,9 @@ export default function CreateQuestionPage() {
         throw new Error('생성된 문제가 없습니다. 다시 시도해주세요.')
       }
 
+      if (typeof data.figureCount === 'number' && data.figureCount > 0) {
+        toast.success(`시험지의 그림 ${data.figureCount}개를 문제에 붙였어요. 검수 화면에서 확인해주세요.`)
+      }
       setGeneratedQuestions(data.questions)
       setIsReviewing(true)
     } catch (error) {

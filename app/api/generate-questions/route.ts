@@ -9,6 +9,9 @@ import { extractTextFromDOCX } from '@/lib/extractors/docx'
 import { extractTextFromPPT, extractTextFromPPTX } from '@/lib/extractors/ppt'
 import { extractTextFromFile } from '@/lib/extractors/text'
 import { extractQuestionsFromImage, isLikelyScannedPDF } from '@/lib/extractors/image'
+import { parseExamVisionResponseWithFigures } from '@/lib/ai/questionGenerator'
+import { attachExamFigures } from '@/lib/ai/examFigures'
+import { resolveTeacherUserId } from '@/lib/server/teacherAuth'
 
 const VALID_SOURCE_TYPES: SourceType[] = ['topic', 'youtube', 'text', 'pdf', 'file', 'exam']
 
@@ -175,12 +178,16 @@ export async function POST(request: NextRequest) {
 
       if (isImageFile(file.name)) {
         const visionText = await extractQuestionsFromImage(file, questionCount)
-        const questions = parseExamVisionResponse(visionText).slice(0, questionCount)
-        return NextResponse.json({ questions })
+        const items = parseExamVisionResponseWithFigures(visionText).slice(0, questionCount)
+        // 그림이 있는 문제는 그 영역을 잘라 Storage에 올리고 image_url로 붙인다.
+        // 로그인 토큰이 없으면(올릴 주인이 없으면) 그림 없이 문제만 돌려준다.
+        const teacherId = await resolveTeacherUserId(request)
+        const { questions, figureCount } = await attachExamFigures(file, items, teacherId)
+        return NextResponse.json({ questions, figureCount })
       }
 
       if (ext === 'pdf') {
-        // 텍스트 추출 시도 → 스캔본이면 Vision으로 전환
+        // 텍스트 추출 시도 → 스캔본이면 Vision으로 전환 (PDF는 페이지를 이미지로 못 만들어 그림 첨부는 생략)
         const extractedText = await extractTextFromPDF(file)
         if (isLikelyScannedPDF(extractedText)) {
           const visionText = await extractQuestionsFromImage(file, questionCount)

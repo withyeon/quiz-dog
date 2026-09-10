@@ -28,6 +28,8 @@ export interface GeneratedQuestion {
   question_text: string
   options: string[]
   answer: string
+  /** 선생님이 검수 화면에서 붙인 문제 그림 URL (AI는 채우지 않는다) */
+  image_url?: string | null
 }
 
 const MAX_TEXT_LENGTH = 30000
@@ -438,6 +440,48 @@ async function generateQuestionsWithOpenAI(
 export function parseExamVisionResponse(visionText: string): GeneratedQuestion[] {
   const questions = parseQuestionsFromJSON(visionText)
   return validateQuestions(questions)
+}
+
+/** 시험지 이미지 안 그림 영역. Gemini 규약: [ymin, xmin, ymax, xmax], 0~1000 비율 */
+export type FigureBox = [number, number, number, number]
+
+export type ExamVisionItem = {
+  question: GeneratedQuestion
+  figureBox: FigureBox | null
+}
+
+export function parseFigureBox(value: unknown): FigureBox | null {
+  if (!Array.isArray(value) || value.length !== 4) return null
+  const nums = value.map((v) => Number(v))
+  if (nums.some((n) => !Number.isFinite(n))) return null
+  // 0~1 비율로 답한 경우도 받아준다
+  const scale = Math.max(...nums) <= 1 ? 1000 : 1
+  const [ymin, xmin, ymax, xmax] = nums.map((n) => Math.max(0, Math.min(1000, n * scale)))
+  // 이미지의 3% 미만짜리 상자는 글자 한 줄을 잘못 잡은 것일 가능성이 높다
+  if (ymax - ymin < 30 || xmax - xmin < 30) return null
+  return [ymin, xmin, ymax, xmax]
+}
+
+/**
+ * parseExamVisionResponse와 같은 검증·중복 제거를 거치되, 문제마다 그림 영역을 같이 돌려준다.
+ * (normalizeQuestion은 알려진 필드만 남기므로 figure_box는 원본에서 따로 읽는다)
+ */
+export function parseExamVisionResponseWithFigures(visionText: string): ExamVisionItem[] {
+  const rawQuestions = parseQuestionsFromJSON(visionText)
+  const seen = new Set<string>()
+  const items: ExamVisionItem[] = []
+
+  for (const rawQuestion of rawQuestions) {
+    const question = normalizeQuestion(rawQuestion)
+    if (!question) continue
+    const key = normalizeForCompare(question.question_text)
+    if (seen.has(key)) continue
+    seen.add(key)
+    const figureBox = parseFigureBox((rawQuestion as { figure_box?: unknown } | null)?.figure_box)
+    items.push({ question, figureBox })
+  }
+
+  return items
 }
 
 export async function generateQuestions(

@@ -95,6 +95,7 @@ export default function GamePage() {
     commitPlayerSteal,
     commitPlayerSwap,
     roomChannelStatus,
+      sessionStartedAt,
   } = useGameBase({ expectedGameMode: 'gold_quest' })
 
   // 골드퀘스트 원자 변경 어댑터 — 동시 상자 개봉/강탈 시 골드 증발·복제 방지.
@@ -583,7 +584,7 @@ export default function GamePage() {
   return (
     <main className="gold-quest-ambient min-h-dvh p-4 sm:p-6 lg:p-8 relative overflow-hidden font-bitbit">
       <GameTimeBadge
-        startedAt={room?.started_at}
+        startedAt={sessionStartedAt}
         durationSeconds={room?.duration_seconds}
         status={room?.status}
       />

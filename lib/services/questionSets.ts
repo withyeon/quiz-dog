@@ -31,6 +31,8 @@ export type QuestionDraft = {
   question_text?: string
   options?: Json | string[] | null
   answer?: string
+  /** 문제 그림 URL. undefined면 건드리지 않고, null이면 지운다. */
+  image_url?: string | null
 }
 
 export type QuestionSetMetadataInput = {
@@ -123,6 +125,10 @@ export function normalizeQuestionDraft(question: QuestionDraft): Omit<QuestionIn
     question_text: question.question_text!.trim(),
     options: normalizeQuestionOptions(question.options),
     answer: question.answer!.trim(),
+    // 키가 있을 때만 보낸다. 그림 없는 문제는 image_url 컬럼이 없는 DB에서도 저장돼야 한다.
+    ...(question.image_url !== undefined
+      ? { image_url: question.image_url?.trim() || null }
+      : {}),
   }
 }
 
@@ -501,6 +507,9 @@ export async function updateQuestion(questionId: string, question: QuestionDraft
     options: normalizedQuestion.options,
     answer: normalizedQuestion.answer,
   }
+  if (normalizedQuestion.image_url !== undefined) {
+    payload.image_url = normalizedQuestion.image_url
+  }
 
   const { error } = await (supabase
     .from('questions') as any)
@@ -542,7 +551,7 @@ export async function duplicateQuestionSet(setId: string, title?: string): Promi
 
   const { data: questions, error: questionError } = await (supabase
     .from('questions') as any)
-    .select('type, question_text, options, answer')
+    .select('*')
     .eq('set_id', setId)
 
   if (questionError) throw questionError
@@ -559,12 +568,14 @@ export async function duplicateQuestionSet(setId: string, title?: string): Promi
   } as QuestionSetInsert)
 
   await insertQuestions(
-    (questions ?? []).map((question: Pick<QuestionRow, 'type' | 'question_text' | 'options' | 'answer'>) => ({
+    (questions ?? []).map((question: QuestionRow) => ({
       set_id: newSetId,
       type: question.type,
       question_text: question.question_text,
       options: question.options,
       answer: question.answer,
+      // 그림은 같은 공개 파일을 가리키게 둔다 (복사본마다 파일을 복제하지 않는다)
+      ...(question.image_url ? { image_url: question.image_url } : {}),
     }))
   )
 
@@ -591,7 +602,7 @@ export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Pro
 
   const { data: questions, error } = await (supabase
     .from('questions') as any)
-    .select('type, question_text, options, answer')
+    .select('*')
     .eq('set_id', sourceSetId)
 
   if (error) throw error
@@ -617,12 +628,13 @@ export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Pro
   } as QuestionSetInsert)
 
   await insertQuestions(
-    (questions as Pick<QuestionRow, 'type' | 'question_text' | 'options' | 'answer'>[]).map((question) => ({
+    (questions as QuestionRow[]).map((question) => ({
       set_id: newSetId,
       type: question.type,
       question_text: question.question_text,
       options: question.options,
       answer: question.answer,
+      ...(question.image_url ? { image_url: question.image_url } : {}),
     }))
   )
 

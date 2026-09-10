@@ -258,3 +258,11 @@ export function getModeInitialPlayerState(mode: string | null | undefined) {
 
   return {}
 }
+
+/**
+ * 과제(혼자 풀기)로 낼 수 있는 모드.
+ * 눈싸움(팀전)·마피아·좀비(역할 배정)는 여럿이 있어야 성립하므로 뺀다.
+ */
+export const HOMEWORK_GAME_MODES: readonly GameModeId[] = [
+  'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'gold_quest', 'factory', 'cafe', 'tower',
+]

@@ -209,6 +209,14 @@ export default function SharedSetView({ set }: { set: SharedQuestionSet }) {
                   key={question.id}
                   className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4"
                 >
+                  {question.image_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={question.image_url}
+                      alt=""
+                      className="mb-2 max-h-32 w-auto rounded-lg border border-slate-200 object-contain"
+                    />
+                  )}
                   <p className="font-bold leading-relaxed text-slate-900">
                     <span className="mr-2 text-sky-600">{index + 1}.</span>
                     {/* 빈칸 문제의 {{blank}} 표식이 그대로 보이지 않도록 게임 화면과 같게 바꾼다 */}

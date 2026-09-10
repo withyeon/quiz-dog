@@ -9,6 +9,7 @@ import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { displayBlankText } from '@/lib/quiz/blankText'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import { toast } from '@/components/ui/Toaster'
+import QuestionImageField from '@/components/teacher/QuestionImageField'
 
 const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   CHOICE: { label: '객관식', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200' },
@@ -296,6 +297,13 @@ export default function QuestionReviewEditor({
                     placeholder="문제를 입력하세요"
                   />
                 </div>
+
+                {/* 문제 그림 (선택) */}
+                <QuestionImageField
+                  value={q.image_url}
+                  onChange={(url) => handleEditQuestion(index, 'image_url', url)}
+                  compact
+                />
 
                 {/* 보기 (객관식/OX) */}
                 {(q.type === 'CHOICE' || q.type === 'OX') && (

@@ -164,6 +164,10 @@ export default function StudentResultView({
                     className="w-full rounded-lg border border-slate-200 bg-slate-50 p-4 text-left transition-colors hover:bg-slate-100"
                   >
                     <div className="text-sm font-black text-slate-400">Q{question.index + 1}</div>
+                    {question.imageUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={question.imageUrl} alt="" className="mt-2 max-h-24 w-auto rounded-md border border-slate-200 object-contain" />
+                    )}
                     <div className="mt-1 font-bold text-slate-900">{question.text}</div>
                     <div className="mt-2 text-sm text-slate-500">내 답: {answer?.selectedAnswer || '미응답'}</div>
                   </button>
@@ -213,6 +217,10 @@ function ReviewModal({
           </button>
         </div>
         <div className="space-y-4 p-5">
+          {question.imageUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={question.imageUrl} alt="문제 그림" className="max-h-56 w-auto max-w-full rounded-lg border border-slate-200 object-contain" />
+          )}
           <p className="text-lg font-bold leading-relaxed">{question.text}</p>
           {question.options.length > 0 && (
             <div className="grid gap-2">

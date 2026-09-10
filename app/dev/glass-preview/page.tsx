@@ -9,6 +9,8 @@ const SAMPLE = {
   question_text: '대한민국의 수도는 어디일까요?',
   options: ['서울', '부산', '인천', '대구'],
   answer: '서울',
+  // 그림 문제 미리보기 — 실제 서비스에서는 Storage의 공개 URL이 들어온다
+  image_url: '/title/gansik-run.webp',
 }
 
 export default function GlassPreviewPage() {

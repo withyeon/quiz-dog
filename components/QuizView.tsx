@@ -7,6 +7,7 @@ import { useAudioContext } from '@/components/AudioProvider'
 import { isQuizAnswerMatch, splitAcceptableAnswers } from '@/lib/quiz/answerMatching'
 import { getQuestionAnswer } from '@/lib/services/questions'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
+import QuestionImage from '@/components/QuestionImage'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 
 interface QuizViewProps {
@@ -16,6 +17,7 @@ interface QuizViewProps {
     question_text: string
     options: string[]
     answer?: string
+    image_url?: string | null
   }
   onAnswer: (answer: string) => void | boolean | Promise<void | boolean>
   timeLimit?: number
@@ -172,6 +174,13 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               isGoldQuest ? 'text-amber-200' : isBattle ? 'text-cyan-100' : isFishing ? 'text-pink-700' : isGlass ? 'text-white drop-shadow' : ''
             }`}>{timeLeft}초</div>
           </div>
+        )}
+        {question.image_url && (
+          <QuestionImage
+            src={question.image_url}
+            className="mb-4 [@media(max-height:760px)]:mb-2"
+            maxHeightClass="max-h-48 md:max-h-64 [@media(max-height:760px)]:max-h-36"
+          />
         )}
         <h2 className={`gold-quest-title text-2xl sm:text-3xl [@media(max-height:760px)]:text-xl font-black leading-tight mb-4 [@media(max-height:760px)]:mb-2 ${
           isGoldQuest ? 'text-[#17262a]' : isBattle ? 'text-[#13202b]' : isGlass ? 'lg-question-title' : 'text-gray-900'

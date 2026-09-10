@@ -30,6 +30,7 @@ import {
 import { formatServiceError } from '@/lib/services/errors'
 import type { Database } from '@/types/database.types'
 import { displayBlankText } from '@/lib/quiz/blankText'
+import QuestionImageField from '@/components/teacher/QuestionImageField'
 
 type Question = Database['public']['Tables']['questions']['Row']
 
@@ -309,6 +310,15 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                         />
                       </div>
 
+                      {/* 문제 그림 (선택) */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-600">그림</label>
+                        <QuestionImageField
+                          value={question.image_url}
+                          onChange={(url) => updateQuestionField(index, 'image_url', url)}
+                        />
+                      </div>
+
                       {/* 보기 (객관식일 때만) */}
                       {question.type === 'CHOICE' && (
                         <div>
@@ -409,6 +419,14 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                       <p className="text-lg font-medium text-black">
                         {displayBlankText(question.question_text)}
                       </p>
+                      {question.image_url && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={question.image_url}
+                          alt="문제 그림"
+                          className="mt-3 max-h-40 w-auto max-w-full rounded-xl border border-slate-200 object-contain"
+                        />
+                      )}
                       {question.type === 'CHOICE' && Array.isArray(question.options) && (
                         <div className="mt-2">
                           <p className="text-sm text-slate-500 mb-1">보기:</p>
@@ -478,6 +496,15 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                 className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                 rows={3}
                 placeholder="문제를 입력하세요"
+              />
+            </div>
+
+            {/* 문제 그림 (선택) */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-600">그림</label>
+              <QuestionImageField
+                value={newQuestion.image_url}
+                onChange={(url) => updateNewQuestion('image_url', url)}
               />
             </div>
 

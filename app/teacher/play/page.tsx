@@ -18,6 +18,7 @@ import QuestionSetPicker from '@/components/teacher/play/QuestionSetPicker'
 import WaitingPlayers from '@/components/teacher/play/WaitingPlayers'
 import GameDurationPicker from '@/components/teacher/play/GameDurationPicker'
 import RoomCodePanel from '@/components/teacher/play/RoomCodePanel'
+import HomeworkPanel, { HostModeToggle, type HostMode } from '@/components/teacher/play/HomeworkPanel'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
 import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
 import QRCodeSVG from 'react-qr-code'
@@ -58,6 +59,7 @@ export default function TeacherDashboard() {
   const [showLargeQrModal, setShowLargeQrModal] = useState(false)
   const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [timedDurationMinutes, setTimedDurationMinutes] = useState(5)
+  const [hostMode, setHostMode] = useState<HostMode>('live')
   const [showStartTutorial, setShowStartTutorial] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
   const [hideTutorialNextTime, setHideTutorialNextTime] = useState(false)
@@ -671,8 +673,21 @@ export default function TeacherDashboard() {
         playerCount={players.length}
       />
 
-      {/* 방 설정 */}
-      <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      {/* 실시간 수업 / 과제로 내기 */}
+      {!roomCode && <HostModeToggle value={hostMode} onChange={setHostMode} />}
+      {!roomCode && hostMode === 'homework' && (
+        <HomeworkPanel
+          questionSets={questionSets}
+          selectedSetId={selectedSetId}
+          onSelectSet={setSelectedSetId}
+          setsLoading={setsLoading}
+          setsError={setsError}
+          ownerId={ownerId}
+        />
+      )}
+
+      {/* 방 설정 (실시간 수업) */}
+      <div className={`mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm ${!roomCode && hostMode === 'homework' ? 'hidden' : ''}`}>
 
         {/* 게임 모드 선택 */}
         {!roomCode && (

@@ -20,6 +20,7 @@ import {
 } from '@/lib/game/간식런Renderer'
 import { loadSprites, type SpriteSet } from '@/lib/game/간식런Sprites'
 import ItemRoulette from '@/components/ItemRoulette'
+import QuestionImage from '@/components/QuestionImage'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { checkQuestionAnswer } from '@/lib/services/questions'
 
@@ -29,6 +30,7 @@ export interface GansikRunQuestion {
   options: string[]
   answer: string
   type?: 'CHOICE' | 'SHORT' | 'OX' | 'BLANK'
+  image_url?: string | null
 }
 
 interface GansikRunGameProps {
@@ -832,6 +834,13 @@ export default function GansikRunGame({
                 </div>
               </div>
 
+              {currentQ.image_url && (
+                <QuestionImage
+                  src={currentQ.image_url}
+                  className="mb-3 bg-white/10"
+                  maxHeightClass="max-h-28 md:max-h-40"
+                />
+              )}
               <h3 className="text-lg md:text-xl font-bold text-white mb-3 leading-snug whitespace-pre-wrap">
                 {displayBlankText(currentQ.question_text)}
               </h3>

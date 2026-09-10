@@ -59,6 +59,7 @@ export default function TowerPage() {
         showCountdown,
         setShowCountdown,
         commitPlayerPatch,
+          sessionStartedAt,
     } = useGameBase({ expectedGameMode: 'tower' })
     const isPaused = room?.status === 'paused'
 
@@ -381,7 +382,7 @@ export default function TowerPage() {
     return (
         <main className="tower-command-screen min-h-dvh overflow-x-hidden font-bitbit text-slate-900">
             <GameTimeBadge
-                startedAt={room?.started_at}
+                startedAt={sessionStartedAt}
                 durationSeconds={room?.duration_seconds}
                 status={room?.status}
             />

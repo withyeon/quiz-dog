@@ -142,7 +142,7 @@ export type SharedQuestionSet = {
   grade: string | null
   tags: string[]
   questionCount: number
-  questions: Pick<QuestionRow, 'id' | 'type' | 'question_text' | 'options' | 'answer'>[]
+  questions: Pick<QuestionRow, 'id' | 'type' | 'question_text' | 'options' | 'answer' | 'image_url'>[]
   ownerName: string | null
   forkedFromName: string | null
   likeCount: number
@@ -176,7 +176,8 @@ export async function getSharedSetByCode(shareCode: string): Promise<SharedQuest
 
   const [{ data: questions }, { count: likeCount }] = await Promise.all([
     (client.from('questions') as any)
-      .select('id, type, question_text, options, answer')
+      // image_url 컬럼이 없는 DB(마이그레이션 전)에서도 공유 페이지가 죽지 않게 * 로 읽는다
+      .select('*')
       .eq('set_id', row.id)
       .order('created_at', { ascending: true }),
     (client.from('question_set_likes') as any)

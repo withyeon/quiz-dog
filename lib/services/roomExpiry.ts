@@ -49,6 +49,9 @@ type RoomCandidate = {
   created_at: string
   updated_at: string | null
   started_at: string | null
+  /** 과제 방 — 마감 시각까지는 유휴여도 살려 둔다 (컬럼이 없는 DB면 undefined) */
+  is_homework?: boolean | null
+  due_at?: string | null
 }
 
 export interface ExpireStaleRoomsResult {
@@ -76,6 +79,12 @@ export function isRoomStale(room: RoomCandidate, now: number): boolean {
   const idleLimit = ROOM_IDLE_LIMIT_MS[room.status]
   if (idleLimit == null) return false
 
+  // 과제 방은 며칠 조용해도 정상이다. 마감이 지났을 때만 정리한다.
+  if (room.is_homework) {
+    const due = toTime(room.due_at)
+    return due > 0 && now >= due
+  }
+
   const age = now - toTime(room.created_at)
   if (age >= ROOM_MAX_AGE_MS) return true
 
@@ -101,7 +110,8 @@ export async function expireStaleRooms(
 
   const { data, error } = await supabase
     .from('rooms')
-    .select('room_code, status, created_at, updated_at, started_at')
+    // is_homework/due_at 컬럼이 아직 없는 DB에서도 스윕이 죽지 않게 * 로 읽는다
+    .select('*')
     .in('status', ACTIVE_STATUSES)
     .lt('created_at', candidateCutoff)
     .order('created_at', { ascending: true })

@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import GameStartTutorialModal from '@/components/GameStartTutorialModal'
 import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl, isGameModeId, type GameModeId } from '@/lib/game/modes'
-import { isTerminalRoomStatus } from '@/lib/game/roomStatus'
+import { getRoomJoinBlockReason } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
 import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
 import { createPlayerForRoom, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
@@ -79,8 +79,9 @@ function LobbyPage() {
       setRoomCode(code)
       setIsCheckingRoom(true)
       getRoomByCode(code).then((roomData) => {
-        if (!roomData || isTerminalRoomStatus(roomData.status)) {
-          setCodeError(roomData ? '이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.' : '이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
+        const blockReason = getRoomJoinBlockReason(roomData)
+        if (blockReason) {
+          setCodeError(blockReason)
         } else {
           setStep('nickname')
         }
@@ -185,12 +186,9 @@ function LobbyPage() {
     try {
       const roomData = await getRoomByCode(roomCode)
 
-      if (!roomData) {
-        setCodeError('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
-        return
-      }
-      if (isTerminalRoomStatus(roomData.status)) {
-        setCodeError('이미 끝난 게임이에요. 선생님께 새 게임을 열어달라고 해주세요.')
+      const blockReason = getRoomJoinBlockReason(roomData)
+      if (blockReason) {
+        setCodeError(blockReason)
         return
       }
       setStep('nickname')
@@ -236,13 +234,9 @@ function LobbyPage() {
     // 첫 입장: 이때만 방/닉네임을 검증하고 플레이어를 생성한다.
     try {
       const roomData = await getRoomByCode(roomCode)
-      if (!roomData) {
-        setCodeError('이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
-        setStep('code')
-        return
-      }
-      if (isTerminalRoomStatus(roomData.status)) {
-        setCodeError('이미 끝난 게임이에요. 선생님께 새 게임 코드를 받아주세요.')
+      const blockReason = getRoomJoinBlockReason(roomData)
+      if (blockReason || !roomData) {
+        setCodeError(blockReason ?? '이 코드의 게임방이 없어요. 코드를 다시 확인해주세요.')
         setStep('code')
         return
       }

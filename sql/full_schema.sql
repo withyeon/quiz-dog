@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS public.questions (
   question_text TEXT NOT NULL,
   options JSONB NOT NULL DEFAULT '[]'::jsonb,
   answer TEXT NOT NULL,
+  image_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -59,6 +60,8 @@ CREATE TABLE IF NOT EXISTS public.rooms (
   set_id TEXT REFERENCES public.question_sets(id) ON DELETE SET NULL,
   duration_seconds INTEGER,
   started_at TIMESTAMPTZ,
+  is_homework BOOLEAN NOT NULL DEFAULT false,
+  due_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT rooms_game_mode_check CHECK (
@@ -104,6 +107,7 @@ CREATE TABLE IF NOT EXISTS public.players (
   mafia_cash INTEGER DEFAULT 0,
   mafia_diamonds INTEGER DEFAULT 0,
   answer_history JSONB DEFAULT '[]'::jsonb,
+  started_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

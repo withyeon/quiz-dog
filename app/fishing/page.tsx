@@ -135,7 +135,7 @@ export default function FishingPage() {
       }}
     >
       <GameTimeBadge
-        startedAt={room?.started_at}
+        startedAt={gameBase.sessionStartedAt}
         durationSeconds={room?.duration_seconds}
         status={room?.status}
       />

@@ -217,6 +217,26 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 현재 플레이어 & 문제 ───
     const currentPlayer = players.find((p) => p.id === playerId) || null
+
+    // ─── 과제 모드: 제한 시간은 방이 아니라 "이 학생이 게임에 들어간 시각"부터 센다 ───
+    // 학생마다 다른 시간에 들어오므로 room.started_at을 쓰면 늦게 온 학생은 시작하자마자 끝난다.
+    const isHomework = Boolean((room as { is_homework?: boolean | null } | null)?.is_homework)
+    const homeworkDueAt = (room as { due_at?: string | null } | null)?.due_at ?? null
+    const [localSessionStart, setLocalSessionStart] = useState<string | null>(null)
+    useEffect(() => {
+        if (!isHomework || !roomCode || !playerId || typeof window === 'undefined') return
+        try {
+            const saved = window.sessionStorage.getItem(`hw_start_${roomCode}_${playerId}`)
+            if (saved) setLocalSessionStart(saved)
+        } catch {
+            // sessionStorage 접근 불가(프라이빗 모드 등) — DB 값이 오면 그걸 쓴다
+        }
+    }, [isHomework, playerId, roomCode])
+    const playerStartedAt = (currentPlayer as { started_at?: string | null } | null)?.started_at ?? null
+    /** 이 학생의 세션 시작 시각. 일반 방은 room.started_at, 과제 방은 학생 개인 시작 시각. */
+    const sessionStartedAt: string | null = isHomework
+        ? (playerStartedAt ?? localSessionStart)
+        : (room?.started_at ?? null)
     // 랜덤 출제: 누적 인덱스를 섞인 문제 위치로 변환해서 현재 문제를 고른다.
     const currentQuestionPosition = questions.length > 0
         ? resolveQuestionPosition(currentQuestionIndex, questions.length, orderSeedRef.current)
@@ -518,20 +538,26 @@ export function useGameBase(options: UseGameBaseOptions) {
             !roomCode
             || !room
             || room.status !== 'playing'
-            || !room.started_at
+            || !sessionStartedAt
             || !room.duration_seconds
         ) {
             return
         }
 
-        const startedMs = new Date(room.started_at).getTime()
+        const startedMs = new Date(sessionStartedAt).getTime()
         const durationSeconds = Number(room.duration_seconds)
         if (!Number.isFinite(startedMs) || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return
 
+        // 과제는 개인 제한 시간과 제출 마감 중 먼저 오는 쪽에서 끝난다
+        let deadlineMs = startedMs + durationSeconds * 1000
+        if (isHomework && homeworkDueAt) {
+            const dueMs = new Date(homeworkDueAt).getTime()
+            if (Number.isFinite(dueMs)) deadlineMs = Math.min(deadlineMs, dueMs)
+        }
+
         const tick = () => {
             if (autoFinishRequestedRef.current) return
-            const elapsedSeconds = Math.floor((Date.now() - startedMs) / 1000)
-            if (elapsedSeconds >= durationSeconds) {
+            if (Date.now() >= deadlineMs) {
                 autoFinishRequestedRef.current = true
                 forceFinishForStudent(`${expectedGameMode}_time_up_local`)
             }
@@ -540,7 +566,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         tick()
         const interval = window.setInterval(tick, 1000)
         return () => window.clearInterval(interval)
-    }, [expectedGameMode, forceFinishForStudent, room, roomCode])
+    }, [expectedGameMode, forceFinishForStudent, homeworkDueAt, isHomework, room, roomCode, sessionStartedAt])
 
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {
@@ -560,8 +586,24 @@ export function useGameBase(options: UseGameBaseOptions) {
             setCurrentView('quiz')
             playBGM('game')
             questionStartTime.current = Date.now()
+
+            // 과제: 이 학생의 세션 시작 시각을 기록한다 (개인 제한 시간의 기준).
+            // DB 반영 전에도 바로 세도록 sessionStorage에 먼저 적는다.
+            if (isHomework && roomCode && playerId && !playerStartedAt && !localSessionStart) {
+                const now = new Date().toISOString()
+                setLocalSessionStart(now)
+                try {
+                    window.sessionStorage.setItem(`hw_start_${roomCode}_${playerId}`, now)
+                } catch {
+                    // 저장 실패해도 DB 패치로 복구된다
+                }
+                void commitPlayerPatch(playerId, { started_at: now }, 'homework_session_start')
+            }
         }
-    }, [isCountdownComplete, isPreStartQuizComplete, currentView, playBGM])
+    }, [
+        isCountdownComplete, isPreStartQuizComplete, currentView, playBGM,
+        isHomework, roomCode, playerId, playerStartedAt, localSessionStart, commitPlayerPatch,
+    ])
 
     // ─── 문제 인덱스 저장 ───
     useEffect(() => {
@@ -759,6 +801,8 @@ export function useGameBase(options: UseGameBaseOptions) {
         setShowCountdown,
         consecutiveCorrect,
         answerHistory,
+        sessionStartedAt,
+        isHomework,
         questions,
         questionsLoading,
         questionsError,

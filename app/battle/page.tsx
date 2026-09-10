@@ -103,6 +103,7 @@ export default function BattlePage() {
     consecutiveCorrect,
     sendRoomEvent,
     commitPlayerDelta,
+      sessionStartedAt,
   } = useGameBase({ expectedGameMode: 'battle_royale' })
   const isPaused = room?.status === 'paused'
 
@@ -682,7 +683,7 @@ export default function BattlePage() {
       className="battle-shell relative min-h-dvh overflow-x-hidden font-bitbit"
     >
       <GameTimeBadge
-        startedAt={room?.started_at}
+        startedAt={sessionStartedAt}
         durationSeconds={room?.duration_seconds}
         status={room?.status}
       />
