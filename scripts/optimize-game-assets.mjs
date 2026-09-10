@@ -35,6 +35,9 @@ const PRESETS = {
   title: [
     { match: /./, size: 768 }, // 가장 크게 쓰는 곳이 선생님 게임 선택 화면 320px
   ],
+  'gansik-run': [
+    { match: /./, size: 512 }, // 캔버스 스프라이트. 2x 태블릿에서 최대 약 250px로 그림
+  ],
 }
 
 const DEFAULT_SIZE = 1024

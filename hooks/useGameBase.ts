@@ -607,6 +607,13 @@ export function useGameBase(options: UseGameBaseOptions) {
         return correct
     }, [currentQuestion, currentQuestionPosition, isAnswerLocked])
 
+    // ─── 자체 퀴즈 UI를 가진 게임(간식런 등)이 정답/오답을 기록에 넣을 때 ───
+    // checkAnswer는 훅이 고른 currentQuestion 기준이라, 문제를 직접 고르는 게임은 이걸 쓴다.
+    // 기록이 answer_history로 동기화돼야 학생 결과·선생님 리포트에 정답률이 잡힌다.
+    const recordAnswer = useCallback((record: AnswerRecord) => {
+        setAnswerHistory((prev) => [...prev, record])
+    }, [])
+
     // ─── 정답 기록 DB 동기화 (5초 debounce — 연속 답변을 묶어 DB 쓰기 횟수 감소) ───
     useEffect(() => {
         if (playerId && answerHistory.length > 0 && canSyncAnswerHistory) {
@@ -781,6 +788,7 @@ export function useGameBase(options: UseGameBaseOptions) {
 
         // 함수
         checkAnswer,
+        recordAnswer,
         handlePreStartQuizAnswer,
         goToNextQuestion,
         handleWrongAnswer,
