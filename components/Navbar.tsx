@@ -102,7 +102,7 @@ export default function Navbar() {
           {/* Desktop Menu */}
           <div className="hidden lg:flex items-center gap-6">
             <Link
-              href="/teacher/library"
+              href="/library"
               className="flex items-center gap-2 transition-colors font-bold text-xl nav-outlined-text"
             >
               자료실
@@ -186,10 +186,10 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden bg-sky-50/95 backdrop-blur-md border-t border-sky-200">
+        <div className="lg:hidden bg-sky-50/95 border-t border-sky-200">
           <div className="px-4 py-4 space-y-3">
             <Link
-              href="/teacher/library"
+              href="/library"
               className="flex items-center gap-2 py-2 font-bold text-xl nav-outlined-text"
               onClick={() => setIsMobileMenuOpen(false)}
             >

@@ -555,6 +555,7 @@ export async function duplicateQuestionSet(setId: string, title?: string): Promi
     subject: sourceSet.subject,
     grade: sourceSet.grade,
     tags: sourceSet.tags,
+    forked_from: sourceSet.forked_from ?? null,
   } as QuestionSetInsert)
 
   await insertQuestions(
@@ -611,6 +612,8 @@ export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Pro
     subject: (sourceSet as Pick<QuestionSetRow, 'subject'> | null)?.subject ?? null,
     grade: (sourceSet as Pick<QuestionSetRow, 'grade'> | null)?.grade ?? null,
     tags: (sourceSet as Pick<QuestionSetRow, 'tags'> | null)?.tags ?? [],
+    // 어느 문제집에서 가져왔는지 남긴다 — 사본에도 원작자를 표시하기 위한 것.
+    forked_from: sourceSetId,
   } as QuestionSetInsert)
 
   await insertQuestions(

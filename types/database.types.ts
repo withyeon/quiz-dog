@@ -125,6 +125,26 @@ export interface Database {
           answer_history?: Json[] | null
         }
       }
+      profiles: {
+        Row: {
+          id: string
+          display_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          display_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          display_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       question_sets: {
         Row: {
           id: string
@@ -135,6 +155,12 @@ export interface Database {
           tags: Json
           owner_id: string | null
           is_public: boolean
+          share_code: string | null
+          is_shared: boolean
+          shared_at: string | null
+          forked_from: string | null
+          view_count: number
+          play_count: number
           created_at: string
           updated_at: string
         }
@@ -147,6 +173,12 @@ export interface Database {
           tags?: Json
           owner_id?: string | null
           is_public?: boolean
+          share_code?: string | null
+          is_shared?: boolean
+          shared_at?: string | null
+          forked_from?: string | null
+          view_count?: number
+          play_count?: number
           created_at?: string
           updated_at?: string
         }
@@ -159,6 +191,12 @@ export interface Database {
           tags?: Json
           owner_id?: string | null
           is_public?: boolean
+          share_code?: string | null
+          is_shared?: boolean
+          shared_at?: string | null
+          forked_from?: string | null
+          view_count?: number
+          play_count?: number
           created_at?: string
           updated_at?: string
         }

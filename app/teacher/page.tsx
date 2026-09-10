@@ -19,6 +19,7 @@ import {
   Plus,
   Trash2,
   Wand2,
+  Share2,
 } from 'lucide-react'
 import {
   copyQuestionSetFromQuestionsOnly,
@@ -34,6 +35,7 @@ import { formatServiceError } from '@/lib/services/errors'
 import { getLocalLikedQuestionSetIds, getLibraryClientId } from '@/lib/utils/libraryClientId'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/components/ui/Toaster'
+import ShareSetModal from '@/components/share/ShareSetModal'
 import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 
 type QuestionSet = QuestionSetSummary
@@ -74,6 +76,8 @@ function TeacherPageContent() {
   const { user } = useAuth()
   const userId = user?.id ?? null
 
+  // 공유 모달을 띄울 문제집 (null 이면 닫힘)
+  const [sharingSet, setSharingSet] = useState<{ id: string; title: string } | null>(null)
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([])
   const [likedQuestionSets, setLikedQuestionSets] = useState<LikedQuestionSet[]>([])
   const [loading, setLoading] = useState(true)
@@ -403,6 +407,14 @@ function TeacherPageContent() {
                         게임 시작
                       </button>
                       <button
+                        onClick={() => setSharingSet({ id: set.id, title: set.title })}
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                        aria-label={`${set.title} 공유`}
+                        title="링크로 공유"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => router.push(`/teacher/sets/${encodeURIComponent(set.id)}/edit`)}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-black"
                         aria-label={`${set.title} 수정`}
@@ -470,6 +482,14 @@ function TeacherPageContent() {
             </aside>
           </section>
         </div>
+      )}
+
+      {sharingSet && (
+        <ShareSetModal
+          setId={sharingSet.id}
+          title={sharingSet.title}
+          onClose={() => setSharingSet(null)}
+        />
       )}
     </div>
   )

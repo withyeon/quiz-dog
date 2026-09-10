@@ -21,6 +21,8 @@ export default function AuthModal({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  // 자료실·공유 링크에 "원작: OO 선생님"으로 표시되는 이름
+  const [displayName, setDisplayName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [socialLoading, setSocialLoading] = useState<'google' | 'kakao' | null>(null)
@@ -55,7 +57,11 @@ export default function AuthModal({
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${siteUrl}/auth/callback` },
+          options: {
+            emailRedirectTo: `${siteUrl}/auth/callback`,
+            // handle_new_user 트리거가 이 값을 읽어 profiles.display_name 에 넣는다.
+            data: { display_name: displayName.trim() },
+          },
         })
         if (error) throw error
         setMessage('인증 이메일을 보냈습니다. 이메일을 확인해 로그인해주세요.')
@@ -211,6 +217,25 @@ export default function AuthModal({
                   autoComplete="new-password"
                   className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-black placeholder-slate-400 outline-none transition focus:border-black focus:ring-2 focus:ring-black/5"
                 />
+              </div>
+            )}
+
+            {tab === 'signup' && (
+              <div>
+                <label className="mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-500">
+                  표시 이름
+                </label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value.slice(0, 20))}
+                  placeholder="예: 위드현"
+                  maxLength={20}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-black placeholder-slate-400 outline-none transition focus:border-black focus:ring-2 focus:ring-black/5"
+                />
+                <p className="mt-1.5 text-xs font-medium text-slate-400">
+                  문제집을 공유할 때 &quot;원작: OO 선생님&quot;으로 표시돼요. 나중에 바꿀 수 있어요.
+                </p>
               </div>
             )}
 

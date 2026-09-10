@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from '@/components/ui/Toaster'
+import { bumpSharePlay } from '@/lib/services/sharing'
 import { useCallback, useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { checkSupabaseConfig } from '@/lib/supabase/client'
@@ -461,6 +462,10 @@ export default function TeacherDashboard() {
 
       const createdRoom = await createRoom({ setId, gameMode })
       setRoomCode(createdRoom.room_code)
+
+      // 공유받은 문제집이 실제 수업으로 이어졌는지 세어 둔다.
+      // (인디스쿨에 뿌린 링크의 효과를 "열어본 횟수"와 나눠 보기 위한 것)
+      if (setId) void bumpSharePlay(setId)
 
       // 방 생성 후에는 모달 대신 대기방 화면을 바로 보여준다.
       setShowGameCodeModal(false)
