@@ -116,6 +116,23 @@ export async function setLibraryListing(setId: string, isPublic: boolean): Promi
   if (error) throw error
 }
 
+/**
+ * 사람이 쓴 설명인지 판별한다.
+ *
+ * 문제집을 AI로 만들거나 자료실에서 가져오면 설명이 자동으로 채워진다
+ * ("AI로 생성된 문제집 (file)" 등). 지금 전체의 절반 가까이가 이런 값이라
+ * 그대로 두면 인디스쿨·카톡 링크 미리보기 문구가 전부 이 문장으로 나간다.
+ * 자리표시자면 없는 것으로 보고, 학년·과목·문항수 요약을 대신 쓴다.
+ */
+const PLACEHOLDER_DESCRIPTION =
+  /^(AI로 생성된 문제집(\s*\(.*\))?|라이브러리에서 가져온 문제집|자료실 문제집)$/
+
+export function meaningfulDescription(description: string | null | undefined): string | null {
+  const trimmed = String(description ?? '').trim()
+  if (!trimmed || PLACEHOLDER_DESCRIPTION.test(trimmed)) return null
+  return trimmed
+}
+
 export type SharedQuestionSet = {
   id: string
   shareCode: string
@@ -176,7 +193,7 @@ export async function getSharedSetByCode(shareCode: string): Promise<SharedQuest
     id: row.id,
     shareCode,
     title: row.title,
-    description: row.description,
+    description: meaningfulDescription(row.description),
     subject: row.subject,
     grade: row.grade,
     tags: normalizeTags(row.tags),
@@ -297,7 +314,7 @@ export async function listPublicSets(limit = 60): Promise<PublicSetCard[]> {
       id: row.id,
       shareCode: row.share_code,
       title: row.title,
-      description: row.description,
+      description: meaningfulDescription(row.description),
       subject: row.subject,
       grade: row.grade,
       questionCount: questionCounts.get(row.id) ?? 0,

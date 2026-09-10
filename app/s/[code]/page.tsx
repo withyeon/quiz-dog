@@ -31,9 +31,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const summary = describe(set)
-  const byline = set.ownerName ? `${set.ownerName} 선생님` : SITE_NAME
-  const description = set.description?.trim()
-    || `${summary} · ${byline}이(가) 만든 문제집입니다. 게임 모드를 골라 바로 수업에 쓰세요.`
+  // 설명이 자리표시자면 getSharedSetByCode 가 null 로 걸러 준다.
+  // 그때는 학년·과목·문항수와 원작자로 미리보기 문구를 만든다.
+  const byline = set.ownerName
+    ? `${set.ownerName} 선생님이 만든 문제집이에요.`
+    : `${SITE_NAME} 자료실 문제집이에요.`
+  const description = set.description
+    || `${summary} · ${byline} 게임 모드를 골라 바로 수업에 쓰세요.`
 
   return {
     title: set.title,
