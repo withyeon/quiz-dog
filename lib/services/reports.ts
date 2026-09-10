@@ -189,6 +189,28 @@ export function parseReportPlayers(playersData: Json): PlayerRow[] {
     : []
 }
 
+/** 방 코드로 종료 시 저장해 둔 스냅샷을 찾는다(같은 방이 여러 번이면 가장 최근 것). */
+async function getLatestSnapshotByRoomCode(roomCode: string): Promise<GameReportRow | null> {
+  const { data, error } = await ((supabase
+    .from('game_reports') as any)
+    .select('*')
+    .eq('room_code', roomCode)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle())
+
+  if (error) return null
+  return (data as GameReportRow | null) ?? null
+}
+
+/**
+ * 종료 직후 리포트가 읽는 데이터.
+ *
+ * 평소에는 실시간 rooms·players 를 그대로 쓴다. 다만 그 두 테이블은 운영 중
+ * 정리될 수 있고(관리자 세션 삭제 등), 그러면 "게임 결과를 찾을 수 없습니다"만
+ * 남는다. 게임이 끝날 때 game_reports 에 스냅샷을 남겨 두므로, 실시간 행이
+ * 없으면 그쪽으로 대신 채운다. 게임 기록 화면과 같은 데이터를 보게 된다.
+ */
 export async function getFinishedRoomReport(roomCode: string): Promise<{
   room: RoomRow | null
   players: PlayerRow[]
@@ -198,5 +220,27 @@ export async function getFinishedRoomReport(roomCode: string): Promise<{
     listPlayersInRoom(roomCode),
   ])
 
-  return { room, players }
+  if (players.length > 0) return { room, players }
+
+  const snapshot = await getLatestSnapshotByRoomCode(roomCode)
+  if (!snapshot) return { room, players }
+
+  const snapshotPlayers = parseReportPlayers(snapshot.players_data)
+  if (snapshotPlayers.length === 0) return { room, players }
+
+  return {
+    // 방 행까지 사라졌다면 스냅샷에 담긴 값으로 최소한의 방 정보를 만들어 준다.
+    room: room ?? ({
+      room_code: snapshot.room_code,
+      status: 'finished',
+      current_q_index: 0,
+      game_mode: snapshot.game_mode,
+      set_id: snapshot.set_id,
+      duration_seconds: null,
+      started_at: null,
+      created_at: snapshot.created_at,
+      updated_at: snapshot.created_at,
+    } as RoomRow),
+    players: snapshotPlayers,
+  }
 }

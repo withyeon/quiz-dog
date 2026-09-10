@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { toast } from '@/components/ui/Toaster'
 import {
   AlertTriangle,
   BarChart3,
@@ -81,6 +82,7 @@ export default function TeacherPostGameReport({
   const [studentSort, setStudentSort] = useState<SortKey>('score')
   const [studentQuery, setStudentQuery] = useState('')
   const [diagnosticTab, setDiagnosticTab] = useState<DiagnosticTab>('students')
+  const [downloading, setDownloading] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionAnalysis | null>(null)
   const [selectedStudent, setSelectedStudent] = useState<PlayerAnalysis | null>(null)
   const [copied, setCopied] = useState(false)
@@ -123,30 +125,59 @@ export default function TeacherPostGameReport({
     }
   }
 
-  const downloadCsv = () => {
-    const rows = [
-      ['출석번호', '학생명', '정답률', '점수', '평균응답시간', ...analytics.questions.map((question) => `Q${question.index + 1}`)],
-      ...analytics.players.map((player) => [
-        String(player.attendanceNo),
-        player.nickname,
-        `${player.accuracy}%`,
-        String(player.score),
-        formatResponseTime(player.avgResponseTimeMs),
-        ...analytics.questions.map((question) => {
-          const answer = answerForQuestion(player, question.index)
-          if (!answer) return '미응답'
-          return answer.isCorrect ? '정답' : `오답:${answer.selectedAnswer || '미응답'}`
-        }),
-      ]),
-    ]
-    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n')
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `quizdog-report-${room.room_code}.csv`
-    anchor.click()
-    URL.revokeObjectURL(url)
+  const downloadXlsx = async () => {
+    if (downloading) return
+    setDownloading(true)
+    try {
+      // 엑셀 작성기는 클릭했을 때만 받아온다 — 선생님 화면 첫 로딩에 얹지 않으려고.
+      const { buildXlsx, saveBlob } = await import('@/lib/reports/xlsx')
+
+      const studentSheet = {
+        name: '학생별',
+        rows: [
+          ['출석번호', '학생명', '정답률(%)', '점수', '평균응답시간',
+            ...analytics.questions.map((question) => `Q${question.index + 1}`)],
+          ...analytics.players.map((player) => [
+            player.attendanceNo,
+            player.nickname,
+            player.accuracy,
+            player.score,
+            formatResponseTime(player.avgResponseTimeMs),
+            ...analytics.questions.map((question) => {
+              const answer = answerForQuestion(player, question.index)
+              if (!answer) return '미응답'
+              return answer.isCorrect ? '정답' : `오답:${answer.selectedAnswer || '미응답'}`
+            }),
+          ]),
+        ],
+      }
+
+      const questionSheet = {
+        name: '문항별',
+        rows: [
+          ['번호', '문항', '정답', '정답률(%)', '맞힘', '틀림', '미응답', '가장 많은 오답'],
+          ...analytics.questions.map((question) => [
+            question.index + 1,
+            question.text,
+            question.answer,
+            question.accuracy,
+            question.correctCount,
+            question.incorrectCount,
+            question.unansweredCount,
+            question.topWrongAnswer ? `${question.topWrongAnswer[0]} (${question.topWrongAnswer[1]}명)` : '',
+          ]),
+        ],
+      }
+
+      const blob = await buildXlsx([studentSheet, questionSheet])
+      const playedOn = new Date(playedAt).toISOString().slice(0, 10)
+      saveBlob(blob, `퀴즈독 리포트 ${playedOn} ${room.room_code}.xlsx`)
+    } catch (error) {
+      console.error('엑셀 내보내기 실패:', error)
+      toast.error('엑셀 파일을 만들지 못했어요.')
+    } finally {
+      setDownloading(false)
+    }
   }
 
   return (
@@ -162,9 +193,9 @@ export default function TeacherPostGameReport({
           <p className="mt-1 text-sm text-slate-500">점수 순위와 학습 정답률을 분리해서 확인합니다.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button onClick={downloadCsv} className="bg-slate-900 hover:bg-slate-800">
+          <Button onClick={downloadXlsx} disabled={downloading} className="bg-slate-900 hover:bg-slate-800">
             <FileSpreadsheet className="mr-2 h-4 w-4" />
-            엑셀 다운로드
+            {downloading ? '만드는 중…' : '엑셀 다운로드'}
           </Button>
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" />
