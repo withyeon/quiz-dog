@@ -76,6 +76,17 @@ export function getScoreDisplay(player: ScorePlayer, gameMode: string | null | u
     }
   }
 
+  // 좀비 모드 점수는 생존 여부가 먼저인 티어 점수다 (인간 200+체력 / 좀비 10×감염수).
+  // 그냥 '점'이라고 하면 인간과 좀비가 같은 척도로 보이므로 이름을 붙여준다.
+  if (mode === 'zombie') {
+    return {
+      value,
+      label: '생존 점수',
+      text: `${formatNumber(value)}점`,
+      tone: 'default',
+    }
+  }
+
   return {
     value,
     label: '점',
@@ -90,6 +101,7 @@ export function getScoreDisplayLabel(gameMode: string | null | undefined): strin
   if (mode === 'factory' || mode === 'cafe') return '수익'
   if (mode === 'battle_royale') return '체력'
   if (mode === 'dontlookdown') return '높이'
+  if (mode === 'zombie') return '생존 점수'
   return '점수'
 }
 

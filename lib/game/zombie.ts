@@ -1,5 +1,9 @@
-// 좀비를 피해라! (Escape the Zombies) 게임 로직 및 타입 정의
-// 블루킷 스타일 좀비 감염 + 정체 숨김 + PvP 퀴즈 게임
+// 좀비를 피해라! (Escape the Zombies) — 타입 / 상수 / 순수 조회 함수
+//
+// 규칙 판정(체력·방어막·공격력·역할 전이·점수)은 전부 서버가 한다:
+//   sql/20260910_zombie_server_authority.sql 의 zombie_apply_action / zombie_attack
+// 여기에 같은 규칙을 클라이언트 버전으로 다시 두지 말 것 — 두 벌이 갈라지면
+// 오래된 로컬 스냅샷이 감염을 되돌리는 종류의 버그가 그대로 돌아온다.
 
 export { formatTime } from '@/lib/utils/formatTime'
 
@@ -10,7 +14,6 @@ export type ZombieRole = 'human' | 'zombie'
 export interface ZombiePlayer {
   id: string
   name: string
-  isAi: boolean
   role: ZombieRole          // 현재 역할 (감염 시 zombie로 변경)
   originalRole: ZombieRole  // 최초 배정 역할
   health: number            // 인간: 체력 (기본 100)
@@ -20,15 +23,6 @@ export interface ZombiePlayer {
   correctStreak: number     // 연속 정답 수 (보너스용)
   totalCorrect: number      // 총 정답 수
   totalWrong: number        // 총 오답 수
-  isEliminated: boolean     // 감염되어 탈락 (체력 0)
-  lastAction?: string       // 마지막 행동 (UI용)
-  statusEffects: StatusEffect[]
-}
-
-export type StatusEffect = {
-  type: 'speed_boost' | 'shield' | 'poison' | 'reveal' | 'stealth'
-  duration: number  // 남은 라운드 수
-  value: number     // 효과 수치
 }
 
 export interface ZombieGameLog {
@@ -46,7 +40,6 @@ export type ZombiePlayerMeta = {
   correctStreak: number
   totalCorrect: number
   totalWrong: number
-  scanCooldown: number
 }
 
 export type RoomZombiePlayer = {
@@ -59,43 +52,17 @@ export type RoomZombiePlayer = {
   is_kicked?: boolean | null
 }
 
-export type ZombieActionType = 
-  | 'attack'      // 좀비: 인간 공격 (정답 시)
-  | 'heal'        // 인간: 체력 회복 (정답 시)
-  | 'shield'      // 인간: 방어막 획득 (정답 시)
-  | 'scan'        // 인간: 다른 플레이어 역할 스캔 (정답 시)
-  | 'sabotage'    // 좀비: 인간 방해 (오답 시에도 사용 가능)
-
-export interface RoundResult {
-  roundNumber: number
-  playersInfected: string[]
-  playersHealed: string[]
-  logs: ZombieGameLog[]
-}
+/** 정답 후 고르는 행동. 대상을 지정하는 것(attack/scan)과 자기에게 쓰는 것(heal/shield). */
+export type ZombieActionType = 'attack' | 'heal' | 'shield' | 'scan'
 
 // ─── 상수 ───
 
-export const AI_ZOMBIE_NAMES = [
-  '수상한 멍멍이', '의심스런 냥이', '비밀의 토끼', '몰래 여우',
-  '은밀한 곰돌이', '미스터리 부엉이', '그림자 펭귄', '수수께끼 다람쥐',
-  '비밀요원 판다', '요상한 오리', '괴짜 고슴도치', '숨은 라쿤',
-  '미스터 늑대', '불안한 기린', '미지의 코끼리', '유령 햄스터',
-  '신비한 고래', '떠도는 너구리', '엉뚱한 사슴', '장난꾸러기 원숭이',
-]
-
-export const ZOMBIE_EMOJIS = [
-  '🐶', '🐱', '🐰', '🦊', '🐻', '🦉', '🐧', '🐿️',
-  '🐼', '🦆', '🦔', '🦝', '🐺', '🦒', '🐘', '🐹',
-  '🐳', '🦝', '🦌', '🐵',
-]
-
-// 게임 밸런스 상수
 export const GAME_CONSTANTS = {
   // 기본 설정
-  GAME_DURATION: 600,         // 10분 (초)
+  GAME_DURATION: 600,         // 방에 duration_seconds가 없을 때만 쓰는 예비값 (선생님이 시작할 때 고름)
   ROUND_DURATION: 25,         // 라운드당 시간 (초)
-  MIN_PLAYERS: 4,
-  MAX_PLAYERS: 20,
+  MIN_PLAYERS: 4,            // 권장 최소 인원 (강제하지 않음 — 적어도 게임은 돌아간다)
+  MAX_PLAYERS: 20,           // 권장 최대 인원
   
   // 역할 배정
   ZOMBIE_RATIO_MIN: 0.15,    // 최소 좀비 비율
@@ -125,37 +92,55 @@ export const GAME_CONSTANTS = {
   SCAN_COOLDOWN_ROUNDS: 3,   // 스캔 쿨다운 (라운드)
 }
 
+/**
+ * 서버(zombie_apply_action)로 넘기는 밸런스 값.
+ * 규칙 수치는 GAME_CONSTANTS 한 곳에서만 관리하고 SQL은 이 값을 받아 적용한다.
+ */
+export const ZOMBIE_ACTION_LIMITS = {
+  humanMaxHealth: GAME_CONSTANTS.HUMAN_MAX_HEALTH,
+  humanMaxShield: GAME_CONSTANTS.HUMAN_MAX_SHIELD,
+  healAmount: GAME_CONSTANTS.HUMAN_HEAL_AMOUNT,
+  shieldAmount: GAME_CONSTANTS.HUMAN_SHIELD_AMOUNT,
+  streakBonus: GAME_CONSTANTS.CORRECT_STREAK_3_BONUS,
+  zombieStreakBonus: GAME_CONSTANTS.ZOMBIE_STREAK_BONUS,
+  zombieMaxAttack: GAME_CONSTANTS.ZOMBIE_MAX_ATTACK,
+  wrongPenaltyHuman: GAME_CONSTANTS.WRONG_PENALTY_HUMAN,
+  infectionThreshold: GAME_CONSTANTS.INFECTION_THRESHOLD,
+  zombieBaseAttack: GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
+} as const
+
+/** 클라이언트가 서버에 보고하는 행동. 역할은 서버가 판정하므로 보내지 않는다. */
+export type ZombieActionKind = 'correct' | 'wrong' | 'heal' | 'shield'
+
+/**
+ * 결과 리포트 순위용 점수.
+ *   생존한 인간이 항상 상위, 좀비끼리는 감염시킨 수로 정렬한다.
+ *   sql/20260910_zombie_server_authority.sql 의 _qd_zombie_score 와 같은 식이어야 한다.
+ */
+export function zombieScore(role: ZombieRole, health: number, infectCount: number): number {
+  if (role === 'human') return 200 + Math.max(0, health)
+  // 상한 199 = 생존자 최저점(210)을 넘지 못하게 하는 티어 경계
+  return Math.min(199, 10 * Math.max(0, infectCount))
+}
+
 // ─── 유틸리티 함수 ───
 
 /**
- * 좀비 수 계산 (전체 인원의 15~20%)
+ * 좀비 수 계산 — 전체 인원의 15~20%, 단 최소 1명이고 최소 1명은 인간으로 남긴다.
+ *
+ * 인원이 적으면 반올림 때문에 실제 비율이 15~20%를 넘는다 (4명 → 1명 = 25%).
+ * 0.6명짜리 좀비를 만들 수는 없으니 이건 어쩔 수 없고, 20명 이상부터 명세대로 맞는다.
+ * 혼자 접속해 테스트하는 경우(1명)에는 좀비를 만들지 않는다 — 인간이 0명이면
+ * 교사 대시보드가 곧바로 "좀비 승리"로 자동 종료해버린다.
  */
 export function calculateZombieCount(totalPlayers: number): number {
+  if (totalPlayers <= 1) return 0
+
   const minZombies = Math.max(1, Math.floor(totalPlayers * GAME_CONSTANTS.ZOMBIE_RATIO_MIN))
   const maxZombies = Math.max(1, Math.ceil(totalPlayers * GAME_CONSTANTS.ZOMBIE_RATIO_MAX))
-  return Math.floor(Math.random() * (maxZombies - minZombies + 1)) + minZombies
-}
+  const count = Math.floor(Math.random() * (maxZombies - minZombies + 1)) + minZombies
 
-/**
- * 역할 배정 (랜덤으로 좀비 선택)
- */
-export function assignRoles(players: ZombiePlayer[]): ZombiePlayer[] {
-  const zombieCount = calculateZombieCount(players.length)
-  const shuffled = [...players].sort(() => Math.random() - 0.5)
-  
-  return players.map(player => {
-    const zombieIndex = shuffled.findIndex(p => p.id === player.id)
-    const isZombie = zombieIndex < zombieCount
-    
-    return {
-      ...player,
-      role: isZombie ? 'zombie' : 'human',
-      originalRole: isZombie ? 'zombie' : 'human',
-      health: isZombie ? 999 : GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
-      attackPower: isZombie ? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK : 0,
-      shield: 0,
-    }
-  })
+  return Math.min(count, totalPlayers - 1)
 }
 
 export function isZombieMeta(value: unknown): value is ZombiePlayerMeta {
@@ -174,7 +159,6 @@ export function createZombieMeta(role: ZombieRole): ZombiePlayerMeta {
     correctStreak: 0,
     totalCorrect: 0,
     totalWrong: 0,
-    scanCooldown: 0,
   }
 }
 
@@ -189,7 +173,6 @@ export function roomPlayerToZombiePlayer(player: RoomZombiePlayer): ZombiePlayer
   return {
     id: player.id,
     name: player.nickname,
-    isAi: false,
     role,
     originalRole: meta.originalRole,
     health: role === 'zombie' ? 999 : (player.health ?? GAME_CONSTANTS.HUMAN_INITIAL_HEALTH),
@@ -199,11 +182,12 @@ export function roomPlayerToZombiePlayer(player: RoomZombiePlayer): ZombiePlayer
     correctStreak: meta.correctStreak ?? 0,
     totalCorrect: meta.totalCorrect ?? 0,
     totalWrong: meta.totalWrong ?? 0,
-    isEliminated: false,
-    statusEffects: [],
   }
 }
 
+// 주의: 클라이언트에서 players 행을 절대값으로 덮어쓰는 함수는 두지 않는다.
+// role/health/attack_power/shield/infectCount 는 전부 서버(zombie_apply_action,
+// zombie_attack)가 소유한다 — 로컬 스냅샷으로 덮어쓰면 감염이 취소된다.
 export function createRoleAssignmentPatches(players: RoomZombiePlayer[]): Array<{
   playerId: string
   patch: {
@@ -229,175 +213,10 @@ export function createRoleAssignmentPatches(players: RoomZombiePlayer[]): Array<
         active_item: createZombieMeta(role),
         health: role === 'zombie' ? 999 : GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
         attack_power: role === 'zombie' ? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK : 0,
-        score: role === 'zombie' ? 0 : GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
+        score: zombieScore(role, GAME_CONSTANTS.HUMAN_INITIAL_HEALTH, 0),
       },
     }
   })
-}
-
-export function zombiePlayerToPatch(player: ZombiePlayer): {
-  active_item: ZombiePlayerMeta
-  health: number
-  attack_power: number
-  score: number
-} {
-  const active_item: ZombiePlayerMeta = {
-    role: player.role,
-    originalRole: player.originalRole,
-    shield: player.shield,
-    infectCount: player.infectCount,
-    correctStreak: player.correctStreak,
-    totalCorrect: player.totalCorrect,
-    totalWrong: player.totalWrong,
-    scanCooldown: 0,
-  }
-
-  return {
-    active_item,
-    health: player.health,
-    attack_power: player.attackPower,
-    score: player.role === 'human' ? player.health : player.infectCount,
-  }
-}
-
-/**
- * 초기 AI 플레이어 생성
- */
-export function createInitialPlayers(playerCount: number = 10): ZombiePlayer[] {
-  const selectedNames = [...AI_ZOMBIE_NAMES]
-    .sort(() => Math.random() - 0.5)
-    .slice(0, playerCount - 1)
-
-  const players: ZombiePlayer[] = [
-    {
-      id: 'player',
-      name: '나',
-      isAi: false,
-      role: 'human',
-      originalRole: 'human',
-      health: GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
-      shield: 0,
-      attackPower: 0,
-      infectCount: 0,
-      correctStreak: 0,
-      totalCorrect: 0,
-      totalWrong: 0,
-      isEliminated: false,
-      statusEffects: [],
-    },
-  ]
-
-  selectedNames.forEach((name, i) => {
-    players.push({
-      id: `ai-${i}`,
-      name,
-      isAi: true,
-      role: 'human',
-      originalRole: 'human',
-      health: GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
-      shield: 0,
-      attackPower: 0,
-      infectCount: 0,
-      correctStreak: 0,
-      totalCorrect: 0,
-      totalWrong: 0,
-      isEliminated: false,
-      statusEffects: [],
-    })
-  })
-
-  return players
-}
-
-/**
- * 좀비가 인간을 공격
- */
-export function zombieAttack(
-  zombie: ZombiePlayer,
-  target: ZombiePlayer,
-): { newZombie: ZombiePlayer; newTarget: ZombiePlayer; log: string; infected: boolean } {
-  if (target.role !== 'human' || target.isEliminated) {
-    return {
-      newZombie: zombie,
-      newTarget: target,
-      log: `${target.name}은(는) 이미 좀비이거나 탈락했습니다.`,
-      infected: false,
-    }
-  }
-
-  const damage = zombie.attackPower
-  let remainingDamage = damage
-  let newShield = target.shield
-  let newHealth = target.health
-
-  // 방어막이 있으면 먼저 흡수
-  if (newShield > 0) {
-    if (newShield >= remainingDamage) {
-      newShield -= remainingDamage
-      remainingDamage = 0
-    } else {
-      remainingDamage -= newShield
-      newShield = 0
-    }
-  }
-
-  // 남은 데미지를 체력에서 차감
-  newHealth = Math.max(0, newHealth - remainingDamage)
-
-  const infected = newHealth <= GAME_CONSTANTS.INFECTION_THRESHOLD
-
-  const newTarget: ZombiePlayer = {
-    ...target,
-    health: infected ? 999 : newHealth,
-    shield: infected ? 0 : newShield,
-    role: infected ? 'zombie' : target.role,
-    attackPower: infected ? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK : target.attackPower,
-    isEliminated: false,  // 감염 시 좀비로 부활
-  }
-
-  const newZombie: ZombiePlayer = {
-    ...zombie,
-    infectCount: infected ? zombie.infectCount + 1 : zombie.infectCount,
-  }
-
-  let log: string
-  if (infected) {
-    log = `${zombie.name}이(가) ${target.name}을(를) 감염시켰습니다! ${target.name}은(는) 이제 좀비입니다!`
-  } else if (target.shield > 0 && newShield === 0) {
-    log = `${zombie.name}이(가) ${target.name}의 방어막을 파괴했습니다! (HP: ${newHealth})`
-  } else {
-    log = `${zombie.name}이(가) ${target.name}을(를) 공격했습니다! (HP: ${target.health} → ${newHealth})`
-  }
-
-  return { newZombie, newTarget, log, infected }
-}
-
-/**
- * 인간이 체력 회복
- */
-export function humanHeal(player: ZombiePlayer): { newPlayer: ZombiePlayer; log: string } {
-  const healAmount = GAME_CONSTANTS.HUMAN_HEAL_AMOUNT
-  const newHealth = Math.min(GAME_CONSTANTS.HUMAN_MAX_HEALTH, player.health + healAmount)
-  const actualHeal = newHealth - player.health
-
-  return {
-    newPlayer: { ...player, health: newHealth },
-    log: `${player.name}이(가) 체력을 ${actualHeal} 회복했습니다! (HP: ${newHealth})`,
-  }
-}
-
-/**
- * 인간이 방어막 획득
- */
-export function humanShield(player: ZombiePlayer): { newPlayer: ZombiePlayer; log: string } {
-  const shieldAmount = GAME_CONSTANTS.HUMAN_SHIELD_AMOUNT
-  const newShield = Math.min(GAME_CONSTANTS.HUMAN_MAX_SHIELD, player.shield + shieldAmount)
-  const actualShield = newShield - player.shield
-
-  return {
-    newPlayer: { ...player, shield: newShield },
-    log: `${player.name}이(가) 방어막 ${actualShield}을(를) 획득했습니다! (방어막: ${newShield})`,
-  }
 }
 
 /**
@@ -416,107 +235,13 @@ export function scanPlayer(
 }
 
 /**
- * 정답 후 스트릭 보너스 적용
- */
-export function applyCorrectBonus(player: ZombiePlayer): { newPlayer: ZombiePlayer; bonusLog: string | null } {
-  const newStreak = player.correctStreak + 1
-  const newPlayer: ZombiePlayer = {
-    ...player,
-    correctStreak: newStreak,
-    totalCorrect: player.totalCorrect + 1,
-  }
-
-  // 3연속 정답 보너스
-  if (newStreak >= 3 && newStreak % 3 === 0) {
-    if (player.role === 'human') {
-      newPlayer.health = Math.min(
-        GAME_CONSTANTS.HUMAN_MAX_HEALTH,
-        newPlayer.health + GAME_CONSTANTS.CORRECT_STREAK_3_BONUS,
-      )
-      return {
-        newPlayer,
-        bonusLog: `🔥 ${player.name} ${newStreak}연속 정답! 보너스 체력 +${GAME_CONSTANTS.CORRECT_STREAK_3_BONUS}`,
-      }
-    } else {
-      newPlayer.attackPower = Math.min(
-        GAME_CONSTANTS.ZOMBIE_MAX_ATTACK,
-        newPlayer.attackPower + GAME_CONSTANTS.ZOMBIE_STREAK_BONUS,
-      )
-      return {
-        newPlayer,
-        bonusLog: `🔥 ${player.name} ${newStreak}연속 정답! 공격력 +${GAME_CONSTANTS.ZOMBIE_STREAK_BONUS}`,
-      }
-    }
-  }
-
-  return { newPlayer, bonusLog: null }
-}
-
-/**
- * 오답 처리
- */
-export function applyWrongPenalty(player: ZombiePlayer): { newPlayer: ZombiePlayer; log: string } {
-  const newPlayer: ZombiePlayer = {
-    ...player,
-    correctStreak: 0,
-    totalWrong: player.totalWrong + 1,
-  }
-
-  if (player.role === 'human') {
-    newPlayer.health = Math.max(0, newPlayer.health - GAME_CONSTANTS.WRONG_PENALTY_HUMAN)
-    return {
-      newPlayer,
-      log: `${player.name} 오답! 체력 -${GAME_CONSTANTS.WRONG_PENALTY_HUMAN} (HP: ${newPlayer.health})`,
-    }
-  }
-
-  return {
-    newPlayer,
-    log: `${player.name} 오답!`,
-  }
-}
-
-/**
- * AI 행동 결정 (정답 후)
- */
-export function aiDecideAction(
-  aiPlayer: ZombiePlayer,
-  allPlayers: ZombiePlayer[],
-): { action: ZombieActionType; targetId?: string } {
-  if (aiPlayer.role === 'zombie') {
-    // 좀비: 인간을 공격
-    const humans = allPlayers.filter(
-      p => p.role === 'human' && !p.isEliminated && p.id !== aiPlayer.id,
-    )
-    if (humans.length > 0) {
-      // 체력이 가장 낮은 인간을 우선 타겟
-      const target = humans.sort((a, b) => a.health - b.health)[0]
-      return { action: 'attack', targetId: target.id }
-    }
-    return { action: 'attack' }
-  } else {
-    // 인간: 확률적으로 행동 선택
-    const rand = Math.random()
-    if (aiPlayer.health < 50) {
-      // 체력이 낮으면 회복 우선
-      return { action: rand < 0.7 ? 'heal' : 'shield' }
-    } else if (aiPlayer.shield < 25) {
-      // 방어막이 낮으면 방어 우선
-      return { action: rand < 0.4 ? 'shield' : rand < 0.7 ? 'heal' : 'scan' }
-    } else {
-      return { action: rand < 0.3 ? 'heal' : rand < 0.6 ? 'shield' : 'scan' }
-    }
-  }
-}
-
-/**
  * 게임 승리 조건 체크
  */
 export function checkWinCondition(
   players: ZombiePlayer[],
   timeRemaining: number,
 ): { gameOver: boolean; winner: 'human' | 'zombie' | null; reason: string } {
-  const aliveHumans = players.filter(p => p.role === 'human' && !p.isEliminated)
+  const aliveHumans = players.filter(p => p.role === 'human')
   const zombies = players.filter(p => p.role === 'zombie')
 
   // 좀비 승리: 모든 인간이 감염됨
@@ -538,82 +263,4 @@ export function checkWinCondition(
   }
 
   return { gameOver: false, winner: null, reason: '' }
-}
-
-/**
- * 상태 효과 업데이트 (라운드 종료 시)
- */
-export function tickStatusEffects(player: ZombiePlayer): ZombiePlayer {
-  const remainingEffects = player.statusEffects
-    .map(e => ({ ...e, duration: e.duration - 1 }))
-    .filter(e => e.duration > 0)
-
-  return { ...player, statusEffects: remainingEffects }
-}
-
-/**
- * AI 정답률 결정 (난이도 기반)
- */
-export function aiWillAnswerCorrectly(aiPlayer: ZombiePlayer): boolean {
-  // AI 기본 정답률: 50~70%
-  const baseRate = 0.5 + Math.random() * 0.2
-  // 좀비 AI는 약간 더 높은 정답률 (위협감 조성)
-  const zombieBonus = aiPlayer.role === 'zombie' ? 0.1 : 0
-  return Math.random() < (baseRate + zombieBonus)
-}
-
-/**
- * 라운드 사이 이벤트 (랜덤 이벤트)
- */
-export type RandomEvent = {
-  type: 'fog' | 'antidote' | 'mutation' | 'safe_zone' | 'none'
-  description: string
-  effect: (players: ZombiePlayer[]) => ZombiePlayer[]
-}
-
-export function generateRandomEvent(round: number): RandomEvent {
-  // 5라운드마다 랜덤 이벤트 발생
-  if (round % 5 !== 0 || round === 0) {
-    return { type: 'none', description: '', effect: (p) => p }
-  }
-
-  const events: RandomEvent[] = [
-    {
-      type: 'fog',
-      description: '안개가 짙어집니다... 이번 라운드는 아무도 스캔할 수 없습니다!',
-      effect: (players) => players,
-    },
-    {
-      type: 'antidote',
-      description: '해독제를 발견했습니다! 모든 인간의 체력이 15 회복됩니다!',
-      effect: (players) =>
-        players.map(p =>
-          p.role === 'human'
-            ? { ...p, health: Math.min(GAME_CONSTANTS.HUMAN_MAX_HEALTH, p.health + 15) }
-            : p,
-        ),
-    },
-    {
-      type: 'mutation',
-      description: '좀비 바이러스가 변이했습니다! 좀비 공격력이 5 증가합니다!',
-      effect: (players) =>
-        players.map(p =>
-          p.role === 'zombie'
-            ? { ...p, attackPower: Math.min(GAME_CONSTANTS.ZOMBIE_MAX_ATTACK, p.attackPower + 5) }
-            : p,
-        ),
-    },
-    {
-      type: 'safe_zone',
-      description: '안전 구역을 발견했습니다! 모든 인간이 방어막 10을 획득합니다!',
-      effect: (players) =>
-        players.map(p =>
-          p.role === 'human'
-            ? { ...p, shield: Math.min(GAME_CONSTANTS.HUMAN_MAX_SHIELD, p.shield + 10) }
-            : p,
-        ),
-    },
-  ]
-
-  return events[Math.floor(Math.random() * events.length)]
 }

@@ -161,7 +161,8 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Horror',
       src: '/audio/bgm/zombie.mp3',
     },
-    description: '좀비 감염을 피해 10분간 생존하는 서바이벌 퀴즈 게임',
+    // 제한 시간은 선생님이 시작할 때 고른다(기본 5분). 설명에 특정 시간을 박아두지 않는다.
+    description: '몰래 정해진 좀비를 피해 제한 시간까지 살아남는 정체 숨김 퀴즈 게임',
     leaderboardSort: 'zombie_survived',
     requiresQuestionSet: true,
   },

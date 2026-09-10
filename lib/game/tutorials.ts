@@ -1,4 +1,5 @@
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
+import { GAME_CONSTANTS as ZOMBIE } from '@/lib/game/zombie'
 import {
   CHEST_COUNT,
   GOLD_LOSS_RATE,
@@ -354,22 +355,43 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   zombie: {
     gameMode: 'zombie',
     title: '좀비를 피해라!',
-    subtitle: '퀴즈를 풀며 감염을 피하고 제한 시간 동안 생존합니다.',
+    subtitle: '몰래 정해진 좀비를 피해 제한 시간까지 살아남는 정체 숨김 게임입니다.',
     slides: [
       {
-        title: '목표',
-        body: '좀비 감염을 피하면서 끝까지 살아남습니다.',
-        points: ['정답으로 생존 행동 확보', '위험 신호 확인', '팀 상황 살피기'],
+        title: '나는 인간일까, 좀비일까?',
+        body: '게임이 시작되면 반의 일부가 몰래 좀비가 됩니다. 내 역할은 나만 볼 수 있어요.',
+        points: [
+          '인간: 감염되지 않고 제한 시간까지 버티기',
+          '좀비: 인간을 모두 감염시키기',
+          '누가 좀비인지는 아무도 모른 채 시작합니다',
+        ],
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈, 조사, 회복, 방어가 상황에 따라 이어집니다.',
-        points: ['문제 풀기', '역할과 상태 확인', '필요한 행동 선택'],
+        title: '문제를 맞혀야 행동할 수 있어요',
+        body: '퀴즈를 맞히면 내 역할에 맞는 행동을 한 번 고를 수 있습니다.',
+        points: [
+          `인간: 치료(체력 +${ZOMBIE.HUMAN_HEAL_AMOUNT}) · 방어막(+${ZOMBIE.HUMAN_SHIELD_AMOUNT}) · 스캔(한 명의 정체 확인)`,
+          `좀비: 인간 한 명을 골라 공격 (${ZOMBIE.ZOMBIE_BASE_ATTACK} 데미지)`,
+          `3연속 정답이면 인간은 체력 +${ZOMBIE.CORRECT_STREAK_3_BONUS}, 좀비는 공격력 +${ZOMBIE.ZOMBIE_STREAK_BONUS}`,
+        ],
       },
       {
-        title: '승리 기준',
-        body: '생존 여부와 게임 내 기여가 결과에 반영됩니다.',
-        points: ['감염 피하기', '정답률 유지', '마지막까지 생존'],
+        title: '틀리면 위험해요',
+        body: `인간은 체력 ${ZOMBIE.HUMAN_INITIAL_HEALTH}으로 시작하고, 오답마다 ${ZOMBIE.WRONG_PENALTY_HUMAN}씩 줄어듭니다.`,
+        points: [
+          '방어막이 있으면 공격 데미지를 먼저 막아줍니다',
+          '체력이 0이 되면 감염되어 좀비 편이 됩니다',
+          '좀비가 되어도 계속 플레이해요 — 오답 페널티도 사라집니다',
+        ],
+      },
+      {
+        title: '승리와 순위',
+        body: '시간이 끝났을 때 인간이 한 명이라도 남아 있으면 인간 팀 승리입니다.',
+        points: [
+          '모두 감염되면 그 순간 좀비 팀 승리로 끝납니다',
+          '순위는 생존한 인간이 먼저, 그다음 감염시킨 수',
+          '스캔으로 확인한 정체는 게임이 끝날 때까지 기억됩니다',
+        ],
       },
     ],
   },
