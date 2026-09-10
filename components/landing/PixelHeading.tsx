@@ -10,18 +10,17 @@ import React from 'react'
 
 const NAVY = '#1E3A8A'
 
-// 두꺼운 외곽선 '아래'로 그림자를 얕게 깔아 입체감만 준다(너무 깊으면 글자가 무거워진다).
+// 외곽선 '아래'로만 얕게 깔아 입체감만 준다.
+// 예전에는 획 6px + 그림자 5겹이었는데, 픽셀 폰트인데도 모서리가 뭉개지고
+// '을·처·럼'의 속 구멍이 메워질 만큼 두꺼워서 획과 그림자를 함께 줄였다.
 const NAVY_SHADOW = [
-  '0 2px 0 #1E3A8A',
-  '1px 4px 0 #1B3378',
-  '1px 6px 0 #172A63',
-  '2px 8px 0 #12204D',
-  '2px 10px 10px rgba(12,32,77,0.30)',
+  '0 3px 0 #1B3378',
+  '0 5px 6px rgba(12,32,77,0.22)',
 ].join(', ')
 
 const BASE: React.CSSProperties = {
   fontFamily: "'DNFBitBitv2', sans-serif",
-  WebkitTextStrokeWidth: '6px',
+  WebkitTextStrokeWidth: '3px',
   WebkitTextStrokeColor: NAVY,
   paintOrder: 'stroke fill',
   letterSpacing: '0.04em',

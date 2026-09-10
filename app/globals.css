@@ -451,30 +451,31 @@
 
   .nav-outlined-text {
     color: white;
-    -webkit-text-stroke: 2.5px #1e3a8a;
+    /* 획과 그림자를 함께 줄였다 — 둘 다 세면 글자가 뭉개져 보인다(PixelHeading과 같은 기준) */
+    -webkit-text-stroke: 1.5px #1e3a8a;
     paint-order: stroke fill;
     text-shadow:
-      3px 3px 0px rgba(10, 20, 80, 0.35);
+      0 2px 0px rgba(10, 20, 80, 0.25);
     transition: color 0.2s, text-shadow 0.2s;
   }
 
   .nav-outlined-text:hover {
     color: #fef08a;
     text-shadow:
-      3px 3px 0px rgba(10, 20, 80, 0.45);
+      0 2px 0px rgba(10, 20, 80, 0.35);
   }
 
   .btn-sky-outlined {
-    -webkit-text-stroke: 2.5px #1e3a8a;
+    -webkit-text-stroke: 1.5px #1e3a8a;
     paint-order: stroke fill;
     text-shadow:
-      3px 3px 0px rgba(10, 20, 80, 0.35);
+      0 2px 0px rgba(10, 20, 80, 0.25);
     transition: text-shadow 0.2s;
   }
 
   .btn-sky-outlined:hover {
     text-shadow:
-      3px 3px 0px rgba(10, 20, 80, 0.45);
+      0 2px 0px rgba(10, 20, 80, 0.35);
   }
 
   .font-bitbit {
