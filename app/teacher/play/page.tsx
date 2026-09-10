@@ -348,14 +348,14 @@ export default function TeacherDashboard() {
       return
     }
 
-    // 게임이 실제로 시작됐는지 — 모든 활성 플레이어가 장비(직업)를 선택한 뒤에만 판정.
-    // (직업 선택 전에는 체력 변화가 없어 오판할 일이 없지만, 0/1명 등 엣지에서의 조기 종료를 막는다.)
+    // 실제로 싸우고 있는 학생(장비=직업을 고른 학생)만으로 판정한다.
+    // 예전에는 전원이 직업을 골랐는지 확인했는데, 게임 도중 들어와 직업 선택 화면에
+    // 머무는 학생이 한 명만 있어도 자동 종료가 영영 걸리지 않았다.
     const activePlayers = players.filter((player) => !player.is_kicked)
-    if (activePlayers.length < 2) return
-    const allReady = activePlayers.every((player) => player.player_class)
-    if (!allReady) return
+    const combatants = activePlayers.filter((player) => player.player_class)
+    if (combatants.length < 2) return
 
-    if (!isBattleGameOver(activePlayers)) return
+    if (!isBattleGameOver(combatants)) return
 
     const finishByBattleEnd = async () => {
       if (autoFinishRequestedRef.current) return

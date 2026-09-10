@@ -1,6 +1,12 @@
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
 import { GAME_CONSTANTS as ZOMBIE } from '@/lib/game/zombie'
 import {
+  PLAYER_CLASSES,
+  REVIVAL_STREAK_REQUIRED,
+  REVIVAL_HEALTH_RATIO,
+  TEAM_MIN_PLAYERS,
+} from '@/lib/game/battleRoyale'
+import {
   CHEST_COUNT,
   GOLD_LOSS_RATE,
   GOLD_MULTIPLIER,
@@ -133,22 +139,45 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   battle_royale: {
     gameMode: 'battle_royale',
     title: '눈싸움 대작전',
-    subtitle: '퀴즈로 눈덩이를 만들고 상대를 맞히는 생존 대결입니다.',
+    subtitle: '홍팀과 청팀으로 나뉘어 퀴즈로 눈뭉치를 만들고 상대 팀을 맞히는 팀 대결입니다.',
     slides: [
       {
-        title: '목표',
-        body: '체력을 지키면서 상대를 공격해 마지막까지 살아남습니다.',
-        points: ['정답으로 공격 기회 획득', '상대 체력 낮추기', '내 체력 관리하기'],
+        title: '팀과 장비를 고릅니다',
+        body: `${TEAM_MIN_PLAYERS}명 이상이면 홍팀🔥과 청팀❄️으로 자동으로 나뉩니다. 그다음 장비를 하나 고릅니다.`,
+        points: [
+          `${PLAYER_CLASSES.ice_fist.icon} ${PLAYER_CLASSES.ice_fist.name} — 세게 던지지만 다음 눈뭉치가 느립니다`,
+          `${PLAYER_CLASSES.rapid_fire.icon} ${PLAYER_CLASSES.rapid_fire.name} — 약한 대신 가장 빠르게 던집니다`,
+          `${PLAYER_CLASSES.shield.icon} ${PLAYER_CLASSES.shield.name} — 체온 ${PLAYER_CLASSES.shield.maxHealth}에 피해도 덜 받습니다`,
+          `${PLAYER_CLASSES.hot_choco.icon} ${PLAYER_CLASSES.hot_choco.name} — 맞힐 때마다 체온 +${PLAYER_CLASSES.hot_choco.healAmount}`,
+        ],
       },
       {
-        title: '플레이 방식',
-        body: '문제를 맞히면 눈덩이를 던질 수 있고, 공격 대상 선택이 중요합니다.',
-        points: ['정답 후 공격', '강한 상대 우선 견제', '체력이 낮으면 신중하게 플레이'],
+        title: '맞히면 던집니다',
+        body: '문제를 맞히면 눈뭉치가 장전됩니다. 상대 팀 친구를 골라 던지세요.',
+        points: [
+          '미리 상대를 찍어두면 정답과 동시에 날아갑니다',
+          '빨리 답할수록 데미지가 커집니다 (최대 2배 이상)',
+          '같은 팀에게는 던질 수 없어요',
+          '가끔 왕눈덩이·눈보라·휴대 난로가 나옵니다',
+        ],
+      },
+      {
+        title: '체온이 0이 되면 눈사람',
+        body: `눈사람이 되어도 끝이 아닙니다. ${REVIVAL_STREAK_REQUIRED}문제를 연속으로 맞히면 체온 ${Math.round(REVIVAL_HEALTH_RATIO * 100)}%로 돌아옵니다.`,
+        points: [
+          '눈사람인 동안에는 공격할 수 없어요',
+          '중간에 틀리면 연속 정답이 처음부터입니다',
+          '시간이 지나면 폭설 주의보로 모두의 체온이 조금씩 떨어집니다',
+        ],
       },
       {
         title: '승리 기준',
-        body: '종료 시점에 체력과 점수 흐름이 좋은 플레이어가 높은 순위를 차지합니다.',
-        points: ['생존이 핵심', '무리한 공격보다 정확도', '마지막까지 방심 금지'],
+        body: '상대 팀이 전원 눈사람이 되면 우리 팀 승리입니다.',
+        points: [
+          '시간이 끝나면 남은 체온으로 순위를 매깁니다',
+          '혼자 앞서기보다 팀의 생존자 수가 중요합니다',
+          `${TEAM_MIN_PLAYERS}명이 안 되면 팀 없이 개인전으로 진행됩니다`,
+        ],
       },
     ],
   },

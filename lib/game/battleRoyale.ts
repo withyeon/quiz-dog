@@ -67,8 +67,8 @@ export const PLAYER_CLASSES: Record<PlayerClass, PlayerClassInfo> = {
     id: 'shield',
     name: '윈터 가드',
     icon: '🛡️',
-    description: '체온이 높고 받은 피해를 안정적으로 줄입니다.',
-    damageMultiplier: 1.0,
+    description: '체온이 높고 받은 피해를 안정적으로 줄이는 대신, 눈뭉치는 조금 약합니다.',
+    damageMultiplier: 0.85,
     attackSpeed: 1.0,
     defense: 0.8,
     maxHealth: 130,
@@ -130,14 +130,15 @@ export function calculateDamage(
   // 기본 데미지: 10 (체온 감소)
   let damage = 10
 
-  // 직업별 데미지 배율 적용
-  if (playerClass) {
-    damage *= PLAYER_CLASSES[playerClass].damageMultiplier
-  }
-
-  // 빠른 답변 보너스 (10초 이내)
+  // 빠른 답변 보너스 (10초 이내). 최대 +20이라 기본값보다 크다.
   if (answerTime < 10000) {
     damage += Math.floor((10000 - answerTime) / 1000) * 2
+  }
+
+  // 직업별 데미지 배율은 속도 보너스까지 포함한 값에 건다.
+  // 예전에는 기본값 10에만 걸려서 "1.5배" 직업이 실제로는 1.25배로 때렸다.
+  if (playerClass) {
+    damage *= PLAYER_CLASSES[playerClass].damageMultiplier
   }
 
   // 크리티컬 히트 (5% 확률)

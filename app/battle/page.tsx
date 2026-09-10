@@ -137,6 +137,11 @@ export default function BattlePage() {
   const incomingAttackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const blizzardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previousHealthRef = useRef<number | null>(null)
+  // 폭설 주의보 타이머가 참조하는 값들. deps에 넣으면 플레이어 상태가 바뀔 때마다
+  // (12인 교실 기준 5분에 900회) 10초 interval이 파괴·재생성되어 영영 발동하지 않는다.
+  const playersRef = useRef(players)
+  playersRef.current = players
+  const zoneLevelRef = useRef(1)
   const battleStartTime = gameStartTime
 
   useEffect(() => {
@@ -250,8 +255,10 @@ export default function BattlePage() {
         updatePlayer(playerId, { team, revival_streak: 0 }),
       ),
     ).catch((error) => {
-      console.error('Error assigning teams:', error)
-      hasAssignedTeamsRef.current = false
+      // 재시도하지 않는다. players가 바뀔 때마다 이 effect가 다시 도는데
+      // (팀 컬럼 누락 같은) 영구적인 실패면 실패한 update를 게임 내내 쏟아붓게 된다.
+      // 팀 없이 개인전으로 그대로 진행한다.
+      console.error('팀 배정 실패 — 개인전으로 진행합니다:', error)
     })
   }, [isPreStartQuizComplete, isRoomHost, players, room?.status])
 
@@ -264,12 +271,12 @@ export default function BattlePage() {
     const hasTeams = players.some((p) => (p as Player).team)
     if (!hasTeams) return
 
-    // 모두에게 팀이 배정되었는지 확인
-    const allAssigned = players.every((p) => (p as Player).team)
-    if (!allAssigned) return
+    // 내 팀만 정해졌으면 보여준다. 예전에는 전원이 배정되기를 기다렸는데,
+    // 게임 도중 들어온 학생은 팀이 없으므로 그 방에서는 아무도 팀 화면을 보지 못했다.
+    if (!currentPlayerTeam) return
 
     setShowTeamReveal(true)
-  }, [players, room?.status, teamRevealComplete])
+  }, [currentPlayerTeam, players, room?.status, teamRevealComplete])
 
   // 배틀로얄 전용: 게임 시작 시 직업 선택 단계 추가
   useEffect(() => {
@@ -301,34 +308,38 @@ export default function BattlePage() {
     const interval = setInterval(() => {
       const elapsed = Date.now() - battleStartTime
       const newZoneLevel = Math.floor(elapsed / 120000) + 1 // 2분마다 레벨 증가
+      zoneLevelRef.current = newZoneLevel
       setZoneLevel(newZoneLevel)
     }, 1000)
 
     return () => clearInterval(interval)
   }, [battleStartTime, isPreStartQuizComplete, room?.status])
 
-  // 자기장 데미지 적용
+  // 자기장(폭설 주의보) 데미지 적용 — 10초마다.
+  // players/zoneLevel 은 ref로 읽는다. deps에 넣으면 interval이 계속 리셋되어 발동하지 않는다.
   useEffect(() => {
-    if (room?.status !== 'playing' || !battleStartTime || zoneLevel <= 1 || !isPreStartQuizComplete) return
+    if (room?.status !== 'playing' || !battleStartTime || !isPreStartQuizComplete) return
     if (!isRoomHost) return
 
     const interval = setInterval(() => {
-      // 자기장 데미지 (10초마다)
-      const zoneDamage = calculateZoneDamage(Date.now() - battleStartTime, zoneLevel)
+      const level = zoneLevelRef.current
+      if (level <= 1) return
+
+      const zoneDamage = calculateZoneDamage(Date.now() - battleStartTime, level)
+      const alive = playersRef.current.filter((player) => (player.health ?? 100) > 0)
+      if (alive.length === 0) return
 
       Promise.all(
-        players
-          .filter((player) => (player.health || 100) > 0)
-          .map((player) =>
-            commitPlayerDelta(player.id, { health: -zoneDamage }, { reason: 'battle_zone' }),
-          ),
+        alive.map((player) =>
+          commitPlayerDelta(player.id, { health: -zoneDamage }, { reason: 'battle_zone' }),
+        ),
       ).catch((error) => {
         console.error('Error applying zone damage:', error)
       })
-    }, 10000) // 10초마다
+    }, 10000)
 
     return () => clearInterval(interval)
-  }, [battleStartTime, commitPlayerDelta, isPreStartQuizComplete, isRoomHost, players, room?.status, zoneLevel])
+  }, [battleStartTime, commitPlayerDelta, isPreStartQuizComplete, isRoomHost, room?.status])
 
   // 탈락 감지 (체온이 0이 되면 눈사람으로)
   useEffect(() => {
@@ -356,11 +367,14 @@ export default function BattlePage() {
   }, [currentPlayer, currentView, playSFX])
 
   // 게임 종료 확인 (팀전 우선)
+  // 직업을 고른 학생만 판정 대상. 도중 입장자는 체력이 null이라 생존자로 잡혀
+  // 상대팀이 전멸해도 승패가 갈리지 않는다.
   useEffect(() => {
-    if (players.length > 0 && room?.status === 'playing' && isPreStartQuizComplete) {
-      const winningTeam = checkWinningTeam(players as Player[])
-      const winner = checkWinner(players as Player[])
-      if (winningTeam || winner || isGameOver(players as Player[])) {
+    const combatants = (players as Player[]).filter((p) => p.player_class)
+    if (combatants.length >= 2 && room?.status === 'playing' && isPreStartQuizComplete) {
+      const winningTeam = checkWinningTeam(combatants)
+      const winner = checkWinner(combatants)
+      if (winningTeam || winner || isGameOver(combatants)) {
         // 학생은 자기 화면만 로컬 종료한다. 방의 finished 기록은 교사 대시보드(유일한 권위자)가
         // 담당한다(시간 종료 또는 교사의 수동 종료). 학생은 세션 제어 권한이 없다.
         setCurrentView('result')
@@ -501,6 +515,9 @@ export default function BattlePage() {
     const { comboMultiplier = getComboDamageMultiplier(consecutiveCorrect), requireSnowball = true } = options
     if (!currentPlayer || !playerId) return
     if (requireSnowball && !hasSnowball) return
+    // 이미 탈락했으면 못 던진다. 나를 쓰러뜨린 공격이 아직 realtime으로 도착하지 않은
+    // 짧은 순간(실측 ~190ms)에 답을 제출하면 탈락자가 한 발 더 던질 수 있었다.
+    if ((currentPlayer.health ?? 100) <= 0) return
 
     // 같은 팀 공격 차단
     const targetPlayerCheck = players.find((p) => p.id === targetId) as Player | undefined
@@ -573,10 +590,12 @@ export default function BattlePage() {
           setCurrentItem(null)
         }
 
+        // 다음 문제까지의 간격을 직업 장전 속도에 맞춘다. 예전에는 전 직업 2000ms 고정이라,
+        // 타겟을 미리 찍는 순간 attackSpeed(스노우 런처의 유일한 장점)가 통째로 사라졌다.
         setTimeout(() => {
           setAttackResult(null)
           goToNextQuestion()
-        }, 2000)
+        }, getReloadDelay(selectedClass) + 600)
       } catch (error) {
         console.error('Error updating health:', error)
       }
@@ -589,10 +608,12 @@ export default function BattlePage() {
     if (currentItem.type === 'giant_ball') return // 자동 적용 아이템 — 칩 클릭으로 폐기되지 않도록
 
     if (currentItem.type === 'blizzard') {
-      // 1등 플레이어 화면에 눈보라 적용 — 해당 플레이어에게 realtime 전송
+      // 상대팀에서 가장 잘 버티고 있는 생존자의 화면을 가린다.
+      // (눈싸움은 score를 쓰지 않아 전원 0이었고, 팀·탈락 여부도 안 걸러서
+      //  같은 팀이나 이미 탈락한 학생에게 날아가곤 했다.)
       const topPlayer = players
-        .filter(p => p.id !== playerId && (p.health || 100) > 0)
-        .sort((a, b) => (b.score || 0) - (a.score || 0))[0]
+        .filter((p) => canAttackTarget(currentPlayer as Player, p as Player))
+        .sort((a, b) => (b.health ?? 0) - (a.health ?? 0))[0]
 
       if (topPlayer) {
         await sendRoomEvent('battle:blizzard', { targetId: topPlayer.id })
@@ -985,7 +1006,7 @@ export default function BattlePage() {
               )}
             </AnimatePresence>
 
-            {currentView === 'quiz' && !showCountdown && currentPlayer && (currentPlayer.health || 100) > 0 && !isEliminated && (
+            {currentView === 'quiz' && !showCountdown && currentPlayer && (currentPlayer.health ?? 100) > 0 && !isEliminated && (
               <div className="space-y-4">
                 {lockedTarget ? (
                   <motion.div
