@@ -1,5 +1,7 @@
 'use client'
 
+import { withJosa } from '@/lib/utils/korean'
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Eye, DollarSign, Gem, Radio, ShieldAlert, Users } from 'lucide-react'
@@ -263,7 +265,7 @@ export default function MafiaView({
         : Promise.resolve(),
       commitPlayerPatch(player.id, createFlagPatch(result.newPlayer), 'mafia_cheat_flags'),
     ])
-    broadcastLog(`${player.name}가 금고 쪽에서 수상한 움직임을 보였습니다.`, 'warning')
+    broadcastLog(`${withJosa(player.name, '이/가')} 금고 쪽에서 수상한 움직임을 보였습니다.`, 'warning')
     playSFX('click')
   }
 

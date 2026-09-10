@@ -1,3 +1,4 @@
+import { numberWithJosa, withJosa } from '@/lib/utils/korean'
 // Mafia Heist: Deceptive Dinos 스타일 게임 로직 및 타입 정의
 
 export type MultiplierType = 1.5 | 2
@@ -53,15 +54,19 @@ export { formatTime } from '@/lib/utils/formatTime'
 export function generateSafeVaults(): SafeVault[] {
   const vaults: SafeVault[] = []
   
-  // 보상 분배 확률 (Deceptive Dinos 스타일):
-  // - 소액 현금 (10-25): 25%
-  // - 중간 현금 (50-100): 20%
+  // 보상 분배 확률:
+  // - 소액 현금 (10-25): 36%
+  // - 중간 현금 (50-100): 28%
   // - 대액 현금 (125-250): 10%
   // - 최대 현금 (500): 3%
-  // - 다이아몬드 (1-3): 15%
-  // - 배수 x1.5: 5% (낮은 확률)
-  // - 배수 x2: 3% (낮은 확률)
-  // - 빈칸: 19%
+  // - 다이아몬드 (1-3): 15%  ← 원작에 없는 우리 고유 보상
+  // - 배수 x1.5: 5%
+  // - 배수 x2: 3%
+  //
+  // 빈칸은 두지 않는다. 원작(Deceptive Dinos)의 돌은 반드시 화석이나 배수를 주고,
+  // 화석을 잃는 경로는 몰래보다 걸렸을 때뿐이다. 예전에는 19%가 빈칸이라
+  // 문제를 맞히고 금고를 골라도 다섯 번에 한 번은 허탕이었다.
+  // 없앤 19%는 흔한 구간(소액·중간)에 얹어 상위 보상의 희소성은 그대로 뒀다.
   
   for (let i = 0; i < VAULT_COUNT; i++) {
     const rand = Math.random()
@@ -69,11 +74,11 @@ export function generateSafeVaults(): SafeVault[] {
     let amount = 0
     let multiplierType: MultiplierType | undefined
 
-    if (rand < 0.25) {
+    if (rand < 0.36) {
       // 소액 현금 (10-25) - Amber, Dino Egg 수준
       reward = 'cash'
       amount = Math.floor(Math.random() * 16) + 10 // 10-25
-    } else if (rand < 0.45) {
+    } else if (rand < 0.64) {
       // 중간 현금 (50-100) - Dino Fossil, Stegosaurus, Velociraptor 수준
       reward = 'cash'
       const tier = Math.random()
@@ -84,7 +89,7 @@ export function generateSafeVaults(): SafeVault[] {
       } else {
         amount = 100 // Velociraptor
       }
-    } else if (rand < 0.55) {
+    } else if (rand < 0.74) {
       // 대액 현금 (125-250) - Brontosaurus, Triceratops 수준
       reward = 'cash'
       const tier = Math.random()
@@ -93,28 +98,24 @@ export function generateSafeVaults(): SafeVault[] {
       } else {
         amount = 250 // Triceratops
       }
-    } else if (rand < 0.58) {
+    } else if (rand < 0.77) {
       // 최대 현금 (500) - Tyrannosaurus Rex 수준
       reward = 'cash'
       amount = 500
-    } else if (rand < 0.73) {
+    } else if (rand < 0.92) {
       // 다이아몬드
       reward = 'diamond'
       amount = Math.floor(Math.random() * 3) + 1 // 1-3
-    } else if (rand < 0.78) {
+    } else if (rand < 0.97) {
       // 배수 x1.5 (5% 확률)
       reward = 'multiplier_1.5'
       multiplierType = 1.5
       amount = 1
-    } else if (rand < 0.81) {
+    } else {
       // 배수 x2 (3% 확률)
       reward = 'multiplier_2'
       multiplierType = 2
       amount = 1
-    } else {
-      // 빈칸 (19% 확률)
-      reward = 'empty'
-      amount = 0
     }
 
     vaults.push({
@@ -181,9 +182,9 @@ export function openSafeVault(
       const finalAmount = Math.floor(baseAmount * totalMultiplier)
       newPlayer.cash += finalAmount
       if (totalMultiplier > 1) {
-        log = `${player.name}가 금고에서 $${baseAmount}를 발견했습니다! (배수 x${totalMultiplier.toFixed(1)} 적용: $${finalAmount})`
+        log = `${withJosa(player.name, '이/가')} 금고에서 $${numberWithJosa(baseAmount, '을/를')} 발견했습니다! (배수 x${totalMultiplier.toFixed(1)} 적용: $${finalAmount})`
       } else {
-        log = `${player.name}가 금고에서 $${finalAmount}를 발견했습니다.`
+        log = `${withJosa(player.name, '이/가')} 금고에서 $${numberWithJosa(finalAmount, '을/를')} 발견했습니다.`
       }
       break
     }
@@ -192,24 +193,24 @@ export function openSafeVault(
       const finalAmount = Math.floor(baseAmount * totalMultiplier)
       newPlayer.diamonds += finalAmount
       if (totalMultiplier > 1) {
-        log = `${player.name}가 다이아몬드 ${baseAmount}개를 발견했습니다! (배수 x${totalMultiplier.toFixed(1)} 적용: ${finalAmount}개)`
+        log = `${withJosa(player.name, '이/가')} 다이아몬드 ${baseAmount}개를 발견했습니다! (배수 x${totalMultiplier.toFixed(1)} 적용: ${finalAmount}개)`
       } else {
-        log = `${player.name}가 다이아몬드 ${finalAmount}개를 발견했습니다!`
+        log = `${withJosa(player.name, '이/가')} 다이아몬드 ${finalAmount}개를 발견했습니다!`
       }
       break
     }
     case 'multiplier_1.5': {
       newPlayer.multipliers.push(1.5)
-      log = `${player.name}가 배수 x1.5를 획득했습니다! (현재 배수: x${calculateTotalMultiplier(newPlayer.multipliers).toFixed(1)})`
+      log = `${withJosa(player.name, '이/가')} 배수 x1.5를 획득했습니다! (현재 배수: x${calculateTotalMultiplier(newPlayer.multipliers).toFixed(1)})`
       break
     }
     case 'multiplier_2': {
       newPlayer.multipliers.push(2)
-      log = `${player.name}가 배수 x2를 획득했습니다! (현재 배수: x${calculateTotalMultiplier(newPlayer.multipliers).toFixed(1)})`
+      log = `${withJosa(player.name, '이/가')} 배수 x2를 획득했습니다! (현재 배수: x${calculateTotalMultiplier(newPlayer.multipliers).toFixed(1)})`
       break
     }
     case 'empty':
-      log = `${player.name}가 빈 금고를 열었습니다.`
+      log = `${withJosa(player.name, '이/가')} 빈 금고를 열었습니다.`
       break
   }
 
@@ -237,7 +238,7 @@ export function applyCheat(
 
   return {
     newPlayer,
-    log: `${player.name}가 금고를 몰래 들여다봅니다...`,
+    log: `${withJosa(player.name, '이/가')} 금고를 몰래 들여다봅니다...`,
     vaultContents,
   }
 }
@@ -260,7 +261,7 @@ export function detectCheating(
 
     return {
       newPlayer,
-      log: `🚨 ${cheater.name}의 치팅이 발각되었습니다! $${penalty}를 잃었습니다.`,
+      log: `🚨 ${cheater.name}의 치팅이 발각되었습니다! $${numberWithJosa(penalty, '을/를')} 잃었습니다.`,
       caught: true,
     }
   }
@@ -308,7 +309,7 @@ export function attemptInvestigate(
       success: false,
       newInvestigator: investigator,
       newTarget: target,
-      log: `${target.name}는 이미 감옥에 있습니다.`,
+      log: `${withJosa(target.name, '은/는')} 이미 감옥에 있습니다.`,
       result: 'CLEAR',
     }
   }
@@ -333,7 +334,7 @@ export function attemptInvestigate(
       success: true,
       newInvestigator,
       newTarget,
-      log: `🚨 CHEATER! ${target.name}가 금고를 몰래봤습니다! ${investigator.name}가 $${recovered}를 환수했습니다.`,
+      log: `🚨 CHEATER! ${withJosa(target.name, '이/가')} 금고를 몰래봤습니다! ${withJosa(investigator.name, '이/가')} $${numberWithJosa(recovered, '을/를')} 환수했습니다.`,
       result: 'CHEATER',
       recovered,
     }
@@ -344,7 +345,7 @@ export function attemptInvestigate(
     success: false,
     newInvestigator: investigator,
     newTarget: target,
-    log: `CLEAR: ${target.name}는 결백했습니다.`,
+    log: `CLEAR: ${withJosa(target.name, '은/는')} 결백했습니다.`,
     result: 'CLEAR',
   }
 }
@@ -353,9 +354,9 @@ export function attemptInvestigate(
 // AI 치팅 힌트 생성
 export function generateCheatHint(cheater: Player): string {
   const hints = [
-    `${cheater.name}가 주위를 두리번거립니다...`,
+    `${withJosa(cheater.name, '이/가')} 주위를 두리번거립니다...`,
     `${cheater.name}의 행동이 수상합니다.`,
-    `${cheater.name}가 금고를 계속 들여다봅니다...`,
+    `${withJosa(cheater.name, '이/가')} 금고를 계속 들여다봅니다...`,
     `누군가 치팅을 시도하고 있는 것 같습니다...`,
   ]
   return hints[Math.floor(Math.random() * hints.length)]
@@ -373,10 +374,10 @@ export function aiAutoEarn(player: Player): { newPlayer: Player; log: string } {
   }
   
   if (totalMultiplier > 1) {
-    const log = `${player.name}가 금고를 열어 $${baseEarned}를 획득했습니다. (배수 x${totalMultiplier.toFixed(1)} 적용: $${finalEarned})`
+    const log = `${withJosa(player.name, '이/가')} 금고를 열어 $${numberWithJosa(baseEarned, '을/를')} 획득했습니다. (배수 x${totalMultiplier.toFixed(1)} 적용: $${finalEarned})`
     return { newPlayer, log }
   } else {
-    const log = `${player.name}가 금고를 열어 $${finalEarned}를 획득했습니다.`
+    const log = `${withJosa(player.name, '이/가')} 금고를 열어 $${numberWithJosa(finalEarned, '을/를')} 획득했습니다.`
     return { newPlayer, log }
   }
 }

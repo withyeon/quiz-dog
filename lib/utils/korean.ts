@@ -23,3 +23,23 @@ export function withJosa(word: string, pair: JosaPair): string {
   const [withFinal, withoutFinal] = pair.split('/')
   return `${word}${hasFinalConsonant(word) ? withFinal : withoutFinal}`
 }
+
+/**
+ * 숫자 뒤에 붙는 조사를 골라 줍니다.
+ *
+ * 조사는 글자가 아니라 "읽는 소리"의 받침을 따릅니다.
+ *   50 → 오십(ㅂ받침) → "50을"
+ *   75 → 칠십오(받침 없음) → "75를"
+ * 끝자리 2·4·5·9 는 이·사·오·구로 끝나 받침이 없고, 나머지는 받침이 있습니다.
+ * 0 으로 끝나면 십·백·천·만이 되어 모두 받침이 있습니다.
+ */
+export function numberHasFinalConsonant(value: number): boolean {
+  const lastDigit = Math.abs(Math.trunc(value)) % 10
+  return ![2, 4, 5, 9].includes(lastDigit)
+}
+
+/** 숫자 뒤에 조사를 받침에 맞게 붙여 줍니다. numberWithJosa(50, '을/를') → '50을' */
+export function numberWithJosa(value: number, pair: JosaPair): string {
+  const [withFinal, withoutFinal] = pair.split('/')
+  return `${value}${numberHasFinalConsonant(value) ? withFinal : withoutFinal}`
+}
