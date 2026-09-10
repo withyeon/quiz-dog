@@ -9,10 +9,13 @@ interface GameModeSelectorProps {
 }
 
 export default function GameModeSelector({ selectedMode, onSelectMode }: GameModeSelectorProps) {
+  const selectedDescription = VISIBLE_GAME_MODES.find((mode) => mode.id === selectedMode)?.description
+
   return (
     <div className="mb-6">
       <label className="block text-sm font-semibold text-gray-900 mb-4">게임 모드 선택</label>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* 게임 수(6개)가 딱 나뉘는 열 수만 쓴다 — auto-fill 로 두면 5+1 처럼 어정쩡하게 끊긴다 */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {VISIBLE_GAME_MODES.map((mode) => {
           const isSelected = selectedMode === mode.id
           return (
@@ -20,9 +23,9 @@ export default function GameModeSelector({ selectedMode, onSelectMode }: GameMod
               key={mode.id}
               type="button"
               onClick={() => onSelectMode(mode.id)}
-              className={`p-6 rounded-xl border-2 transition-all flex flex-col items-center justify-center min-h-[420px] ${
+              className={`flex flex-col items-center rounded-xl border-2 p-3 text-center transition-all ${
                 isSelected
-                  ? 'border-blue-500 bg-blue-50 shadow-md scale-[1.02]'
+                  ? 'border-blue-500 bg-blue-50 shadow-md'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
               }`}
             >
@@ -30,23 +33,31 @@ export default function GameModeSelector({ selectedMode, onSelectMode }: GameMod
                 <Image
                   src={mode.image}
                   alt={mode.label}
-                  width={500}
-                  height={500}
-                  className="w-80 h-80 max-w-full object-contain mb-5"
+                  width={256}
+                  height={256}
+                  className="h-24 w-24 max-w-full object-contain"
                 />
               ) : (
-                <div className="text-9xl mb-5">{mode.emoji}</div>
+                <div className="flex h-24 w-24 items-center justify-center text-5xl">{mode.emoji}</div>
               )}
-              <div
-                className="text-base text-gray-600 text-center px-2"
+              {/* 그림이 작아지면 그림 안의 제목이 안 읽히므로 이름을 따로 적는다 */}
+              <span
+                className="mt-2 text-sm font-bold text-gray-900"
                 style={{ fontFamily: mode.fontFamily ?? "'DNFBitBitv2', sans-serif" }}
               >
-                {mode.description}
-              </div>
+                {mode.shortLabel}
+              </span>
             </button>
           )
         })}
       </div>
+
+      {/* 카드마다 넣던 설명은 고른 게임 것만 아래에 보여준다 */}
+      {selectedDescription && (
+        <p className="mt-3 rounded-xl bg-slate-50 px-4 py-3 text-sm font-medium text-slate-600">
+          {selectedDescription}
+        </p>
+      )}
     </div>
   )
 }
