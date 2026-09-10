@@ -13,7 +13,20 @@ interface ZombieDashboardProps {
 }
 
 export default function ZombieDashboard({ players, room }: ZombieDashboardProps) {
-  const activePlayers = useMemo(() => players.filter((p) => !p.is_kicked), [players])
+  // 게임 중에는 누가 감염됐는지 개별 공개하지 않는다. 이 화면은 교실 TV에 띄우는 경우가
+  // 많아서, 시작 좀비가 그대로 노출되면 정체 숨김 게임이 첫 라운드에 끝나버린다.
+  const rolesRevealed = room.status === 'finished'
+
+  const activePlayers = useMemo(
+    () => players
+      .filter((p) => !p.is_kicked)
+      // 목록은 점수순으로 들어온다. 좀비 모드는 점수가 역할과 묶여 있어(인간 200+체력 / 좀비 감염수)
+      // 그 순서 자체가 정체를 흘린다. 게임 중에는 역할과 무관한 이름순으로 세운다.
+      .sort((a, b) => rolesRevealed
+        ? (b.score ?? 0) - (a.score ?? 0)
+        : a.nickname.localeCompare(b.nickname, 'ko')),
+    [players, rolesRevealed],
+  )
 
   const { humanCount, zombieCount, totalWithRoles } = useMemo(() => {
     let humans = 0
@@ -39,7 +52,11 @@ export default function ZombieDashboard({ players, room }: ZombieDashboardProps)
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 mb-6 border border-gray-200">
       <h2 className="text-2xl font-semibold mb-1 text-gray-900">🧟 좀비를 피해라! 현황</h2>
-      <p className="text-sm text-gray-500 mb-5">역할·점수는 게임 종료 후 공개됩니다 (공개 시 좀비 신원 노출 방지)</p>
+      <p className="text-sm text-gray-500 mb-5">
+        {rolesRevealed
+          ? '게임이 끝나 역할이 공개되었습니다.'
+          : '누가 감염됐는지는 게임이 끝난 뒤 공개됩니다 (화면을 띄워둬도 정체가 새지 않도록).'}
+      </p>
 
       <div className="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-4">
         <StatCard label="참가자" value={`${activePlayers.length}명`} color="gray" />
@@ -79,9 +96,11 @@ export default function ZombieDashboard({ players, room }: ZombieDashboardProps)
                 className={`rounded-lg px-3 py-2 text-center text-sm font-bold border ${
                   !meta
                     ? 'border-gray-200 bg-gray-50 text-gray-500'
-                    : isAlive
-                      ? 'border-blue-200 bg-blue-50 text-blue-800'
-                      : 'border-green-200 bg-green-50 text-green-800'
+                    : !rolesRevealed
+                      ? 'border-slate-200 bg-slate-50 text-slate-700'
+                      : isAlive
+                        ? 'border-blue-200 bg-blue-50 text-blue-800'
+                        : 'border-green-200 bg-green-50 text-green-800'
                 }`}
               >
                 {player.nickname}
@@ -90,7 +109,9 @@ export default function ZombieDashboard({ players, room }: ZombieDashboardProps)
           })}
         </div>
         <p className="mt-2 text-xs text-gray-400">
-          파란색: 생존 중 · 초록색: 감염됨 · 회색: 역할 미배정
+          {rolesRevealed
+            ? '파란색: 생존 · 초록색: 감염됨 · 회색: 역할 미배정'
+            : '회색: 게임 도중 들어와 역할이 없는 학생 · 나머지는 종료 후 공개'}
         </p>
       </div>
     </div>

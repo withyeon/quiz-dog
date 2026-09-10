@@ -5,6 +5,10 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { CHARACTERS, type Character, getCharacterDisplay } from '@/lib/utils/characters'
 
+// 퀴즈독 브랜드(하늘 + 남색) 톤 — 학생 입장 화면의 다른 요소와 같은 언어
+const CATEGORY_ACTIVE = 'bg-sky-500 text-white shadow-[0_3px_0_#0b8fc4]'
+const CATEGORY_IDLE = 'border-2 border-sky-100 bg-white text-sky-700 hover:border-sky-300'
+
 interface CharacterSelectorProps {
   selectedCharacterId?: string
   onSelect: (character: Character) => void
@@ -32,30 +36,24 @@ export default function CharacterSelector({
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setSelectedCategory(undefined)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              !selectedCategory
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`rounded-full px-4 py-2 text-sm font-black transition-all ${
+              !selectedCategory ? CATEGORY_ACTIVE : CATEGORY_IDLE
             }`}
           >
             전체
           </button>
           <button
             onClick={() => setSelectedCategory('default')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              selectedCategory === 'default'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`rounded-full px-4 py-2 text-sm font-black transition-all ${
+              selectedCategory === 'default' ? CATEGORY_ACTIVE : CATEGORY_IDLE
             }`}
           >
             기본
           </button>
           <button
             onClick={() => setSelectedCategory('premium')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              selectedCategory === 'premium'
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            className={`rounded-full px-4 py-2 text-sm font-black transition-all ${
+              selectedCategory === 'premium' ? CATEGORY_ACTIVE : CATEGORY_IDLE
             }`}
           >
             프리미엄
@@ -79,12 +77,12 @@ export default function CharacterSelector({
               aria-disabled={isTaken}
               whileHover={isTaken ? undefined : { scale: 1.1, y: -5 }}
               whileTap={isTaken ? undefined : { scale: 0.95 }}
-              className={`relative p-1 rounded-xl border-2 transition-all ${
+              className={`relative rounded-2xl border-2 p-1 transition-all ${
                 isTaken
-                  ? 'border-gray-200 bg-gray-100 opacity-50 grayscale cursor-not-allowed'
+                  ? 'cursor-not-allowed border-slate-200 bg-slate-100 opacity-50 grayscale'
                   : isSelected
-                    ? 'border-indigo-500 bg-indigo-50 shadow-lg scale-105'
-                    : 'border-gray-200 bg-white hover:border-indigo-300'
+                    ? 'scale-105 border-sky-400 bg-sky-50 shadow-[0_4px_0_rgba(186,230,253,0.9),0_10px_20px_rgba(14,165,233,0.18)]'
+                    : 'border-sky-100 bg-white hover:border-sky-300 hover:bg-sky-50/60'
               }`}
               title={isTaken ? `${character.name} (이미 친구가 선택함)` : character.name}
             >
@@ -111,7 +109,8 @@ export default function CharacterSelector({
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  className="absolute -top-2 -right-2 bg-indigo-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold"
+                  className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full text-xs font-black text-white"
+                  style={{ background: 'linear-gradient(180deg, #4FC3F7 0%, #0ea5e9 100%)', boxShadow: '0 2px 0 #0b8fc4' }}
                 >
                   ✓
                 </motion.div>
@@ -120,7 +119,7 @@ export default function CharacterSelector({
               {/* 이미 다른 친구가 선택한 캐릭터 표시 */}
               {isTaken && (
                 <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-black/10">
-                  <span className="rounded-full bg-gray-700/90 px-1.5 py-0.5 text-[9px] font-bold text-white">사용중</span>
+                  <span className="rounded-full bg-slate-700/90 px-1.5 py-0.5 text-[9px] font-black text-white">사용중</span>
                 </div>
               )}
             </motion.button>
@@ -130,9 +129,9 @@ export default function CharacterSelector({
 
       {/* 선택된 캐릭터 정보 */}
       {selectedCharacterId && (
-        <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-          <p className="text-sm text-gray-700">
-            선택된 캐릭터: <span className="font-semibold text-indigo-600">
+        <div className="mt-4 rounded-2xl border-2 border-sky-100 bg-sky-50 p-3">
+          <p className="text-sm font-black" style={{ color: '#334155' }}>
+            선택된 캐릭터: <span className="font-black" style={{ color: '#0369A1' }}>
               {CHARACTERS.find(c => c.id === selectedCharacterId)?.name}
             </span>
           </p>

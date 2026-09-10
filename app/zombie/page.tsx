@@ -14,9 +14,15 @@ import {
   getZombieMeta,
   roomPlayerToZombiePlayer,
   GAME_CONSTANTS,
+  ZOMBIE_ACTION_LIMITS,
+  type ZombieActionKind,
 } from '@/lib/game/zombie'
-import { updatePlayer } from '@/lib/services/players'
-import { zombieAttack as zombieAttackRpc, pickDeltaFields } from '@/lib/services/playerMutations'
+import {
+  zombieAttack as zombieAttackRpc,
+  zombieApplyAction,
+  pickDeltaFields,
+  type ZombieAttackResult,
+} from '@/lib/services/playerMutations'
 import { useGameBase } from '@/hooks/useGameBase'
 import type { Database } from '@/types/database.types'
 
@@ -52,6 +58,16 @@ export default function ZombiePage() {
   })
   const [showRoleReveal, setShowRoleReveal] = useState(false)
 
+  // 서버가 소유하는 좀비 상태. 클라이언트는 RPC가 돌려준 이 값만 반영·전파한다.
+  const broadcastAuthoritativeRow = useCallback((
+    row: Database['public']['Tables']['players']['Row'],
+    reason: string,
+  ) => {
+    const patch = pickDeltaFields(row, ['health', 'attack_power', 'score', 'active_item'])
+    applyPlayerPatch(row.id, patch)
+    void sendRoomEvent('player:patch', { playerId: row.id, patch, reason })
+  }, [applyPlayerPatch, sendRoomEvent])
+
   const activeRoomPlayers = useMemo(
     () => players.filter((player) => !player.is_kicked),
     [players],
@@ -64,23 +80,27 @@ export default function ZombiePage() {
     zombieId: string,
     targetId: string,
     damage: number,
-  ) => {
-    const rows = await zombieAttackRpc(
+  ): Promise<ZombieAttackResult> => {
+    const result = await zombieAttackRpc(
       zombieId,
       targetId,
       damage,
       GAME_CONSTANTS.INFECTION_THRESHOLD,
       GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
     )
-    const fields: Array<keyof Database['public']['Tables']['players']['Row']> = [
-      'health', 'attack_power', 'score', 'active_item',
-    ]
-    rows.forEach((row) => {
-      const patch = pickDeltaFields(row, fields)
-      applyPlayerPatch(row.id, patch)
-      void sendRoomEvent('player:patch', { playerId: row.id, patch, reason: 'zombie_attack' })
-    })
-  }, [applyPlayerPatch, sendRoomEvent])
+    result.players.forEach((row) => broadcastAuthoritativeRow(row, 'zombie_attack'))
+    return result
+  }, [broadcastAuthoritativeRow])
+
+  // 퀴즈 결과·인간 행동도 서버가 판정한다. 클라이언트는 역할·체력을 절대값으로
+  // 쓰지 않는다 — 감염 직후의 오래된 로컬 스냅샷이 감염을 되돌리기 때문.
+  const handleZombieAction = useCallback(async (action: ZombieActionKind) => {
+    if (!playerId) return null
+    const row = await zombieApplyAction(playerId, action, { ...ZOMBIE_ACTION_LIMITS })
+    if (!row) return null
+    broadcastAuthoritativeRow(row, `zombie_${action}`)
+    return row
+  }, [broadcastAuthoritativeRow, playerId])
   // 게임 시작 전 입장한 플레이어만 (도중 입장자는 active_item이 null)
   const playersWithRoles = useMemo(
     () => activeRoomPlayers.filter((player) => getZombieMeta(player)),
@@ -99,6 +119,8 @@ export default function ZombiePage() {
     : `${humanSurvivors.length}명의 인간이 생존했습니다! 인간 팀 승리!`
   const myWon = myPlayer ? myPlayer.role === winner : false
   const hasAssignedRoles = playersWithRoles.length > 0
+  // 게임이 시작된 뒤 들어온 학생은 역할이 없다. 유령 타깃이 되지 않도록 따로 안내한다.
+  const isLateJoiner = hasAssignedRoles && !(currentPlayer && getZombieMeta(currentPlayer))
 
   useEffect(() => {
     if (room?.status === 'waiting' && currentView !== 'lobby') {
@@ -248,7 +270,19 @@ export default function ZombiePage() {
         )}
 
         {room?.status === 'playing' && currentView !== 'lobby' && !showRoleReveal && (
-          hasAssignedRoles ? (
+          isLateJoiner ? (
+            <motion.div key="late" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-6 text-center">
+              <div className="max-w-md rounded-2xl border-4 border-green-600 bg-black/85 p-8">
+                <div className="mb-4 flex justify-center">
+                  <ZombieIcon name="zombie" size={72} alt="" />
+                </div>
+                <p className="text-3xl font-black text-green-300">이미 시작된 게임이에요</p>
+                <p className="mt-3 text-lg text-gray-300">
+                  역할은 게임이 시작될 때 한 번만 배정돼요. 다음 게임에 참여해 주세요!
+                </p>
+              </div>
+            </motion.div>
+          ) : hasAssignedRoles ? (
             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-dvh w-full">
               <ZombieView
                 roomCode={roomCode}
@@ -256,7 +290,7 @@ export default function ZombiePage() {
                 roomStatus={room?.status ?? 'waiting'}
                 roomStartedAt={room?.started_at ?? null}
                 roomDurationSeconds={room?.duration_seconds ?? null}
-                roomPlayers={activeRoomPlayers}
+                roomPlayers={playersWithRoles}
                 currentQuestion={currentQuestion}
                 onAnswer={checkAnswer}
                 onNextQuestion={goToNextQuestion}
@@ -264,13 +298,7 @@ export default function ZombiePage() {
                 // 학생은 방을 종료(DB 기록)할 권한이 없다. 자기 화면만 로컬 종료하고,
                 // 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당한다.
                 onFinishRoom={async () => { setCurrentView('result'); return false }}
-                onPlayerPatch={(targetPlayerId, patch, reason) => {
-                  applyPlayerPatch(targetPlayerId, patch)
-                  void sendRoomEvent('player:patch', { playerId: targetPlayerId, patch, reason })
-                  void updatePlayer(targetPlayerId, patch).catch((error) => {
-                    console.error('좀비 플레이어 업데이트 실패:', error)
-                  })
-                }}
+                onZombieAction={handleZombieAction}
                 onZombieAttack={handleZombieAttack}
               />
             </motion.div>

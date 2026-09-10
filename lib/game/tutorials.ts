@@ -1,4 +1,12 @@
 import { getGameModeConfig, type GameModeId } from '@/lib/game/modes'
+import { GAME_CONSTANTS as ZOMBIE } from '@/lib/game/zombie'
+import {
+  PLAYER_CLASSES,
+  REVIVAL_STREAK_REQUIRED,
+  REVIVAL_HEALTH_RATIO,
+  TEAM_MIN_PLAYERS,
+} from '@/lib/game/battleRoyale'
+import { DEFAULT_SETTINGS as DLD_SETTINGS, ENERGY as DLD_ENERGY } from '@/lib/game/dontlookdown'
 import {
   CHEST_COUNT,
   GOLD_LOSS_RATE,
@@ -132,22 +140,45 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   battle_royale: {
     gameMode: 'battle_royale',
     title: '눈싸움 대작전',
-    subtitle: '퀴즈로 눈덩이를 만들고 상대를 맞히는 생존 대결입니다.',
+    subtitle: '홍팀과 청팀으로 나뉘어 퀴즈로 눈뭉치를 만들고 상대 팀을 맞히는 팀 대결입니다.',
     slides: [
       {
-        title: '목표',
-        body: '체력을 지키면서 상대를 공격해 마지막까지 살아남습니다.',
-        points: ['정답으로 공격 기회 획득', '상대 체력 낮추기', '내 체력 관리하기'],
+        title: '팀과 장비를 고릅니다',
+        body: `${TEAM_MIN_PLAYERS}명 이상이면 홍팀🔥과 청팀❄️으로 자동으로 나뉩니다. 그다음 장비를 하나 고릅니다.`,
+        points: [
+          `${PLAYER_CLASSES.ice_fist.icon} ${PLAYER_CLASSES.ice_fist.name} — 세게 던지지만 다음 눈뭉치가 느립니다`,
+          `${PLAYER_CLASSES.rapid_fire.icon} ${PLAYER_CLASSES.rapid_fire.name} — 약한 대신 가장 빠르게 던집니다`,
+          `${PLAYER_CLASSES.shield.icon} ${PLAYER_CLASSES.shield.name} — 체온 ${PLAYER_CLASSES.shield.maxHealth}에 피해도 덜 받습니다`,
+          `${PLAYER_CLASSES.hot_choco.icon} ${PLAYER_CLASSES.hot_choco.name} — 맞힐 때마다 체온 +${PLAYER_CLASSES.hot_choco.healAmount}`,
+        ],
       },
       {
-        title: '플레이 방식',
-        body: '문제를 맞히면 눈덩이를 던질 수 있고, 공격 대상 선택이 중요합니다.',
-        points: ['정답 후 공격', '강한 상대 우선 견제', '체력이 낮으면 신중하게 플레이'],
+        title: '맞히면 던집니다',
+        body: '문제를 맞히면 눈뭉치가 장전됩니다. 상대 팀 친구를 골라 던지세요.',
+        points: [
+          '미리 상대를 찍어두면 정답과 동시에 날아갑니다',
+          '빨리 답할수록 데미지가 커집니다 (최대 2배 이상)',
+          '같은 팀에게는 던질 수 없어요',
+          '가끔 왕눈덩이·눈보라·휴대 난로가 나옵니다',
+        ],
+      },
+      {
+        title: '체온이 0이 되면 눈사람',
+        body: `눈사람이 되어도 끝이 아닙니다. ${REVIVAL_STREAK_REQUIRED}문제를 연속으로 맞히면 체온 ${Math.round(REVIVAL_HEALTH_RATIO * 100)}%로 돌아옵니다.`,
+        points: [
+          '눈사람인 동안에는 공격할 수 없어요',
+          '중간에 틀리면 연속 정답이 처음부터입니다',
+          '시간이 지나면 폭설 주의보로 모두의 체온이 조금씩 떨어집니다',
+        ],
       },
       {
         title: '승리 기준',
-        body: '종료 시점에 체력과 점수 흐름이 좋은 플레이어가 높은 순위를 차지합니다.',
-        points: ['생존이 핵심', '무리한 공격보다 정확도', '마지막까지 방심 금지'],
+        body: '상대 팀이 전원 눈사람이 되면 우리 팀 승리입니다.',
+        points: [
+          '시간이 끝나면 남은 체온으로 순위를 매깁니다',
+          '혼자 앞서기보다 팀의 생존자 수가 중요합니다',
+          `${TEAM_MIN_PLAYERS}명이 안 되면 팀 없이 개인전으로 진행됩니다`,
+        ],
       },
     ],
   },
@@ -299,22 +330,44 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   dontlookdown: {
     gameMode: 'dontlookdown',
     title: '점프점프',
-    subtitle: '퀴즈를 풀고 발판을 올라 정상에 가까워지는 등반 게임입니다.',
+    subtitle: '문제를 풀어 에너지를 얻고, 그 에너지로 발판을 올라 정상까지 가는 등반 게임입니다.',
     slides: [
       {
-        title: '목표',
-        body: '떨어지지 않고 최대한 높이 올라갑니다.',
-        points: ['정답으로 진행 기회 확보', '발판을 침착하게 선택', '높이 올라갈수록 집중'],
+        title: '움직이려면 에너지가 필요해요',
+        body: '걷는 것도 점프도 전부 에너지를 씁니다. 에너지가 떨어지면 그 자리에서 한 발짝도 못 움직여요.',
+        points: [
+          `점프 한 번 ${DLD_ENERGY.JUMP_COST} · 더블 점프 ${DLD_ENERGY.DOUBLE_JUMP_COST} · 걷기 초당 ${Math.round(DLD_ENERGY.MOVE_COST * 60)}`,
+          `시작 에너지는 ${DLD_ENERGY.START} — 점프 두 번이면 끝납니다`,
+          `떨어지면 ${DLD_ENERGY.FALL_PENALTY}을 잃고 마지막 체크포인트로 돌아가요`,
+        ],
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈와 점프 판단이 함께 이어집니다.',
-        points: ['문제 풀기', '다음 발판 확인', '위험한 발판 피하기'],
+        title: '에너지는 문제로 채웁니다',
+        body: `Q키(또는 화면의 문제 버튼)로 언제든 문제를 열 수 있어요. 맞히면 에너지 +${DLD_SETTINGS.energyPerQuestion}.`,
+        points: [
+          '연속으로 맞히면 콤보 보너스가 최대 +400까지 붙습니다',
+          '틀리면 에너지가 줄어드니 급하게 찍지 마세요',
+          '오르다 막히면 안전한 발판에서 문제를 여러 개 풀어두면 좋아요',
+        ],
+      },
+      {
+        title: '조작과 발판',
+        body: '좌우 방향키로 이동, 스페이스로 점프(공중에서 한 번 더 누르면 더블 점프)입니다.',
+        points: [
+          'Shift를 누르면 빨라지지만 에너지를 더 씁니다',
+          '체크포인트 발판을 밟아두면 떨어져도 거기서 다시 시작해요',
+          '사라지는 발판·가시·움직이는 발판은 위로 갈수록 많아집니다',
+          '파워업은 E·R키로 사용합니다 (실드·로켓·유령 등)',
+        ],
       },
       {
         title: '승리 기준',
-        body: '종료 시점에 더 높은 곳에 도달한 플레이어가 앞섭니다.',
-        points: ['높이 기록', '생존 유지', '실수 줄이기'],
+        body: `제한 시간이 끝났을 때 가장 높이 오른 사람이 1등입니다. 정상은 ${DLD_SETTINGS.summitGoal}m예요.`,
+        points: [
+          '정상에 먼저 닿아도 게임은 시간이 끝날 때까지 이어집니다',
+          '떨어져도 기록한 최고 높이는 그대로 남아요',
+          '다른 친구들이 지금 어디쯤인지 화면에서 볼 수 있어요',
+        ],
       },
     ],
   },
@@ -354,22 +407,43 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   zombie: {
     gameMode: 'zombie',
     title: '좀비를 피해라!',
-    subtitle: '퀴즈를 풀며 감염을 피하고 제한 시간 동안 생존합니다.',
+    subtitle: '몰래 정해진 좀비를 피해 제한 시간까지 살아남는 정체 숨김 게임입니다.',
     slides: [
       {
-        title: '목표',
-        body: '좀비 감염을 피하면서 끝까지 살아남습니다.',
-        points: ['정답으로 생존 행동 확보', '위험 신호 확인', '팀 상황 살피기'],
+        title: '나는 인간일까, 좀비일까?',
+        body: '게임이 시작되면 반의 일부가 몰래 좀비가 됩니다. 내 역할은 나만 볼 수 있어요.',
+        points: [
+          '인간: 감염되지 않고 제한 시간까지 버티기',
+          '좀비: 인간을 모두 감염시키기',
+          '누가 좀비인지는 아무도 모른 채 시작합니다',
+        ],
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈, 조사, 회복, 방어가 상황에 따라 이어집니다.',
-        points: ['문제 풀기', '역할과 상태 확인', '필요한 행동 선택'],
+        title: '문제를 맞혀야 행동할 수 있어요',
+        body: '퀴즈를 맞히면 내 역할에 맞는 행동을 한 번 고를 수 있습니다.',
+        points: [
+          `인간: 치료(체력 +${ZOMBIE.HUMAN_HEAL_AMOUNT}) · 방어막(+${ZOMBIE.HUMAN_SHIELD_AMOUNT}) · 스캔(한 명의 정체 확인)`,
+          `좀비: 인간 한 명을 골라 공격 (${ZOMBIE.ZOMBIE_BASE_ATTACK} 데미지)`,
+          `3연속 정답이면 인간은 체력 +${ZOMBIE.CORRECT_STREAK_3_BONUS}, 좀비는 공격력 +${ZOMBIE.ZOMBIE_STREAK_BONUS}`,
+        ],
       },
       {
-        title: '승리 기준',
-        body: '생존 여부와 게임 내 기여가 결과에 반영됩니다.',
-        points: ['감염 피하기', '정답률 유지', '마지막까지 생존'],
+        title: '틀리면 위험해요',
+        body: `인간은 체력 ${ZOMBIE.HUMAN_INITIAL_HEALTH}으로 시작하고, 오답마다 ${ZOMBIE.WRONG_PENALTY_HUMAN}씩 줄어듭니다.`,
+        points: [
+          '방어막이 있으면 공격 데미지를 먼저 막아줍니다',
+          '체력이 0이 되면 감염되어 좀비 편이 됩니다',
+          '좀비가 되어도 계속 플레이해요 — 오답 페널티도 사라집니다',
+        ],
+      },
+      {
+        title: '승리와 순위',
+        body: '시간이 끝났을 때 인간이 한 명이라도 남아 있으면 인간 팀 승리입니다.',
+        points: [
+          '모두 감염되면 그 순간 좀비 팀 승리로 끝납니다',
+          '순위는 생존한 인간이 먼저, 그다음 감염시킨 수',
+          '스캔으로 확인한 정체는 게임이 끝날 때까지 기억됩니다',
+        ],
       },
     ],
   },

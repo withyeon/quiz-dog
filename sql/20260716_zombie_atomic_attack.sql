@@ -1,6 +1,10 @@
 -- ============================================
--- QuizDog zombie atomic attack
+-- QuizDog zombie atomic attack  ⚠️ 폐기됨 (DEPRECATED)
 -- ============================================
+-- 이 파일은 20260910_zombie_server_authority.sql 로 대체되었다.
+-- 새 판은 zombie_attack 의 반환 타입을 jsonb({outcome, players}) 로 바꾸므로,
+-- 그 이후에 이 파일을 다시 실행하면 앱이 깨진다. 실행하지 말 것.
+--
 -- 좀비 감염전은 체력 + 방어막(active_item JSON) + 역할 전이가 얽혀 있어
 -- 일반 숫자 delta로는 표현할 수 없다. 이 전용 RPC가 두 행을 잠그고
 -- 방어막 흡수 → 체력 감소 → 감염(역할 전이)까지 원자적으로 처리한다.

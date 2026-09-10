@@ -11,21 +11,17 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useAudioContext } from '@/components/AudioProvider'
 import {
-  applyCorrectBonus,
-  applyWrongPenalty,
   checkWinCondition,
   formatTime,
   GAME_CONSTANTS,
-  humanHeal,
-  humanShield,
   roomPlayerToZombiePlayer,
   scanPlayer,
-  zombieAttack,
-  zombiePlayerToPatch,
   type RoomZombiePlayer,
+  type ZombieActionKind,
   type ZombieActionType,
   type ZombieGameLog,
 } from '@/lib/game/zombie'
+import type { ZombieAttackResult } from '@/lib/services/playerMutations'
 import type { Question } from '@/hooks/useGameBase'
 
 type ViewState = 'quiz' | 'actionSelect' | 'targetSelect' | 'scanResult' | 'attackResult' | 'wrong'
@@ -42,8 +38,9 @@ type ZombieViewProps = {
   onNextQuestion: () => void
   onGameEnd?: () => void
   onFinishRoom: () => Promise<boolean>
-  onPlayerPatch: (playerId: string, patch: Record<string, unknown>, reason: string) => void
-  onZombieAttack: (zombieId: string, targetId: string, damage: number) => Promise<void>
+  /** 정답·오답·치료·방어막을 서버에 보고하고, 권위 있는 최종 상태를 돌려받는다. */
+  onZombieAction: (action: ZombieActionKind) => Promise<RoomZombiePlayer | null>
+  onZombieAttack: (zombieId: string, targetId: string, damage: number) => Promise<ZombieAttackResult>
 }
 
 function addLog(logs: ZombieGameLog[], message: string, type: ZombieGameLog['type'] = 'info'): ZombieGameLog[] {
@@ -68,7 +65,7 @@ export default function ZombieView({
   onAnswer,
   onNextQuestion,
   onFinishRoom,
-  onPlayerPatch,
+  onZombieAction,
   onZombieAttack,
 }: ZombieViewProps) {
   const startedAtMs = roomStartedAt ? new Date(roomStartedAt).getTime() : null
@@ -85,12 +82,31 @@ export default function ZombieView({
   const [timeRemaining, setTimeRemaining] = useState(computeRemaining)
   const [gameLog, setGameLog] = useState<ZombieGameLog[]>([])
   const [lastScanResult, setLastScanResult] = useState<{ playerId: string; isZombie: boolean } | null>(null)
-  const [lastAttackResult, setLastAttackResult] = useState<{ targetId: string; damage: number; infected: boolean; log: string } | null>(null)
+  const [lastAttackResult, setLastAttackResult] = useState<
+    { targetId: string; damage: number; infected: boolean; missed: boolean; log: string; pending: boolean } | null
+  >(null)
   const [scanCooldown, setScanCooldown] = useState(0)
+  // 스캔으로 직접 확인한 플레이어만 정체를 계속 볼 수 있다.
+  const [scannedIds, setScannedIds] = useState<ReadonlySet<string>>(() => new Set())
+  // 내가 공격당했을 때 띄우는 피드백. 게임 로그는 각자 화면에만 쌓이므로,
+  // 이것이 없으면 피해자는 체력이 조용히 줄어드는 것 말고는 아무 신호를 받지 못한다.
+  const [selfHit, setSelfHit] = useState<{ id: number; lostHealth: number; lostShield: number } | null>(null)
+  const [showInfectedAlert, setShowInfectedAlert] = useState(false)
+  // 오답 페널티처럼 내가 스스로 깎은 체력은 "공격당함"으로 세지 않는다.
+  const selfHealthDropGuardRef = useRef(0)
+  const prevSelfRef = useRef<{ role: string; health: number; shield: number } | null>(null)
   const finishingRef = useRef(false)
   const { playSFX } = useAudioContext()
 
-  const players = useMemo(() => roomPlayers.map(roomPlayerToZombiePlayer), [roomPlayers])
+  // 방 플레이어 목록은 점수순으로 들어온다. 좀비 모드에서는 점수가 역할과 묶여 있어
+  // (인간 = 200+체력, 좀비 = 감염수) 그 순서를 그대로 그리면 정렬만 보고도 좀비를 골라낼 수 있다.
+  // 정체를 감춰야 하는 화면이므로 역할과 무관한 이름순으로 다시 세운다.
+  const players = useMemo(
+    () => roomPlayers
+      .map(roomPlayerToZombiePlayer)
+      .sort((a, b) => a.name.localeCompare(b.name, 'ko')),
+    [roomPlayers],
+  )
   const myPlayer = players.find((player) => player.id === playerId) ?? null
   const otherPlayers = players.filter((player) => player.id !== playerId)
   const isZombie = myPlayer?.role === 'zombie'
@@ -98,10 +114,6 @@ export default function ZombieView({
   const humanCount = players.filter((player) => player.role === 'human').length
   const zombieCount = players.filter((player) => player.role === 'zombie').length
   const isUrgent = timeRemaining <= 60 && roomStatus === 'playing'
-
-  const commitZombiePlayer = (player: ReturnType<typeof roomPlayerToZombiePlayer>, reason: string) => {
-    onPlayerPatch(player.id, zombiePlayerToPatch(player), reason)
-  }
 
   useEffect(() => {
     setTimeRemaining(computeRemaining())
@@ -120,6 +132,57 @@ export default function ZombieView({
     void onFinishRoom()
   }, [onFinishRoom, players, timeRemaining])
 
+  // 내 상태가 남의 행동으로 바뀐 것을 감지해 알려준다 (감염·피격).
+  const selfRole = myPlayer?.role ?? null
+  const selfHealth = myPlayer?.health ?? null
+  const selfShield = myPlayer?.shield ?? null
+  useEffect(() => {
+    if (selfRole === null || selfHealth === null || selfShield === null) return
+    const prev = prevSelfRef.current
+    prevSelfRef.current = { role: selfRole, health: selfHealth, shield: selfShield }
+    if (!prev) return
+
+    if (prev.role === 'human' && selfRole === 'zombie') {
+      setShowInfectedAlert(true)
+      setSelfHit(null)
+      return
+    }
+    if (selfRole !== 'human') return
+
+    const lostHealth = Math.max(0, prev.health - selfHealth)
+    const lostShield = Math.max(0, prev.shield - selfShield)
+    if (lostHealth === 0 && lostShield === 0) return
+
+    // 내 오답으로 깎인 체력이면 소비하고 넘어간다.
+    if (lostShield === 0 && selfHealthDropGuardRef.current > 0) {
+      selfHealthDropGuardRef.current -= 1
+      return
+    }
+
+    setSelfHit({ id: Date.now(), lostHealth, lostShield })
+    setGameLog((logs) => addLog(
+      logs,
+      lostShield > 0 && lostHealth === 0
+        ? `🩸 공격당했습니다! 방어막 -${lostShield} (남은 방어막 ${selfShield})`
+        : `🩸 공격당했습니다! 체력 -${lostHealth} (HP ${selfHealth})`,
+      'danger',
+    ))
+  }, [selfHealth, selfRole, selfShield])
+
+  useEffect(() => {
+    if (!showInfectedAlert) return
+    playSFX('incorrect')
+    setGameLog((logs) => addLog(logs, '💀 감염되었습니다! 이제 남은 인간을 감염시키세요.', 'infection'))
+    const timer = window.setTimeout(() => setShowInfectedAlert(false), 3200)
+    return () => window.clearTimeout(timer)
+  }, [playSFX, showInfectedAlert])
+
+  useEffect(() => {
+    if (!selfHit) return
+    const timer = window.setTimeout(() => setSelfHit(null), 1400)
+    return () => window.clearTimeout(timer)
+  }, [selfHit])
+
   useEffect(() => {
     if (!lastScanResult) return
     const timer = window.setTimeout(() => {
@@ -131,7 +194,7 @@ export default function ZombieView({
   }, [lastScanResult, onNextQuestion])
 
   useEffect(() => {
-    if (!lastAttackResult) return
+    if (!lastAttackResult || lastAttackResult.pending) return
     const timer = window.setTimeout(() => {
       setLastAttackResult(null)
       setCurrentView('quiz')
@@ -140,37 +203,51 @@ export default function ZombieView({
     return () => window.clearTimeout(timer)
   }, [lastAttackResult, onNextQuestion])
 
+  // 규칙 판정(체력·공격력·역할 전이)은 전부 서버가 한다.
+  // 화면에 쓰는 값은 RPC가 돌려준 권위 있는 결과뿐이라, 감염된 직후 아직 그 사실을
+  // 모르는 클라이언트가 답을 제출해도 감염이 되돌아가지 않는다.
+  const reportAction = (action: ZombieActionKind, onResult: (after: ReturnType<typeof roomPlayerToZombiePlayer>) => void) => {
+    void onZombieAction(action)
+      .then((row) => { if (row) onResult(roomPlayerToZombiePlayer(row)) })
+      .catch((error) => { console.error('좀비 행동 처리 실패:', error) })
+  }
+
   const handleAnswerSubmit = async (answer: string) => {
     if (!myPlayer || roomStatus !== 'playing') return false
 
     const correct = answer ? await onAnswer(answer) : false
+
     if (correct) {
       playSFX('correct')
-      const { newPlayer, bonusLog } = applyCorrectBonus(myPlayer)
-      commitZombiePlayer(newPlayer, 'zombie_correct_answer')
-      if (bonusLog) setGameLog((logs) => addLog(logs, bonusLog, 'success'))
+      reportAction('correct', (after) => {
+        if (after.correctStreak === 0 || after.correctStreak % 3 !== 0) return
+        setGameLog((logs) => addLog(
+          logs,
+          after.role === 'human'
+            ? `🔥 ${after.name} ${after.correctStreak}연속 정답! 보너스 체력 +${GAME_CONSTANTS.CORRECT_STREAK_3_BONUS}`
+            : `🔥 ${after.name} ${after.correctStreak}연속 정답! 공격력 +${GAME_CONSTANTS.ZOMBIE_STREAK_BONUS}`,
+          'success',
+        ))
+      })
       window.setTimeout(() => setCurrentView('actionSelect'), 700)
       return true
     }
 
     playSFX('incorrect')
-    const { newPlayer, log } = applyWrongPenalty(myPlayer)
-    let updatedPlayer = newPlayer
-    let logType: ZombieGameLog['type'] = 'warning'
-
-    if (newPlayer.health <= 0 && newPlayer.role === 'human') {
-      updatedPlayer = {
-        ...newPlayer,
-        role: 'zombie',
-        health: 999,
-        shield: 0,
-        attackPower: GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
-      }
-      logType = 'infection'
-    }
-
-    commitZombiePlayer(updatedPlayer, 'zombie_wrong_answer')
-    setGameLog((logs) => addLog(logs, updatedPlayer.role === 'zombie' && myPlayer.role === 'human' ? `${myPlayer.name}이(가) 좀비가 되었습니다!` : log, logType))
+    const wasHuman = myPlayer.role === 'human'
+    if (wasHuman) selfHealthDropGuardRef.current += 1
+    reportAction('wrong', (after) => {
+      const becameZombie = wasHuman && after.role === 'zombie'
+      setGameLog((logs) => addLog(
+        logs,
+        becameZombie
+          ? `${after.name}이(가) 좀비가 되었습니다!`
+          : after.role === 'human'
+            ? `${after.name} 오답! 체력 -${GAME_CONSTANTS.WRONG_PENALTY_HUMAN} (HP: ${after.health})`
+            : `${after.name} 오답!`,
+        becameZombie ? 'infection' : 'warning',
+      ))
+    })
     setScanCooldown((prev) => Math.max(0, prev - 1))
     setCurrentView('wrong')
     revealAnswer(currentQuestion?.id)
@@ -184,9 +261,15 @@ export default function ZombieView({
 
   const handleHumanAction = (action: 'heal' | 'shield') => {
     if (!myPlayer) return
-    const result = action === 'heal' ? humanHeal(myPlayer) : humanShield(myPlayer)
-    commitZombiePlayer(result.newPlayer, `zombie_${action}`)
-    setGameLog((logs) => addLog(logs, result.log, 'success'))
+    reportAction(action, (after) => {
+      setGameLog((logs) => addLog(
+        logs,
+        action === 'heal'
+          ? `${after.name}이(가) 체력을 회복했습니다! (HP: ${after.health})`
+          : `${after.name}이(가) 방어막을 획득했습니다! (방어막: ${after.shield})`,
+        'success',
+      ))
+    })
     setScanCooldown((prev) => Math.max(0, prev - 1))
     playSFX('correct')
     setCurrentView('quiz')
@@ -200,6 +283,7 @@ export default function ZombieView({
 
     if (action === 'scan') {
       const result = scanPlayer(myPlayer, target)
+      setScannedIds((prev) => new Set(prev).add(targetId))
       setLastScanResult({ playerId: targetId, isZombie: result.isZombie })
       setGameLog((logs) => addLog(logs, result.log, result.isZombie ? 'danger' : 'info'))
       setScanCooldown(GAME_CONSTANTS.SCAN_COOLDOWN_ROUNDS)
@@ -208,21 +292,36 @@ export default function ZombieView({
       return
     }
 
-    // 로컬 result는 공격자 화면의 즉시 연출(로그/감염 애니메이션)에만 쓰고,
-    // 실제 DB 반영·전파는 서버 원자 RPC가 담당한다 (동시 공격 데미지 누적 + 감염 정합성).
-    const result = zombieAttack(myPlayer, target)
-    void onZombieAttack(myPlayer.id, target.id, myPlayer.attackPower).catch((error) => {
-      console.error('좀비 공격 처리 실패:', error)
-    })
-    setLastAttackResult({
-      targetId,
-      damage: myPlayer.attackPower,
-      infected: result.infected,
-      log: result.log,
-    })
-    setGameLog((logs) => addLog(logs, result.log, result.infected ? 'infection' : 'danger'))
+    // 감염 연출은 서버가 판정한 outcome으로만 띄운다. 여러 좀비가 같은 표적에
+    // 막타를 노려도, 실제로 감염을 성사시킨 한 명만 "감염 성공!"을 본다.
+    setLastAttackResult({ targetId, damage: myPlayer.attackPower, infected: false, missed: false, log: '', pending: true })
     setCurrentView('attackResult')
     playSFX('incorrect')
+
+    void onZombieAttack(myPlayer.id, target.id, myPlayer.attackPower)
+      .then((result) => {
+        const targetRow = result.players.find((row) => row.id === target.id)
+        const after = targetRow ? roomPlayerToZombiePlayer(targetRow) : null
+        const infected = result.outcome === 'infected'
+        const log = infected
+          ? `${myPlayer.name}이(가) ${target.name}을(를) 감염시켰습니다! ${target.name}은(는) 이제 좀비입니다!`
+          : result.outcome === 'damaged'
+            ? `${myPlayer.name}이(가) ${target.name}을(를) 공격했습니다! (HP: ${after?.health ?? target.health}${after && after.shield > 0 ? `, 방어막 ${after.shield}` : ''})`
+            : `${target.name}은(는) 이미 다른 좀비에게 감염됐습니다. 공격이 빗나갔어요.`
+        setLastAttackResult({
+          targetId,
+          damage: myPlayer.attackPower,
+          infected,
+          missed: !infected && result.outcome !== 'damaged',
+          log,
+          pending: false,
+        })
+        setGameLog((logs) => addLog(logs, log, infected ? 'infection' : result.outcome === 'damaged' ? 'danger' : 'warning'))
+      })
+      .catch((error) => {
+        console.error('좀비 공격 처리 실패:', error)
+        setLastAttackResult({ targetId, damage: 0, infected: false, missed: true, log: '공격을 전송하지 못했습니다.', pending: false })
+      })
   }
 
   const overlayColor = isZombie ? 'rgba(5, 46, 22, 0.5)' : 'rgba(30, 27, 75, 0.5)'
@@ -362,7 +461,11 @@ export default function ZombieView({
                         <div className="min-w-0 text-left">
                           <div className="truncate">{player.name}</div>
                           {isZombie && <div className="text-xs text-red-300">HP {player.health} {player.shield > 0 ? `방어막 ${player.shield}` : ''}</div>}
-                          {!isZombie && <div className="text-xs text-gray-400">정체불명</div>}
+                          {!isZombie && (
+                            scannedIds.has(player.id)
+                              ? <div className={`text-xs ${player.role === 'zombie' ? 'text-red-300' : 'text-blue-300'}`}>스캔 완료 · {player.role === 'zombie' ? '좀비' : '인간'}</div>
+                              : <div className="text-xs text-gray-400">정체불명</div>
+                          )}
                         </div>
                       </Button>
                     ))}
@@ -393,13 +496,19 @@ export default function ZombieView({
             <motion.div key="attackResult" initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }} className="text-center">
               <div className="mb-4 flex justify-center">
                 <ZombieIcon
-                  name={lastAttackResult.infected ? 'zombie' : 'attack'}
+                  name={lastAttackResult.infected ? 'zombie' : lastAttackResult.missed ? 'wrong' : 'attack'}
                   size={96}
-                  alt={lastAttackResult.infected ? '감염' : '공격'}
+                  alt={lastAttackResult.infected ? '감염' : lastAttackResult.missed ? '빗나감' : '공격'}
                 />
               </div>
-              <p className={`text-4xl font-bold ${lastAttackResult.infected ? 'text-green-400' : 'text-red-400'}`}>
-                {lastAttackResult.infected ? '감염 성공!' : `${lastAttackResult.damage} 데미지!`}
+              <p className={`text-4xl font-bold ${lastAttackResult.pending ? 'text-gray-300' : lastAttackResult.infected ? 'text-green-400' : lastAttackResult.missed ? 'text-yellow-400' : 'text-red-400'}`}>
+                {lastAttackResult.pending
+                  ? '공격 중...'
+                  : lastAttackResult.infected
+                    ? '감염 성공!'
+                    : lastAttackResult.missed
+                      ? '한발 늦었어요!'
+                      : `${lastAttackResult.damage} 데미지!`}
               </p>
               <p className="mt-2 text-xl text-gray-300">{players.find((player) => player.id === lastAttackResult.targetId)?.name}</p>
             </motion.div>
@@ -426,7 +535,7 @@ export default function ZombieView({
         <div className="space-y-2">
           {players.map((player) => {
             const isMe = player.id === playerId
-            const revealRole = isMe || isZombie
+            const revealRole = isMe || isZombie || scannedIds.has(player.id)
             return (
               <Card key={player.id} className={`border ${isMe ? borderColor : 'border-gray-700'} bg-gray-800/30`}>
                 <CardContent className="p-2">
@@ -436,7 +545,8 @@ export default function ZombieView({
                       <div className="text-xs text-gray-400">{revealRole ? (player.role === 'zombie' ? '좀비' : '인간') : '정체불명'}</div>
                     </div>
                     <div className="text-xs text-gray-400">
-                      {player.role === 'human' ? `HP ${player.health}` : revealRole ? '좀비' : '???'}
+                      {/* 정체를 모르는 상대는 HP도 숨긴다. 인간만 숫자가 뜨면 그 자체로 좀비가 드러난다. */}
+                      {!revealRole ? '???' : player.role === 'human' ? `HP ${player.health}` : '좀비'}
                     </div>
                   </div>
                 </CardContent>
@@ -461,6 +571,50 @@ export default function ZombieView({
           </div>
         </div>
       </div>
+
+      {/* 피격 피드백 — 화면 가장자리를 붉게 번쩍이고 잃은 수치를 띄운다 */}
+      <AnimatePresence>
+        {selfHit && (
+          <motion.div
+            key={selfHit.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="pointer-events-none fixed inset-0 z-40 flex items-start justify-center pt-24"
+            style={{ boxShadow: 'inset 0 0 140px 40px rgba(220, 38, 38, 0.55)' }}
+          >
+            <motion.div
+              initial={{ y: 10, scale: 0.8 }}
+              animate={{ y: -14, scale: 1 }}
+              className="rounded-full bg-red-950/85 px-6 py-2 text-3xl font-black text-red-300 shadow-2xl"
+            >
+              {selfHit.lostShield > 0 && selfHit.lostHealth === 0
+                ? `방어막 -${selfHit.lostShield}`
+                : `-${selfHit.lostHealth}`}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 감염 순간 — 역할이 바뀐 걸 본인이 확실히 알아야 한다 */}
+      <AnimatePresence>
+        {showInfectedAlert && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-green-950/80 p-6 backdrop-blur-sm"
+          >
+            <motion.div initial={{ scale: 0.4 }} animate={{ scale: [0.4, 1.15, 1] }} transition={{ duration: 0.7 }} className="text-center">
+              <motion.div animate={{ y: [0, -16, 0] }} transition={{ duration: 1.2, repeat: Infinity }} className="flex justify-center">
+                <ZombieIcon name="zombie" size={120} alt="감염" />
+              </motion.div>
+              <h2 className="mt-6 text-5xl font-black text-green-300">감염되었습니다!</h2>
+              <p className="mt-3 text-2xl text-gray-200">이제 남은 인간을 감염시키세요.</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {isPaused && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">

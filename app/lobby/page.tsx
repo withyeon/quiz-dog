@@ -22,11 +22,30 @@ import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
 import { createPlayerForRoom, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
 import { getPlayerById, updatePlayer } from '@/lib/services/players'
 import { clearLobbyPlayerId, loadLobbyPlayerId, saveLobbyPlayerId } from '@/lib/utils/lobbySession'
-import { ShibaDog, DogGroup } from '@/components/PixelDogs'
-import { PixelBtn, PixelInput, PixelPanel, PlayerAvatar } from '@/components/lobby/LobbyUI'
-import { LobbyClassroomBg } from '@/components/lobby/LobbyClassroomBg'
+import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
+import {
+  LobbyNotice,
+  LobbyShell,
+  LobbyStatusBar,
+  LobbyStepBar,
+  MascotDuo,
+  MascotPome,
+  NAVY,
+  PixelBtn,
+  PixelInput,
+  PixelPanel,
+  PlayerAvatar,
+  StatusChip,
+} from '@/components/lobby/LobbyUI'
 
 type LobbyStep = 'code' | 'nickname' | 'character' | 'minigame'
+
+const LOBBY_STEPS: { key: LobbyStep; label: string }[] = [
+  { key: 'code', label: '코드 입력' },
+  { key: 'nickname', label: '닉네임' },
+  { key: 'character', label: '캐릭터' },
+  { key: 'minigame', label: '미니게임' },
+]
 
 export default function LobbyPageWrapper() {
   return (
@@ -265,44 +284,17 @@ function LobbyPage() {
   }
 
   return (
-    <main
-      className="min-h-dvh relative overflow-x-hidden font-bitbit"
-      style={{ background: 'linear-gradient(160deg, #FFF3DC 0%, #FFE8C0 50%, #FFF0D0 100%)' }}
-    >
+    <LobbyShell>
       <GameStartTutorialModal
         gameMode={tutorialGameMode}
         isOpen={tutorialOpen}
         stepIndex={tutorialStepIndex}
         role="student"
       />
-      <div className="absolute inset-0">
-        <LobbyClassroomBg />
-        <div className="absolute inset-0" style={{ background: 'rgba(255,243,220,0.6)' }} />
-      </div>
 
-      <div
-        className="relative z-20 flex items-center justify-center px-6 py-3"
-        style={{
-          background: 'rgba(91,45,10,0.92)',
-          borderBottom: '4px solid #3B1A05',
-          boxShadow: '0 4px 0 #2A1005, 0 8px 20px rgba(0,0,0,0.3)',
-        }}
-      >
-        <div className="flex items-center gap-2">
-          {(['code', 'nickname', 'character', 'minigame'] as LobbyStep[]).map((s) => (
-            <div
-              key={s}
-              className="w-3 h-3 rounded-full transition-all duration-300"
-              style={{
-                background: step === s ? '#FFD700' : 'rgba(255,255,255,0.25)',
-                border: '2px solid rgba(255,255,255,0.4)',
-              }}
-            />
-          ))}
-        </div>
-      </div>
+      <LobbyStepBar steps={LOBBY_STEPS} current={step} />
 
-      <div className="relative z-10 min-h-[calc(100dvh-72px)] flex items-center justify-center px-3 py-6 sm:p-6">
+      <div className="flex min-h-[calc(100dvh-72px)] items-center justify-center px-3 pb-10 pt-2 sm:px-6 sm:pb-12">
         <AnimatePresence mode="wait">
           {step === 'code' && (
             <motion.div
@@ -311,49 +303,49 @@ function LobbyPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: -20 }}
               transition={{ type: 'spring', bounce: 0.3 }}
-              className="text-center w-full max-w-md"
+              className="w-full max-w-md text-center"
             >
-              <PixelPanel label="🐶 퀴즈독 입장하기" labelColor="#C17B3A">
-                <div className="p-5 pt-10 sm:p-10 sm:pt-12">
-                  <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2.5, repeat: Infinity }} className="mb-6">
-                    <Image src="/quizdog-logo.webp" alt="퀴즈독" width={320} height={100} className="w-full max-w-xs mx-auto" priority />
+              <PixelPanel label="🐶 퀴즈독 입장하기">
+                <div className="p-5 pt-10 sm:p-9 sm:pt-12">
+                  <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2.5, repeat: Infinity }} className="mb-4">
+                    <Image src="/quizdog-logo.webp" alt="퀴즈독" width={320} height={100} className="mx-auto w-full max-w-[240px] sm:max-w-[280px]" priority />
                   </motion.div>
 
-                  <div className="flex justify-center mb-8">
-                    <DogGroup size={70} />
-                  </div>
+                  <MascotDuo size={68} className="mb-5" />
 
-                  <p className="mb-5 font-black" style={{ color: '#5B3A1A', fontFamily: "'DNFBitBitv2', sans-serif", fontSize: '1.1rem' }}>
-                    선생님께 받은 게임 코드를 입력하세요!
+                  <h1 className="text-2xl leading-tight sm:text-3xl">
+                    <PixelHeading>
+                      게임 <PixelAccent>코드</PixelAccent>를 입력하세요
+                    </PixelHeading>
+                  </h1>
+                  <p className="-mt-1 mb-5 text-sm font-black sm:text-base" style={{ color: '#334155' }}>
+                    선생님이 알려준 숫자 6자리예요
                   </p>
 
-                  <div className="flex gap-2 sm:gap-3 items-center justify-center mb-6">
+                  <div className="mb-4 flex items-center justify-center gap-2 sm:gap-3">
                     <PixelInput
                       type="text"
+                      inputMode="numeric"
                       value={roomCode}
                       onChange={(e) => { setCodeError(null); setRoomCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6)) }}
                       onKeyDown={(e) => { if (e.key === 'Enter' && !isCheckingRoom) handleCodeSubmit() }}
                       placeholder="000000"
                       maxLength={6}
                       autoFocus
-                      className="flex-1"
+                      className="flex-1 tracking-[0.25em] placeholder:tracking-[0.25em]"
                     />
-                    <PixelBtn color="blue" onClick={handleCodeSubmit} disabled={isCheckingRoom} className="text-xl px-5 py-4">
+                    <PixelBtn color="white" onClick={handleCodeSubmit} disabled={isCheckingRoom} className="px-5 py-4 text-xl">
                       {isCheckingRoom ? '⏳' : '→'}
                     </PixelBtn>
                   </div>
 
                   {codeError && (
-                    <p
-                      role="alert"
-                      className="mb-4 rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 text-sm font-black text-rose-700"
-                      style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
-                    >
+                    <LobbyNotice tone="error" role="alert" className="mb-4">
                       {codeError}
-                    </p>
+                    </LobbyNotice>
                   )}
 
-                  <PixelBtn color="green" onClick={handleCodeSubmit} disabled={isCheckingRoom} className="w-full text-lg py-4">
+                  <PixelBtn color="blue" onClick={handleCodeSubmit} disabled={isCheckingRoom} className="w-full py-4 text-lg">
                     {isCheckingRoom ? '⏳ 확인 중...' : '🚪 입장하기'}
                   </PixelBtn>
                 </div>
@@ -368,22 +360,20 @@ function LobbyPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: -20 }}
               transition={{ type: 'spring', bounce: 0.3 }}
-              className="text-center w-full max-w-md"
+              className="w-full max-w-md text-center"
             >
-              <PixelPanel label="💬 닉네임 설정" labelColor="#2E7BD4">
-                <div className="p-5 pt-10 sm:p-10 sm:pt-12">
-                  <motion.div className="flex justify-center mb-6" animate={{ y: [0, -8, 0] }} transition={{ duration: 2, repeat: Infinity }}>
-                    <ShibaDog size={100} />
-                  </motion.div>
+              <PixelPanel label="💬 닉네임 설정" labelColor="#38BDF8">
+                <div className="p-5 pt-10 sm:p-9 sm:pt-12">
+                  <MascotPome size={104} className="mb-5 flex justify-center" />
 
-                  <h2 className="text-2xl font-black mb-2" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-                    뭐라고 부를까? 🐾
+                  <h2 className="text-2xl leading-tight sm:text-3xl">
+                    <PixelHeading>뭐라고 부를까?</PixelHeading>
                   </h2>
-                  <p className="mb-6 text-sm" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
+                  <p className="-mt-1 mb-6 text-sm font-black sm:text-base" style={{ color: '#334155' }}>
                     게임에서 사용할 닉네임을 입력하세요
                   </p>
 
-                  <div className="flex gap-3 items-center mb-6">
+                  <div className="mb-4 flex items-center gap-2 sm:gap-3">
                     <PixelInput
                       type="text"
                       value={nickname}
@@ -393,28 +383,23 @@ function LobbyPage() {
                       maxLength={20}
                       autoFocus
                       className="flex-1"
-                      style={{ fontSize: '1.2rem' }}
                     />
-                    <PixelBtn color="blue" onClick={handleNicknameSubmit} className="text-xl px-5 py-4">→</PixelBtn>
+                    <PixelBtn color="white" onClick={handleNicknameSubmit} className="px-5 py-4 text-xl">→</PixelBtn>
                   </div>
 
                   {nicknameError && (
-                    <p
-                      role="alert"
-                      className="-mt-3 mb-5 rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2 text-sm font-black text-rose-700"
-                      style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
-                    >
+                    <LobbyNotice tone="error" role="alert" className="mb-4">
                       {nicknameError}
-                    </p>
+                    </LobbyNotice>
                   )}
 
                   {nickname && !filterNickname(nickname).isValid && (
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-500 text-sm mb-4 font-black" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
+                    <LobbyNotice tone="error" className="mb-4">
                       ⚠️ 부적절한 단어가 포함되어 있습니다
-                    </motion.p>
+                    </LobbyNotice>
                   )}
 
-                  <PixelBtn color="blue" onClick={handleNicknameSubmit} className="w-full text-lg py-4">
+                  <PixelBtn color="blue" onClick={handleNicknameSubmit} className="w-full py-4 text-lg">
                     🐶 다음으로 →
                   </PixelBtn>
                 </div>
@@ -424,70 +409,66 @@ function LobbyPage() {
 
           {step === 'character' && (
             <motion.div key="character" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-6xl">
-              <div className="rounded-2xl px-6 py-3 flex items-center justify-between mb-4" style={{ background: 'rgba(91,45,10,0.85)', border: '3px solid #3B1A05', boxShadow: '0 4px 0 #2A1005', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-                <span className="text-white font-black text-lg">👤 {nickname}</span>
-                <span className="text-amber-300 font-black">🎮 {room?.game_mode || '?'} 모드 · 대기 중...</span>
-                <span className="text-green-300 font-black">
-                  👥 {players.length}명 · 실시간 {realtimeStatus === 'subscribed' ? '연결됨' : '연결 중'} · 온라인 {Math.max(players.length, onlineCount)}명
-                </span>
-              </div>
+              <LobbyStatusBar>
+                <StatusChip tone="navy">👤 {nickname}</StatusChip>
+                <StatusChip tone="sun">
+                  {getGameModeConfig(room?.game_mode || DEFAULT_GAME_MODE).emoji}{' '}
+                  {getGameModeConfig(room?.game_mode || DEFAULT_GAME_MODE).shortLabel} · 대기 중
+                </StatusChip>
+                <StatusChip tone="mint">👥 {players.length}명 · 온라인 {Math.max(players.length, onlineCount)}명</StatusChip>
+                <StatusChip tone="sky">{realtimeStatus === 'subscribed' ? '🟢 실시간 연결됨' : '🟡 연결 중...'}</StatusChip>
+              </LobbyStatusBar>
 
-              <div className="grid md:grid-cols-3 gap-5">
+              <div className="grid gap-5 md:grid-cols-3">
                 <div className="md:col-span-2">
-                  <PixelPanel label="🐾 캐릭터 선택" labelColor="#7B4FCC">
-                    <div className="p-6 pt-8 max-h-[520px] overflow-y-auto">
+                  <PixelPanel label="🐾 캐릭터 선택" labelColor="#8B5CF6">
+                    <div className="max-h-[520px] overflow-y-auto p-5 pt-8 sm:p-6 sm:pt-9">
                       <CharacterSelector selectedCharacterId={selectedCharacter.id} onSelect={handleCharacterSelect} showCategories={false} takenCharacterIds={takenCharacterIds} />
                     </div>
                   </PixelPanel>
                 </div>
 
-                <div className="flex flex-col gap-4">
-                  <PixelPanel label="✨ 선택된 캐릭터" labelColor="#E87A1A">
-                    <div className="p-6 pt-8 text-center">
-                      <div className="relative w-32 h-32 mx-auto mb-3">
-                        <Image src={resolveAvatarSrc(selectedCharacter.imagePath)} alt={selectedCharacter.name} fill className="object-contain" sizes="128px" />
+                <div className="flex flex-col gap-6">
+                  <PixelPanel label="✨ 선택된 캐릭터" labelColor="#F97316">
+                    <div className="p-5 pt-8 text-center sm:p-6 sm:pt-9">
+                      <div
+                        className="relative mx-auto mb-3 h-32 w-32 rounded-3xl"
+                        style={{ backgroundColor: '#F0F9FF', border: '2px solid #BAE6FD', boxShadow: 'inset 0 2px 8px rgba(14,165,233,0.12)' }}
+                      >
+                        <Image src={resolveAvatarSrc(selectedCharacter.imagePath)} alt={selectedCharacter.name} fill className="object-contain p-2" sizes="128px" />
                       </div>
-                      <h3 className="text-xl font-black mb-4" style={{ color: '#3B1F0A', fontFamily: "'DNFBitBitv2', sans-serif" }}>{selectedCharacter.name}</h3>
+                      <h3 className="mb-4 text-xl font-black" style={{ color: NAVY }}>{selectedCharacter.name}</h3>
 
                       {isJoined ? (
                         <div className="space-y-3">
-                          <div
-                            className="rounded-xl px-4 py-4 text-center"
-                            style={{
-                              background: 'rgba(45,158,94,0.12)',
-                              border: '3px solid rgba(45,158,94,0.35)',
-                              color: '#155B33',
-                              fontFamily: "'DNFBitBitv2', sans-serif",
-                            }}
-                          >
+                          <LobbyNotice tone="success">
                             <div className="mb-1 text-2xl">✅</div>
-                            <div className="font-black">입장 완료!</div>
-                            <div className="mt-1 text-sm font-black opacity-80">
-                              선생님이 시작하면 자동으로 이동해요
-                            </div>
-                          </div>
-                          <PixelBtn color="purple" onClick={() => setStep('minigame')} className="w-full text-base py-3">
+                            <div>입장 완료!</div>
+                            <div className="mt-1 text-xs opacity-80">선생님이 시작하면 자동으로 이동해요</div>
+                          </LobbyNotice>
+                          <PixelBtn color="purple" onClick={() => setStep('minigame')} className="w-full py-3 text-base">
                             🎮 기다리는 동안 미니게임
                           </PixelBtn>
                         </div>
                       ) : (
-                        <div className="py-3 px-4 rounded-xl text-center font-black" style={{ background: 'rgba(193,123,58,0.15)', border: '3px solid rgba(193,123,58,0.4)', color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-                          ⏳ 캐릭터를 선택해주세요!
-                        </div>
+                        <LobbyNotice tone="info">⏳ 캐릭터를 선택해주세요!</LobbyNotice>
                       )}
                     </div>
                   </PixelPanel>
 
-                  <PixelPanel label={`👥 플레이어 (${players.length}명)`} labelColor="#2D9E5E">
-                    <div className="p-4 pt-8">
+                  <PixelPanel label={`👥 플레이어 (${players.length}명)`} labelColor="#22C55E">
+                    <div className="p-4 pt-8 sm:pt-9">
                       {room && (
-                        <div className="mb-3 rounded-xl bg-white/70 px-3 py-2 text-center text-sm font-black" style={{ color: '#5B3A1A' }}>
+                        <div
+                          className="mb-3 rounded-2xl px-3 py-2 text-center text-sm font-black"
+                          style={{ backgroundColor: '#F0F9FF', border: '2px solid #E0F2FE', color: '#0369A1' }}
+                        >
                           {getGameModeConfig(room.game_mode || DEFAULT_GAME_MODE).emoji} {getGameModeConfig(room.game_mode || DEFAULT_GAME_MODE).shortLabel} 대기방
                         </div>
                       )}
-                      <div className="grid grid-cols-4 gap-3 max-h-48 overflow-y-auto">
+                      <div className="grid max-h-48 grid-cols-4 gap-3 overflow-y-auto">
                         {players.length === 0 ? (
-                          <div className="col-span-4 text-center py-4 font-black" style={{ color: '#7B4B1A', fontFamily: "'DNFBitBitv2', sans-serif" }}>아직 아무도 없어요...</div>
+                          <div className="col-span-4 py-4 text-center text-sm font-black" style={{ color: '#64748B' }}>아직 아무도 없어요...</div>
                         ) : (
                           players.map((p: any) => (
                             <PlayerAvatar key={p.id} nickname={p.nickname} avatar={p.avatar || '🐶'} isReady={isJoined && p.id === playerId} />
@@ -503,28 +484,30 @@ function LobbyPage() {
 
           {step === 'minigame' && (
             <motion.div key="minigame" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-4xl">
-              <div className="rounded-2xl px-6 py-3 flex items-center justify-between mb-4" style={{ background: 'rgba(91,45,10,0.85)', border: '3px solid #3B1A05', boxShadow: '0 4px 0 #2A1005', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-                <span className="text-white font-black text-lg">👤 {nickname}</span>
-                <span className="text-amber-300 font-black">🎮 미니게임 점수: {minigameScore}</span>
-                <PixelBtn color="orange" onClick={() => setStep('character')} className="text-sm py-2 px-4">← 돌아가기</PixelBtn>
-              </div>
+              <LobbyStatusBar>
+                <StatusChip tone="navy">👤 {nickname}</StatusChip>
+                <StatusChip tone="sun">🎮 미니게임 점수: {minigameScore}</StatusChip>
+                <PixelBtn color="white" onClick={() => setStep('character')} className="px-4 py-2 text-sm">← 돌아가기</PixelBtn>
+              </LobbyStatusBar>
 
-              <PixelPanel label="🕹️ 미니게임" labelColor="#7B4FCC">
-                <div className="p-5 pt-8">
-                  <div className="aspect-video rounded-xl overflow-hidden">
+              <PixelPanel label="🕹️ 미니게임" labelColor="#8B5CF6">
+                <div className="p-4 pt-8 sm:p-5 sm:pt-9">
+                  <div className="aspect-video overflow-hidden rounded-2xl" style={{ border: '2px solid #BAE6FD' }}>
                     <Minigame characterImage={selectedCharacter.imagePath} onScoreChange={setMinigameScore} />
                   </div>
                 </div>
               </PixelPanel>
 
-              <div className="mt-4 rounded-2xl px-6 py-4 flex items-center gap-3" style={{ background: 'rgba(255,250,240,0.9)', border: '3px solid rgba(193,123,58,0.35)', boxShadow: '0 4px 0 rgba(91,58,26,0.2)', fontFamily: "'DNFBitBitv2', sans-serif" }}>
-                <span className="text-2xl">⏳</span>
-                <span className="font-black" style={{ color: '#3B1F0A' }}>선생님이 게임을 시작하면 자동으로 이동돼요!</span>
+              <div className="mt-4">
+                <LobbyNotice tone="info" className="flex items-center justify-center gap-2 text-base">
+                  <span className="text-xl">⏳</span>
+                  선생님이 게임을 시작하면 자동으로 이동돼요!
+                </LobbyNotice>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
-    </main>
+    </LobbyShell>
   )
 }

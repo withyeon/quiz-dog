@@ -109,9 +109,18 @@ export async function swapPlayerColumns(
   return (data as PlayerRow[]) ?? []
 }
 
+/** zombie_attack 이 알려주는, 이번 공격이 실제로 한 일. */
+export type ZombieAttackOutcome = 'infected' | 'damaged' | 'already_zombie' | 'no_role'
+
+export type ZombieAttackResult = {
+  outcome: ZombieAttackOutcome
+  players: PlayerRow[]
+}
+
 /**
  * 좀비 감염 공격 — 방어막 흡수 → 체력 감소 → 감염(역할 전이)을 서버에서 원자적으로 처리.
- * 두 행(공격자/대상)의 권위 있는 최종 상태를 반환한다.
+ * 두 행(공격자/대상)의 권위 있는 최종 상태와 함께, 이번 호출이 감염을 성사시켰는지를 돌려준다.
+ * (여러 좀비가 같은 인간에게 막타를 노려도 감염 연출은 실제로 성사시킨 한 명만 본다.)
  */
 export async function zombieAttack(
   zombieId: string,
@@ -119,7 +128,7 @@ export async function zombieAttack(
   damage: number,
   infectionThreshold: number,
   zombieBaseAttack: number,
-): Promise<PlayerRow[]> {
+): Promise<ZombieAttackResult> {
   const { data, error } = await rpc('zombie_attack', {
     p_zombie: zombieId,
     p_target: targetId,
@@ -128,7 +137,30 @@ export async function zombieAttack(
     p_zombie_base_attack: zombieBaseAttack,
   })
   if (error) throw new Error(error.message)
-  return (data as PlayerRow[]) ?? []
+  const result = data as { outcome?: ZombieAttackOutcome; players?: PlayerRow[] } | null
+  return {
+    outcome: result?.outcome ?? 'no_role',
+    players: result?.players ?? [],
+  }
+}
+
+/**
+ * 좀비 모드 퀴즈 결과·인간 행동을 서버에 보고한다.
+ * 역할은 보내지 않는다 — 서버가 저장된 role 을 읽어 판정하므로, 감염된 직후
+ * 아직 그 사실을 모르는 클라이언트가 답을 제출해도 감염이 취소되지 않는다.
+ */
+export async function zombieApplyAction(
+  playerId: string,
+  action: 'correct' | 'wrong' | 'heal' | 'shield',
+  limits: Record<string, number>,
+): Promise<PlayerRow | null> {
+  const { data, error } = await rpc('zombie_apply_action', {
+    p_player: playerId,
+    p_action: action,
+    p_limits: limits,
+  })
+  if (error) throw new Error(error.message)
+  return (data as PlayerRow | null) ?? null
 }
 
 /**
