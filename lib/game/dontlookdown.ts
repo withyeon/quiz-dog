@@ -93,8 +93,8 @@ export interface GameSettings {
     checkpointsEnabled: boolean
     livesEnabled: boolean     // 생명 시스템 활성화
     startingLives: number     // 시작 생명
-    fallPenalty: number       // 떨어졌을 때 에너지 페널티
     powerUpsEnabled: boolean  // 파워업 활성화
+    // 낙하 페널티는 ENERGY.FALL_PENALTY 하나만 쓴다 (설정으로 두면 실제로 읽히지 않아 거짓말이 된다)
 }
 
 export interface DLDGameState {
@@ -220,12 +220,13 @@ export function getPowerUpImagePath(type: PowerUpType): string {
 // 기본 설정
 export const DEFAULT_SETTINGS: GameSettings = {
     duration: 300,             // 5분 (선생님이 설정하는 제한 시간 기준)
-    energyPerQuestion: 650,    // 문제당 에너지 충전량
+    // 문제당 충전량. 650이던 시절에는 정상까지 정답 5개면 충분해서(총 필요 에너지 ≈ 2850)
+    // 퀴즈가 거의 필요 없는 게임이었다. 250이면 최적 경로로도 12문제, 실제로는 20문제 안팎이 든다.
+    energyPerQuestion: 250,
     summitGoal: 520,           // 정상 높이 (진행도 표시용, 8구역)
     checkpointsEnabled: true,
     livesEnabled: false,       // Don't Look Down: 생명 시스템 비활성화
     startingLives: 0,
-    fallPenalty: 25,
     powerUpsEnabled: true,
 }
 
@@ -235,6 +236,16 @@ export const DEFAULT_SETTINGS: GameSettings = {
 
 // 플랫폼 스타일 풀 (디자인 다양화)
 const PLATFORM_STYLES: PlatformStyle[] = ['stone', 'wood', 'chair', 'barrel', 'table', 'brick']
+
+/**
+ * 특정 높이(m)에서 등반 루트가 지나는 x 좌표.
+ * 맵 생성과, 좌표를 모르는 다른 플레이어의 위치 추정이 같은 식을 쓰도록 한 곳에 둔다.
+ */
+export function estimateRouteX(heightMeters: number, summitGoal: number): number {
+    const routeProgress = Math.min(1, Math.max(0, heightMeters / summitGoal))
+    const routeEndX = WORLD.WIDTH - 720
+    return CLIMB_START_X + routeProgress * (routeEndX - CLIMB_START_X)
+}
 
 export function generatePlatformMap(summitGoal: number, settings: GameSettings): Platform[] {
     const platforms: Platform[] = []
@@ -284,9 +295,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
 
             // 우상향 루트: 높이가 올라갈수록 화면 오른쪽으로 전진한다.
             const climbMeters = summit.startHeight + ((summitStartY - summitCurrentY) * METERS_PER_PIXEL)
-            const routeProgress = Math.min(1, Math.max(0, climbMeters / summitGoal))
-            const routeEndX = WORLD.WIDTH - 720
-            const rightwardBase = CLIMB_START_X + routeProgress * (routeEndX - CLIMB_START_X)
+            const rightwardBase = estimateRouteX(climbMeters, summitGoal)
             const switchback = rowIndex % 2 === 0 ? -70 : 70
             const wave = Math.sin((rowIndex + summitIndex * 1.7) * 0.82) * (70 + difficulty * 90)
             const baseX = Math.max(220, Math.min(WORLD.WIDTH - 420, rightwardBase + wave + switchback))
@@ -394,7 +403,9 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
             summitCurrentY -= Y_STEP
         }
 
-        currentY = summitCurrentY
+        // 구역 경계에 딱 맞춘다. summitCurrentY를 그대로 넘기면 구역마다 최대 Y_STEP만큼
+        // 넘친 값이 누적되어 정상이 summitGoal보다 한참 위에 생긴다.
+        currentY = summitEndY
         currentX = lastRouteX
     })
 

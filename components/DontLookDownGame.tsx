@@ -55,7 +55,6 @@ import {
     updatePlayerPhysics,
     movePlayer,
     giveEnergy,
-    isPlayerAtPeak,
     collectPowerUp,
     applyPowerUp,
     updateActivePowerUps,
@@ -631,11 +630,6 @@ export default function DontLookDownGame({
                     shakeRef.current = Math.max(shakeRef.current, 3)
                     onCollectPowerUpRef.current(pu.id)
                 }
-            }
-
-            // 정상 도달
-            if (isPlayerAtPeak(player, platformsRef.current)) {
-                // 승리 처리는 page.tsx 측에 위임 (DB 업데이트 시 height로 판정)
             }
 
             // Summit 도달 알림 (트랙은 ref로 - state는 알림이 떴을 때만 갱신)

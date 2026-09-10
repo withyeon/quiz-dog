@@ -19,6 +19,9 @@ import {
     type GameSettings,
     DEFAULT_SETTINGS,
     createPlayer,
+    estimateRouteX,
+    METERS_PER_PIXEL,
+    PLAYER_SIZE,
     generatePlatformMap,
     generateObstacles,
     spawnPowerUp,
@@ -148,6 +151,41 @@ export default function DontLookDownPage() {
     useEffect(() => {
         dldPlayersRef.current = dldPlayers
     }, [dldPlayers])
+
+    // 다른 학생들의 진행 상황을 방 realtime에서 받아 반영한다.
+    // 예전에는 게임 시작 때 createPlayer로 한 번 만들고 끝이라, 나머지 전원이 시작 발판에
+    // 0m로 얼어붙은 채 그려지고 인게임 리더보드도 계속 0m였다. 각 클라이언트가 자기
+    // 높이(score)와 에너지(gold)는 이미 DB에 쓰고 있으니 그걸 되읽어 쓴다.
+    // x/y는 동기화되지 않으므로, 높이에 해당하는 등반 루트 좌표로 근사한다.
+    useEffect(() => {
+        if (currentView !== 'game' && currentView !== 'countdown') return
+
+        setDldPlayers((prev) => {
+            let changed = false
+            const next = new Map(prev)
+
+            for (const row of players) {
+                if (row.id === playerId) continue
+                const existing = next.get(row.id)
+                if (!existing) continue
+
+                const height = Math.max(0, Number(row.score ?? 0))
+                const energy = Math.max(0, Number(row.gold ?? 0))
+                if (existing.height === height && existing.energy === energy) continue
+
+                next.set(row.id, {
+                    ...existing,
+                    height,
+                    energy,
+                    y: 600 - height / METERS_PER_PIXEL - PLAYER_SIZE.HEIGHT,
+                    x: estimateRouteX(height, gameSettings.summitGoal),
+                })
+                changed = true
+            }
+
+            return changed ? next : prev
+        })
+    }, [currentView, gameSettings.summitGoal, playerId, players])
 
     // 카운트다운 완료
     const handleCountdownComplete = () => {

@@ -6,6 +6,7 @@ import {
   REVIVAL_HEALTH_RATIO,
   TEAM_MIN_PLAYERS,
 } from '@/lib/game/battleRoyale'
+import { DEFAULT_SETTINGS as DLD_SETTINGS, ENERGY as DLD_ENERGY } from '@/lib/game/dontlookdown'
 import {
   CHEST_COUNT,
   GOLD_LOSS_RATE,
@@ -329,22 +330,44 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   dontlookdown: {
     gameMode: 'dontlookdown',
     title: '점프점프',
-    subtitle: '퀴즈를 풀고 발판을 올라 정상에 가까워지는 등반 게임입니다.',
+    subtitle: '문제를 풀어 에너지를 얻고, 그 에너지로 발판을 올라 정상까지 가는 등반 게임입니다.',
     slides: [
       {
-        title: '목표',
-        body: '떨어지지 않고 최대한 높이 올라갑니다.',
-        points: ['정답으로 진행 기회 확보', '발판을 침착하게 선택', '높이 올라갈수록 집중'],
+        title: '움직이려면 에너지가 필요해요',
+        body: '걷는 것도 점프도 전부 에너지를 씁니다. 에너지가 떨어지면 그 자리에서 한 발짝도 못 움직여요.',
+        points: [
+          `점프 한 번 ${DLD_ENERGY.JUMP_COST} · 더블 점프 ${DLD_ENERGY.DOUBLE_JUMP_COST} · 걷기 초당 ${Math.round(DLD_ENERGY.MOVE_COST * 60)}`,
+          `시작 에너지는 ${DLD_ENERGY.START} — 점프 두 번이면 끝납니다`,
+          `떨어지면 ${DLD_ENERGY.FALL_PENALTY}을 잃고 마지막 체크포인트로 돌아가요`,
+        ],
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈와 점프 판단이 함께 이어집니다.',
-        points: ['문제 풀기', '다음 발판 확인', '위험한 발판 피하기'],
+        title: '에너지는 문제로 채웁니다',
+        body: `Q키(또는 화면의 문제 버튼)로 언제든 문제를 열 수 있어요. 맞히면 에너지 +${DLD_SETTINGS.energyPerQuestion}.`,
+        points: [
+          '연속으로 맞히면 콤보 보너스가 최대 +400까지 붙습니다',
+          '틀리면 에너지가 줄어드니 급하게 찍지 마세요',
+          '오르다 막히면 안전한 발판에서 문제를 여러 개 풀어두면 좋아요',
+        ],
+      },
+      {
+        title: '조작과 발판',
+        body: '좌우 방향키로 이동, 스페이스로 점프(공중에서 한 번 더 누르면 더블 점프)입니다.',
+        points: [
+          'Shift를 누르면 빨라지지만 에너지를 더 씁니다',
+          '체크포인트 발판을 밟아두면 떨어져도 거기서 다시 시작해요',
+          '사라지는 발판·가시·움직이는 발판은 위로 갈수록 많아집니다',
+          '파워업은 E·R키로 사용합니다 (실드·로켓·유령 등)',
+        ],
       },
       {
         title: '승리 기준',
-        body: '종료 시점에 더 높은 곳에 도달한 플레이어가 앞섭니다.',
-        points: ['높이 기록', '생존 유지', '실수 줄이기'],
+        body: `제한 시간이 끝났을 때 가장 높이 오른 사람이 1등입니다. 정상은 ${DLD_SETTINGS.summitGoal}m예요.`,
+        points: [
+          '정상에 먼저 닿아도 게임은 시간이 끝날 때까지 이어집니다',
+          '떨어져도 기록한 최고 높이는 그대로 남아요',
+          '다른 친구들이 지금 어디쯤인지 화면에서 볼 수 있어요',
+        ],
       },
     ],
   },
