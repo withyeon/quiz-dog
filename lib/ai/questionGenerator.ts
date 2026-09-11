@@ -30,6 +30,8 @@ export interface GeneratedQuestion {
   answer: string
   /** 선생님이 검수 화면에서 붙인 문제 그림 URL (AI는 채우지 않는다) */
   image_url?: string | null
+  /** 해설(선택). AI가 정답인 이유를 1~2문장으로 쓰고, 선생님이 검수 화면에서 고친다 */
+  explanation?: string | null
 }
 
 const MAX_TEXT_LENGTH = 30000
@@ -95,6 +97,7 @@ ${typeRestriction}
 - SHORT 타입은 options를 []로 두고, answer는 학생이 입력할 짧은 정답만 쓰세요.
 - BLANK 타입은 question_text에 ${BLANK_PLACEHOLDER} 플레이스홀더를 정확히 1개 넣고, answer는 빈칸에 들어갈 말만 쓰세요.
 - 문제 텍스트에는 정답이 그대로 노출되지 않게 하세요.
+- explanation에는 왜 그것이 정답인지 학생이 이해할 수 있게 1~2문장으로 쓰세요. 정답만 되풀이하지 마세요.
 - 초등/중등/고등 학년 수준에 맞는 어휘와 문장 길이를 사용하세요.
 - 한국어 수업에서 바로 쓸 수 있도록 자연스럽고 명확한 문장으로 작성하세요.
 - JSON만 출력하고 마크다운, 설명, 사과문, 주석은 절대 포함하지 마세요.`
@@ -106,7 +109,8 @@ ${typeRestriction}
       "type": "CHOICE" | "SHORT" | "OX" | "BLANK",
       "question_text": "문제 텍스트",
       "options": ["보기1", "보기2", "보기3", "보기4"],
-      "answer": "정답"
+      "answer": "정답",
+      "explanation": "정답인 이유를 학생 눈높이로 1~2문장"
     }
   ]
 }`
@@ -257,6 +261,9 @@ function normalizeQuestion(rawQuestion: unknown): GeneratedQuestion | null {
   let questionText = asString(raw.question_text)
   let answer = asString(raw.answer)
   let options = dedupeOptions(raw.options)
+  // 해설은 선택. 너무 길면 자른다 (화면에 카드로 보여주는 글이라 몇 문장이면 충분하다).
+  const explanationText = asString(raw.explanation).slice(0, 400)
+  const explanation = explanationText ? { explanation: explanationText } : {}
 
   if (!questionText || !answer) return null
 
@@ -273,22 +280,22 @@ function normalizeQuestion(rawQuestion: unknown): GeneratedQuestion | null {
     }
     const matchedAnswer = options.find((option) => normalizeForCompare(option) === normalizeForCompare(answer))
     if (!matchedAnswer) return null
-    return { type, question_text: questionText, options, answer: matchedAnswer }
+    return { type, question_text: questionText, options, answer: matchedAnswer, ...explanation }
   }
 
   if (type === 'OX') {
     answer = normalizeOxAnswer(answer)
     if (!answer) return null
-    return { type, question_text: questionText, options: ['O', 'X'], answer }
+    return { type, question_text: questionText, options: ['O', 'X'], answer, ...explanation }
   }
 
   if (type === 'BLANK') {
     questionText = ensureBlankPlaceholder(questionText, answer)
     if (!questionText.includes(BLANK_PLACEHOLDER)) return null
-    return { type, question_text: questionText, options: [], answer }
+    return { type, question_text: questionText, options: [], answer, ...explanation }
   }
 
-  return { type: 'SHORT', question_text: questionText, options: [], answer }
+  return { type: 'SHORT', question_text: questionText, options: [], answer, ...explanation }
 }
 
 function validateQuestions(questions: unknown[], questionCount?: number): GeneratedQuestion[] {

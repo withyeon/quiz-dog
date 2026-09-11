@@ -99,6 +99,12 @@ interface UseGameBaseOptions {
     timeLimit?: number
     /** 게임 시작 전 제출해야 하는 문제 수. 기본값: 3 */
     preStartQuizTotal?: number
+    /**
+     * 훅이 answer_history를 복구·동기화할지. 기본값: true.
+     * 공부 모드처럼 페이지가 정답 기록을 직접 관리하면 false — 그래야 훅이 옛 기록을
+     * 되읽어 5초 뒤 다시 써서 페이지가 막 저장한 기록을 덮어쓰는 일이 없다.
+     */
+    manageAnswerHistory?: boolean
 }
 
 /**
@@ -121,6 +127,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         wrongAnswerDelay = 3000,
         timeLimit = 30,
         preStartQuizTotal = DEFAULT_PRE_START_QUIZ_TOTAL,
+        manageAnswerHistory = true,
     } = options
     const requiredPreStartQuizCount = Math.max(0, preStartQuizTotal)
     const router = useRouter()
@@ -377,12 +384,12 @@ export function useGameBase(options: UseGameBaseOptions) {
     // ─── 기존 데이터 복구 (새로고침 방어) ───
     useEffect(() => {
         if (currentPlayer && !hasRestoredData) {
-            if (currentPlayer.answer_history && Array.isArray(currentPlayer.answer_history) && currentPlayer.answer_history.length > 0) {
+            if (manageAnswerHistory && currentPlayer.answer_history && Array.isArray(currentPlayer.answer_history) && currentPlayer.answer_history.length > 0) {
                 setAnswerHistory(currentPlayer.answer_history as any)
             }
             setHasRestoredData(true)
         }
-    }, [currentPlayer, hasRestoredData])
+    }, [currentPlayer, hasRestoredData, manageAnswerHistory])
 
     // ─── 게임 모드 리다이렉트 ───
     useEffect(() => {
@@ -681,7 +688,7 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 정답 기록 DB 동기화 (5초 debounce — 연속 답변을 묶어 DB 쓰기 횟수 감소) ───
     useEffect(() => {
-        if (playerId && answerHistory.length > 0 && canSyncAnswerHistory) {
+        if (manageAnswerHistory && playerId && answerHistory.length > 0 && canSyncAnswerHistory) {
             const syncTimer = window.setTimeout(() => {
                 updatePlayer(playerId, { answer_history: answerHistory })
                 .catch((error) => {
@@ -701,7 +708,7 @@ export function useGameBase(options: UseGameBaseOptions) {
 
             return () => window.clearTimeout(syncTimer)
         }
-    }, [answerHistory, playerId, canSyncAnswerHistory])
+    }, [answerHistory, playerId, canSyncAnswerHistory, manageAnswerHistory])
 
     // ─── 다음 문제로 이동 ───
     const goToNextQuestion = useCallback(() => {

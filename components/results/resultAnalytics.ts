@@ -35,6 +35,8 @@ export type QuestionAnalysis = {
   type: string
   text: string
   imageUrl: string | null
+  /** 해설(선택). 없으면 null */
+  explanation: string | null
   answer: string
   options: string[]
   tag: string
@@ -186,6 +188,7 @@ export function buildResultAnalytics(
       type: question.type,
       text: displayBlankText(question.question_text),
       imageUrl: question.image_url ?? null,
+      explanation: question.explanation ?? null,
       answer: question.answer,
       options: question.options,
       tag: question.type === 'CHOICE' ? '선택지 이해' : question.type === 'OX' ? '개념 판단' : '서술 응답',

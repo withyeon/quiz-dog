@@ -5,8 +5,8 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { Crosshair, Gamepad2, Gift, Zap } from 'lucide-react'
 import {
   AIM_ACCURACY_SCALE,
-  AIM_GRADE_ZONE_WIDTH,
   getAimGrade,
+  getAimGradeZoneWidth,
   getAimGradeLabel,
   type Doll,
   type FishingResult,
@@ -98,7 +98,8 @@ export default function FishingMachine({
   const currentAccuracy = fishingState === 'aim'
     ? Math.max(0, Math.min(1, 1 - Math.abs(aimPosition - targetPosition) / AIM_ACCURACY_SCALE))
     : (fishingResult?.accuracy ?? 0)
-  const aimGrade = getAimGrade(currentAccuracy)
+  const aimGrade = getAimGrade(currentAccuracy, machineRank)
+  const aimZoneWidth = getAimGradeZoneWidth(machineRank)
   const aimStyle = AIM_STYLE[aimGrade]
 
   const isInAction = fishingState !== 'idle'
@@ -146,15 +147,15 @@ export default function FishingMachine({
               {/* 등급 구간 — 목표 위치를 따라 이동 */}
               <div
                 className="pointer-events-none absolute bottom-0 top-0 -translate-x-1/2 border border-sky-200/70 bg-sky-100/45"
-                style={{ left: `${targetPosition}%`, width: `${AIM_GRADE_ZONE_WIDTH.good}%` }}
+                style={{ left: `${targetPosition}%`, width: `${aimZoneWidth.good}%` }}
               />
               <div
                 className="pointer-events-none absolute bottom-0 top-0 -translate-x-1/2 border border-violet-200/70 bg-violet-100/50"
-                style={{ left: `${targetPosition}%`, width: `${AIM_GRADE_ZONE_WIDTH.great}%` }}
+                style={{ left: `${targetPosition}%`, width: `${aimZoneWidth.great}%` }}
               />
               <div
                 className="pointer-events-none absolute bottom-0 top-0 -translate-x-1/2 border-x-2 border-amber-500/80 bg-amber-200/55"
-                style={{ left: `${targetPosition}%`, width: `${AIM_GRADE_ZONE_WIDTH.perfect}%` }}
+                style={{ left: `${targetPosition}%`, width: `${aimZoneWidth.perfect}%` }}
               />
               <div
                 className="pointer-events-none absolute inset-y-0 w-[3px] -translate-x-1/2 rounded-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.7)]"

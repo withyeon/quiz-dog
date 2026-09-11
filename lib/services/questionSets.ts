@@ -33,6 +33,8 @@ export type QuestionDraft = {
   answer?: string
   /** 문제 그림 URL. undefined면 건드리지 않고, null이면 지운다. */
   image_url?: string | null
+  /** 해설(선택). undefined면 건드리지 않고, null이나 빈 문자열이면 지운다. */
+  explanation?: string | null
 }
 
 export type QuestionSetMetadataInput = {
@@ -128,6 +130,10 @@ export function normalizeQuestionDraft(question: QuestionDraft): Omit<QuestionIn
     // 키가 있을 때만 보낸다. 그림 없는 문제는 image_url 컬럼이 없는 DB에서도 저장돼야 한다.
     ...(question.image_url !== undefined
       ? { image_url: question.image_url?.trim() || null }
+      : {}),
+    // 해설도 같은 규칙: 키가 있을 때만 보낸다 (explanation 컬럼이 없는 DB에서도 저장돼야 한다).
+    ...(question.explanation !== undefined
+      ? { explanation: question.explanation?.trim() || null }
       : {}),
   }
 }
@@ -510,6 +516,9 @@ export async function updateQuestion(questionId: string, question: QuestionDraft
   if (normalizedQuestion.image_url !== undefined) {
     payload.image_url = normalizedQuestion.image_url
   }
+  if (normalizedQuestion.explanation !== undefined) {
+    payload.explanation = normalizedQuestion.explanation
+  }
 
   const { error } = await (supabase
     .from('questions') as any)
@@ -576,6 +585,7 @@ export async function duplicateQuestionSet(setId: string, title?: string): Promi
       answer: question.answer,
       // 그림은 같은 공개 파일을 가리키게 둔다 (복사본마다 파일을 복제하지 않는다)
       ...(question.image_url ? { image_url: question.image_url } : {}),
+      ...(question.explanation ? { explanation: question.explanation } : {}),
     }))
   )
 
@@ -635,6 +645,7 @@ export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Pro
       options: question.options,
       answer: question.answer,
       ...(question.image_url ? { image_url: question.image_url } : {}),
+      ...(question.explanation ? { explanation: question.explanation } : {}),
     }))
   )
 

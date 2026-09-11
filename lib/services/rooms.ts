@@ -2,15 +2,18 @@ import { supabase } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/utils/gameCode'
 import { DEFAULT_GAME_MODE, getModeInitialPlayerState, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { createRoleAssignmentPatches } from '@/lib/game/zombie'
-import type { Database } from '@/types/database.types'
+import type { Database, Json } from '@/types/database.types'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
 type RoomInsert = Database['public']['Tables']['rooms']['Insert']
+type PlayerRow = Database['public']['Tables']['players']['Row']
 type PlayerInsert = Database['public']['Tables']['players']['Insert']
 
 export type CreateRoomInput = {
   setId: string | null
   gameMode: GameModeId
+  /** 방 옵션(rooms.settings). 공부 모드 옵션 등. 없으면 보내지 않는다 */
+  settings?: Json
 }
 
 export type StartRoomInput = {
@@ -30,7 +33,7 @@ export async function getRoomByCode(roomCode: string): Promise<RoomRow | null> {
   return data
 }
 
-export async function createRoom({ setId, gameMode }: CreateRoomInput): Promise<RoomRow> {
+export async function createRoom({ setId, gameMode, settings }: CreateRoomInput): Promise<RoomRow> {
   const roomCode = generateRoomCode()
   const payload: RoomInsert = {
     room_code: roomCode,
@@ -38,6 +41,8 @@ export async function createRoom({ setId, gameMode }: CreateRoomInput): Promise<
     current_q_index: 0,
     game_mode: gameMode,
     set_id: setId,
+    // 키가 있을 때만 보낸다 (settings 컬럼이 없는 DB에서도 게임 방은 만들어져야 한다)
+    ...(settings ? { settings } : {}),
   }
 
   const { data, error } = await (supabase
@@ -282,6 +287,23 @@ export async function nicknameExists(
     player.id !== excludePlayerId
     && player.nickname.trim().toLocaleLowerCase('ko-KR') === normalizedNickname
   ))
+}
+
+/**
+ * 방 안에서 같은 닉네임(대소문자·앞뒤 공백 무시)을 가진 참가자.
+ * 과제 방의 "이어서 하기"에 쓴다: 다른 기기나 탭에서 온 학생을 같은 기록에 잇는다.
+ */
+export async function findPlayerByNickname(roomCode: string, nickname: string): Promise<PlayerRow | null> {
+  const normalizedNickname = nickname.trim().toLocaleLowerCase('ko-KR')
+  const { data, error } = await (supabase
+    .from('players')
+    .select('*')
+    .eq('room_code', roomCode) as any)
+
+  if (error) throw error
+  return ((data ?? []) as PlayerRow[]).find((player) => (
+    player.nickname.trim().toLocaleLowerCase('ko-KR') === normalizedNickname
+  )) ?? null
 }
 
 export function isNicknameConflictError(error: unknown): boolean {

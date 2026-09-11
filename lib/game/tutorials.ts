@@ -514,6 +514,25 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
     ],
   },
+  study: {
+    gameMode: 'study',
+    title: '공부 모드',
+    subtitle: '게임 없이 문제만 차근차근 풀어요.',
+    slides: [
+      {
+        title: '문제를 하나씩 풀어요',
+        body: '시간 제한 없이 내 속도로 넘겨요',
+      },
+      {
+        title: '바로 정답을 확인해요',
+        body: '틀리면 정답과 해설이 나와요',
+      },
+      {
+        title: '틀린 문제는 다시 풀어요',
+        body: '다 맞힐 때까지 한 번 더!',
+      },
+    ],
+  },
 }
 
 export function getGameTutorial(gameMode: GameModeId): GameTutorial {

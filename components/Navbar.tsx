@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Menu, X, LogIn, LogOut, User, ChevronDown } from 'lucide-react'
+import { Menu, X, LogIn, LogOut, ChevronDown } from 'lucide-react'
 import { gameAssets } from '@/assets/game-assets'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -126,6 +126,13 @@ export default function Navbar() {
                 </Button>
               </Link>
               {!authLoading && user ? (
+                <>
+                {/* 선생님의 주 목적지 — 히어로의 주 CTA 와 같은 하늘색 채움. 흰 바탕의 코드로 입장과 구분된다 */}
+                <Link href="/teacher">
+                  <Button size="lg" className="text-lg relative z-10 bg-sky-500 hover:bg-sky-600 text-white hover:text-white border-2 border-sky-600 font-bold shadow-[0_3px_0_#0369a1] btn-sky-outlined">
+                    선생님 대시보드
+                  </Button>
+                </Link>
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen((v) => !v)}
@@ -138,16 +145,7 @@ export default function Navbar() {
                     <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                   </button>
                   {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-52 rounded-xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden z-50">
-                      <Link
-                        href="/teacher"
-                        onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-3 text-sm font-black text-black hover:bg-slate-50 transition"
-                      >
-                        <User className="h-4 w-4 text-slate-400" />
-                        선생님 대시보드
-                      </Link>
-                      <div className="h-px bg-slate-100" />
+                    <div className="absolute right-0 top-full mt-2 w-40 rounded-xl bg-white shadow-xl ring-1 ring-slate-200 overflow-hidden z-50">
                       <button
                         onClick={handleSignOut}
                         className="flex w-full items-center gap-2.5 px-4 py-3 text-sm font-black text-red-500 hover:bg-red-50 transition"
@@ -158,6 +156,7 @@ export default function Navbar() {
                     </div>
                   )}
                 </div>
+                </>
               ) : (
                 <Link
                   href="/login"
@@ -226,7 +225,10 @@ export default function Navbar() {
                     <span className="flex h-7 w-7 items-center justify-center rounded-full bg-sky-500 text-xs font-black text-white">
                       {userInitial}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm">{userEmail}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm">선생님 대시보드</span>
+                      <span className="block truncate text-xs font-bold text-slate-400">{userEmail}</span>
+                    </span>
                   </Link>
                   <button
                     onClick={() => { setIsMobileMenuOpen(false); void handleSignOut() }}

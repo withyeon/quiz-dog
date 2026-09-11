@@ -165,7 +165,7 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
             }}
           >
             <Sparkles className="h-4 w-4" />
-            AI 문제 생성 · {visibleGameModeCount}가지 게임 · 학생 가입 없이 입장
+            AI 문제 생성 · 학생 회원가입, 설치 필요 없음
           </span>
 
           <h1 className="mt-6 text-4xl leading-tight sm:text-5xl lg:text-6xl">
@@ -195,7 +195,7 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
                   textShadow: '0 1px 0 rgba(0,0,0,0.18)',
                 }}
               >
-                선생님, 무료로 시작하기
+                무료로 시작하기
                 <ArrowRight className="h-5 w-5" />
               </motion.span>
             </Link>

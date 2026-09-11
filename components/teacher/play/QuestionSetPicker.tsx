@@ -46,23 +46,18 @@ export default function QuestionSetPicker({
           </button>
         </div>
       ) : (
-        <>
-          <select
-            id="play-set-select"
-            value={selectedSetId}
-            onChange={(event) => onSelect(event.target.value)}
-            className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-100"
-          >
-            {questionSets.map((set) => (
-              <option key={set.id} value={set.id}>
-                {set.title} ({set.question_count}문제)
-              </option>
-            ))}
-          </select>
-          <p className="mt-2 text-xs font-semibold text-gray-500">
-            학생들이 풀게 될 문제집이에요. 총 {questionSets.length}개 중에서 고를 수 있어요.
-          </p>
-        </>
+        <select
+          id="play-set-select"
+          value={selectedSetId}
+          onChange={(event) => onSelect(event.target.value)}
+          className="w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base font-bold text-gray-900 focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-100"
+        >
+          {questionSets.map((set) => (
+            <option key={set.id} value={set.id}>
+              {set.title} ({set.question_count}문제)
+            </option>
+          ))}
+        </select>
       )}
     </div>
   )

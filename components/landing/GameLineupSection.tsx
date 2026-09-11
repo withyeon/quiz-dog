@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import GameModeCard from '@/components/landing/GameModeCard'
-import { PixelHeading } from '@/components/landing/PixelHeading'
+import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import { visibleGameModes } from '@/components/landing/gameModesData'
 
 export default function GameLineupSection({ animationsReady }: { animationsReady: boolean }) {
@@ -17,7 +17,9 @@ export default function GameLineupSection({ animationsReady }: { animationsReady
           className="mb-12 text-center sm:mb-14"
         >
           <h2 className="text-4xl sm:text-5xl">
-            <PixelHeading>게임 모드</PixelHeading>
+            <PixelHeading>
+              초등교사 출신 개발자가 만든 <PixelAccent>초등학생 눈높이 게임</PixelAccent>!
+            </PixelHeading>
           </h2>
           <p className="-mt-1 text-base sm:text-lg" style={{ color: '#475569' }}>
             카드에 마우스를 올려보세요

@@ -9,7 +9,15 @@ import { toast } from '@/components/ui/Toaster'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
 import QuestionSetPicker from '@/components/teacher/play/QuestionSetPicker'
 import GameDurationPicker from '@/components/teacher/play/GameDurationPicker'
-import { HOMEWORK_GAME_MODES, getGameModeConfig, type GameModeId } from '@/lib/game/modes'
+import StudyOptionsFields from '@/components/teacher/play/StudyOptionsFields'
+import { HOMEWORK_PLAY_MODES, getGameModeConfig, type GameModeId } from '@/lib/game/modes'
+import {
+  DEFAULT_STUDY_SETTINGS,
+  buildRoomSettings,
+  describeStudySettings,
+  parseStudySettings,
+  type StudySettings,
+} from '@/lib/game/studySettings'
 import type { QuestionSetSummary } from '@/lib/services/questionSets'
 import { assertQuestionSetHasQuestions } from '@/lib/services/rooms'
 import {
@@ -76,7 +84,10 @@ export default function HomeworkPanel({
   questionSets, selectedSetId, onSelectSet, setsLoading, setsError, ownerId,
 }: HomeworkPanelProps) {
   const router = useRouter()
-  const [gameMode, setGameMode] = useState<GameModeId>(HOMEWORK_GAME_MODES[0])
+  // 과제는 공부 모드가 기본이다. 게임을 고르면 혼자서도 성립하는 게임 목록이 나온다.
+  const [gameMode, setGameMode] = useState<GameModeId>('study')
+  const [studySettings, setStudySettings] = useState<StudySettings>(DEFAULT_STUDY_SETTINGS)
+  const isStudy = gameMode === 'study'
   const [minutes, setMinutes] = useState(5)
   const [dueAtValue, setDueAtValue] = useState(() => toDateTimeLocalValue(defaultHomeworkDueAt()))
   const [creating, setCreating] = useState(false)
@@ -133,8 +144,10 @@ export default function HomeworkPanel({
       const room = await createHomeworkRoom({
         setId: selectedSetId,
         gameMode,
-        durationSeconds: minutes * 60,
+        // 공부 모드는 제한 시간 없이 마감까지 푼다
+        durationSeconds: isStudy ? null : minutes * 60,
         dueAt: due.toISOString(),
+        ...(isStudy ? { settings: buildRoomSettings(studySettings) } : {}),
       })
       setCreated({ ...room, playerCount: 0 })
       toast.success('과제를 냈어요. 코드나 링크를 학생들에게 나눠주세요.')
@@ -176,15 +189,48 @@ export default function HomeworkPanel({
           <div className="text-sm font-semibold text-slate-500">과제로 내기</div>
           <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">학생이 기한 안에 혼자 풀어요</h2>
           <p className="mt-1 text-sm font-medium text-slate-500">
-            코드만 나눠주면 돼요. 학생은 들어온 순간부터 정한 시간만큼 플레이하고, 결과는 게임 기록에 모여요.
+            코드만 나눠주면 돼요. 공부 모드는 시간 제한 없이 마감까지 풀고, 게임은 들어온 순간부터 정한 시간만큼 플레이해요. 결과는 게임 기록에 모여요.
           </p>
         </div>
 
-        {/* 게임 고르기 — 혼자서도 성립하는 모드만 */}
+        {/* 형식 고르기 — 공부 모드가 첫 번째, 게임은 혼자서도 성립하는 모드만 */}
         <div className="mb-5">
-          <label className="mb-2 block text-sm font-semibold text-slate-600">게임</label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {HOMEWORK_GAME_MODES.map((id) => {
+          <label className="mb-2 block text-sm font-semibold text-slate-600">형식</label>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setGameMode('study')}
+              aria-pressed={isStudy}
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                isStudy ? 'border-sky-400 bg-sky-50' : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <span className="text-2xl">📖</span>
+              <span className="min-w-0">
+                <span className={`block font-black ${isStudy ? 'text-sky-800' : 'text-slate-700'}`}>공부 모드</span>
+                <span className="block text-xs font-semibold text-slate-400">문제만 차근차근 · 바로 정답 확인 · 틀린 문제 다시</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { if (isStudy) setGameMode(HOMEWORK_PLAY_MODES[0]) }}
+              aria-pressed={!isStudy}
+              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
+                !isStudy ? 'border-sky-400 bg-sky-50' : 'border-slate-200 bg-white hover:border-slate-300'
+              }`}
+            >
+              <span className="text-2xl">🎮</span>
+              <span className="min-w-0">
+                <span className={`block font-black ${!isStudy ? 'text-sky-800' : 'text-slate-700'}`}>게임</span>
+                <span className="block text-xs font-semibold text-slate-400">재미있게 · 정한 시간 동안 플레이</span>
+              </span>
+            </button>
+          </div>
+          {isStudy && (
+            <StudyOptionsFields value={studySettings} onChange={setStudySettings} context="homework" />
+          )}
+          <div className={`grid grid-cols-2 gap-2 sm:grid-cols-4 ${isStudy ? 'hidden' : ''}`}>
+            {HOMEWORK_PLAY_MODES.map((id) => {
               const mode = getGameModeConfig(id)
               const active = id === gameMode
               return (
@@ -193,7 +239,7 @@ export default function HomeworkPanel({
                   type="button"
                   onClick={() => setGameMode(id)}
                   aria-pressed={active}
-                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-center text-sm font-black transition ${
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-center text-xs font-black leading-snug transition sm:text-sm ${
                     active ? 'border-sky-400 bg-sky-50 text-sky-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                   }`}
                 >
@@ -208,12 +254,14 @@ export default function HomeworkPanel({
                   ) : (
                     <span className="flex h-12 w-12 items-center justify-center text-2xl">{mode.emoji}</span>
                   )}
-                  <span className="truncate">{mode.shortLabel ?? mode.label}</span>
+                  <span className="font-bitbit w-full">{mode.label}</span>
                 </button>
               )
             })}
           </div>
-          <p className="mt-2 text-xs font-semibold text-slate-400">눈싸움·마피아·좀비처럼 여럿이 있어야 하는 게임은 과제로 낼 수 없어요.</p>
+          {!isStudy && (
+            <p className="mt-2 text-xs font-semibold text-slate-400">눈싸움·마피아·좀비처럼 여럿이 있어야 하는 게임은 과제로 낼 수 없어요.</p>
+          )}
         </div>
 
         <div className="mb-5">
@@ -228,10 +276,19 @@ export default function HomeworkPanel({
         </div>
 
         <div className="mb-5 grid gap-5 md:grid-cols-2">
-          <div>
-            <label className="mb-2 block text-sm font-semibold text-slate-600">학생 한 명당 플레이 시간</label>
-            <GameDurationPicker minutes={minutes} onChange={setMinutes} />
-          </div>
+          {isStudy ? (
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-600">시간</label>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">
+                제한 시간 없음 · 마감 전까지 언제든 풀어요
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-600">학생 한 명당 플레이 시간</label>
+              <GameDurationPicker minutes={minutes} onChange={setMinutes} />
+            </div>
+          )}
           <div>
             <label className="mb-2 block text-sm font-semibold text-slate-600">제출 마감</label>
             <input
@@ -241,7 +298,6 @@ export default function HomeworkPanel({
               onChange={(e) => setDueAtValue(e.target.value)}
               className="w-full rounded-xl border border-slate-200 px-4 py-3 font-semibold text-slate-800 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             />
-            <p className="mt-1.5 text-xs font-semibold text-slate-400">마감이 지나면 새로 들어올 수 없고, 풀던 학생은 그 시각에 끝나요.</p>
           </div>
         </div>
 
@@ -282,10 +338,19 @@ export default function HomeworkPanel({
                 </button>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                <dt className="font-semibold text-slate-500">게임</dt>
+                <dt className="font-semibold text-slate-500">형식</dt>
                 <dd className="font-black text-slate-800">{getGameModeConfig(created.game_mode).label}</dd>
-                <dt className="font-semibold text-slate-500">한 명당</dt>
-                <dd className="font-black text-slate-800">{Math.round((created.duration_seconds ?? 0) / 60)}분</dd>
+                {created.game_mode === 'study' ? (
+                  <>
+                    <dt className="font-semibold text-slate-500">옵션</dt>
+                    <dd className="font-black text-slate-800">{describeStudySettings(parseStudySettings(created.settings))}</dd>
+                  </>
+                ) : (
+                  <>
+                    <dt className="font-semibold text-slate-500">한 명당</dt>
+                    <dd className="font-black text-slate-800">{Math.round((created.duration_seconds ?? 0) / 60)}분</dd>
+                  </>
+                )}
                 <dt className="font-semibold text-slate-500">마감</dt>
                 <dd className="font-black text-slate-800">{formatDueAt((created as { due_at?: string | null }).due_at)}</dd>
               </dl>

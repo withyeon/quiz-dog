@@ -320,6 +320,20 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                         />
                       </div>
 
+                      {/* 해설 (선택) */}
+                      <div>
+                        <label className="mb-2 block text-sm font-semibold text-slate-600">
+                          해설 <span className="font-medium text-slate-400">(선택)</span>
+                        </label>
+                        <textarea
+                          value={question.explanation ?? ''}
+                          onChange={(e) => updateQuestionField(index, 'explanation', e.target.value)}
+                          className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                          rows={2}
+                          placeholder="왜 이게 정답인지 한두 문장으로 적어 주세요"
+                        />
+                      </div>
+
                       {/* 보기 (객관식일 때만) */}
                       {question.type === 'CHOICE' && (
                         <div>
@@ -428,6 +442,11 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                           className="mt-3 max-h-40 w-auto max-w-full rounded-xl border border-slate-200 object-contain"
                         />
                       )}
+                      {question.explanation && (
+                        <p className="mt-2 rounded-lg bg-sky-50 px-3 py-2 text-sm text-slate-600">
+                          <span className="font-semibold text-sky-700">해설</span> {question.explanation}
+                        </p>
+                      )}
                       {question.type === 'CHOICE' && Array.isArray(question.options) && (
                         <div className="mt-2">
                           <p className="text-sm text-slate-500 mb-1">보기:</p>
@@ -506,6 +525,20 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
               <QuestionImageField
                 value={newQuestion.image_url}
                 onChange={(url) => updateNewQuestion('image_url', url)}
+              />
+            </div>
+
+            {/* 해설 (선택) */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-slate-600">
+                해설 <span className="font-medium text-slate-400">(선택)</span>
+              </label>
+              <textarea
+                value={newQuestion.explanation ?? ''}
+                onChange={(e) => updateNewQuestion('explanation', e.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                rows={2}
+                placeholder="왜 이게 정답인지 한두 문장으로 적어 주세요"
               />
             </div>
 

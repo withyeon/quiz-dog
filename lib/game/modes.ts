@@ -33,7 +33,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Chiptune: Exploration',
       src: '/audio/bgm/gold-quest.mp3',
     },
-    description: '황금빛 보물이 잠든 섬, 지도를 따라 모험을 떠나는 해적 어드벤처',
+    description: '퀴즈를 맞히고 보물 상자를 열어 골드를 모아요. 골드가 많은 사람이 승리!',
     leaderboardSort: 'gold',
     requiresQuestionSet: true,
   },
@@ -49,7 +49,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Battle',
       src: '/audio/bgm/battle-royale.mp3',
     },
-    description: '던지고 피하고 명중시키는 설원 위 스노우 액션',
+    description: '퀴즈를 맞히고 눈뭉치를 던져 상대를 맞혀요. 상대 팀이 모두 눈사람이 되면 승리!',
     leaderboardSort: 'health',
     requiresQuestionSet: true,
   },
@@ -65,7 +65,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Chiptune 2',
       src: '/audio/bgm/fishing.mp3',
     },
-    description: '손끝에 집중해 희귀 인형을 노리는 행운의 뽑기 한판',
+    description: '퀴즈를 맞히고 집게를 조준해 좋은 인형을 뽑아요. 점수가 많은 사람이 승리!',
     leaderboardSort: 'claw_points',
     requiresQuestionSet: true,
   },
@@ -81,7 +81,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Action A',
       src: '/audio/bgm/factory.mp3',
     },
-    description: '진열부터 계산까지 운영하며 최고의 매장을 만드는 경영 게임',
+    description: '퀴즈를 맞혀서 좋은 상품을 판매해요. 돈을 많이 번 사람이 승리!',
     leaderboardSort: 'factory_money',
     requiresQuestionSet: true,
   },
@@ -97,7 +97,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Flowerbed Fields',
       src: '/audio/bgm/cafe.mp3',
     },
-    description: '손님에게 음식을 서빙하고 카페를 성장시키는 경영 게임',
+    description: '퀴즈를 맞히고 음식을 만들어 손님에게 서빙해요. 돈을 많이 번 사람이 승리!',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
   },
@@ -113,14 +113,14 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Horror B',
       src: '/audio/bgm/mafia.mp3',
     },
-    description: '금고를 털고 배신과 조사를 오가는 심리전 게임',
+    description: '퀴즈를 맞히고 금고를 열어 돈을 모아요. 돈을 많이 번 사람이 승리!',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
   },
   {
     id: 'dontlookdown',
     route: '/dontlookdown',
-    label: '점프점프',
+    label: '점프점프!',
     shortLabel: '돈룩다운',
     emoji: '⛰️',
     image: '/title/jump_jump.webp',
@@ -129,7 +129,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Chiptune 1B2',
       src: '/audio/bgm/dontlookdown.mp3',
     },
-    description: '플랫폼을 점프하며 정상까지 오르는 등반 게임',
+    description: '퀴즈를 맞히고 에너지로 발판을 올라요. 가장 높이 오른 사람이 승리!',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
   },
@@ -145,7 +145,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: "Chiptune Medieval: The Bard's Tale",
       src: '/audio/bgm/tower.mp3',
     },
-    description: '퀴즈를 풀어 타워를 설치하고 몰려오는 적을 막는 게임',
+    description: '퀴즈를 맞히고 타워를 세워 적을 막아요. 골드가 많은 사람이 승리!',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
   },
@@ -162,7 +162,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       src: '/audio/bgm/zombie.mp3',
     },
     // 제한 시간은 선생님이 시작할 때 고른다(기본 5분). 설명에 특정 시간을 박아두지 않는다.
-    description: '몰래 정해진 좀비를 피해 제한 시간까지 살아남는 정체 숨김 퀴즈 게임',
+    description: '퀴즈를 맞히고 좀비를 피해 살아남아요. 인간이 끝까지 남으면 인간 승리!',
     leaderboardSort: 'zombie_survived',
     requiresQuestionSet: true,
   },
@@ -178,7 +178,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Chiptune 1C2',
       src: '/audio/bgm/treat-rush.mp3',
     },
-    description: '달리며 퀴즈 풀고 아이템 박스 획득!',
+    description: '달리며 퀴즈를 풀고 아이템을 모아요. 점수가 많은 사람이 승리!',
     leaderboardSort: 'treat_rush_score',
     requiresQuestionSet: true,
   },
@@ -194,7 +194,24 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: '8-bit Battle Loop',
       src: '/audio/bgm/poop-dodge.mp3',
     },
-    description: '퀴즈를 풀고 카드를 뽑아 강아지들의 대소동을 버티는 라이브 교실 게임',
+    description: '똥을 피하고 뼈다귀를 모아요. 퀴즈를 풀어서 좋은 아이템을 얻어요. 점수가 많은 사람이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
+    // 게임이 아니라 공부 화면이다. 과제로 내기의 첫 번째 선택지이고, 실시간 수업에서도 열 수 있다.
+    // 옵션(피드백 시점·다시 풀기·재도전 횟수·문제 순서)은 lib/game/studySettings.ts, 화면은 app/study.
+    id: 'study',
+    route: '/study',
+    label: '공부 모드',
+    shortLabel: '공부',
+    emoji: '📖',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
+    description: '게임 없이 문제만 차근차근 풀어요. 바로 정답과 해설을 확인하고, 틀린 문제는 다 맞힐 때까지 다시 풀어요.',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
   },
@@ -260,9 +277,12 @@ export function getModeInitialPlayerState(mode: string | null | undefined) {
 }
 
 /**
- * 과제(혼자 풀기)로 낼 수 있는 모드.
+ * 과제(혼자 풀기)로 낼 수 있는 모드. 공부 모드가 첫 번째다.
  * 눈싸움(팀전)·마피아·좀비(역할 배정)는 여럿이 있어야 성립하므로 뺀다.
  */
 export const HOMEWORK_GAME_MODES: readonly GameModeId[] = [
-  'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'gold_quest', 'factory', 'cafe', 'tower',
+  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'gold_quest', 'factory', 'cafe', 'tower',
 ]
+
+/** 과제로 낼 수 있는 "게임" (공부 모드 제외) */
+export const HOMEWORK_PLAY_MODES: readonly GameModeId[] = HOMEWORK_GAME_MODES.filter((id) => id !== 'study')

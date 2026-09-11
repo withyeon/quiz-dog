@@ -55,9 +55,6 @@ export default function GameDurationPicker({
           <span className="text-sm">분</span>
         </label>
       </div>
-      <p className="mt-2 text-sm font-medium text-amber-700">
-        시간이 끝나면 자동 종료 · 순위 공개 ({MIN_MINUTES}~{MAX_MINUTES}분)
-      </p>
     </div>
   )
 }

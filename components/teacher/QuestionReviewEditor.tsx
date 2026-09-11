@@ -380,6 +380,20 @@ export default function QuestionReviewEditor({
                   </div>
                 )}
 
+                {/* 해설 (선택) — 공부 모드의 정답 확인과 결과 화면의 복습에 보인다 */}
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-slate-600">
+                    해설 <span className="font-medium text-slate-400">(선택)</span>
+                  </label>
+                  <textarea
+                    value={q.explanation ?? ''}
+                    onChange={(e) => handleEditQuestion(index, 'explanation', e.target.value)}
+                    className="w-full resize-none rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
+                    rows={2}
+                    placeholder="왜 이게 정답인지 한두 문장으로 적어 주세요"
+                  />
+                </div>
+
                 {/* 유효성 경고 */}
                 {errors.length > 0 && (
                   <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 rounded-lg border border-red-100">

@@ -11,22 +11,31 @@ export type GameQuestion = {
   answer: string
   /** 문제 그림 공개 URL. 없으면 null */
   image_url: string | null
+  /** 해설(선택). 공부 모드 정답 확인과 결과 복습에 보인다. 없으면 null */
+  explanation: string | null
 }
 
-// image_url 컬럼이 아직 없는 DB(마이그레이션 전)에서도 게임이 멈추지 않게,
-// 컬럼 없음 오류면 그림 없이 다시 읽는다.
-function isMissingImageColumn(error: unknown): boolean {
+// 나중에 추가된 컬럼(image_url, explanation)이 아직 없는 DB(마이그레이션 전)에서도 게임이 멈추지 않게,
+// 컬럼 없음 오류면 그 컬럼을 빼고 다시 읽는다. 오류 메시지에 컬럼 이름이 없으면 뒤에 추가된 것부터 뺀다.
+const OPTIONAL_QUESTION_COLUMNS = ['explanation', 'image_url'] as const
+
+function findMissingOptionalColumn(error: unknown, columns: string): string | null {
   const e = error as { code?: string; message?: string } | null
-  if (!e) return false
-  return e.code === '42703' || e.code === 'PGRST204' || /image_url/.test(e.message ?? '')
+  if (!e) return null
+  const message = e.message ?? ''
+  const isMissingColumn = e.code === '42703' || e.code === 'PGRST204' || /does not exist/i.test(message)
+  if (!isMissingColumn) return null
+  const named = OPTIONAL_QUESTION_COLUMNS.find((column) => columns.includes(column) && message.includes(column))
+  return named ?? OPTIONAL_QUESTION_COLUMNS.find((column) => columns.includes(column)) ?? null
 }
 
 async function selectQuestions(setId: string, columns: string, order: boolean) {
   let query = (supabase.from('questions') as any).select(columns).eq('set_id', setId)
   if (order) query = query.order('created_at', { ascending: true })
   const result = await query
-  if (result.error && columns.includes('image_url') && isMissingImageColumn(result.error)) {
-    return selectQuestions(setId, columns.replace(/,\s*image_url/, ''), order)
+  const missingColumn = result.error ? findMissingOptionalColumn(result.error, columns) : null
+  if (missingColumn) {
+    return selectQuestions(setId, columns.replace(new RegExp(`,\\s*${missingColumn}`), ''), order)
   }
   return result
 }
@@ -55,7 +64,8 @@ export async function listQuestionsForGame(
   setId: string,
   options: { shuffle?: boolean } = {},
 ): Promise<GameQuestion[]> {
-  const { data, error } = await selectQuestions(setId, 'id, type, question_text, options, image_url', false)
+  // 만든 순서로 읽는다. 게임은 어차피 섞어 내지만, 공부 모드의 "문제집 순서"는 이 순서를 그대로 쓴다.
+  const { data, error } = await selectQuestions(setId, 'id, type, question_text, options, image_url, explanation', true)
 
   if (error) throw error
 
@@ -65,6 +75,7 @@ export async function listQuestionsForGame(
     question_text: string
     options: Json
     image_url?: string | null
+    explanation?: string | null
   }>).map((question) => ({
     id: question.id,
     type: question.type,
@@ -73,6 +84,7 @@ export async function listQuestionsForGame(
     // Do not expose the real answer to clients. Keep a placeholder for legacy props.
     answer: '',
     image_url: question.image_url ?? null,
+    explanation: question.explanation ?? null,
   }))
 
   return options.shuffle ? shuffleQuestions(questions) : questions
@@ -113,7 +125,7 @@ export async function listQuestionsForAnalytics(
 ): Promise<AnalyticsQuestion[]> {
   const { data, error } = await selectQuestions(
     setId,
-    'id, set_id, type, question_text, options, answer, created_at, image_url',
+    'id, set_id, type, question_text, options, answer, created_at, image_url, explanation',
     true,
   )
 
@@ -128,6 +140,7 @@ export async function listQuestionsForAnalytics(
     answer: string
     created_at: string
     image_url?: string | null
+    explanation?: string | null
   }>).map((question) => ({
     id: question.id,
     set_id: question.set_id,
@@ -137,5 +150,6 @@ export async function listQuestionsForAnalytics(
     answer: question.answer,
     created_at: question.created_at,
     image_url: question.image_url ?? null,
+    explanation: question.explanation ?? null,
   }))
 }

@@ -48,6 +48,7 @@ export interface Database {
           updated_at: string
           answer_history?: Json[] | null
           started_at?: string | null
+          attempts?: Json | null
         }
         Insert: {
           id?: string
@@ -87,6 +88,7 @@ export interface Database {
           updated_at?: string
           answer_history?: Json[] | null
           started_at?: string | null
+          attempts?: Json | null
         }
         Update: {
           id?: string
@@ -126,6 +128,7 @@ export interface Database {
           updated_at?: string
           answer_history?: Json[] | null
           started_at?: string | null
+          attempts?: Json | null
         }
       }
       profiles: {
@@ -229,12 +232,13 @@ export interface Database {
           room_code: string
           status: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
           is_homework?: boolean
           due_at?: string | null
+          settings?: Json | null
           created_at: string
           updated_at: string
         }
@@ -242,12 +246,13 @@ export interface Database {
           room_code: string
           status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
           is_homework?: boolean
           due_at?: string | null
+          settings?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -255,12 +260,13 @@ export interface Database {
           room_code?: string
           status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
           is_homework?: boolean
           due_at?: string | null
+          settings?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -274,6 +280,7 @@ export interface Database {
           options: Json
           answer: string
           image_url: string | null
+          explanation?: string | null
           created_at: string
         }
         Insert: {
@@ -284,6 +291,7 @@ export interface Database {
           options: Json
           answer: string
           image_url?: string | null
+          explanation?: string | null
           created_at?: string
         }
         Update: {
@@ -294,6 +302,7 @@ export interface Database {
           options?: Json
           answer?: string
           image_url?: string | null
+          explanation?: string | null
           created_at?: string
         }
       }

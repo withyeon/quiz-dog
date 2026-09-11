@@ -14,7 +14,7 @@ import {
   getQuizGoldRange,
 } from '@/lib/game/tower'
 import {
-  AIM_GRADE_ZONE_WIDTH,
+  getAimGradeZoneWidth,
   ANSWER_SPEED_THRESHOLDS,
   DOLL_TYPES,
   MACHINE_RANK_THRESHOLDS,
@@ -183,6 +183,7 @@ function Fighter({ name, img, hp, hit, team }: { name: string; img: string; hp: 
 const FISHING_TARGET = 50 // 조준 목표 위치(%) — 실제 게임에선 뽑기마다 무작위로 정해집니다
 const FISHING_ANSWER_SECONDS = ANSWER_SPEED_THRESHOLDS.perfect - 1 // 번개 정답이 나오는 시간
 const FISHING_DEMO_RANK: MachineRank = 3
+const FISHING_AIM_ZONE = getAimGradeZoneWidth(FISHING_DEMO_RANK) // 데모 집게 등급에 맞는 조준 칸 폭
 const FISHING_AIM_TIER_FLOOR = getAimTierFloor('perfect') ?? '영웅' // 노란 칸에 맞혔을 때 보장되는 등급
 const FISHING_TIERS: DollTier[] = ['일반', '희귀', '영웅', '전설']
 
@@ -282,15 +283,15 @@ function ClawMachineScene({ mode }: { mode: 'aim' | 'perfect' | 'catch' }) {
         <div className="relative mt-2 h-11 overflow-hidden rounded-xl border border-white/20 bg-white/10">
           <div
             className="absolute inset-y-0 -translate-x-1/2 border-x border-sky-300/60 bg-sky-400/25"
-            style={{ left: `${FISHING_TARGET}%`, width: `${AIM_GRADE_ZONE_WIDTH.good}%` }}
+            style={{ left: `${FISHING_TARGET}%`, width: `${FISHING_AIM_ZONE.good}%` }}
           />
           <div
             className="absolute inset-y-0 -translate-x-1/2 border-x border-violet-300/60 bg-violet-400/30"
-            style={{ left: `${FISHING_TARGET}%`, width: `${AIM_GRADE_ZONE_WIDTH.great}%` }}
+            style={{ left: `${FISHING_TARGET}%`, width: `${FISHING_AIM_ZONE.great}%` }}
           />
           <div
             className="absolute inset-y-0 -translate-x-1/2 border-x-2 border-amber-400 bg-amber-300/50"
-            style={{ left: `${FISHING_TARGET}%`, width: `${AIM_GRADE_ZONE_WIDTH.perfect}%` }}
+            style={{ left: `${FISHING_TARGET}%`, width: `${FISHING_AIM_ZONE.perfect}%` }}
           />
           <span
             className="absolute top-1 -translate-x-1/2 rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black text-[#17262a] shadow"

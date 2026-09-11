@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   AIM_ACCURACY_SCALE,
+  AIM_TICK_MS,
   ATTACK_ITEM_TYPES,
   calculateTotalPoints,
   checkFrenzyEvent,
-  getAimGrade,
   getAimSpeed,
   getComboState,
   getMachineRank,
@@ -137,7 +137,7 @@ export function useFishingGame({
         aimPositionRef.current = next
         return next
       })
-    }, 24)
+    }, AIM_TICK_MS)
 
     return () => window.clearInterval(timer)
   }, [fishingState, machineRank])
@@ -320,7 +320,7 @@ export function useFishingGame({
     setFishingResult(result)
     setCaughtItem(result.doll)
     setFishingState('down')
-    playSFX(getAimGrade(accuracy) === 'perfect' ? 'correct' : 'click')
+    playSFX(result.aimGrade === 'perfect' ? 'correct' : 'click')
     runFishingSequence(result)
   }, [playSFX, runFishingSequence, targetPosition])
 

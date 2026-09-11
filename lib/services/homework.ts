@@ -4,17 +4,19 @@ import type { GameModeId } from '@/lib/game/modes'
 import { getRoomByCode, finishRoom } from '@/lib/services/rooms'
 import { listPlayersInRoom } from '@/lib/services/players'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
-import type { Database } from '@/types/database.types'
+import type { Database, Json } from '@/types/database.types'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
 
 export type CreateHomeworkRoomInput = {
   setId: string
   gameMode: GameModeId
-  /** 학생 한 명이 플레이하는 시간(초) */
-  durationSeconds: number
+  /** 학생 한 명이 플레이하는 시간(초). 공부 모드는 제한 없음(null) */
+  durationSeconds: number | null
   /** 제출 마감 (ISO) */
   dueAt: string
+  /** 방 옵션(rooms.settings). 공부 모드 옵션 등. 없으면 보내지 않는다 */
+  settings?: Json
 }
 
 export type HomeworkRoomSummary = RoomRow & {
@@ -27,9 +29,18 @@ export function isHomeworkSchemaError(error: unknown): boolean {
   return /is_homework|due_at|started_at/.test(message)
 }
 
+/** 공부 모드(방 옵션·시도 기록·해설·game_mode 'study')가 아직 DB에 없을 때 나는 오류인지 */
+export function isStudySchemaError(error: unknown): boolean {
+  const message = (error as { message?: string } | null)?.message ?? ''
+  return /settings|attempts|explanation|rooms_game_mode_check/.test(message)
+}
+
 export function describeHomeworkError(error: unknown): string {
   if (isHomeworkSchemaError(error)) {
     return '과제 기능을 쓰려면 DB 마이그레이션(sql/20260910_homework_mode.sql)을 먼저 적용해야 해요.'
+  }
+  if (isStudySchemaError(error)) {
+    return '공부 모드를 쓰려면 DB 마이그레이션(sql/20260911_study_mode.sql)을 먼저 적용해야 해요.'
   }
   return (error as { message?: string } | null)?.message ?? String(error)
 }
@@ -49,6 +60,8 @@ export async function createHomeworkRoom(input: CreateHomeworkRoomInput): Promis
     duration_seconds: input.durationSeconds,
     is_homework: true,
     due_at: input.dueAt,
+    // 키가 있을 때만 보낸다. 게임 과제는 settings 컬럼이 없는 DB(마이그레이션 전)에서도 만들어져야 한다.
+    ...(input.settings ? { settings: input.settings } : {}),
   }
 
   const { data, error } = await (supabase.from('rooms') as any)

@@ -19,6 +19,8 @@ import WaitingPlayers from '@/components/teacher/play/WaitingPlayers'
 import GameDurationPicker from '@/components/teacher/play/GameDurationPicker'
 import RoomCodePanel from '@/components/teacher/play/RoomCodePanel'
 import HomeworkPanel, { HostModeToggle, type HostMode } from '@/components/teacher/play/HomeworkPanel'
+import StudyOptionsFields from '@/components/teacher/play/StudyOptionsFields'
+import { DEFAULT_STUDY_SETTINGS, buildRoomSettings, type StudySettings } from '@/lib/game/studySettings'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
 import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
 import QRCodeSVG from 'react-qr-code'
@@ -59,6 +61,8 @@ export default function TeacherDashboard() {
   const [showLargeQrModal, setShowLargeQrModal] = useState(false)
   const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [timedDurationMinutes, setTimedDurationMinutes] = useState(5)
+  // 공부 모드 옵션 — 방을 만들 때 rooms.settings 에 담긴다
+  const [studySettings, setStudySettings] = useState<StudySettings>(DEFAULT_STUDY_SETTINGS)
   const [hostMode, setHostMode] = useState<HostMode>('live')
   const [showStartTutorial, setShowStartTutorial] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
@@ -462,7 +466,11 @@ export default function TeacherDashboard() {
         playBGM('game', activeBgmTrack)
       }
 
-      const createdRoom = await createRoom({ setId, gameMode })
+      const createdRoom = await createRoom({
+        setId,
+        gameMode,
+        ...(gameMode === 'study' ? { settings: buildRoomSettings(studySettings) } : {}),
+      })
       setRoomCode(createdRoom.room_code)
 
       // 공유받은 문제집이 실제 수업으로 이어졌는지 세어 둔다.
@@ -695,6 +703,13 @@ export default function TeacherDashboard() {
             selectedMode={gameMode}
             onSelectMode={handleGameModeChange}
           />
+        )}
+
+        {/* 공부 모드 옵션 — 방을 만들기 전에 정한다 */}
+        {!roomCode && gameMode === 'study' && (
+          <div className="mb-6">
+            <StudyOptionsFields value={studySettings} onChange={setStudySettings} context="live" />
+          </div>
         )}
 
         {roomCode ? (

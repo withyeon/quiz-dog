@@ -19,7 +19,8 @@ import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl, isGameModeId, typ
 import { getRoomJoinBlockReason } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
 import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
-import { createPlayerForRoom, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
+import { createPlayerForRoom, findPlayerByNickname, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
+import { confirmAsync } from '@/components/ui/ConfirmDialog'
 import { getPlayerById, updatePlayer } from '@/lib/services/players'
 import { clearLobbyPlayerId, loadLobbyPlayerId, saveLobbyPlayerId } from '@/lib/utils/lobbySession'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
@@ -244,6 +245,27 @@ function LobbyPage() {
       const finalNickname = nicknameCheck.filtered || nickname.trim()
 
       if (await nicknameExists(roomCode, finalNickname, playerId)) {
+        // 과제 방에서는 같은 닉네임을 같은 학생으로 본다: 다른 기기나 탭에서 돌아온 학생을
+        // 기존 기록(시도·점수)에 잇는다. 실시간 수업은 지금처럼 막는다 — 교실에서 같은 이름
+        // 두 명이 한 기록을 나눠 쓰면 안 된다.
+        const existing = roomData.is_homework ? await findPlayerByNickname(roomCode, finalNickname) : null
+        if (existing && !existing.is_kicked) {
+          const resume = await confirmAsync({
+            title: '이미 풀던 기록이 있어요',
+            message: `'${existing.nickname}'(으)로 시작한 기록이 있어요. 이어서 할까요? 내 이름이 아니면 다른 이름을 써 주세요.`,
+            confirmLabel: '이어서 하기',
+            cancelLabel: '다른 이름 쓰기',
+          })
+          if (resume) {
+            await updatePlayer(existing.id, { avatar, is_online: true })
+            setPlayerId(existing.id)
+            setIsJoined(true)
+            saveLobbyPlayerId(roomCode, existing.id)
+            void sendRoomEvent('room:snapshot-hint', { reason: 'player_resumed' })
+            router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, existing.id))
+            return
+          }
+        }
         setNicknameError('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
         setStep('nickname')
         return

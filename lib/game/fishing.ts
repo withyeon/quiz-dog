@@ -47,25 +47,25 @@ export interface Doll {
 
 // 인형 데이터: 정답 보상과 조작 정확도에 따라 희귀도 가중치가 달라진다.
 export const DOLL_TYPES: Omit<Doll, 'id' | 'score'>[] = [
-  { name: '수줍은 곰 인형', emoji: '🧸', image: '/fishing/1.webp', tier: '일반', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 18 },
-  { name: '리본 오리 인형', emoji: '🦆', image: '/fishing/4.webp', tier: '일반', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 17 },
-  { name: '햇살 곰 인형', emoji: '🧸', image: '/fishing/2.webp', tier: '일반', minScore: 45, maxScore: 85, color: 'text-amber-600', catchChance: 13 },
-  { name: '초록 점퍼 인형', emoji: '🐸', image: '/fishing/5.webp', tier: '일반', minScore: 55, maxScore: 105, color: 'text-amber-600', catchChance: 13 },
+  { name: '목욕탕 고무오리', emoji: '🦆', image: '/fishing/10.webp', tier: '일반', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 18 },
+  { name: '삐약이 병아리', emoji: '🐥', image: '/fishing/7.webp', tier: '일반', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 17 },
+  { name: '무지개 막대사탕', emoji: '🍭', image: '/fishing/14.webp', tier: '일반', minScore: 45, maxScore: 85, color: 'text-amber-600', catchChance: 13 },
+  { name: '빨간 리본 곰 인형', emoji: '🧸', image: '/fishing/1.webp', tier: '일반', minScore: 55, maxScore: 105, color: 'text-amber-600', catchChance: 13 },
 
-  { name: '눈꽃 곰 인형', emoji: '🧸', image: '/fishing/3.webp', tier: '희귀', minScore: 110, maxScore: 180, color: 'text-blue-500', catchChance: 6 },
-  { name: '말랑 거북 인형', emoji: '🐢', image: '/fishing/8.webp', tier: '희귀', minScore: 125, maxScore: 210, color: 'text-blue-500', catchChance: 5.5 },
-  { name: '밤하늘 고양이', emoji: '🐱', image: '/fishing/9.webp', tier: '희귀', minScore: 150, maxScore: 260, color: 'text-blue-500', catchChance: 4.5 },
-  { name: '하트 개구리 인형', emoji: '🐸', image: '/fishing/6.webp', tier: '희귀', minScore: 180, maxScore: 330, color: 'text-blue-500', catchChance: 3.5 },
+  { name: '느긋한 거북 인형', emoji: '🐢', image: '/fishing/15.webp', tier: '희귀', minScore: 110, maxScore: 180, color: 'text-blue-500', catchChance: 6 },
+  { name: '골든 강아지 인형', emoji: '🐶', image: '/fishing/13.webp', tier: '희귀', minScore: 125, maxScore: 210, color: 'text-blue-500', catchChance: 5.5 },
+  { name: '줄무늬 고양이 인형', emoji: '🐱', image: '/fishing/4.webp', tier: '희귀', minScore: 150, maxScore: 260, color: 'text-blue-500', catchChance: 4.5 },
+  { name: '분홍 돌고래 인형', emoji: '🐬', image: '/fishing/12.webp', tier: '희귀', minScore: 180, maxScore: 330, color: 'text-blue-500', catchChance: 3.5 },
 
-  { name: '레몬 크랩 쿠션', emoji: '🦀', image: '/fishing/10.webp', tier: '영웅', minScore: 260, maxScore: 460, color: 'text-purple-600', catchChance: 2.6 },
-  { name: '도넛 블롭 인형', emoji: '🍩', image: '/fishing/11.webp', tier: '영웅', minScore: 320, maxScore: 560, color: 'text-purple-600', catchChance: 2.2 },
-  { name: '네온 개구리 인형', emoji: '🐸', image: '/fishing/7.webp', tier: '영웅', minScore: 380, maxScore: 680, color: 'text-purple-600', catchChance: 1.9 },
+  { name: '말랑 보라 문어', emoji: '🐙', image: '/fishing/8.webp', tier: '영웅', minScore: 260, maxScore: 460, color: 'text-purple-600', catchChance: 2.6 },
+  { name: '무시무시 상어 인형', emoji: '🦈', image: '/fishing/9.webp', tier: '영웅', minScore: 320, maxScore: 560, color: 'text-purple-600', catchChance: 2.2 },
+  { name: '황금 왕관 곰 인형', emoji: '🧸', image: '/fishing/2.webp', tier: '영웅', minScore: 380, maxScore: 680, color: 'text-purple-600', catchChance: 1.9 },
 
-  { name: '별빛 문어 인형', emoji: '🐙', image: '/fishing/12.webp', tier: '전설', minScore: 580, maxScore: 980, color: 'text-yellow-500', catchChance: 1.1 },
-  { name: '해적 복어 인형', emoji: '🐡', image: '/fishing/14.webp', tier: '전설', minScore: 720, maxScore: 1200, color: 'text-yellow-500', catchChance: 0.8 },
-  { name: '진홍 문어 인형', emoji: '🐙', image: '/fishing/13.webp', tier: '전설', minScore: 850, maxScore: 1450, color: 'text-yellow-500', catchChance: 0.6 },
-  { name: '무지개 일각 인형', emoji: '🦄', image: '/fishing/16.webp', tier: '전설', minScore: 1200, maxScore: 2200, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.7)]', catchChance: 0.35 },
-  { name: 'UFO 스페셜 인형', emoji: '🛸', image: '/fishing/15.webp', tier: '전설', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
+  { name: '신사 눈사람 인형', emoji: '⛄', image: '/fishing/3.webp', tier: '전설', minScore: 580, maxScore: 980, color: 'text-yellow-500', catchChance: 1.1 },
+  { name: '모험가 레서판다', emoji: '🦝', image: '/fishing/16.webp', tier: '전설', minScore: 720, maxScore: 1200, color: 'text-yellow-500', catchChance: 0.8 },
+  { name: '해적선장 거북이', emoji: '🐢', image: '/fishing/5.webp', tier: '전설', minScore: 850, maxScore: 1450, color: 'text-yellow-500', catchChance: 0.6 },
+  { name: '붉은 해적 문어', emoji: '🐙', image: '/fishing/6.webp', tier: '전설', minScore: 1200, maxScore: 2200, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.7)]', catchChance: 0.35 },
+  { name: '문어 왕자님', emoji: '👑', image: '/fishing/11.webp', tier: '전설', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
 ]
 
 // 인형뽑기 상태
@@ -264,15 +264,47 @@ export function getSpeedMultiplier(answerTime: number): number {
 
 export const AIM_ACCURACY_SCALE = 36
 
-/** 조준 바 등급 구간 너비 (% 단위, 목표 중심 기준 전체 폭) */
-export const AIM_GRADE_ZONE_WIDTH = {
-  good: (1 - 0.48) * AIM_ACCURACY_SCALE * 2,
-  great: (1 - 0.72) * AIM_ACCURACY_SCALE * 2,
-  perfect: (1 - 0.92) * AIM_ACCURACY_SCALE * 2,
-} as const
+/** 조준 바가 한 칸 움직이는 주기(ms) — useFishingGame 의 조준 루프와 같은 값이어야 한다 */
+export const AIM_TICK_MS = 24
 
-export function getAimGrade(accuracy: number): AimGrade {
-  if (accuracy >= 0.92) return 'perfect'
+/**
+ * 바가 노란(훌륭함) 칸을 지나가는 시간(ms).
+ *
+ * 칸 폭을 고정하면 랭크가 오를수록 바만 빨라져서 통과 시간이 77ms → 37ms 로 반토막 난다.
+ * 훌륭함 조준은 전설 인형을 뽑는 거의 유일한 수단인데(getAimTierFloor 참고),
+ * 정답을 맞혀 랭크를 올릴수록 그게 실력이 아니라 운이 되어버리는 역전이 생긴다.
+ * 그래서 폭이 아니라 "지나가는 시간"을 랭크별로 정하고 폭은 속도에서 거꾸로 계산한다.
+ * 여기 값만 바꾸면 조준 난이도 곡선을 조정할 수 있다.
+ */
+const AIM_PERFECT_WINDOW_MS: Record<MachineRank, number> = {
+  1: 77,
+  2: 74,
+  3: 72,
+  4: 69,
+  5: 66,
+}
+
+/** 훌륭함 칸의 전체 폭(%) — 바가 빨라지는 만큼 칸도 넓어진다 */
+export function getAimPerfectZoneWidth(rank: MachineRank): number {
+  return (getAimSpeed(rank) / AIM_TICK_MS) * AIM_PERFECT_WINDOW_MS[rank]
+}
+
+/** 훌륭함 판정 하한 정확도 — 항상 위 칸 폭에서 나오므로 그림과 판정이 어긋나지 않는다 */
+export function getAimPerfectThreshold(rank: MachineRank): number {
+  return 1 - getAimPerfectZoneWidth(rank) / (AIM_ACCURACY_SCALE * 2)
+}
+
+/** 조준 바 등급 구간 너비 (% 단위, 목표 중심 기준 전체 폭) */
+export function getAimGradeZoneWidth(rank: MachineRank) {
+  return {
+    good: (1 - 0.48) * AIM_ACCURACY_SCALE * 2,
+    great: (1 - 0.72) * AIM_ACCURACY_SCALE * 2,
+    perfect: getAimPerfectZoneWidth(rank),
+  }
+}
+
+export function getAimGrade(accuracy: number, rank: MachineRank = 1): AimGrade {
+  if (accuracy >= getAimPerfectThreshold(rank)) return 'perfect'
   if (accuracy >= 0.72) return 'great'
   if (accuracy >= 0.48) return 'good'
   return 'safe'
@@ -333,7 +365,7 @@ export function tryFishing(
 ): FishingResult {
   const safeAccuracy = Math.max(0, Math.min(1, aimAccuracy))
   const speedGrade = getAnswerSpeedGrade(answerTime)
-  const aimGrade = getAimGrade(safeAccuracy)
+  const aimGrade = getAimGrade(safeAccuracy, machineRank)
   const speedMultiplier = getSpeedMultiplier(answerTime)
   const accuracyMultiplier = getAccuracyMultiplier(safeAccuracy)
   const rankMultiplier = getRankScoreMultiplier(machineRank)

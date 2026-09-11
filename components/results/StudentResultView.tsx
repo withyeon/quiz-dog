@@ -1,7 +1,16 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, RotateCcw, Target, Trophy, X } from 'lucide-react'
+import Link from 'next/link'
+import { BookOpen, CheckCircle2, RotateCcw, Target, Trophy, X } from 'lucide-react'
+import { isHomeworkPastDue } from '@/lib/game/roomStatus'
+import {
+  canStartNewAttempt,
+  countFinishedAttempts,
+  getBestAttempt,
+  parseStudyAttempts,
+  parseStudySettings,
+} from '@/lib/game/studySettings'
 import {
   Cell,
   Pie,
@@ -39,6 +48,19 @@ export default function StudentResultView({
   const student = analytics.players.find((player) => player.id === playerId) ?? null
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionAnalysis | null>(null)
   const studentScoreDisplay = student ? getScoreDisplay({ score: student.score }, room.game_mode) : null
+  // 공부 모드: 시도 기록과 "처음부터 다시 풀기" (과제이고 마감 전이고 횟수가 남았을 때)
+  const studyInfo = useMemo(() => {
+    if (room.game_mode !== 'study') return null
+    const raw = players.find((player) => player.id === playerId)
+    const attempts = parseStudyAttempts(raw?.attempts)
+    const settings = parseStudySettings(room.settings)
+    const best = getBestAttempt(attempts)
+    const canRetry = Boolean(room.is_homework)
+      && room.status === 'playing'
+      && !isHomeworkPastDue(room)
+      && canStartNewAttempt(attempts, settings)
+    return { attempts, best, finished: countFinishedAttempts(attempts), canRetry }
+  }, [playerId, players, room])
 
   if (!student) {
     return (
@@ -93,6 +115,33 @@ export default function StudentResultView({
             {isTopThree ? '멋진 집중력이었어요. 오늘 배운 것도 한 번 더 확인해볼까요?' : '좋아요. 틀린 문제를 다시 한 번 확인해 봅시다.'}
           </p>
         </section>
+
+        {studyInfo && (
+          <section className="rounded-lg border border-sky-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-sm font-black text-sky-700">
+                  <BookOpen className="h-4 w-4" />
+                  공부 기록
+                </div>
+                <p className="mt-2 text-lg font-bold text-slate-800">
+                  {studyInfo.finished > 0 ? `${studyInfo.finished}번 풀었어요` : '아직 끝까지 푼 기록이 없어요'}
+                  {studyInfo.best && ` · 최고 ${studyInfo.best.correct}/${studyInfo.best.total}`}
+                  {studyInfo.best?.mastered && ' · 틀린 문제까지 모두 맞혔어요'}
+                </p>
+              </div>
+              {studyInfo.canRetry && (
+                <Link
+                  href={`/study?room=${room.room_code}&playerId=${playerId}`}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-sky-500 px-5 py-3 font-black text-white shadow-sm transition hover:bg-sky-600"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  처음부터 다시 풀기
+                </Link>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="grid gap-4 sm:grid-cols-[220px_1fr]">
           <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
@@ -241,9 +290,16 @@ function ReviewModal({
               <div className="mt-1 text-lg font-black">{question.answer}</div>
             </div>
           </div>
-          <div className="rounded-md bg-slate-50 p-4 text-sm font-bold text-slate-600">
-            해설은 v1 데이터에 별도 저장값이 없어서 정답 중심으로 표시합니다.
-          </div>
+          {question.explanation ? (
+            <div className="rounded-md bg-sky-50 p-4">
+              <div className="text-sm font-black text-sky-700">해설</div>
+              <p className="mt-1 whitespace-pre-wrap text-sm font-bold leading-relaxed text-slate-700">{question.explanation}</p>
+            </div>
+          ) : (
+            <div className="rounded-md bg-slate-50 p-4 text-sm font-bold text-slate-600">
+              이 문제에는 해설이 없어요. 정답을 다시 한 번 확인해 보세요.
+            </div>
+          )}
         </div>
       </div>
     </div>

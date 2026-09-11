@@ -26,7 +26,7 @@ import PawBackgroundDecor from '@/components/PawBackgroundDecor'
 import GameModeCard from '@/components/landing/GameModeCard'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import { gameAssets } from '@/assets/game-assets'
-import { visibleGameModes, visibleGameModeCount } from '@/components/landing/gameModesData'
+import { visibleGameModes } from '@/components/landing/gameModesData'
 
 /* ─────────────────────────────────────────────────────────────
    공통 조각
@@ -167,21 +167,21 @@ const STEPS = [
     step: '01',
     emoji: '📎',
     title: '자료를 올려요',
-    description: '수업 자료 파일이나 유튜브 링크, 아니면 단원명 한 줄이면 충분해요.',
+    description: '수업 자료 파일, 유튜브 링크, 주제 입력이면 충분해요.',
     color: '#0EA5E9',
   },
   {
     step: '02',
     emoji: '🤖',
     title: 'AI가 문제를 만들어요',
-    description: '유형별 개수까지 정해서 생성하고, 화면에서 바로 다듬을 수 있어요.',
+    description: '다양한 유형으로 생성하고 수정도 바로 가능해요.',
     color: '#14B8A6',
   },
   {
     step: '03',
     emoji: '🎮',
     title: '게임 코드를 공유해요',
-    description: '게임 모드를 고르고 코드를 띄우면 학생들이 곧바로 들어와요.',
+    description: '학생들은 6자리 숫자 코드를 입력해서 간편하게 들어와요.',
     color: '#F43F5E',
   },
 ]
@@ -381,8 +381,7 @@ export default function FeaturesContent() {
         <div className="mx-auto max-w-6xl">
           <SectionHeading
             badge="🤖 AI 문제 생성"
-            title={<>어떤 자료든 <PixelAccent>문제집</PixelAccent>이 됩니다</>}
-            subtitle="네 가지 방법 중 편한 걸로 시작하세요."
+            title={<>어떤 자료도 <PixelAccent>퀴즈</PixelAccent>가 됩니다!</>}
           />
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -418,9 +417,7 @@ export default function FeaturesContent() {
               <div className="grid gap-8 p-8 md:grid-cols-2 md:items-center">
                 <div>
                   <h3 className="mb-3 text-2xl font-black leading-snug text-[#0F172A]">
-                    만들기 전에 원하는 대로 맞추고,
-                    <br />
-                    만든 뒤엔 직접 다듬어요
+                    AI로 간편한 퀴즈 생성하기
                   </h3>
                   <p className="text-[15px] font-bold leading-relaxed text-slate-500">
                     AI가 만든 문제를 그대로 쓰지 않아도 돼요. 생성 결과를 검토 화면에서 확인하고,
@@ -447,10 +444,9 @@ export default function FeaturesContent() {
             badge="🎮 게임 모드"
             title={
               <>
-                같은 문제집으로 <PixelAccent>{visibleGameModeCount}가지</PixelAccent> 게임
+                초등교사 출신 개발자가 만든 <PixelAccent>초등학생 눈높이 게임</PixelAccent>!
               </>
             }
-            subtitle="문제집은 그대로 두고 게임만 바꿔도 완전히 다른 수업이 돼요."
           />
 
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
