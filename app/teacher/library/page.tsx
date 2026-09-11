@@ -26,6 +26,12 @@ import {
 } from '@/lib/services/questionSets'
 import { ELEMENTARY_GRADE_NUMBERS, formatGradeLabel } from '@/lib/constants/grades'
 import {
+  ALL_SUBJECTS as SUBJECTS,
+  SUBJECTS_BY_LEVEL,
+  getSubjectName,
+  normalizeSubjectId,
+} from '@/lib/constants/subjects'
+import {
   getLocalLikedQuestionSetIds,
   getLibraryClientId,
   setLocalQuestionSetLiked,
@@ -48,88 +54,6 @@ type QuestionSet = {
   liked_by_client: boolean
 }
 
-const BASE_SUBJECTS = [
-  { id: 'korean', name: '국어' },
-  { id: 'math', name: '수학' },
-  { id: 'english', name: '영어' },
-  { id: 'social', name: '사회' },
-  { id: 'science', name: '과학' },
-  { id: 'ethics', name: '도덕' },
-  { id: 'pe', name: '체육' },
-  { id: 'music', name: '음악' },
-  { id: 'art', name: '미술' },
-]
-
-const SUBJECTS_BY_LEVEL = {
-  elementary: [
-    { id: 'integrated', name: '통합교과' },
-    ...BASE_SUBJECTS,
-    { id: 'practical_arts', name: '실과' },
-    { id: 'creative', name: '창체' },
-  ],
-  middle: [
-    ...BASE_SUBJECTS,
-    { id: 'history', name: '역사' },
-    { id: 'tech_home', name: '기술·가정' },
-    { id: 'information', name: '정보' },
-    { id: 'creative', name: '창체' },
-  ],
-  high: [
-    ...BASE_SUBJECTS,
-    { id: 'history', name: '한국사' },
-    { id: 'tech_home', name: '기술·가정' },
-    { id: 'information', name: '정보' },
-    { id: 'second_language', name: '제2외국어/한문' },
-    { id: 'career', name: '진로와 직업' },
-    { id: 'creative', name: '창체' },
-  ],
-} as const
-
-const SUBJECTS = [
-  { id: 'integrated', name: '통합교과' },
-  ...BASE_SUBJECTS,
-  { id: 'practical_arts', name: '실과' },
-  { id: 'history', name: '역사/한국사' },
-  { id: 'tech_home', name: '기술·가정' },
-  { id: 'information', name: '정보' },
-  { id: 'second_language', name: '제2외국어/한문' },
-  { id: 'career', name: '진로와 직업' },
-  { id: 'creative', name: '창체' },
-]
-
-const SUBJECT_ALIASES: Record<string, string> = {
-  통합교과: 'integrated',
-  바른생활: 'integrated',
-  '바른 생활': 'integrated',
-  슬기로운생활: 'integrated',
-  '슬기로운 생활': 'integrated',
-  즐거운생활: 'integrated',
-  '즐거운 생활': 'integrated',
-  창체: 'creative',
-  창의적체험활동: 'creative',
-  '창의적 체험활동': 'creative',
-  국어: 'korean',
-  수학: 'math',
-  사회: 'social',
-  과학: 'science',
-  영어: 'english',
-  도덕: 'ethics',
-  체육: 'pe',
-  음악: 'music',
-  미술: 'art',
-  실과: 'practical_arts',
-  기술가정: 'tech_home',
-  '기술·가정': 'tech_home',
-  '기술ㆍ가정': 'tech_home',
-  정보: 'information',
-  한국사: 'history',
-  제2외국어: 'second_language',
-  한문: 'second_language',
-  '진로와 직업': 'career',
-  기타: 'integrated',
-  역사: 'history',
-}
-
 const SCHOOL_LEVELS = [
   { id: 'all', name: '전체' },
   { id: 'elementary', name: '초등' },
@@ -147,10 +71,9 @@ type SchoolLevel = keyof typeof GRADE_GROUPS
 type SortType = 'likes' | 'recent'
 
 const normalizeSubject = (subjectValue: string | null | undefined, setId: string): string => {
-  if (subjectValue) {
-    if (SUBJECTS.some((item) => item.id === subjectValue)) return subjectValue
-    if (SUBJECT_ALIASES[subjectValue]) return SUBJECT_ALIASES[subjectValue]
-  }
+  // 저장된 과목 이름을 먼저 보고, 없으면 문제집 id에 섞인 과목 id로 추측한다.
+  const normalized = normalizeSubjectId(subjectValue, '')
+  if (normalized) return normalized
 
   const subject = SUBJECTS.find((item) => setId.includes(item.id))
   return subject?.id || 'integrated'
@@ -177,10 +100,6 @@ const normalizeGrade = (gradeValue: string | null | undefined, setId: string): s
   }
   return 'elementary-3'
 }
-
-const getSubjectName = (subjectId: string) => (
-  SUBJECTS.find((item) => item.id === subjectId)?.name ?? '통합교과'
-)
 
 const getGradeLabel = (grade: string) => formatGradeLabel(grade)
 
@@ -376,9 +295,6 @@ function LibraryPageContent() {
             <h1 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
               자료실
             </h1>
-            <p className="mt-3 max-w-2xl text-base font-medium leading-7 text-slate-500">
-              수업에 쓸 문제집 찾기 · 담아서 수정하거나 바로 게임 시작.
-            </p>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3 xl:w-[520px]">

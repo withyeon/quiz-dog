@@ -15,6 +15,8 @@ import { createQuestionSetWithQuestions } from '@/lib/services/questionSets'
 import { getTeacherAccessToken } from '@/lib/services/questionImages'
 import { formatServiceError } from '@/lib/services/errors'
 import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
+import { remapSubjectToLevel, schoolLevelFromGrade } from '@/lib/constants/subjects'
+import SubjectSelect from '@/components/teacher/SubjectSelect'
 import { toast } from '@/components/ui/Toaster'
 
 type SourceType = 'topic' | 'youtube' | 'file' | 'exam'
@@ -61,6 +63,13 @@ export default function CreateQuestionPage() {
   const [setName, setSetName] = useState('')
   const [subject, setSubject] = useState('')
   const [grade, setGrade] = useState('')
+
+  // 학년을 바꾸면 학교급이 바뀌므로 과목도 그 학교급 이름으로 옮긴다.
+  // (중등에서 '역사'를 고른 뒤 고등으로 바꾸면 '한국사'가 된다)
+  const handleGradeChange = (nextGrade: string) => {
+    setGrade(nextGrade)
+    setSubject((current) => remapSubjectToLevel(current, schoolLevelFromGrade(nextGrade)))
+  }
   const [isPublic, setIsPublic] = useState(false)
 
   const totalTypeCount = typeCounts.CHOICE + typeCounts.OX + typeCounts.SHORT
@@ -368,25 +377,18 @@ export default function CreateQuestionPage() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-600">과목</label>
-                    <select
+                    <SubjectSelect
                       value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
+                      onChange={setSubject}
+                      grade={grade}
                       className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                    >
-                      <option value="">전체/해당없음</option>
-                      <option value="국어">국어</option>
-                      <option value="영어">영어</option>
-                      <option value="수학">수학</option>
-                      <option value="사회">사회</option>
-                      <option value="과학">과학</option>
-                      <option value="역사">역사</option>
-                    </select>
+                    />
                   </div>
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-600">대상 학년</label>
                     <select
                       value={grade}
-                      onChange={(e) => setGrade(e.target.value)}
+                      onChange={(e) => handleGradeChange(e.target.value)}
                       className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     >
                       <option value="">전체/해당없음</option>

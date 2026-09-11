@@ -404,17 +404,63 @@ export default function FactoryPage() {
 
   // 편의점: 선생님이 설정한 제한 시간이 되면 자동 종료 (돈 많은 순 순위)
   const durationSeconds = (room as { duration_seconds?: number } | null)?.duration_seconds ?? null
-  const startedAt = (room as { started_at?: string | null } | null)?.started_at ?? null
+  const roomStartedAt = (room as { started_at?: string | null } | null)?.started_at ?? null
+
+  // ─── 과제 모드: 제한 시간은 방이 아니라 "이 학생이 게임에 들어간 시각"부터 센다 ───
+  // useGameBase와 같은 규칙인데, 편의점은 공용 훅을 쓰지 않아 여기서 직접 처리한다.
+  // 학생마다 다른 시간에 들어오므로 room.started_at을 쓰면 늦게 온 학생은 시작하자마자 끝난다.
+  const isHomework = Boolean((room as { is_homework?: boolean | null } | null)?.is_homework)
+  const homeworkDueAt = (room as { due_at?: string | null } | null)?.due_at ?? null
+  const playerStartedAt = (currentPlayer as { started_at?: string | null } | undefined)?.started_at ?? null
+  const hasCurrentPlayer = Boolean(currentPlayer)
+  const [localSessionStart, setLocalSessionStart] = useState<string | null>(null)
+  /** 이 학생의 세션 시작 시각. 일반 방은 room.started_at, 과제 방은 학생 개인 시작 시각. */
+  const sessionStartedAt = isHomework ? (playerStartedAt ?? localSessionStart) : roomStartedAt
+
+  // 과제: 시작 전 퀴즈를 마치고 게임에 들어간 시각을 한 번 기록한다. 플레이어 행이 로드된 뒤에만
+  // 기록한다(재입장 때 DB의 started_at을 보기 전에 새 시각을 쓰면 제한 시간이 처음부터 다시 간다).
+  // DB 반영 전에도 바로 세도록 sessionStorage에 먼저 적는다.
+  useEffect(() => {
+    if (!isHomework || room?.status !== 'playing' || !isPreStartQuizComplete) return
+    if (!roomCode || !playerId || !hasCurrentPlayer || typeof window === 'undefined') return
+    if (playerStartedAt || localSessionStart) return
+
+    const storageKey = `hw_start_${roomCode}_${playerId}`
+    try {
+      const saved = window.sessionStorage.getItem(storageKey)
+      if (saved) {
+        setLocalSessionStart(saved)
+        return
+      }
+    } catch {
+      // sessionStorage 접근 불가(프라이빗 모드 등) — DB 기록으로 진행
+    }
+
+    const now = new Date().toISOString()
+    setLocalSessionStart(now)
+    try {
+      window.sessionStorage.setItem(storageKey, now)
+    } catch {
+      // 저장 실패해도 DB 패치로 복구된다
+    }
+    commitPlayerPatch({ started_at: now }, 'homework_session_start').catch((error) => {
+      console.error('과제 시작 시각 기록 실패:', error)
+    })
+  }, [
+    commitPlayerPatch, hasCurrentPlayer, isHomework, isPreStartQuizComplete, localSessionStart,
+    playerId, playerStartedAt, room?.status, roomCode,
+  ])
 
   useEffect(() => {
-    const timerStartMs = startedAt ? new Date(startedAt).getTime() : null
+    const timerStartMs = sessionStartedAt ? new Date(sessionStartedAt).getTime() : null
 
     if (room?.status !== 'playing' || durationSeconds == null || !timerStartMs) {
       setRemainingSeconds(null)
       return
     }
-    // 카운트다운 표시만 담당한다. 시간 종료 시 학생 화면 전환은 useGameBase의 로컬 종료가,
-    // 방의 finished 기록은 교사 대시보드(유일한 권위자)가 담당한다. 학생은 DB에 쓰지 않는다.
+    // 카운트다운 표시만 담당한다. 일반 방에서 시간 종료 시 학생 화면 전환은 교사 대시보드
+    // (유일한 권위자)의 finished 기록을 받아 처리하고, 학생은 DB에 쓰지 않는다.
+    // 과제 방은 선생님 화면이 없으므로 아래 로컬 종료 효과가 결과로 넘긴다.
     const tick = () => {
       const elapsed = (Date.now() - timerStartMs) / 1000
       setRemainingSeconds(Math.max(0, Math.ceil(durationSeconds - elapsed)))
@@ -422,7 +468,34 @@ export default function FactoryPage() {
     tick()
     const interval = setInterval(tick, 1000)
     return () => clearInterval(interval)
-  }, [durationSeconds, room?.status, startedAt])
+  }, [durationSeconds, room?.status, sessionStartedAt])
+
+  // 과제 방에는 진행을 끝내 줄 선생님 화면이 없으므로, 개인 제한 시간과 제출 마감 중 먼저 오는
+  // 쪽에서 학생 화면을 스스로 결과로 넘긴다 (useGameBase의 로컬 종료와 같은 규칙).
+  const homeworkFinishedRef = useRef(false)
+  useEffect(() => {
+    if (!isHomework || room?.status !== 'playing' || !sessionStartedAt || !durationSeconds) return
+
+    const startedMs = new Date(sessionStartedAt).getTime()
+    if (!Number.isFinite(startedMs) || durationSeconds <= 0) return
+
+    let deadlineMs = startedMs + durationSeconds * 1000
+    if (homeworkDueAt) {
+      const dueMs = new Date(homeworkDueAt).getTime()
+      if (Number.isFinite(dueMs)) deadlineMs = Math.min(deadlineMs, dueMs)
+    }
+
+    const tick = () => {
+      if (homeworkFinishedRef.current) return
+      if (Date.now() >= deadlineMs) {
+        homeworkFinishedRef.current = true
+        forceFinishForStudent('factory_time_up_local')
+      }
+    }
+    tick()
+    const interval = window.setInterval(tick, 1000)
+    return () => window.clearInterval(interval)
+  }, [durationSeconds, forceFinishForStudent, homeworkDueAt, isHomework, room?.status, sessionStartedAt])
 
   // 게임 종료 감지
   useEffect(() => {

@@ -68,7 +68,7 @@ export default function GamePage() {
     currentQuestionIndex,
     revealedAnswer,
     showCountdown,
-    setShowCountdown,
+    handleCountdownComplete,
     consecutiveCorrect,
     answerHistory,
     questions,
@@ -84,7 +84,6 @@ export default function GamePage() {
     playersLoading,
     currentPlayer,
     currentQuestion,
-    playBGM,
     playSFX,
     handlePreStartQuizAnswer,
     checkAnswer,
@@ -365,13 +364,10 @@ export default function GamePage() {
     }
   }, [room?.status, currentView, pendingEvent, goToNextQuestion])
 
-  // 카운트다운 완료 후 게임 시작
-  const handleCountdownComplete = () => {
-    setShowCountdown(false)
-    setCurrentView('quiz')
-    // 인덱스 초기화는 useGameBase에서 처리되지만, 필요시 수동 이동
-    playBGM('game')
-  }
+  // 카운트다운 완료는 훅(useGameBase)의 handleCountdownComplete가 처리한다. 완료를 훅에 알려야
+  // 시작 전 퀴즈 게이트(shouldShowPreStartQuiz)가 열리고, 게이트가 끝나면 훅이 'quiz'로 넘긴다.
+  // 예전에는 페이지 자체 핸들러가 바로 'quiz'로 들어가며 훅에는 알리지 않아 훅의
+  // isCountdownComplete가 영원히 false였고, 시작 전 퀴즈 3문제가 조용히 건너뛰어졌다.
 
   // 정답 후 상자 선택 화면으로 이동 (제출 후 자동/클릭 공용)
   // 자동(1.5초)과 수동 클릭이 모두 이 함수를 호출하므로, 예약된 자동

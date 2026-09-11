@@ -12,18 +12,30 @@ import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 const BELIEFS = [
   {
     icon: Sprout,
-    title: '가르치지 않아도 배웁니다',
-    description: '외우라고 시키지 않아도 괜찮아요. 놀이에 빠져 있는 동안 배움은 자연스럽게 일어납니다.',
+    title: '재미있으면, 아이가 먼저 합니다',
+    lines: [
+      '시키지 않아도 게임은 시작합니다.',
+      '문제를 풀고, 경쟁하고, 웃는 사이',
+      '아이들은 자연스럽게 배웁니다.',
+    ],
   },
   {
     icon: HandHeart,
-    title: '흥미 없던 아이도 참여합니다',
-    description: '손 들지 않던 아이가 게임 앞에서는 먼저 답을 외쳐요. 수업의 주인공이 한 명 더 늘어납니다.',
+    title: '게임에서는, 모두가 참여합니다',
+    lines: [
+      '손들기를 망설이던 아이도',
+      '게임이 시작되면 답을 고릅니다.',
+      '구경하던 아이까지 직접 참여합니다.',
+    ],
   },
   {
     icon: Repeat,
-    title: '반복이 실력으로 남습니다',
-    description: '재미있으니까 한 판 더. 그렇게 쌓인 반복이 결국 아이 몸에 배는 학습이 됩니다.',
+    title: '한 판 더가, 실력이 됩니다',
+    lines: [
+      '“한 번만 더!”',
+      '재미있으니까 반복하고,',
+      '반복하니까 배운 것이 오래 남습니다.',
+    ],
   },
 ]
 
@@ -42,8 +54,10 @@ export default function MottoSection({ animationsReady }: { animationsReady: boo
               우리가 <PixelAccent>게임</PixelAccent>으로 하는 이유
             </PixelHeading>
           </h2>
-          <p className="-mt-1 text-base sm:text-lg" style={{ color: '#475569' }}>
-            퀴즈독이 만들어질 때부터 지키고 있는 세 가지 믿음
+          <p className="-mt-1 text-base font-black leading-relaxed sm:text-lg" style={{ color: '#1E3A8A' }}>
+            공부를 게임처럼.
+            <br />
+            배움을 놀이처럼.
           </p>
         </motion.div>
 
@@ -71,18 +85,22 @@ export default function MottoSection({ animationsReady }: { animationsReady: boo
                 >
                   <Icon className="h-7 w-7" style={{ color: '#0284C7' }} strokeWidth={2.4} />
                 </span>
-                <h3 className="mb-2 text-xl font-black sm:text-2xl" style={{ color: '#0F172A' }}>
+                <h3 className="mb-3 text-xl font-black sm:text-2xl" style={{ color: '#0F172A' }}>
                   {item.title}
                 </h3>
                 <p className="text-[15px] leading-relaxed" style={{ color: '#64748B' }}>
-                  {item.description}
+                  {item.lines.map((line, lineIndex) => (
+                    <span key={line}>
+                      {lineIndex > 0 && <br />}
+                      {line}
+                    </span>
+                  ))}
                 </p>
               </motion.div>
             )
           })}
         </div>
 
-        {/* 모토 한 줄 */}
         <motion.div
           initial={animationsReady ? { opacity: 0, y: 16 } : false}
           whileInView={{ opacity: 1, y: 0 }}
@@ -97,13 +115,12 @@ export default function MottoSection({ animationsReady }: { animationsReady: boo
             }}
           >
             <p className="text-xl font-black leading-relaxed sm:text-2xl" style={{ color: '#FFFFFF' }}>
-              억지로 외우게 하지 않습니다.
-              <br className="hidden sm:block" />{' '}
-              <span style={{ color: '#7dd3fc' }}>재미있어서 또 하다 보면,</span> 배움은 저절로 남으니까요.
+              퀴즈독은
+              <br />
+              아이들이 배우는 순간을
+              <br />
+              <span style={{ color: '#7dd3fc' }}>‘공부’가 아닌 ‘재미’</span>로 바꿉니다.
             </p>
-            <footer className="mt-4 text-sm font-black sm:text-base" style={{ color: '#BAE6FD' }}>
-              — 퀴즈독을 만드는 마음
-            </footer>
           </blockquote>
         </motion.div>
       </div>

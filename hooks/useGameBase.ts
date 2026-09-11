@@ -586,23 +586,46 @@ export function useGameBase(options: UseGameBaseOptions) {
             setCurrentView('quiz')
             playBGM('game')
             questionStartTime.current = Date.now()
-
-            // 과제: 이 학생의 세션 시작 시각을 기록한다 (개인 제한 시간의 기준).
-            // DB 반영 전에도 바로 세도록 sessionStorage에 먼저 적는다.
-            if (isHomework && roomCode && playerId && !playerStartedAt && !localSessionStart) {
-                const now = new Date().toISOString()
-                setLocalSessionStart(now)
-                try {
-                    window.sessionStorage.setItem(`hw_start_${roomCode}_${playerId}`, now)
-                } catch {
-                    // 저장 실패해도 DB 패치로 복구된다
-                }
-                void commitPlayerPatch(playerId, { started_at: now }, 'homework_session_start')
-            }
         }
+    }, [isCountdownComplete, isPreStartQuizComplete, currentView, playBGM])
+
+    // ─── 과제: 이 학생의 세션 시작 시각 기록 (개인 제한 시간의 기준) ───
+    // "게임에 들어간 시각" = 방이 진행 중이고 시작 전 퀴즈를 마친 시점.
+    // 예전에는 위의 게임 진입 효과 안에서 카운트다운 완료 플래그(isCountdownComplete)에 묶여
+    // 있었는데, 훅의 카운트다운을 그리지 않는 게임(카페·강아지 대소동처럼 시작 전 퀴즈가 0문제인
+    // 게임)에서는 그 플래그가 영원히 false라 시작 시각이 한 번도 기록되지 않았다.
+    // 플레이어 행이 로드된 뒤에만 기록한다: DB의 started_at(재입장)을 보기 전에 새 시각을 쓰면
+    // 이미 시작한 학생의 제한 시간이 처음부터 다시 시작된다.
+    // DB 반영 전에도 바로 세도록 sessionStorage에 먼저 적는다.
+    const hasCurrentPlayer = currentPlayer !== null
+    useEffect(() => {
+        if (!isHomework || roomStatus !== 'playing' || !isPreStartQuizComplete) return
+        if (!roomCode || !playerId || !hasCurrentPlayer || typeof window === 'undefined') return
+        if (playerStartedAt || localSessionStart) return
+
+        const storageKey = `hw_start_${roomCode}_${playerId}`
+        try {
+            // 위의 복구 효과보다 먼저 돌 수 있으니 여기서도 저장값을 확인한다 (중복 기록 방지)
+            const saved = window.sessionStorage.getItem(storageKey)
+            if (saved) {
+                setLocalSessionStart(saved)
+                return
+            }
+        } catch {
+            // sessionStorage 접근 불가(프라이빗 모드 등) — DB 기록으로 진행
+        }
+
+        const now = new Date().toISOString()
+        setLocalSessionStart(now)
+        try {
+            window.sessionStorage.setItem(storageKey, now)
+        } catch {
+            // 저장 실패해도 DB 패치로 복구된다
+        }
+        void commitPlayerPatch(playerId, { started_at: now }, 'homework_session_start')
     }, [
-        isCountdownComplete, isPreStartQuizComplete, currentView, playBGM,
-        isHomework, roomCode, playerId, playerStartedAt, localSessionStart, commitPlayerPatch,
+        isHomework, roomStatus, isPreStartQuizComplete, roomCode, playerId, hasCurrentPlayer,
+        playerStartedAt, localSessionStart, commitPlayerPatch,
     ])
 
     // ─── 문제 인덱스 저장 ───

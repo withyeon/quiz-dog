@@ -36,7 +36,9 @@ import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
 
-type DLDView = 'lobby' | 'countdown' | 'game' | 'result'
+// 'quiz'는 훅(useGameBase)이 카운트다운과 시작 전 퀴즈를 마쳤을 때 넘겨주는 시작 신호.
+// 이 페이지는 그 즉시 맵을 만들고 'game'으로 들어가므로 화면에 머무는 뷰는 아니다.
+type DLDView = 'lobby' | 'quiz' | 'game' | 'result'
 
 export default function DontLookDownPage() {
     const {
@@ -53,20 +55,20 @@ export default function DontLookDownPage() {
         preStartSubmittedCount,
         preStartQuizTotal,
         shouldShowPreStartQuiz,
-        isPreStartQuizComplete,
         players,
         room,
         roomLoading,
         playersLoading,
         currentPlayer,
         currentQuestion,
-        playBGM,
         playSFX,
         handlePreStartQuizAnswer,
         checkAnswer,
         goToNextQuestion,
         commitPlayerPatch,
-          sessionStartedAt,
+        sessionStartedAt,
+        showCountdown,
+        handleCountdownComplete,
     } = useGameBase({ expectedGameMode: 'dontlookdown' })
 
     const [gameSettings, setGameSettings] = useState<GameSettings>(DEFAULT_SETTINGS)
@@ -78,13 +80,11 @@ export default function DontLookDownPage() {
     const [gameStartTime, setGameStartTime] = useState<number>(0)
     const [remainingTime, setRemainingTime] = useState<number>(0)
 
-    const powerUpTimerRef = useRef<NodeJS.Timeout>()
-    const obstacleUpdateRef = useRef<NodeJS.Timeout>()
-    const platformUpdateRef = useRef<NodeJS.Timeout>()
-    const platformRespawnRef = useRef<NodeJS.Timeout>()
     const platformsRef = useRef<Platform[]>([])
     const dldPlayersRef = useRef<Map<string, DLDPlayer>>(new Map())
-    const hasFinishedGameRef = useRef(false)
+    // 이번 판이 이미 시작됐는지. 훅의 goToNextQuestion은 문제마다 currentView를 'quiz'로
+    // 되돌리므로, 'quiz'를 시작 신호로 쓰는 아래 효과가 판 중간에 맵을 다시 만들지 않게 막는다.
+    const runStartedRef = useRef(false)
     // 과제 방은 학생 개인 시작 시각(sessionStartedAt)을 쓴다
     const resolvedGameStartTime = sessionStartedAt
         ? gameStartTime || new Date(sessionStartedAt).getTime()
@@ -111,24 +111,33 @@ export default function DontLookDownPage() {
         ))
     }, [])
 
-    // 게임 시작 (플레이어 로드 완료 후에만)
+    // 게임 시작. 카운트다운과 시작 전 퀴즈는 훅(useGameBase)이 진행한다: 방이 playing이 되면
+    // showCountdown → (완료) → shouldShowPreStartQuiz → (완료) → currentView 'quiz'.
+    // 이 페이지는 그 'quiz' 신호를 받아 맵을 만들고 'game'으로 들어간다.
+    //
+    // 예전에는 페이지가 자체 'countdown' 뷰만 쓰고 훅의 카운트다운을 한 번도 렌더하지 않아
+    // 훅의 isCountdownComplete가 영원히 false였다. 시작 전 퀴즈 게이트는 그 값이 true여야
+    // 뜨므로 뜨지 않았고, 이 페이지는 다시 그 퀴즈가 끝나기를 기다렸다. 서로 기다리는 사이
+    // 학생 화면은 로비 소개 화면에서 영원히 멈춰 있었다.
     useEffect(() => {
-        if (room?.status !== 'playing' || currentView !== 'lobby') return
-        if (!isPreStartQuizComplete) return
+        if (room?.status !== 'playing' || currentView !== 'quiz') return
+        // 판 중간에 훅이 'quiz'로 되돌린 경우(문제 넘김)는 맵을 다시 만들지 않고 게임 화면만 유지
+        if (runStartedRef.current) {
+            setCurrentView('game')
+            return
+        }
         // 현재 플레이어가 players에 있을 때만 시작 (로딩 타임아웃 방지)
         if (!playerId || !players.some(p => p.id === playerId)) return
 
-        hasFinishedGameRef.current = false
+        runStartedRef.current = true
         setWinner(null)
-        setCurrentView('countdown')
 
         // 플랫폼 맵 생성
         const generatedPlatforms = generatePlatformMap(gameSettings.summitGoal, gameSettings)
         setPlatforms(generatedPlatforms)
 
         // 장애물 생성
-        const generatedObstacles = generateObstacles(generatedPlatforms)
-        setObstacles(generatedObstacles)
+        setObstacles(generateObstacles(generatedPlatforms))
 
         // 파워업 초기화
         setPowerUps([])
@@ -142,8 +151,11 @@ export default function DontLookDownPage() {
             )
         })
         setDldPlayers(initialPlayers)
+
+        setRemainingTime(gameSettings.duration)
         setGameStartTime(Date.now())
-    }, [isPreStartQuizComplete, sessionStartedAt, room?.status, currentView, players, gameSettings, playerId, setCurrentView])
+        setCurrentView('game')
+    }, [room?.status, currentView, players, gameSettings, playerId, setCurrentView])
 
     // Update platformsRef when platforms change
     useEffect(() => {
@@ -160,7 +172,7 @@ export default function DontLookDownPage() {
     // 높이(score)와 에너지(gold)는 이미 DB에 쓰고 있으니 그걸 되읽어 쓴다.
     // x/y는 동기화되지 않으므로, 높이에 해당하는 등반 루트 좌표로 근사한다.
     useEffect(() => {
-        if (currentView !== 'game' && currentView !== 'countdown') return
+        if (currentView !== 'game') return
 
         setDldPlayers((prev) => {
             let changed = false
@@ -189,55 +201,47 @@ export default function DontLookDownPage() {
         })
     }, [currentView, gameSettings.summitGoal, playerId, players])
 
-    // 카운트다운 완료
-    const handleCountdownComplete = () => {
-        setCurrentView('game')
-        setRemainingTime(gameSettings.duration)
-        setGameStartTime(Date.now())
-        playBGM('lobby')
+    // 월드 타이머(파워업 생성, 장애물·플랫폼 갱신, 플랫폼 리스폰)는 'game' 뷰 동안만 돌고,
+    // 결과 화면이나 로비로 나가면 정리된다.
+    useEffect(() => {
+        if (currentView !== 'game') return
 
-        // 파워업 생성 타이머 시작 (10초마다)
+        const timers: ReturnType<typeof setInterval>[] = []
+
+        // 파워업 생성 (10초마다)
         if (gameSettings.powerUpsEnabled) {
-            powerUpTimerRef.current = setInterval(() => {
-                const currentPlatforms = platformsRef.current
-                const newPowerUp = spawnPowerUp(currentPlatforms)
+            timers.push(setInterval(() => {
+                const newPowerUp = spawnPowerUp(platformsRef.current)
                 if (newPowerUp) {
                     setPowerUps(prev => [...prev, newPowerUp])
                 }
-            }, 10000)
+            }, 10000))
         }
 
-        // 장애물 업데이트 타이머 (16ms 간격, dt는 초 단위)
-        obstacleUpdateRef.current = setInterval(() => {
+        // 장애물 업데이트 (16ms 간격, dt는 초 단위)
+        timers.push(setInterval(() => {
             setObstacles(prev => updateObstacles(prev, 0.016))
-        }, 16)
+        }, 16))
 
-        // 플랫폼 업데이트 타이머
-        platformUpdateRef.current = setInterval(() => {
+        // 플랫폼 업데이트
+        timers.push(setInterval(() => {
             setPlatforms(prev => updatePlatforms(prev))
-        }, 100)
+        }, 100))
 
-        // 플랫폼 리스폰 타이머 (5초마다)
-        platformRespawnRef.current = setInterval(() => {
+        // 플랫폼 리스폰 (5초마다)
+        timers.push(setInterval(() => {
             setPlatforms(prev => respawnPlatforms(prev))
-        }, 5000)
-    }
+        }, 5000))
 
-    // 게임 종료 시 타이머 정리
+        return () => timers.forEach(timer => clearInterval(timer))
+    }, [currentView, gameSettings.powerUpsEnabled])
+
+    // 방이 playing이 아니게 되면(교사가 다시 대기로 돌리거나 종료) 다음 판을 새로 시작할 수 있게 한다
     useEffect(() => {
         if (room?.status !== 'playing') {
-            hasFinishedGameRef.current = false
+            runStartedRef.current = false
         }
     }, [room?.status])
-
-    useEffect(() => {
-        if (currentView !== 'game') {
-            if (powerUpTimerRef.current) clearInterval(powerUpTimerRef.current)
-            if (obstacleUpdateRef.current) clearInterval(obstacleUpdateRef.current)
-            if (platformUpdateRef.current) clearInterval(platformUpdateRef.current)
-            if (platformRespawnRef.current) clearInterval(platformRespawnRef.current)
-        }
-    }, [currentView])
 
     // 플레이어 업데이트
     const handleUpdatePlayer = async (player: DLDPlayer) => {
@@ -345,9 +349,11 @@ export default function DontLookDownPage() {
                 />
             )}
 
+            {showCountdown && <Countdown onComplete={handleCountdownComplete} />}
+
             <AnimatePresence mode="wait">
-                {/* 로비 대기 */}
-                {currentView === 'lobby' && (
+                {/* 로비 대기 ('quiz'는 게임으로 넘어가기 직전 한 프레임이라 로비를 그대로 둔다) */}
+                {(currentView === 'lobby' || currentView === 'quiz') && (
                     <motion.div
                         key="lobby"
                         initial={{ opacity: 0 }}
@@ -395,13 +401,6 @@ export default function DontLookDownPage() {
                             <Leaderboard players={players} />
                         </div>
                     </motion.div>
-                )}
-
-                {/* 카운트다운 */}
-                {currentView === 'countdown' && (
-                    <div className="relative z-10">
-                        <Countdown onComplete={handleCountdownComplete} />
-                    </div>
                 )}
 
                 {/* 게임 플레이 */}

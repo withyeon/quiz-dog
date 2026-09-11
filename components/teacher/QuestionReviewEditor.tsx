@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { Trash2, XCircle, Globe, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
+import { remapSubjectToLevel, schoolLevelFromGrade } from '@/lib/constants/subjects'
+import SubjectSelect from '@/components/teacher/SubjectSelect'
 import { ArrowLeft } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { displayBlankText } from '@/lib/quiz/blankText'
@@ -71,6 +73,12 @@ export default function QuestionReviewEditor({
   onCreateManual,
   isSaving = false,
 }: QuestionReviewEditorProps) {
+  // 학년이 바뀌면 과목 목록도 그 학교급으로 바뀐다. 고르고 있던 과목을 옮겨 준다.
+  const handleGradeChange = (nextGrade: string) => {
+    setGrade(nextGrade)
+    setSubject(remapSubjectToLevel(subject, schoolLevelFromGrade(nextGrade)))
+  }
+
   const handleEditQuestion = (index: number, field: keyof GeneratedQuestion, value: any) => {
     const updated = [...generatedQuestions]
     updated[index] = { ...updated[index], [field]: value }
@@ -174,26 +182,19 @@ export default function QuestionReviewEditor({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-slate-600">과목</label>
-            <select
+            <SubjectSelect
               value={subject}
-              onChange={(e) => setSubject(e.target.value)}
+              onChange={setSubject}
+              grade={grade}
+              placeholder="과목 선택"
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-            >
-              <option value="">과목 선택</option>
-              <option value="국어">국어</option>
-              <option value="영어">영어</option>
-              <option value="수학">수학</option>
-              <option value="사회">사회</option>
-              <option value="과학">과학</option>
-              <option value="역사">역사</option>
-              <option value="기타">기타</option>
-            </select>
+            />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-slate-600">대상 학년</label>
             <select
               value={grade}
-              onChange={(e) => setGrade(e.target.value)}
+              onChange={(e) => handleGradeChange(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
             >
               <option value="">학년 선택</option>

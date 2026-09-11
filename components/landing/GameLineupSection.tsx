@@ -3,8 +3,8 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import GameModeCard from '@/components/landing/GameModeCard'
-import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
-import { visibleGameModes, visibleGameModeCount } from '@/components/landing/gameModesData'
+import { PixelHeading } from '@/components/landing/PixelHeading'
+import { visibleGameModes } from '@/components/landing/gameModesData'
 
 export default function GameLineupSection({ animationsReady }: { animationsReady: boolean }) {
   return (
@@ -17,12 +17,10 @@ export default function GameLineupSection({ animationsReady }: { animationsReady
           className="mb-12 text-center sm:mb-14"
         >
           <h2 className="text-4xl sm:text-5xl">
-            <PixelHeading>
-              <PixelAccent>{visibleGameModeCount}가지</PixelAccent> 게임 모드
-            </PixelHeading>
+            <PixelHeading>게임 모드</PixelHeading>
           </h2>
           <p className="-mt-1 text-base sm:text-lg" style={{ color: '#475569' }}>
-            같은 문제도 게임만 바꾸면 새 수업이 돼요 · 카드에 마우스를 올려보세요
+            카드에 마우스를 올려보세요
           </p>
         </motion.div>
 

@@ -67,7 +67,7 @@ function SectionHeading({
   badgeBg?: string
   badgeBorder?: string
   title: React.ReactNode
-  subtitle: string
+  subtitle?: string
 }) {
   return (
     <motion.div {...FADE_UP} className="mb-12 text-center">
@@ -77,7 +77,7 @@ function SectionHeading({
       <h2 className="mt-5 text-4xl sm:text-5xl">
         <PixelHeading>{title}</PixelHeading>
       </h2>
-      <p className="-mt-1 text-base text-slate-500 sm:text-lg">{subtitle}</p>
+      {subtitle && <p className="-mt-1 text-base text-slate-500 sm:text-lg">{subtitle}</p>}
     </motion.div>
   )
 }
@@ -157,7 +157,7 @@ function CtaButton({
    데이터
 ───────────────────────────────────────────────────────────── */
 const HERO_POINTS = [
-  { icon: Zap, text: '설치 없이 웹에서 바로' },
+  { icon: Zap, text: '설치 없음' },
   { icon: KeyRound, text: '학생은 가입 없이 코드로 입장' },
   { icon: Smartphone, text: 'PC · 태블릿 · 휴대폰 모두 지원' },
 ]
@@ -225,13 +225,6 @@ const AI_DETAILS = [
   'AI 없이 직접 문제를 입력하는 수동 작성도 지원',
 ]
 
-const PLAY_TYPES = [
-  { emoji: '🔢', name: '순서 풀이', description: '문제를 주어진 순서대로 풀어야 완료할 수 있어요.', color: '#0EA5E9' },
-  { emoji: '🎯', name: '자유 풀이', description: '원하는 순서대로 자유롭게 문제를 선택해서 풀 수 있어요.', color: '#22C55E' },
-  { emoji: '⏱️', name: '라운드전', description: '라운드별로 문제를 풀며 다 함께 경쟁하는 방식이에요.', color: '#F97316' },
-  { emoji: '🤝', name: '팀전', description: '팀을 나눠서 함께 문제를 풀며 경쟁해요.', color: '#F43F5E' },
-]
-
 const STUDENT_POINTS = [
   {
     icon: KeyRound,
@@ -267,10 +260,9 @@ const REPORT_POINTS = [
 ]
 
 const LIBRARY_POINTS = [
-  '다른 선생님이 공개한 문제집을 검색해서 그대로 가져오기',
-  '과목 · 학년으로 필터링해 우리 반에 맞는 자료 찾기',
-  '내가 만든 문제집을 공개로 전환해 함께 나누기',
-  '링크 복사 한 번으로 동료 선생님께 공유',
+  '우리 반 진도에 맞는 문제집 활용하기',
+  '재미있는 퀴즈로 계기교육도 쉽고 재밌게 공부하기',
+  '자료집의 문제집으로 간편하게 수업 준비하기',
 ]
 
 /* ─────────────────────────────────────────────────────────────
@@ -466,28 +458,6 @@ export default function FeaturesContent() {
               <GameModeCard key={game.name} game={game} index={i} animationsReady />
             ))}
           </div>
-
-          {/* 진행 방식 */}
-          <motion.div {...FADE_UP} className="mt-14">
-            <h3 className="mb-6 text-center text-2xl font-black text-[#0F172A]">
-              진행 방식도 골라서
-            </h3>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {PLAY_TYPES.map((type, i) => (
-                <motion.div key={type.name} {...FADE_UP} transition={{ delay: i * 0.07 }}>
-                  <Card>
-                    <div className="p-6 text-center">
-                      <span className="text-3xl">{type.emoji}</span>
-                      <h4 className="mb-2 mt-3 text-lg font-black" style={{ color: type.color }}>
-                        {type.name}
-                      </h4>
-                      <p className="text-sm font-bold leading-relaxed text-slate-500">{type.description}</p>
-                    </div>
-                  </Card>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
         </div>
       </section>
 
@@ -499,8 +469,8 @@ export default function FeaturesContent() {
             badgeColor="#0369A1"
             badgeBg="#E0F2FE"
             badgeBorder="#7DD3FC"
-            title={<>코드 하나로 <PixelAccent>전원 입장</PixelAccent></>}
-            subtitle="계정을 만들 필요가 없어서 1학년 교실에서도 바로 시작할 수 있어요."
+            title={<>학생은 <PixelAccent>코드로</PixelAccent> 입장</>}
+            subtitle="회원가입, 설치 등 복잡한 절차가 필요하지 않습니다."
           />
 
           <div className="grid gap-6 sm:grid-cols-2">
@@ -581,8 +551,7 @@ export default function FeaturesContent() {
             badgeColor="#0F766E"
             badgeBg="#CCFBF1"
             badgeBorder="#5EEAD4"
-            title="다른 선생님의 문제집을 그대로"
-            subtitle="처음부터 만들지 않아도 돼요. 공개된 문제집을 가져와 우리 반에 맞게 고쳐 쓰세요."
+            title="자료집의 문제집을 활용해보세요"
           />
 
           <motion.div {...FADE_UP}>
@@ -634,14 +603,11 @@ export default function FeaturesContent() {
 
               <h2 className="mt-5 text-4xl sm:text-5xl">
                 <PixelHeading>
-                  다음 수업부터 <PixelAccent>바로</PixelAccent> 써보세요
+                  지금 <PixelAccent>바로</PixelAccent> 써보세요
                 </PixelHeading>
               </h2>
-              <p className="mb-8 -mt-1 text-base font-bold text-slate-500 sm:text-lg">
-                선생님 계정만 만들면 준비 끝. 학생은 언제나 무료입니다.
-              </p>
 
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <CtaButton href="/teacher">
                   <Sparkles className="h-5 w-5" />
                   무료로 시작하기

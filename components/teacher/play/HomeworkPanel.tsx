@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import QRCodeSVG from 'react-qr-code'
 import { BookOpenCheck, Copy, ExternalLink, Loader2, Radio, Square } from 'lucide-react'
@@ -192,11 +193,21 @@ export default function HomeworkPanel({
                   type="button"
                   onClick={() => setGameMode(id)}
                   aria-pressed={active}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-black transition ${
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-center text-sm font-black transition ${
                     active ? 'border-sky-400 bg-sky-50 text-sky-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <span className="text-lg">{mode.emoji}</span>
+                  {mode.image ? (
+                    <Image
+                      src={mode.image}
+                      alt={mode.label}
+                      width={72}
+                      height={72}
+                      className="h-12 w-12 object-contain"
+                    />
+                  ) : (
+                    <span className="flex h-12 w-12 items-center justify-center text-2xl">{mode.emoji}</span>
+                  )}
                   <span className="truncate">{mode.shortLabel ?? mode.label}</span>
                 </button>
               )
@@ -298,14 +309,26 @@ export default function HomeworkPanel({
           <ul className="divide-y divide-slate-100">
             {openRooms.map((room) => {
               const set = questionSets.find((item) => item.id === room.set_id)
+              const mode = getGameModeConfig(room.game_mode)
               const dueAt = (room as { due_at?: string | null }).due_at
               const isPastDue = dueAt ? new Date(dueAt).getTime() < Date.now() : false
               return (
                 <li key={room.room_code} className="flex flex-wrap items-center gap-3 py-3">
                   <span className="rounded-lg bg-slate-100 px-3 py-1.5 font-black tracking-widest text-slate-800">{room.room_code}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black text-slate-800">
-                      {getGameModeConfig(room.game_mode).emoji} {set?.title ?? '문제집'}
+                    <span className="flex items-center gap-2 truncate text-sm font-black text-slate-800">
+                      {mode.image ? (
+                        <Image
+                          src={mode.image}
+                          alt=""
+                          width={28}
+                          height={28}
+                          className="h-6 w-6 flex-shrink-0 object-contain"
+                        />
+                      ) : (
+                        <span>{mode.emoji}</span>
+                      )}
+                      {set?.title ?? '문제집'}
                     </span>
                     <span className={`block text-xs font-semibold ${isPastDue ? 'text-red-500' : 'text-slate-400'}`}>
                       {isPastDue ? '마감 지남' : `마감 ${formatDueAt(dueAt)}`} · {room.playerCount}명 참여

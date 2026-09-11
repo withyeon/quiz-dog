@@ -6,6 +6,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, Reorder } from 'framer-motion'
 import { TARGET_GRADE_OPTIONS } from '@/lib/constants/grades'
+import { remapSubjectToLevel, schoolLevelFromGrade } from '@/lib/constants/subjects'
+import SubjectSelect from '@/components/teacher/SubjectSelect'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -41,6 +43,12 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
   const [setName, setSetName] = useState('')
   const [subject, setSubject] = useState('')
   const [grade, setGrade] = useState('')
+
+  // 학년을 바꾸면 과목 목록이 그 학교급으로 바뀌므로 고르고 있던 과목도 옮긴다.
+  const handleGradeChange = (nextGrade: string) => {
+    setGrade(nextGrade)
+    setSubject((current) => remapSubjectToLevel(current, schoolLevelFromGrade(nextGrade)))
+  }
   const [isEditingInfo, setIsEditingInfo] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -199,23 +207,16 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   placeholder="문제집 이름"
                 />
                 <div className="grid grid-cols-2 gap-3">
-                  <select
+                  <SubjectSelect
                     value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
+                    onChange={setSubject}
+                    grade={grade}
+                    placeholder="과목 선택"
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
-                  >
-                    <option value="">과목 선택</option>
-                    <option value="국어">국어</option>
-                    <option value="영어">영어</option>
-                    <option value="수학">수학</option>
-                    <option value="사회">사회</option>
-                    <option value="과학">과학</option>
-                    <option value="역사">역사</option>
-                    <option value="기타">기타</option>
-                  </select>
+                  />
                   <select
                     value={grade}
-                    onChange={(e) => setGrade(e.target.value)}
+                    onChange={(e) => handleGradeChange(e.target.value)}
                     className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                   >
                     <option value="">학년 선택</option>

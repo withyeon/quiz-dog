@@ -58,13 +58,18 @@ export default function TowerPage() {
         questionStartTime,
         showCountdown,
         setShowCountdown,
+        handleCountdownComplete,
         commitPlayerPatch,
-          sessionStartedAt,
+        sessionStartedAt,
     } = useGameBase({ expectedGameMode: 'tower' })
     const isPaused = room?.status === 'paused'
 
     const quizReturnTimerRef = useRef<NodeJS.Timeout | null>(null)
     const quizTransitionHandledRef = useRef(false)
+    // 이번 판이 시작됐는지. 훅(useGameBase)은 카운트다운과 시작 전 퀴즈를 마치면 currentView를
+    // 'quiz'로 넘기고, 타워는 그 신호를 받아 작전 화면('playing')으로 들어간다. 인게임 퀴즈도
+    // 같은 'quiz' 뷰를 쓰므로 이 ref로 "시작 신호"와 "퀴즈 열기"를 구분한다.
+    const runStartedRef = useRef(false)
     const [showSkillModal, setShowSkillModal] = useState(false)
     const [skillChoices, setSkillChoices] = useState<Skill[]>([])
     const [pendingGoldReward, setPendingGoldReward] = useState(0)
@@ -331,11 +336,38 @@ export default function TowerPage() {
         }
     }
 
+    // 카운트다운 완료.
+    // 예전에는 여기서 바로 'playing'으로 들어가고 훅에는 완료를 알리지 않아 훅의
+    // isCountdownComplete가 영원히 false였다. 시작 전 퀴즈 게이트(shouldShowPreStartQuiz)는
+    // 그 값이 true여야 뜨므로, 타워에서는 시작 전 퀴즈 3문제가 조용히 건너뛰어졌다.
     const handleTowerCountdownComplete = useCallback(() => {
-        setShowCountdown(false)
+        if (runStartedRef.current) {
+            // 다시 하기 카운트다운: 시작 전 퀴즈는 이미 끝났으니 작전 화면으로 바로 간다
+            setShowCountdown(false)
+            setCurrentView('playing')
+            playBGM('game')
+            return
+        }
+        // 첫 시작: 훅에 완료를 알린다 → 시작 전 퀴즈 게이트 → 끝나면 훅이 'quiz'를 넘긴다
+        handleCountdownComplete()
+    }, [handleCountdownComplete, playBGM, setCurrentView, setShowCountdown])
+
+    // 훅이 넘긴 시작 신호('quiz')를 작전 화면으로 바꾼다. 다시 하기 때는 resetGame이 'lobby'로
+    // 돌아가자마자 훅이 카운트다운 중에 'quiz'를 넘기므로(시작 전 퀴즈는 이미 끝난 상태),
+    // 카운트다운 중의 'quiz'도 시작 신호로 본다. 그 밖의 'quiz'는 학생이 연 인게임 퀴즈다.
+    useEffect(() => {
+        if (currentView !== 'quiz') return
+        if (runStartedRef.current && !showCountdown) return
+        runStartedRef.current = true
         setCurrentView('playing')
-        playBGM('game')
-    }, [playBGM, setCurrentView, setShowCountdown])
+    }, [currentView, setCurrentView, showCountdown])
+
+    // 방이 playing이 아니게 되면(교사가 대기로 되돌리거나 종료) 다음 판은 시작 전 퀴즈부터 다시 한다
+    useEffect(() => {
+        if (room?.status !== 'playing') {
+            runStartedRef.current = false
+        }
+    }, [room?.status])
 
     useEffect(() => {
         if (!playerId || (currentView !== 'playing' && currentView !== 'result')) return
@@ -512,7 +544,7 @@ export default function TowerPage() {
                 )}
 
                 <AnimatePresence>
-                    {currentView === 'quiz' && currentQuestion && (
+                    {currentView === 'quiz' && currentQuestion && !showCountdown && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.92, y: 30 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}

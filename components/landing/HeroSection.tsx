@@ -1,9 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
@@ -145,74 +144,11 @@ function HeroPreview() {
   )
 }
 
-/** 히어로 좌측 하단 — 학생용 입장 코드 입력 */
-function StudentCodeBox() {
-  const router = useRouter()
-  const [code, setCode] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const isReady = code.length === 6
-
-  const submit = () => {
-    if (!isReady) {
-      inputRef.current?.focus()
-      return
-    }
-    router.push(`/lobby?code=${code}`)
-  }
-
-  return (
-    <div
-      className="w-full rounded-2xl p-4 sm:p-5"
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.75)',
-        border: '2px solid rgba(125,211,252,0.7)',
-        boxShadow: '0 6px 20px rgba(14,165,233,0.12), inset 0 1px 0 rgba(255,255,255,0.9)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-      }}
-    >
-      <p className="mb-2.5 text-sm font-black" style={{ color: '#1E3A8A' }}>
-        🐾 학생이신가요? 선생님이 알려준 코드를 입력하세요
-      </p>
-      <div className="flex items-stretch gap-2">
-        <input
-          ref={inputRef}
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') submit()
-          }}
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder="코드 6자리"
-          aria-label="입장 코드 6자리"
-          className="min-w-0 flex-1 rounded-xl px-4 py-3 text-lg font-black tracking-[0.25em] outline-none transition placeholder:tracking-normal placeholder:text-slate-400 focus:border-sky-400"
-          style={{ backgroundColor: '#FFFFFF', border: '2px solid #BAE6FD', color: '#0F172A' }}
-        />
-        <motion.button
-          onClick={submit}
-          whileHover={isReady ? { y: -2 } : undefined}
-          whileTap={isReady ? { y: 1 } : undefined}
-          className="shrink-0 rounded-xl px-5 py-3 text-base font-black text-white transition-opacity sm:px-7"
-          style={{
-            background: 'linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 55%, #0ea5e9 100%)',
-            boxShadow: '0 4px 0 #0b8fc4, 0 8px 16px rgba(14,165,233,0.25)',
-            textShadow: '0 1px 0 rgba(0,0,0,0.18)',
-            opacity: isReady ? 1 : 0.55,
-          }}
-        >
-          입장
-        </motion.button>
-      </div>
-    </div>
-  )
-}
-
 export default function HeroSection({ animationsReady }: { animationsReady: boolean }) {
   return (
     <section className="relative px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8 lg:pb-24 lg:pt-40" style={{ zIndex: 2 }}>
       <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
-        {/* LEFT — 카피 · CTA · 학생 입장 */}
+        {/* LEFT — 카피 · CTA */}
         <motion.div
           initial={animationsReady ? { opacity: 0, y: 24 } : false}
           animate={{ opacity: 1, y: 0 }}
@@ -237,13 +173,6 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
               수업을 <PixelAccent>게임</PixelAccent>처럼
             </PixelHeading>
           </h1>
-
-          <p
-            className="mx-auto -mt-1 max-w-xl text-lg font-black leading-relaxed sm:text-xl lg:mx-0"
-            style={{ color: '#1E3A8A' }}
-          >
-            흥미 없던 아이도 즐겁게 참여하고, 배움은 자연스럽게 따라옵니다.
-          </p>
 
           <p
             className="mx-auto mt-3 max-w-xl text-base leading-relaxed sm:text-lg lg:mx-0"
@@ -285,10 +214,6 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
                 게임 둘러보기
               </motion.span>
             </a>
-          </div>
-
-          <div className="mt-6 flex justify-center lg:justify-start">
-            <StudentCodeBox />
           </div>
         </motion.div>
 

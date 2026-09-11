@@ -25,6 +25,13 @@ const nextConfig = {
         destination: '/teacher/play',
         permanent: true,
       },
+      // 로그인 없이 보던 공개 자료실(/library)을 없애고 대시보드 자료실 하나로 합쳤다.
+      // 검색엔진이나 공유 글에 남아 있을 예전 주소는 그대로 넘겨준다.
+      {
+        source: '/library',
+        destination: '/teacher/library',
+        permanent: true,
+      },
     ]
   },
 }

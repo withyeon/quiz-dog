@@ -94,6 +94,7 @@ export default function PuppyChaosPage() {
     goToNextQuestion,
     applyPlayerPatch,
     sendRoomEvent,
+    sessionStartedAt,
   } = useGameBase({ expectedGameMode: 'poop_dodge', preStartQuizTotal: 0 })
   const [phase, setPhase] = useState<Phase>('waiting')
   const [combo, setCombo] = useState(0)
@@ -118,7 +119,10 @@ export default function PuppyChaosPage() {
     ? questions[randomQuestionIndex % questionCount]
     : null
   const durationSeconds = (room as { duration_seconds?: number | null } | null)?.duration_seconds ?? null
-  const startedAt = (room as { started_at?: string | null } | null)?.started_at ?? null
+  // 제한 시간의 기준. 일반 방은 room.started_at, 과제 방은 이 학생이 게임에 들어간 시각.
+  // 예전에는 room.started_at을 직접 써서 과제로 낸 방에서는 늦게 들어온 학생의 시간이
+  // 선생님이 방을 만든 시각부터 흘러, 들어오자마자 끝나 있었다.
+  const startedAt = sessionStartedAt
   const bonusSessionKey = useMemo(() => {
     if (!roomCode || !playerId || !startedAt) return null
     return `puppy_bonus_completed_${roomCode}_${playerId}_${startedAt}`
