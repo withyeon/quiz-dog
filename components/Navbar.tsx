@@ -120,16 +120,16 @@ export default function Navbar() {
               요금제
             </Link>
             <div className="flex items-center gap-3">
+              {/* 코드로 입장은 하늘색 채움, 선생님 대시보드는 흰 바탕 외곽선 — 나란히 놓여도 구분되게 */}
               <Link href="/lobby">
-                <Button variant="outline" size="lg" className="text-lg relative z-10 bg-white/90 hover:bg-white text-white hover:text-white border-2 border-sky-300 font-bold btn-sky-outlined">
+                <Button size="lg" className="text-lg relative z-10 bg-sky-500 hover:bg-sky-600 text-white hover:text-white border-2 border-sky-600 font-bold shadow-[0_3px_0_#0369a1] btn-sky-outlined">
                   코드로 입장
                 </Button>
               </Link>
               {!authLoading && user ? (
                 <>
-                {/* 선생님의 주 목적지 — 히어로의 주 CTA 와 같은 하늘색 채움. 흰 바탕의 코드로 입장과 구분된다 */}
                 <Link href="/teacher">
-                  <Button size="lg" className="text-lg relative z-10 bg-sky-500 hover:bg-sky-600 text-white hover:text-white border-2 border-sky-600 font-bold shadow-[0_3px_0_#0369a1] btn-sky-outlined">
+                  <Button variant="outline" size="lg" className="text-lg relative z-10 bg-white/90 hover:bg-white text-white hover:text-white border-2 border-sky-300 font-bold btn-sky-outlined">
                     선생님 대시보드
                   </Button>
                 </Link>
@@ -211,7 +211,7 @@ export default function Navbar() {
                 요금제
               </Link>
               <Link href="/lobby" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="outline" size="lg" className="w-full text-lg relative z-10 bg-white/90 hover:bg-white text-white hover:text-white border-2 border-sky-300 font-bold mb-3 btn-sky-outlined">
+                <Button size="lg" className="w-full text-lg relative z-10 bg-sky-500 hover:bg-sky-600 text-white hover:text-white border-2 border-sky-600 font-bold mb-3 shadow-[0_3px_0_#0369a1] btn-sky-outlined">
                   코드로 입장
                 </Button>
               </Link>
