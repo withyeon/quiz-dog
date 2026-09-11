@@ -48,8 +48,14 @@ import {
     WORLD,
     POWERUP_EFFECTS,
     PLATFORM_IMAGE_COUNT,
+    PLATFORM_PROP_NAMES,
+    type PlatformPropName,
+    BACKDROP_LAYER_NAMES,
+    type BackdropLayerName,
     SPAWNABLE_POWERUP_TYPES,
     getPlatformImagePath,
+    getPlatformPropPath,
+    getBackdropLayerPath,
     getPowerUpImagePath,
     createPlayer,
     updatePlayerPhysics,
@@ -73,7 +79,6 @@ interface DontLookDownGameProps {
     onCollectPowerUp: (powerUpId: string) => void
     currentQuestion: DontLookDownQuestion | null
     onAnswerQuestion: (answer: string) => boolean | Promise<boolean>
-    onPlatformImageSizesLoaded?: (sizes: Record<number, { w: number; h: number }>) => void
     remainingTime?: number
 }
 
@@ -90,16 +95,21 @@ export default function DontLookDownGame({
     onCollectPowerUp,
     currentQuestion,
     onAnswerQuestion,
-    onPlatformImageSizesLoaded,
     remainingTime,
 }: DontLookDownGameProps) {
     // ============ Refs (게임 권위 상태) ============
     const canvasRef = useRef<HTMLCanvasElement>(null)
-    const containerRef = useRef<HTMLDivElement>(null)
+    const containerRef = useRef<HTMLDivElement | null>(null)
+    // 컨테이너는 플레이어 준비 뒤에야 마운트된다(그 전엔 로딩 화면). 마운트 시 한 번 도는 효과는
+    // 그때 ref가 null이라 놓치므로, 실제로 붙은 시점을 state로 받아 그 뒤에 측정한다.
+    const [containerEl, setContainerEl] = useState<HTMLDivElement | null>(null)
 
     // 내 플레이어 - 클라이언트가 권위, 서버 값으로 덮어쓰지 않음
     const playerRef = useRef<DLDPlayer | null>(null)
     const cameraRef = useRef({ x: 0, y: 0 })
+    // 한 화면에 담는 월드 크기 = 컨테이너 CSS 크기 ÷ WORLD.VIEW_SCALE. 캔버스 픽셀과 CSS 비율이
+    // 항상 같아 늘어나 보이지 않고, 어떤 기기에서도 요소가 같은 크기로 보인다.
+    const viewRef = useRef<{ w: number; h: number }>({ w: WORLD.VIEW_WIDTH, h: WORLD.VIEW_HEIGHT })
     const showQuizRef = useRef(false)
 
     // 외부 상태 스냅샷 (props → ref, 게임 루프는 항상 최신 ref를 읽음)
@@ -133,6 +143,8 @@ export default function DontLookDownGame({
 
     // 플랫폼 이미지 캐시
     const platformImagesRef = useRef<Record<number, HTMLImageElement>>({})
+    const propImagesRef = useRef<Partial<Record<PlatformPropName, HTMLImageElement>>>({})
+    const backdropImagesRef = useRef<Partial<Record<BackdropLayerName, HTMLImageElement>>>({})
     const powerUpImagesRef = useRef<Partial<Record<PowerUpType, HTMLImageElement>>>({})
     const avatarImagesRef = useRef<Record<string, HTMLImageElement>>({})
 
@@ -301,9 +313,10 @@ export default function DontLookDownGame({
             ?? (playerId && playerName ? createPlayer(playerId, playerName, characterImage, settings) : null)
         if (initial) {
             playerRef.current = initial
+            const view = viewRef.current
             cameraRef.current = {
-                x: Math.max(0, Math.min(initial.x - WORLD.VIEW_WIDTH * 0.34, WORLD.WIDTH - WORLD.VIEW_WIDTH)),
-                y: initial.y - WORLD.VIEW_HEIGHT * 0.68,
+                x: Math.max(0, Math.min(initial.x - view.w * 0.34, WORLD.WIDTH - view.w)),
+                y: initial.y - view.h * 0.68,
             }
             summitTrackRef.current = initial.currentSummit
             setUiPlayer(initial)
@@ -318,30 +331,48 @@ export default function DontLookDownGame({
         return () => window.clearInterval(id)
     }, [])
 
-    // ============ 플랫폼 이미지 로드 ============
+    // ============ 화면 비율 측정 → 뷰 크기 ============
     useEffect(() => {
-        const sizes: Record<number, { w: number; h: number }> = {}
-        let loaded = 0
-        const total = PLATFORM_IMAGE_COUNT
-
-        const checkAllLoaded = () => {
-            loaded++
-            if (loaded === total && onPlatformImageSizesLoaded) {
-                onPlatformImageSizesLoaded(sizes)
-            }
+        const el = containerEl
+        if (!el) return
+        const measure = () => {
+            const rect = el.getBoundingClientRect()
+            if (rect.width <= 0 || rect.height <= 0) return
+            const w = Math.round(Math.max(WORLD.VIEW_MIN_WIDTH, Math.min(WORLD.WIDTH, rect.width / WORLD.VIEW_SCALE)))
+            const h = Math.round(Math.max(WORLD.VIEW_MIN_HEIGHT, Math.min(WORLD.VIEW_MAX_HEIGHT, rect.height / WORLD.VIEW_SCALE)))
+            viewRef.current = { w, h }
         }
+        measure()
+        const observer = new ResizeObserver(measure)
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [containerEl])
 
-        for (let i = 1; i <= total; i++) {
+    // ============ 플랫폼·장식 이미지 로드 ============
+    // 이미지 크기는 발판 박스에 영향을 주지 않는다. 박스는 맵 생성 값 그대로, 그림만 그 폭에 맞춘다.
+    useEffect(() => {
+        for (let i = 1; i <= PLATFORM_IMAGE_COUNT; i++) {
             const img = document.createElement('img')
             img.onload = () => {
-                sizes[i] = { w: img.naturalWidth, h: img.naturalHeight }
                 platformImagesRef.current[i] = img
-                checkAllLoaded()
             }
-            img.onerror = () => checkAllLoaded()
             img.src = getPlatformImagePath(i)
         }
-    }, [onPlatformImageSizesLoaded])
+        for (const name of PLATFORM_PROP_NAMES) {
+            const img = document.createElement('img')
+            img.onload = () => {
+                propImagesRef.current[name] = img
+            }
+            img.src = getPlatformPropPath(name)
+        }
+        for (const name of BACKDROP_LAYER_NAMES) {
+            const img = document.createElement('img')
+            img.onload = () => {
+                backdropImagesRef.current[name] = img
+            }
+            img.src = getBackdropLayerPath(name)
+        }
+    }, [])
 
     useEffect(() => {
         for (const type of SPAWNABLE_POWERUP_TYPES) {
@@ -432,8 +463,9 @@ export default function DontLookDownGame({
             const ctx = canvas.getContext('2d')
             if (!ctx) return
 
-            if (canvas.width !== WORLD.VIEW_WIDTH) canvas.width = WORLD.VIEW_WIDTH
-            if (canvas.height !== WORLD.VIEW_HEIGHT) canvas.height = WORLD.VIEW_HEIGHT
+            const view = viewRef.current
+            if (canvas.width !== view.w) canvas.width = view.w
+            if (canvas.height !== view.h) canvas.height = view.h
 
             const shake = shakeRef.current
             const shakeX = shake > 0 ? (Math.random() - 0.5) * shake : 0
@@ -446,9 +478,11 @@ export default function DontLookDownGame({
                 player,
                 camX,
                 camY,
+                view,
                 settings: settingsRef.current,
                 clouds: cloudsRef.current,
                 stars: starsRef.current,
+                layers: backdropImagesRef.current,
             })
 
             ctx.save()
@@ -460,6 +494,7 @@ export default function DontLookDownGame({
             drawPlatforms(ctx, {
                 platforms: platformsRef.current,
                 platformImages: platformImagesRef.current,
+                propImages: propImagesRef.current,
             })
 
             drawObstacles(ctx, obstaclesRef.current, now)
@@ -490,7 +525,7 @@ export default function DontLookDownGame({
 
             ctx.restore()
 
-            drawSpeedLines(ctx, player, now)
+            drawSpeedLines(ctx, player, now, view)
         }
 
         const tick = (now: number) => {
@@ -644,12 +679,13 @@ export default function DontLookDownGame({
             playerRef.current = player
 
             // 카메라 lerp (프레임레이트 독립적)
+            const view = viewRef.current
             const targetCamX = Math.max(
                 0,
-                Math.min(player.x - WORLD.VIEW_WIDTH * 0.34, WORLD.WIDTH - WORLD.VIEW_WIDTH)
+                Math.min(player.x - view.w * 0.34, WORLD.WIDTH - view.w)
             )
             const lookAhead = player.vy < 0 ? -70 : player.vy > 500 ? 35 : 0
-            const targetCamY = player.y - WORLD.VIEW_HEIGHT * 0.68 + lookAhead
+            const targetCamY = player.y - view.h * 0.68 + lookAhead
             const camAlpha = 1 - Math.pow(1 - PHYSICS.CAMERA_LERP, dt * 60)
             cameraRef.current.x += (targetCamX - cameraRef.current.x) * camAlpha
             cameraRef.current.y += (targetCamY - cameraRef.current.y) * camAlpha
@@ -773,7 +809,10 @@ export default function DontLookDownGame({
 
     return (
         <div
-            ref={containerRef}
+            ref={(el) => {
+                containerRef.current = el
+                setContainerEl(el)
+            }}
             className="relative w-full h-full bg-gradient-to-b from-sky-400 to-sky-200 outline-none"
             tabIndex={0}
         >
@@ -786,12 +825,12 @@ export default function DontLookDownGame({
             {/* UI 오버레이 (저빈도 React 렌더링) */}
             <div className="absolute inset-0 pointer-events-none">
                 {remainingTime !== undefined && (
-                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-6 py-2 rounded-xl font-bold text-xl tabular-nums">
+                    <div className="absolute top-[7rem] left-4 sm:top-4 sm:left-1/2 sm:-translate-x-1/2 bg-black/60 text-white px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl font-bold text-lg sm:text-xl tabular-nums whitespace-nowrap">
                         ⏱️ {Math.floor(remainingTime / 60)}:{String(remainingTime % 60).padStart(2, '0')}
                     </div>
                 )}
 
-                <div className="absolute top-4 left-4 bg-white/95 rounded-xl px-5 py-3 shadow-lg pointer-events-auto min-w-[200px]">
+                <div className="absolute top-4 left-4 bg-white/95 rounded-xl px-3 py-2 sm:px-5 sm:py-3 shadow-lg pointer-events-auto w-[calc(50vw-1.5rem)] sm:w-auto sm:min-w-[200px]">
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-gray-600">🏔️ 구역 {uiPlayer.currentSummit}/{SUMMITS.length}</span>
                         <span className="text-xs text-gray-500">{Math.floor(summitProgress)}%</span>
@@ -826,7 +865,7 @@ export default function DontLookDownGame({
                     )}
                 </div>
 
-                <div className="absolute top-4 right-4 bg-white/95 rounded-xl px-5 py-3 shadow-lg pointer-events-auto min-w-[180px]">
+                <div className="absolute top-4 right-4 bg-white/95 rounded-xl px-3 py-2 sm:px-5 sm:py-3 shadow-lg pointer-events-auto w-[calc(50vw-1.5rem)] sm:w-auto sm:min-w-[180px]">
                     <div className="flex items-center justify-between mb-1">
                         <span className="text-sm font-semibold text-gray-600">에너지</span>
                         <span className="text-xs text-gray-500">{Math.floor(uiPlayer.energy)}</span>
@@ -897,7 +936,7 @@ export default function DontLookDownGame({
                     </div>
                 )}
 
-                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/95 rounded-xl px-4 py-2 shadow-lg min-w-[300px]">
+                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/95 rounded-xl px-4 py-2 shadow-lg w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px]">
                     <div className="text-xs font-bold text-gray-600 mb-2 text-center">순위</div>
                     <div className="space-y-1">
                         {leaderboard.map((player, index) => (
@@ -991,7 +1030,7 @@ export default function DontLookDownGame({
                             퀴즈 풀기
                         </motion.button>
 
-                        <div className="absolute bottom-4 right-4 bg-black/70 text-white px-4 py-3 rounded-xl text-sm space-y-1">
+                        <div className="absolute bottom-4 right-4 hidden md:block bg-black/70 text-white px-4 py-3 rounded-xl text-sm space-y-1">
                             <div>←/→ 이동 · ↑/스페이스 점프</div>
                             <div>⇧ 질주 · Q 퀴즈</div>
                             <div>E/R 파워업 사용</div>

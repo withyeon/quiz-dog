@@ -8,10 +8,8 @@ import { FEATURE_INTRO_ITEMS } from '@/components/landing/featureIntroData'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 
 export default function FeatureIntroSection({
-  gameModeCount,
   animationsReady,
 }: {
-  gameModeCount: number
   animationsReady: boolean
 }) {
   return (
@@ -28,9 +26,6 @@ export default function FeatureIntroSection({
               <PixelAccent>퀴즈독</PixelAccent> 기능 한눈에
             </PixelHeading>
           </h2>
-          <p className="-mt-1 text-base sm:text-lg" style={{ color: '#475569' }}>
-            AI 문제 생성부터 {gameModeCount}가지 게임, 결과 리포트까지 한 곳에서
-          </p>
         </motion.div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">

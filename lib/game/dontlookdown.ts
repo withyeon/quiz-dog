@@ -68,11 +68,11 @@ export interface Platform {
     id: string
     x: number              // 왼쪽 끝 X 좌표
     y: number              // 상단 Y 좌표
-    width: number          // 폭 (이미지 로드 전 기본값, 로드 후 이미지 크기로 갱신)
+    width: number          // 폭 (충돌 박스. 이미지는 이 폭에 맞춰 비율 유지로 그린다)
     height: number         // 높이
     type: 'normal' | 'narrow' | 'checkpoint' | 'peak' | 'start' | 'disappearing' | 'spike' | 'moving' | 'ice'
     style?: PlatformStyle  // 디자인 변형 (이미지 연결용)
-    imageId?: number       // 1~9, public/dontlookdown/platforms/{imageId}.svg
+    imageId?: number       // 1~10, public/dontlookdown/platforms/{imageId}.webp (pickPlatformImageId 참고)
     summit: number         // 속한 Summit (1-6)
     disappearTime?: number // 사라지는 플랫폼의 사라질 시간
     isVisible?: boolean    // 사라지는 플랫폼의 가시성
@@ -83,8 +83,62 @@ export interface Platform {
     routeRole?: 'main' | 'side' | 'rescue' | 'checkpoint' | 'peak' | 'start'
 }
 
-export const PLATFORM_IMAGE_COUNT = 9
+export const PLATFORM_IMAGE_COUNT = 10
 export const getPlatformImagePath = (imageId: number) => `/dontlookdown/platforms/${imageId}.webp`
+
+// 발판 이미지 번호 (public/dontlookdown/platforms/{n}.webp)
+// 1 나무판자 · 2 얼음 · 3 돌 · 4 구름 · 5 잔디 · 6 이끼 벽돌 · 7 돌블록 · 8 버섯 · 9 나무상자 · 10 돌기둥
+export const PLATFORM_IMAGE = {
+    WOOD: 1,
+    ICE: 2,
+    STONE: 3,
+    CLOUD: 4,
+    GRASS: 5,
+    MOSSY_BRICK: 6,
+    STONE_BLOCK: 7,
+    MUSHROOM: 8,
+    CRATE: 9,
+    PILLAR: 10,
+} as const
+
+// 상자(9)는 두께가 있어 일반 발판으로 쓰면 뭉툭해 보인다. 움직이는 발판 전용.
+const NORMAL_IMAGE_POOL = [
+    PLATFORM_IMAGE.WOOD,
+    PLATFORM_IMAGE.STONE,
+    PLATFORM_IMAGE.GRASS,
+    PLATFORM_IMAGE.MOSSY_BRICK,
+]
+const NARROW_IMAGE_POOL = [PLATFORM_IMAGE.STONE_BLOCK, PLATFORM_IMAGE.MUSHROOM, PLATFORM_IMAGE.PILLAR]
+
+/**
+ * 발판 종류에 맞는 이미지를 고른다. 얼음은 얼음 그림, 사라지는 발판은 구름처럼
+ * 그림만 봐도 성격이 읽히게 한다. seed는 같은 종류 안에서 그림을 섞는 용도.
+ * 이미지는 발판 박스 크기를 바꾸지 않는다 (박스 폭에 맞춰 비율 유지로 그린다).
+ */
+export function pickPlatformImageId(type: Platform['type'], seed: number): number {
+    switch (type) {
+        case 'ice': return PLATFORM_IMAGE.ICE
+        case 'disappearing': return PLATFORM_IMAGE.CLOUD
+        case 'moving': return PLATFORM_IMAGE.CRATE
+        case 'spike': return PLATFORM_IMAGE.STONE
+        case 'checkpoint': return PLATFORM_IMAGE.MOSSY_BRICK
+        case 'start':
+        case 'peak': return PLATFORM_IMAGE.GRASS
+        case 'narrow': return NARROW_IMAGE_POOL[Math.abs(seed) % NARROW_IMAGE_POOL.length]
+        default: return NORMAL_IMAGE_POOL[Math.abs(seed) % NORMAL_IMAGE_POOL.length]
+    }
+}
+
+// 발판 위 장식 이미지 (선택). public/dontlookdown/props/{name}.webp 가 있으면 쓰고, 없으면 코드로 그린다.
+export type PlatformPropName = 'checkpoint_flag' | 'peak_flag' | 'spikes'
+export const PLATFORM_PROP_NAMES: readonly PlatformPropName[] = ['checkpoint_flag', 'peak_flag', 'spikes']
+export const getPlatformPropPath = (name: PlatformPropName) => `/dontlookdown/props/${name}.webp`
+
+// 배경 그림 (선택). public/dontlookdown/bg/{name}.webp 가 있으면 쓰고, 없으면 코드로 그린다.
+// mountains: 화면 아래쪽 먼 산 띠(가로로 이어붙임) · cliff: 양옆 절벽 벽(세로로 이어붙임, 오른쪽은 좌우 반전)
+export type BackdropLayerName = 'mountains' | 'cliff'
+export const BACKDROP_LAYER_NAMES: readonly BackdropLayerName[] = ['mountains', 'cliff']
+export const getBackdropLayerPath = (name: BackdropLayerName) => `/dontlookdown/bg/${name}.webp`
 
 export interface GameSettings {
     duration: number           // 게임 시간 (초)
@@ -160,8 +214,16 @@ export const METERS_PER_PIXEL = 0.1 // 10픽셀 = 1미터
 export const WORLD = {
     WIDTH: 4200,   // 우상향 진행감을 위해 넓은 가로 월드 사용
     HEIGHT: 7200,  // 세로 여유
-    VIEW_WIDTH: 800,
-    VIEW_HEIGHT: 600,
+    // 줌 배율: 월드 1px이 화면(CSS) 몇 px로 보이는지. 기기와 화면 비율이 달라도 발판·캐릭터의
+    // 보이는 크기가 같도록, 컴포넌트가 컨테이너 크기 ÷ 이 값으로 뷰 크기를 계산한다.
+    // 작을수록 줌 아웃되어 요소가 작아지고 맵이 많이 보인다. (예전엔 800×600 뷰를 화면에 꽉 채워
+    // 큰 화면·세로 태블릿에서 요소가 1.3~1.5배로 부풀고 가로로 늘어났다.)
+    VIEW_SCALE: 0.75,
+    VIEW_WIDTH: 1120,   // 측정 전 기본값
+    VIEW_HEIGHT: 840,   // 측정 전 기본값
+    VIEW_MIN_WIDTH: 360,
+    VIEW_MIN_HEIGHT: 480,
+    VIEW_MAX_HEIGHT: 1400, // 아주 큰 모니터에서 맵 전체가 한눈에 보이지 않게
 } as const
 
 export const CLIMB_START_X = 320
@@ -259,7 +321,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
         height: 40,
         type: 'start',
         style: 'brick',
-        imageId: 1,
+        imageId: pickPlatformImageId('start', 0),
         summit: 1,
         isVisible: true,
         routeRole: 'start',
@@ -311,7 +373,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
             else if (summit.id >= 6 && Math.random() < 0.05 + difficulty * 0.05) mainType = 'moving'
             else if (summit.id >= 7 && Math.random() < 0.04 + difficulty * 0.04) mainType = 'disappearing'
             const mainStyle = PLATFORM_STYLES[rowIndex % PLATFORM_STYLES.length]
-            const mainImgId = 1 + (platformId % PLATFORM_IMAGE_COUNT)
+            const mainImgId = pickPlatformImageId(mainType, platformId)
             const moveRange = mainType === 'moving' ? 45 + Math.random() * 45 : undefined
 
             platforms.push({
@@ -343,7 +405,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                 else if (summit.id >= 5 && Math.random() < 0.06 + hazardRatio * 0.08) type2 = 'spike'
                 else if (summit.id >= 7 && Math.random() < 0.18) type2 = 'ice'
 
-                const imgId2 = 1 + (platformId % PLATFORM_IMAGE_COUNT)
+                const imgId2 = pickPlatformImageId(type2, platformId)
                 const side = rowIndex % 2 === 0 ? 1 : -1
                 const x2 = Math.max(240, Math.min(WORLD.WIDTH - 360, baseX + side * (175 + Math.random() * 85)))
                 platforms.push({
@@ -375,7 +437,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                     height: 22,
                     type: 'narrow',
                     style: 'wood',
-                    imageId: 1 + (platformId % PLATFORM_IMAGE_COUNT),
+                    imageId: pickPlatformImageId('narrow', platformId),
                     summit: summit.id,
                     isVisible: true,
                     routeRole: 'rescue',
@@ -393,7 +455,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                     height: 28,
                     type: 'checkpoint',
                     style: 'stone',
-                    imageId: 1 + (summit.id % PLATFORM_IMAGE_COUNT),
+                    imageId: pickPlatformImageId('checkpoint', summit.id),
                     summit: summit.id,
                     isVisible: true,
                     routeRole: 'checkpoint',
@@ -419,7 +481,7 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
         height: 40,
         type: 'peak',
         style: 'stone',
-        imageId: 9,
+        imageId: pickPlatformImageId('peak', 0),
         summit: lastSummitId,
         isVisible: true,
         routeRole: 'peak',

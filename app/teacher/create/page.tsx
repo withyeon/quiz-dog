@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button'
 import { ArrowLeft, Pencil, ScanLine, Sparkles, Plus, Minus } from 'lucide-react'
 import type { GeneratedQuestion } from '@/lib/ai/questionGenerator'
 import { extractTextFromPPTX } from '@/lib/extractors/ppt'
-import { filterNickname } from '@/lib/utils/profanityFilter'
 import QuestionReviewEditor from '@/components/teacher/QuestionReviewEditor'
 import QuestionSourceSelector from '@/components/teacher/QuestionSourceSelector'
 import { createQuestionSetWithQuestions } from '@/lib/services/questionSets'
@@ -70,7 +69,8 @@ export default function CreateQuestionPage() {
     setGrade(nextGrade)
     setSubject((current) => remapSubjectToLevel(current, schoolLevelFromGrade(nextGrade)))
   }
-  const [isPublic, setIsPublic] = useState(false)
+  // 기본값은 자료실 공개 — 끄면 나만 보기(비공개)
+  const [isPublic, setIsPublic] = useState(true)
 
   const totalTypeCount = typeCounts.CHOICE + typeCounts.OX + typeCounts.SHORT
 
@@ -185,9 +185,10 @@ export default function CreateQuestionPage() {
       return
     }
 
-    const nameCheck = filterNickname(setName)
-    if (!nameCheck.isValid) {
-      toast.error('문제집 이름에 부적절한 단어가 포함되어 있습니다.')
+    // 문제집 이름에는 비속어 필터를 걸지 않는다.
+    // 만드는 사람이 로그인한 선생님뿐이고, '개천절'처럼 멀쩡한 이름이 걸린다.
+    if (setName.trim().length > 60) {
+      toast.error('문제집 이름은 60자까지 입력할 수 있습니다.')
       return
     }
 
@@ -391,7 +392,7 @@ export default function CreateQuestionPage() {
                       onChange={(e) => handleGradeChange(e.target.value)}
                       className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-black outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                     >
-                      <option value="">전체/해당없음</option>
+                      <option value="">학년 선택</option>
                       {TARGET_GRADE_OPTIONS.map((option) => (
                         <option key={option} value={option}>{option}</option>
                       ))}

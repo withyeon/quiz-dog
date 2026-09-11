@@ -16,7 +16,6 @@ export type AnswerRecord = {
 
 export type PlayerAnalysis = {
   id: string
-  attendanceNo: number
   nickname: string
   avatar: string | null
   score: number
@@ -126,7 +125,6 @@ export function buildResultAnalytics(
 
     return {
       id: player.id,
-      attendanceNo: index + 1,
       nickname: player.nickname,
       avatar: player.avatar,
       score: getDisplayScore(player, room),

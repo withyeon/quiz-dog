@@ -33,7 +33,7 @@ function HeroPreview() {
   const game = games[index]
 
   return (
-    <div className="relative">
+    <div className="relative -mx-2 sm:mx-0">
       {/* 뒤에 살짝 겹쳐 보이는 카드 — 여러 게임이 쌓여 있는 느낌 */}
       <div
         className="absolute inset-x-6 -bottom-3 top-6 rounded-[28px]"
@@ -42,7 +42,7 @@ function HeroPreview() {
       />
 
       <div
-        className="toss-card texture-grain relative aspect-[4/3] overflow-hidden rounded-[28px]"
+        className="toss-card texture-grain relative aspect-[5/4] overflow-hidden rounded-[28px] sm:aspect-[4/3]"
         style={{
           backgroundColor: 'rgba(255,255,255,0.55)',
           border: '1px solid rgba(255,255,255,0.9)',
@@ -146,14 +146,14 @@ function HeroPreview() {
 
 export default function HeroSection({ animationsReady }: { animationsReady: boolean }) {
   return (
-    <section className="relative px-4 pb-16 pt-32 sm:px-6 sm:pb-20 sm:pt-36 lg:px-8 lg:pb-24 lg:pt-40" style={{ zIndex: 2 }}>
-      <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr_1fr] lg:gap-14">
+    <section className="relative px-4 pb-16 pt-28 sm:px-6 sm:pb-20 sm:pt-32 lg:px-8 lg:pb-24 lg:pt-40" style={{ zIndex: 2 }}>
+      <div className="mx-auto grid max-w-7xl items-center gap-10 sm:gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-14">
         {/* LEFT — 카피 · CTA */}
         <motion.div
           initial={animationsReady ? { opacity: 0, y: 24 } : false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-center lg:text-left"
+          className="order-2 text-center lg:order-1 lg:text-left"
         >
           <span
             className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-black"
@@ -219,6 +219,7 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
 
         {/* RIGHT — 실제 플레이 화면 */}
         <motion.div
+          className="order-1 lg:order-2"
           initial={animationsReady ? { opacity: 0, scale: 0.96 } : false}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.12 }}

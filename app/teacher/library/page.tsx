@@ -24,7 +24,7 @@ import {
   listQuestionSetIndexFromQuestions,
   toggleQuestionSetLike,
 } from '@/lib/services/questionSets'
-import { ELEMENTARY_GRADE_NUMBERS, formatGradeLabel } from '@/lib/constants/grades'
+import { ANY_GRADE, ELEMENTARY_GRADE_NUMBERS, formatGradeLabel } from '@/lib/constants/grades'
 import {
   ALL_SUBJECTS as SUBJECTS,
   SUBJECTS_BY_LEVEL,
@@ -82,6 +82,9 @@ const normalizeSubject = (subjectValue: string | null | undefined, setId: string
 const normalizeGrade = (gradeValue: string | null | undefined, setId: string): string => {
   const value = gradeValue?.trim()
   if (value) {
+    // 학년 무관 문제집은 'all'로 두고, 어떤 학년 필터에도 걸리도록 한다.
+    if (value === ANY_GRADE || value === 'all') return 'all'
+
     const gradeMatch = value.match(/(초|중|고)\s*(\d)/)
     if (gradeMatch) {
       const level = gradeMatch[1] === '초' ? 'elementary' : gradeMatch[1] === '중' ? 'middle' : 'high'
@@ -177,9 +180,12 @@ function LibraryPageContent() {
   const filteredSets = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     const filtered = allQuestionSets.filter((set) => {
+      // 학년 무관 문제집은 어떤 학교급·학년을 골라도 함께 보여준다.
+      const isAnyGrade = set.grade === 'all'
       const matchesSubject = selectedSubject === 'all' || set.subject === selectedSubject
-      const matchesLevel = selectedSchoolLevel === 'all' || set.grade.startsWith(selectedSchoolLevel)
-      const matchesGrade = selectedGrade === 'all' || set.grade === selectedGrade
+      const matchesLevel =
+        selectedSchoolLevel === 'all' || isAnyGrade || set.grade.startsWith(selectedSchoolLevel)
+      const matchesGrade = selectedGrade === 'all' || isAnyGrade || set.grade === selectedGrade
       const matchesQuery = !query
         || set.name.toLowerCase().includes(query)
         || getSubjectName(set.subject).toLowerCase().includes(query)

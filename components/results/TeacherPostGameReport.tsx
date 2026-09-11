@@ -36,8 +36,8 @@ import {
   type Room,
 } from './resultAnalytics'
 
-type SortKey = 'score' | 'accuracy' | 'name' | 'attendance' | 'time'
-type MatrixSortKey = 'accuracy' | 'score' | 'attendance'
+type SortKey = 'score' | 'accuracy' | 'name' | 'time'
+type MatrixSortKey = 'accuracy' | 'score'
 type DiagnosticTab = 'students' | 'questions' | 'accuracy'
 
 type TeacherPostGameReportProps = {
@@ -99,7 +99,6 @@ export default function TeacherPostGameReport({
   const matrixPlayers = useMemo(() => {
     const sorted = [...analytics.players]
     if (matrixSort === 'accuracy') return sorted.sort((a, b) => a.accuracy - b.accuracy || b.score - a.score)
-    if (matrixSort === 'attendance') return sorted.sort((a, b) => a.attendanceNo - b.attendanceNo)
     return sorted.sort((a, b) => b.score - a.score)
   }, [analytics.players, matrixSort])
 
@@ -109,7 +108,6 @@ export default function TeacherPostGameReport({
     return filtered.sort((a, b) => {
       if (studentSort === 'accuracy') return b.accuracy - a.accuracy || b.score - a.score
       if (studentSort === 'name') return a.nickname.localeCompare(b.nickname, 'ko-KR')
-      if (studentSort === 'attendance') return a.attendanceNo - b.attendanceNo
       if (studentSort === 'time') return (a.avgResponseTimeMs ?? Number.MAX_SAFE_INTEGER) - (b.avgResponseTimeMs ?? Number.MAX_SAFE_INTEGER)
       return b.score - a.score
     })
@@ -135,10 +133,9 @@ export default function TeacherPostGameReport({
       const studentSheet = {
         name: '학생별',
         rows: [
-          ['출석번호', '학생명', '정답률(%)', '점수', '평균응답시간',
+          ['학생명', '정답률(%)', '점수', '평균응답시간',
             ...analytics.questions.map((question) => `Q${question.index + 1}`)],
           ...analytics.players.map((player) => [
-            player.attendanceNo,
             player.nickname,
             player.accuracy,
             player.score,
@@ -297,7 +294,6 @@ export default function TeacherPostGameReport({
               {[
                 ['accuracy', '정답률 낮은 순'],
                 ['score', '점수 높은 순'],
-                ['attendance', '출석번호 순'],
               ].map(([key, label]) => (
                 <Button
                   key={key}
@@ -399,7 +395,6 @@ export default function TeacherPostGameReport({
             >
               <option value="score">점수 높은 순</option>
               <option value="accuracy">정답률 높은 순</option>
-              <option value="attendance">출석번호 순</option>
               <option value="name">이름순</option>
               <option value="time">응답시간 빠른 순</option>
             </select>
@@ -409,7 +404,6 @@ export default function TeacherPostGameReport({
           <table className="min-w-full text-sm">
             <thead className="border-y border-slate-200 bg-slate-50 text-slate-500">
               <tr>
-                <th className="px-3 py-3 text-left">출석번호</th>
                 <th className="px-3 py-3 text-left">학생명</th>
                 <th className="px-3 py-3 text-right">정답률</th>
                 <th className="px-3 py-3 text-right">점수</th>
@@ -419,7 +413,6 @@ export default function TeacherPostGameReport({
             <tbody className="divide-y divide-slate-100">
               {tablePlayers.map((player) => (
                 <tr key={player.id} onClick={() => setSelectedStudent(player)} className="cursor-pointer hover:bg-slate-50">
-                  <td className="px-3 py-3">{player.attendanceNo}</td>
                   <td className="px-3 py-3 font-bold">{player.nickname}</td>
                   <td className="px-3 py-3 text-right font-black">{player.accuracy}%</td>
                   <td className="px-3 py-3 text-right font-bold">{player.score.toLocaleString()}</td>

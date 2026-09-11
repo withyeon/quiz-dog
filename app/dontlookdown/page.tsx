@@ -102,15 +102,6 @@ export default function DontLookDownPage() {
         ))
     }, [roomDurationSeconds])
 
-    // 플랫폼 이미지 로드 시 크기로 박스 갱신 (이미지 크기 = 플랫폼 박스)
-    const handlePlatformImageSizesLoaded = useCallback((sizes: Record<number, { w: number; h: number }>) => {
-        setPlatforms(prev => prev.map(p =>
-            p.imageId && sizes[p.imageId]
-                ? { ...p, width: sizes[p.imageId].w, height: sizes[p.imageId].h }
-                : p
-        ))
-    }, [])
-
     // 게임 시작. 카운트다운과 시작 전 퀴즈는 훅(useGameBase)이 진행한다: 방이 playing이 되면
     // showCountdown → (완료) → shouldShowPreStartQuiz → (완료) → currentView 'quiz'.
     // 이 페이지는 그 'quiz' 신호를 받아 맵을 만들고 'game'으로 들어간다.
@@ -424,7 +415,6 @@ export default function DontLookDownPage() {
                             onCollectPowerUp={handleCollectPowerUp}
                             currentQuestion={currentQuestion}
                             onAnswerQuestion={handleAnswer}
-                            onPlatformImageSizesLoaded={handlePlatformImageSizesLoaded}
                             remainingTime={remainingTime}
                         />
                     </motion.div>
