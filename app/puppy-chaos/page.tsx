@@ -502,7 +502,7 @@ export default function PuppyChaosPage() {
     return (
       <main className="flex min-h-dvh items-center justify-center bg-sky-100 p-6">
         <div className="rounded-[28px] border-4 border-slate-900 bg-white p-8 text-center text-2xl font-black shadow-[6px_6px_0_#0f172a]">
-          강아지를 찾는 중...
+          강아지를 찾는 중
         </div>
       </main>
     )
@@ -590,7 +590,7 @@ export default function PuppyChaosPage() {
               <div>
                 <PomeMascot className="mx-auto mb-4 h-20 w-20" />
                 <h2 className="text-3xl font-black">
-                {questionsError ? '문제를 불러오지 못했어요' : '문제를 불러오는 중...'}
+                {questionsError ? '문제를 불러오지 못했어요' : '문제를 불러오는 중'}
               </h2>
                 {questionsError && <p className="mt-3 text-sm font-bold text-rose-600">{questionsError}</p>}
               </div>
@@ -603,7 +603,7 @@ export default function PuppyChaosPage() {
               <div className="mb-5 text-center">
                 <div className="text-4xl font-black">랜덤박스 하나 고르기!</div>
                 <div className="mt-2 text-lg font-black text-rose-600">
-                  {isOpeningBox ? '상자를 여는 중...' : `${cardCountdown}초 후 랜덤 자동 선택`}
+                  {isOpeningBox ? '상자를 여는 중' : `${cardCountdown}초 후 랜덤 자동 선택`}
                 </div>
               </div>
               {isOpeningBox && selectedBoxIndex !== null && cards[selectedBoxIndex] ? (

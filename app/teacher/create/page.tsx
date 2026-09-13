@@ -503,8 +503,8 @@ export default function CreateQuestionPage() {
                 >
                   {isGenerating
                     ? sourceType === 'exam'
-                      ? '시험지 분석 중…'
-                      : '문제 만드는 중…'
+                      ? '시험지 분석 중'
+                      : '문제 만드는 중'
                     : sourceType === 'exam'
                       ? '시험지에서 문제 추출'
                       : totalTypeCount < 1

@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Award, Clock, Gamepad2, PackageCheck, Settings, Star, Target, XCircle, Zap } from 'lucide-react'
+import { Award, Gamepad2, PackageCheck, Settings, Star, Target, Zap } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import GameTimeBadge from '@/components/GameTimeBadge'
 import GameResult from '@/components/GameResult'
@@ -29,6 +29,7 @@ import {
 } from '@/lib/game/fishing'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import AnswerReveal from '@/components/AnswerReveal'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type ScreenAttack = { type: 'screen_flip' | 'screen_shrink'; expiresAt: number }
 
@@ -129,7 +130,7 @@ export default function FishingPage() {
   if (roomLoading || playersLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-gray-50">
-        <p className="text-2xl font-bold text-gray-800">로딩 중...</p>
+        <p className="text-2xl font-bold text-gray-800">로딩 중</p>
       </div>
     )
   }
@@ -290,7 +291,7 @@ export default function FishingPage() {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-slate-900 text-white shadow-lg shadow-slate-200">
                 <Gamepad2 size={34} />
               </div>
-              <h2 className="mb-3 text-4xl font-black text-slate-900">인형뽑기 준비 중...</h2>
+              <h2 className="mb-3 text-4xl font-black text-slate-900">인형뽑기 준비 중</h2>
               <p className="text-lg text-slate-600">선생님이 게임을 시작할 때까지 기다려주세요.</p>
             </motion.div>
           )}
@@ -339,7 +340,7 @@ export default function FishingPage() {
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-lg border border-sky-100 bg-sky-50/80 p-3">
                       <div className="mb-1 flex items-center justify-center gap-1 text-xs text-slate-500">
-                        <Clock size={12} /> 정답 속도
+                        <PixelIcon name="time" size={16} alt="" /> 정답 속도
                       </div>
                       <div className="text-base font-black text-sky-700">{getAnswerSpeedLabel(speedGrade)}</div>
                     </div>
@@ -415,7 +416,7 @@ export default function FishingPage() {
             </div>
             ) : (
               <div className="rounded-xl border border-slate-200 bg-white/90 p-10 text-center shadow-xl shadow-slate-200/60">
-                <h2 className="text-3xl font-black text-slate-900">문제를 불러오는 중...</h2>
+                <h2 className="text-3xl font-black text-slate-900">문제를 불러오는 중</h2>
                 <p className="mt-3 text-base font-bold text-slate-500">잠시 후 퀴즈가 자동으로 표시됩니다.</p>
               </div>
             )
@@ -530,9 +531,9 @@ export default function FishingPage() {
               <motion.div
                 animate={{ rotate: [0, -10, 10, -10, 0] }}
                 transition={{ duration: 0.5 }}
-                className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-xl bg-red-50 text-red-500 ring-1 ring-red-100"
+                className="mx-auto mb-4 flex justify-center"
               >
-                <XCircle size={48} />
+                <PixelIcon name="wrong" size={96} />
               </motion.div>
               <h2 className="mb-2 text-4xl font-extrabold text-red-600">틀렸습니다</h2>
               <AnswerReveal answer={revealedAnswer} />

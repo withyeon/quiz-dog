@@ -317,7 +317,7 @@ export default function DontLookDownPage() {
                 <AnimatedBackground />
                 <div className="relative z-10 flex items-center justify-center min-h-dvh">
                     <div className="text-center text-white">
-                        <p className="text-2xl font-bold mb-2">방 정보 로딩 중...</p>
+                        <p className="text-2xl font-bold mb-2">방 정보 로딩 중</p>
                         <p className="text-gray-300">잠시만 기다려주세요</p>
                     </div>
                 </div>

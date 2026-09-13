@@ -11,9 +11,10 @@ import GameResult from '@/components/GameResult'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
-import { Clock, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { formatTime } from '@/lib/game/mafia'
 import { useGameBase } from '@/hooks/useGameBase'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 export default function MafiaPage() {
   const router = useRouter()
@@ -89,7 +90,7 @@ export default function MafiaPage() {
   if (roomLoading || playersLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-black text-xl font-bold text-yellow-300">
-        마피아 조직원 불러오는 중...
+        마피아 조직원 불러오는 중
       </div>
     )
   }
@@ -135,7 +136,7 @@ export default function MafiaPage() {
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="rounded-xl border-2 border-yellow-600 bg-gray-800/50 p-4 text-center">
-                    <Clock className="mx-auto mb-2 h-8 w-8 text-yellow-400" />
+                    <PixelIcon name="time" size={40} alt="" className="mx-auto mb-2" />
                     <div className="text-3xl font-bold text-yellow-400">{formatTime(duration)}</div>
                     <div className="mt-1 text-base text-gray-400">제한 시간</div>
                   </div>

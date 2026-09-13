@@ -37,6 +37,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/components/ui/Toaster'
 import ShareSetModal from '@/components/share/ShareSetModal'
 import { EmptyState, LoadingState } from '@/components/ui/StateViews'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type QuestionSet = QuestionSetSummary
 type LikedQuestionSet = QuestionSetIndexItem & {
@@ -333,7 +334,7 @@ function TeacherPageContent() {
                 {/* 문제집이 쌓이면 스크롤로 찾기 어려워서 검색·정렬을 둔다 */}
                 <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                   <div className="relative flex-1">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <PixelIcon name="scan" size={20} alt="" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}

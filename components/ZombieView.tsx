@@ -23,6 +23,7 @@ import {
 } from '@/lib/game/zombie'
 import type { ZombieAttackResult } from '@/lib/services/playerMutations'
 import type { Question } from '@/hooks/useGameBase'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type ViewState = 'quiz' | 'actionSelect' | 'targetSelect' | 'scanResult' | 'attackResult' | 'wrong'
 
@@ -410,7 +411,7 @@ export default function ZombieView({
                 />
               ) : (
                 <div className="rounded-2xl bg-black/80 p-8 text-center text-2xl font-black text-white">
-                  문제를 불러오는 중...
+                  문제를 불러오는 중
                 </div>
               )}
             </motion.div>
@@ -511,7 +512,7 @@ export default function ZombieView({
               </div>
               <p className={`text-4xl font-bold ${lastAttackResult.pending ? 'text-gray-300' : lastAttackResult.infected ? 'text-green-400' : lastAttackResult.missed ? 'text-yellow-400' : 'text-red-400'}`}>
                 {lastAttackResult.pending
-                  ? '공격 중...'
+                  ? '공격 중'
                   : lastAttackResult.infected
                     ? '감염 성공!'
                     : lastAttackResult.missed
@@ -525,7 +526,7 @@ export default function ZombieView({
           {currentView === 'wrong' && (
             <motion.div key="wrong" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center">
               <div className="mb-4 flex justify-center">
-                <ZombieIcon name="wrong" size={84} alt="오답" />
+                <PixelIcon name="wrong" size={96} />
               </div>
               <p className="text-4xl font-bold text-red-400">틀렸습니다!</p>
               <AnswerReveal answer={revealedAnswer} />

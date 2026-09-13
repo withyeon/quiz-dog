@@ -1,5 +1,6 @@
 // 간식런 - 3차선 엔드리스 러너 게임 로직
 export { formatTime } from '@/lib/utils/formatTime'
+import type { PixelIconName } from '@/components/ui/PixelIcon'
 
 // 게임 좌표계의 세로 크기. 화면 크기와 무관하게 고정한다.
 // (예전에는 실제 캔버스 높이를 써서, 세로가 긴 태블릿에서는 장애물이 5초,
@@ -131,7 +132,8 @@ export interface GansikRunState {
 }
 
 // ─── 아이템 정의 ───
-export const ITEM_DEFS: Record<ItemType, { emoji: string; name: string; rarity: ItemRarity; duration: number; description: string }> = {
+// icon이 있으면 화면에서는 이모지 대신 public/icons의 픽셀 아이콘을 그린다 (components/ItemGlyph).
+export const ITEM_DEFS: Record<ItemType, { emoji: string; icon?: PixelIconName; name: string; rarity: ItemRarity; duration: number; description: string }> = {
   booster:      { emoji: '🚀', name: '부스터',     rarity: 'common',    duration: 300,  description: '2배속 + 무적' },
   shield:       { emoji: '🛡️', name: '방어막',     rarity: 'common',    duration: 9999, description: '충돌 1회 무효화' },
   double_score: { emoji: '✨', name: '점수 2배',   rarity: 'common',    duration: 900,  description: '모든 점수 ×2' },
@@ -141,7 +143,7 @@ export const ITEM_DEFS: Record<ItemType, { emoji: string; name: string; rarity: 
   big_dog:      { emoji: '🐕‍🦺', name: '큰 강아지', rarity: 'epic',      duration: 420,  description: '장애물 파괴 + 점수' },
   drone:        { emoji: '🚁', name: '드론',       rarity: 'epic',      duration: 480,  description: '공중 비행, 장애물 무시' },
   screen_flip:  { emoji: '🔄', name: '화면 뒤집기', rarity: 'epic',      duration: 420,  description: '다른 친구들 화면 뒤집기' },
-  screen_shrink:{ emoji: '🔍', name: '화면 축소',   rarity: 'epic',      duration: 420,  description: '다른 친구들 화면 작게 만들기' },
+  screen_shrink:{ emoji: '🔍', icon: 'scan', name: '화면 축소',   rarity: 'epic',      duration: 420,  description: '다른 친구들 화면 작게 만들기' },
   golden_mode:  { emoji: '👑', name: '황금 모드',  rarity: 'legendary', duration: 300,  description: '부스터+자석+점수2배' },
 }
 

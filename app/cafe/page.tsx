@@ -7,11 +7,12 @@ import CafeView from '@/components/CafeView'
 import AttackAlert from '@/components/cafe/AttackAlert'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Trophy, Clock, Coins, Users } from 'lucide-react'
+import { Trophy, Coins, Users } from 'lucide-react'
 import { formatCafeMoney, formatTime, MENU_ITEMS } from '@/lib/game/cafe'
 import { useGameBase } from '@/hooks/useGameBase'
 import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type CafeViewType = 'lobby' | 'playing' | 'result'
 
@@ -210,7 +211,7 @@ export default function CafePage() {
               <CardContent className="space-y-6">
                 {/* 선생님이 정한 게임 시간 안내 (학생은 선택 불가) */}
                 <div className="flex items-center justify-center gap-3 rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-4">
-                  <Clock className="h-6 w-6 text-amber-600" />
+                  <PixelIcon name="time" size={28} alt="" />
                   <span className="text-lg font-semibold text-gray-700">게임 시간</span>
                   <span className="text-2xl font-bold text-amber-700">{formatTime(gameDuration)}</span>
                 </div>
@@ -229,7 +230,7 @@ export default function CafePage() {
                 <div className="flex flex-col items-center gap-3 rounded-xl border-4 border-dashed border-amber-300 bg-white/60 py-6">
                   <div className="text-4xl animate-pulse">⏳</div>
                   <p className="text-lg font-bold text-gray-700">선생님이 시작하면 자동으로 시작돼요</p>
-                  <p className="text-sm text-gray-500">잠시만 기다려 주세요…</p>
+                  <p className="text-sm text-gray-500">잠시만 기다려 주세요</p>
                 </div>
               </CardContent>
             </Card>

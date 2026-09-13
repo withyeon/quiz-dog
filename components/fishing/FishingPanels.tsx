@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Clock, Coins, Gift, ShieldCheck, Star, Target, Ticket, Zap } from 'lucide-react'
+import { Coins, Gift, ShieldCheck, Star, Target, Ticket, Zap } from 'lucide-react'
 import {
     getAimGradeLabel,
     getAnswerSpeedLabel,
@@ -12,6 +12,7 @@ import {
 import type { useFishingGame } from '@/hooks/useFishingGame'
 import type { Database } from '@/types/database.types'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 export type FishingPlayer = Database['public']['Tables']['players']['Row'] & {
     caught_dolls?: Doll[]
@@ -208,7 +209,7 @@ export function ResultCard({
                     </div>
                     <div className="rounded-lg border border-white bg-white/70 px-2 py-3">
                         <div className="mb-1 flex items-center justify-center gap-1 text-xs font-bold text-slate-500">
-                            <Clock size={10} /> 속도
+                            <PixelIcon name="time" size={14} alt="" /> 속도
                         </div>
                         <div className="text-sm font-black leading-tight text-slate-900">
                             {getAnswerSpeedLabel(fishingResult.speedGrade)}

@@ -255,7 +255,7 @@ export default function DevPage() {
                 >
                   ⏳
                 </motion.span>
-                게임 시작 중...
+                게임 시작 중
               </span>
             ) : (
               <span className="flex items-center gap-2">

@@ -75,7 +75,7 @@ function StudentResultContent({ gameId }: { gameId: string }) {
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#f7fbff] p-6">
-        <p className="text-xl font-black text-slate-500">내 결과를 불러오는 중입니다...</p>
+        <p className="text-xl font-black text-slate-500">내 결과를 불러오는 중입니다</p>
       </div>
     )
   }
@@ -102,7 +102,7 @@ function StudentResultContent({ gameId }: { gameId: string }) {
 
 export default function StudentGameResultPageClient({ gameId }: { gameId: string }) {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">로딩 중...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">로딩 중</div>}>
       <StudentResultContent gameId={gameId} />
     </Suspense>
   )

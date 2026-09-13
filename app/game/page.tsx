@@ -4,7 +4,7 @@ import { toast } from '@/components/ui/Toaster'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
-import { AlertTriangle, Anchor, CheckCircle2, XCircle } from 'lucide-react'
+import { AlertTriangle, Anchor, CheckCircle2 } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import GameTimeBadge from '@/components/GameTimeBadge'
 import ShieldPromptModal from '@/components/ShieldPromptModal'
@@ -27,6 +27,7 @@ import PlayerSelector from '@/components/PlayerSelector'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import AnswerReveal from '@/components/AnswerReveal'
 import type { Database } from '@/types/database.types'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type Player = Database['public']['Tables']['players']['Row']
 type AttackRequestPayload = {
@@ -775,7 +776,7 @@ export default function GamePage() {
               ) : isProcessingReward ? (
                 <div className="gold-quest-panel p-8 max-w-3xl mx-auto text-center">
                   <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
-                  <p className="text-xl font-black text-[#17262a]">처리 중...</p>
+                  <p className="text-xl font-black text-[#17262a]">처리 중</p>
                 </div>
               ) : (
                 <PlayerSelector
@@ -822,9 +823,9 @@ export default function GamePage() {
               <motion.div
                 animate={{ rotate: [0, -10, 10, -10, 0] }}
                 transition={{ duration: 0.5 }}
-                className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-lg border border-red-200 bg-red-50"
+                className="mx-auto mb-6 flex justify-center"
               >
-                <XCircle className="h-12 w-12 text-red-600" />
+                <PixelIcon name="wrong" size={112} />
               </motion.div>
               <h2 className="gold-quest-title text-4xl sm:text-5xl font-black text-red-700 mb-4">틀렸습니다</h2>
               <AnswerReveal answer={revealedAnswer} />

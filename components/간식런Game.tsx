@@ -23,6 +23,8 @@ import ItemRoulette from '@/components/ItemRoulette'
 import QuestionImage from '@/components/QuestionImage'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { checkQuestionAnswer } from '@/lib/services/questions'
+import PixelIcon from '@/components/ui/PixelIcon'
+import ItemGlyph from '@/components/ItemGlyph'
 
 export interface GansikRunQuestion {
   id: string
@@ -659,7 +661,11 @@ export default function GansikRunGame({
           >
             {isScreenFlipped && '🔄 화면 뒤집힘'}
             {isScreenFlipped && isScreenShrunk && ' + '}
-            {isScreenShrunk && '🔍 화면 축소'}
+            {isScreenShrunk && (
+              <>
+                <PixelIcon name="scan" size={18} alt="" className="inline-block align-[-4px]" /> 화면 축소
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -715,7 +721,7 @@ export default function GansikRunGame({
                 border: '1px solid rgba(255,255,255,0.2)',
                 backdropFilter: 'blur(4px)',
               }}>
-                <span className="text-base">{ITEM_DEFS[item.type].emoji}</span>
+                <ItemGlyph item={ITEM_DEFS[item.type]} size={16} />
                 <span className="text-white font-bold tabular-nums">{Math.ceil(item.remaining / 60)}s</span>
               </div>
             ))}
@@ -774,7 +780,7 @@ export default function GansikRunGame({
               boxShadow: '0 0 34px rgba(251,191,36,0.42), 0 18px 55px rgba(0,0,0,0.42)',
               transform: 'skew(-7deg)',
             }}>
-              <div className="text-5xl" style={{ transform: 'skew(7deg)' }}>{ITEM_DEFS[itemCutIn].emoji}</div>
+              <div style={{ transform: 'skew(7deg)' }}><ItemGlyph item={ITEM_DEFS[itemCutIn]} size={48} /></div>
               <div style={{ transform: 'skew(7deg)' }}>
                 <div className="text-xs font-black tracking-[0.22em] text-amber-200">ITEM GET</div>
                 <div className="text-3xl font-black text-white leading-none">{ITEM_DEFS[itemCutIn].name}</div>

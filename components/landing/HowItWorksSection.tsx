@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { FileUp, Gamepad2, KeyRound, ArrowRight } from 'lucide-react'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 const STEPS = [
   {
@@ -29,7 +30,7 @@ const STEPS = [
   },
 ]
 
-const PERKS = ['⏱ 준비 3분', '🔓 학생 가입 없음', '💻 설치 없이 브라우저', '📊 결과 리포트 자동']
+const PERKS = ['준비 3분', '🔓 학생 가입 없음', '💻 설치 없이 브라우저', '📊 결과 리포트 자동']
 
 export default function HowItWorksSection({ animationsReady }: { animationsReady: boolean }) {
   return (
@@ -133,6 +134,7 @@ export default function HowItWorksSection({ animationsReady }: { animationsReady
                 color: '#1E3A8A',
               }}
             >
+              {perk === '준비 3분' && <PixelIcon name="time" size={18} alt="" className="mr-1 inline-block align-[-3px]" />}
               {perk}
             </span>
           ))}

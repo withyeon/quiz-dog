@@ -190,7 +190,7 @@ export default function ZombiePage() {
   if (roomLoading || playersLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-black p-6 text-2xl font-black text-green-300">
-        좀비 모드를 준비하는 중...
+        좀비 모드를 준비하는 중
       </div>
     )
   }
@@ -322,7 +322,7 @@ export default function ZombiePage() {
           ) : (
             <motion.div key="assigning" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-6 text-center">
               <div className="rounded-2xl border-4 border-green-600 bg-black/80 p-8 text-3xl font-black text-green-300">
-                역할을 배정하는 중...
+                역할을 배정하는 중
               </div>
             </motion.div>
           )
@@ -345,7 +345,7 @@ export default function ZombiePage() {
                 <p className="text-xl text-gray-300">{winReason}</p>
                 {myPlayer && (
                   <p className={`mt-2 text-2xl font-bold ${myWon ? 'text-yellow-400' : 'text-red-400'}`}>
-                    {myWon ? '당신이 이겼습니다!' : '당신은 졌습니다...'}
+                    {myWon ? '당신이 이겼습니다!' : '당신은 졌습니다'}
                   </p>
                 )}
               </CardHeader>

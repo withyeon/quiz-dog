@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { XCircle, Zap } from 'lucide-react'
+import { Zap } from 'lucide-react'
 import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
@@ -39,6 +39,7 @@ import {
   listQuestionsForGame,
   type GameQuestion,
 } from '@/lib/services/questions'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   convenience_money?: number
@@ -517,7 +518,7 @@ export default function FactoryPage() {
   if (roomLoading || playersLoading) {
     return (
       <div className="min-h-dvh bg-gray-50 flex items-center justify-center">
-        <div className="text-2xl font-bold text-gray-800">로딩 중...</div>
+        <div className="text-2xl font-bold text-gray-800">로딩 중</div>
       </div>
     )
   }
@@ -674,8 +675,8 @@ export default function FactoryPage() {
               animate={{ opacity: 1, scale: 1 }}
               className="bg-red-100 border-4 border-red-500 rounded-xl p-8 shadow-lg text-center"
             >
-              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-xl bg-red-50 text-red-500 ring-1 ring-red-100">
-                <XCircle size={48} />
+              <div className="mx-auto mb-4 flex justify-center">
+                <PixelIcon name="wrong" size={96} />
               </div>
               <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다!</h2>
               <AnswerReveal answer={revealedAnswer} />
@@ -688,7 +689,7 @@ export default function FactoryPage() {
                   매출 정산 실수! {formatMoney(wrongPenalty)}을 잃었습니다.
                 </motion.p>
               ) : (
-                <p className="text-gray-700">다음 문제로 넘어갑니다...</p>
+                <p className="text-gray-700">다음 문제로 넘어갑니다</p>
               )}
             </motion.div>
           )}

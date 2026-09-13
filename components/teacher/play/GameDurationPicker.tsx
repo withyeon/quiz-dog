@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock } from 'lucide-react'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 const PRESET_MINUTES = [3, 5, 7, 10]
 const MIN_MINUTES = 1
@@ -19,7 +19,7 @@ export default function GameDurationPicker({
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
       <label className="mb-2 flex items-center gap-2 text-lg font-bold text-amber-800">
-        <Clock className="h-5 w-5" /> 게임 시간
+        <PixelIcon name="time" size={22} alt="" /> 게임 시간
       </label>
       <div className="flex flex-wrap items-center gap-3">
         {PRESET_MINUTES.map((preset) => (

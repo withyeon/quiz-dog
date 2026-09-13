@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import type { Database } from '@/types/database.types'
-import { X, Search, ChevronRight, CheckSquare, Square, ChevronLeft } from 'lucide-react'
+import { X, ChevronRight, CheckSquare, Square, ChevronLeft } from 'lucide-react'
 import { Button } from './ui/button'
 import { displayBlankText } from '@/lib/quiz/blankText'
 import {
     getQuestionSetWithQuestions,
     listQuestionSetsExcept,
 } from '@/lib/services/questionSets'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type QuestionSet = Database['public']['Tables']['question_sets']['Row']
 type Question = Database['public']['Tables']['questions']['Row']
@@ -111,7 +112,7 @@ export default function MergeQuestionsModal({ currentSetId, onClose, onMerge }: 
                     {!selectedSet ? (
                         <div className="p-6">
                             <div className="relative mb-6">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <PixelIcon name="scan" size={24} alt="" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2" />
                                 <input
                                     type="text"
                                     value={searchQuery}
@@ -122,7 +123,7 @@ export default function MergeQuestionsModal({ currentSetId, onClose, onMerge }: 
                             </div>
 
                             {loading ? (
-                                <div className="py-12 text-center text-gray-500 font-medium">문제집을 불러오는 중...</div>
+                                <div className="py-12 text-center text-gray-500 font-medium">문제집을 불러오는 중</div>
                             ) : filteredSets.length === 0 ? (
                                 <div className="py-12 text-center text-gray-500">다른 문제집이 없습니다.</div>
                             ) : (
@@ -162,7 +163,7 @@ export default function MergeQuestionsModal({ currentSetId, onClose, onMerge }: 
 
                             <div className="p-6 flex-1 overflow-y-auto">
                                 {loadingQuestions ? (
-                                    <div className="py-12 text-center text-gray-500">문제를 불러오는 중...</div>
+                                    <div className="py-12 text-center text-gray-500">문제를 불러오는 중</div>
                                 ) : questionsMenu.length === 0 ? (
                                     <div className="py-12 text-center text-gray-500">이 문제집에는 문제가 없습니다.</div>
                                 ) : (

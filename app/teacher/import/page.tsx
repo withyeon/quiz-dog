@@ -57,7 +57,7 @@ function ImportRunner() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
       <Loader2 className="h-8 w-8 animate-spin text-sky-500" />
-      <p className="text-lg font-bold text-slate-700">내 문제집으로 가져오는 중이에요…</p>
+      <p className="text-lg font-bold text-slate-700">내 문제집으로 가져오는 중이에요</p>
       <p className="text-sm font-medium text-slate-500">
         원본은 그대로 두고 수정할 수 있는 사본을 만들고 있어요.
       </p>

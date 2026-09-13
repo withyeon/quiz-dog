@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
+import PixelIcon from '@/components/ui/PixelIcon'
 import { useAudioContext } from '@/components/AudioProvider'
 import { isQuizAnswerMatch, splitAcceptableAnswers } from '@/lib/quiz/answerMatching'
 import { getQuestionAnswer } from '@/lib/services/questions'
@@ -407,14 +408,14 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
               transition={{ duration: 0.5, repeat: Infinity }}
               className="inline-flex items-center justify-center gap-2"
             >
-              <CheckCircle2 className="h-6 w-6" />
+              <PixelIcon name="correct" size={32} />
               정답입니다
               {onCorrectClick && <ArrowRight className="h-5 w-5" />}
             </MotionDiv>
           ) : (
             <div className="flex flex-col items-center justify-center gap-2">
               <span className="inline-flex items-center justify-center gap-2">
-                <XCircle className="h-6 w-6" />
+                <PixelIcon name="wrong" size={32} />
                 오답입니다
               </span>
               {revealedAnswer && splitAcceptableAnswers(revealedAnswer).length > 0 && (

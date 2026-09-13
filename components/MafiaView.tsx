@@ -25,6 +25,7 @@ import {
 import { subscribeRoomRuntimeEvent, type RoomEventType } from '@/lib/realtime/roomChannel'
 import type { Database, Json } from '@/types/database.types'
 import type { Question } from '@/hooks/useGameBase'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type PlayerPatch = Partial<PlayerRow> & Record<string, unknown>
@@ -332,7 +333,7 @@ export default function MafiaView({
   if (!player) {
     return (
       <div className="flex h-dvh items-center justify-center bg-black text-2xl font-black text-yellow-300">
-        플레이어 정보를 불러오는 중...
+        플레이어 정보를 불러오는 중
       </div>
     )
   }
@@ -439,8 +440,10 @@ export default function MafiaView({
                         </>
                       ) : (
                         <>
-                          <div className="mb-4 text-7xl">🔍</div>
-                          <p className="text-3xl text-gray-200">조사 중...</p>
+                          <div className="mb-4 flex justify-center">
+                            <PixelIcon name="scan" size={112} alt="조사" />
+                          </div>
+                          <p className="text-3xl text-gray-200">조사 중</p>
                         </>
                       )}
                     </div>
@@ -473,7 +476,9 @@ export default function MafiaView({
 
           {currentView === 'wrong' && (
             <motion.div key="wrong" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center text-4xl font-black text-red-400">
-              <div className="mb-4 text-7xl">❌</div>
+              <div className="mb-4 flex justify-center">
+                <PixelIcon name="wrong" size={112} />
+              </div>
               틀렸습니다
               <AnswerReveal answer={revealedAnswer} className="text-left" />
             </motion.div>

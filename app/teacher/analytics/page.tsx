@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import {
   ArrowLeft,
   ChevronRight,
-  Clock,
   Play,
   Users,
 } from 'lucide-react'
@@ -27,6 +26,7 @@ import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 import type {
   Database,
 } from '@/types/database.types'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type ReportRoom = Database['public']['Tables']['rooms']['Row']
 
@@ -276,7 +276,7 @@ function AnalyticsPageContent() {
                       <Users className="h-3.5 w-3.5 shrink-0" /> {report.player_count}명
                     </span>
                     <span className="flex items-center gap-1 whitespace-nowrap">
-                      <Clock className="h-3.5 w-3.5 shrink-0" /> {dateStr}
+                      <PixelIcon name="time" size={16} alt="" className="shrink-0" /> {dateStr}
                     </span>
                   </div>
                 </div>
@@ -295,7 +295,7 @@ function AnalyticsPageContent() {
 
 export default function AnalyticsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">불러오는 중…</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-slate-500">불러오는 중</div>}>
       <AnalyticsPageContent />
     </Suspense>
   )

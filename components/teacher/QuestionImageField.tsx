@@ -125,7 +125,7 @@ export default function QuestionImageField({ value, onChange, compact = false }:
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-black text-slate-700">
-              {uploading ? '그림을 올리는 중…' : '그림 넣기 (선택)'}
+              {uploading ? '그림을 올리는 중' : '그림 넣기 (선택)'}
             </span>
             <span className="block text-xs font-semibold text-slate-400">
               지도·도형·사진을 붙이면 학생 화면에 문제와 함께 보여요. 끌어다 놓거나 붙여넣기도 돼요.

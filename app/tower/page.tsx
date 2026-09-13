@@ -405,7 +405,7 @@ export default function TowerPage() {
         return (
             <div className="tower-command-screen flex min-h-dvh items-center justify-center p-6">
                 <div className="relative z-10 rounded-lg border border-slate-200 bg-white px-6 py-5 text-xl font-black text-slate-800 shadow-xl">
-                    작전실 불러오는 중...
+                    작전실 불러오는 중
                 </div>
             </div>
         )

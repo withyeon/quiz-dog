@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { type ItemType, ITEM_DEFS } from '@/lib/game/간식런'
+import ItemGlyph from '@/components/ItemGlyph'
 
 interface ItemRouletteProps {
   item: ItemType
@@ -136,7 +137,7 @@ export default function ItemRoulette({ item, onComplete }: ItemRouletteProps) {
               color: '#c4b5fd',
               border: '1px solid rgba(139,92,246,0.4)',
             }}>
-              {phase === 'spinning' ? '🎲 아이템 선택 중...' : '✨ 아이템 획득!'}
+              {phase === 'spinning' ? '🎲 아이템 선택 중' : '✨ 아이템 획득!'}
             </span>
           </motion.div>
 
@@ -181,7 +182,7 @@ export default function ItemRoulette({ item, onComplete }: ItemRouletteProps) {
                         transition: 'all 0.08s ease-out',
                       }}
                     >
-                      <span className="text-3xl">{def.emoji}</span>
+                      <ItemGlyph item={def} size={30} />
                     </div>
                   )
                 })}
@@ -212,7 +213,7 @@ export default function ItemRoulette({ item, onComplete }: ItemRouletteProps) {
                   }}>
                     {/* 등급 뱃지 */}
                     <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="text-4xl">{currentDef.emoji}</span>
+                      <ItemGlyph item={currentDef} size={36} />
                     </div>
                     <div className="font-bold text-xl text-white mb-0.5">{currentDef.name}</div>
                     <div className="text-xs text-white/70 mb-2">{currentDef.description}</div>

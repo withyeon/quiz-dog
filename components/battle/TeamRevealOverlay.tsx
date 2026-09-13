@@ -93,7 +93,7 @@ export default function TeamRevealOverlay({
             >
               🎲
             </motion.div>
-            <h2 className="mb-2 text-4xl font-black sm:text-5xl">팀 배정 중...</h2>
+            <h2 className="mb-2 text-4xl font-black sm:text-5xl">팀 배정 중</h2>
             <p className="text-base font-bold text-slate-300 sm:text-lg">
               두근두근, 어느 팀일까?
             </p>

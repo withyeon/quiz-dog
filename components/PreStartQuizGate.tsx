@@ -73,7 +73,7 @@ export default function PreStartQuizGate({
             {questionsLoading ? (
               <>
                 <Loader2 className="mx-auto mb-4 h-9 w-9 animate-spin text-slate-500" />
-                <h2 className="text-2xl font-black text-slate-900">문제를 불러오는 중...</h2>
+                <h2 className="text-2xl font-black text-slate-900">문제를 불러오는 중</h2>
               </>
             ) : (
               <>

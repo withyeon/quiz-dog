@@ -54,6 +54,7 @@ import type { Database } from '@/types/database.types'
 import { updatePlayer } from '@/lib/services/players'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import AnswerReveal from '@/components/AnswerReveal'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
@@ -638,7 +639,7 @@ export default function BattlePage() {
     return (
       <main className="battle-shell flex min-h-dvh items-center justify-center p-4">
         <div className="battle-frost-panel px-6 py-5 text-xl font-black text-slate-800">
-          로딩 중...
+          로딩 중
         </div>
       </main>
     )
@@ -1064,7 +1065,7 @@ export default function BattlePage() {
                       />
                     ) : (
                       <div className="battle-frost-panel p-8 text-center">
-                        <p className="font-bold text-slate-700">문제를 불러오는 중...</p>
+                        <p className="font-bold text-slate-700">문제를 불러오는 중</p>
                       </div>
                     )}
                   </div>
@@ -1101,7 +1102,7 @@ export default function BattlePage() {
                   </p>
                 )}
                 <p className="mt-5 text-sm font-semibold text-cyan-100/70">
-                  다음 문제로 이동합니다...
+                  다음 문제로 이동합니다
                 </p>
               </motion.section>
             )}
@@ -1112,8 +1113,8 @@ export default function BattlePage() {
                 animate={{ opacity: 1, y: 0 }}
                 className="battle-frost-panel mx-auto max-w-2xl p-8 text-center"
               >
-                <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[8px] bg-rose-50 text-rose-600">
-                  <AlertTriangle className="h-8 w-8" />
+                <div className="mx-auto mb-4 flex justify-center">
+                  <PixelIcon name="wrong" size={96} />
                 </div>
                 <h2 className="text-3xl font-black text-slate-950">틀렸습니다</h2>
                 <AnswerReveal answer={revealedAnswer} />

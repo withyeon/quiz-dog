@@ -41,7 +41,7 @@ export default function ReportPageClient({ roomCode }: { roomCode: string }) {
     if (loading) {
         return (
             <div className="min-h-dvh bg-slate-50 flex items-center justify-center p-6">
-                <p className="text-xl font-bold text-slate-500">결과를 불러오는 중…</p>
+                <p className="text-xl font-bold text-slate-500">결과를 불러오는 중</p>
             </div>
         )
     }

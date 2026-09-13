@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, Suspense, useMemo, useCallback } from 'react'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   ArrowRight,
@@ -15,7 +16,6 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
-  Trophy,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { formatServiceError } from '@/lib/services/errors'
@@ -38,6 +38,7 @@ import {
 } from '@/lib/utils/libraryClientId'
 import { toast } from '@/components/ui/Toaster'
 import { EmptyState, LoadingState } from '@/components/ui/StateViews'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type QuestionSet = {
   set_id: string
@@ -324,7 +325,7 @@ function LibraryPageContent() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
           <label className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <PixelIcon name="scan" size={24} alt="" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               placeholder="단원·과목·학년 검색"
@@ -507,29 +508,18 @@ function LibraryPageContent() {
 
                 <div className="mt-5 space-y-2">
                   <button
-                    onClick={() => void handleToggleLike(selectedSet.set_id)}
-                    className={`flex h-12 w-full items-center justify-center gap-2 rounded-xl text-sm font-bold transition ${
-                      selectedSet.liked_by_client
-                        ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-100 hover:bg-rose-100'
-                        : 'bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-rose-600'
-                    }`}
-                  >
-                    <Heart className={`h-4 w-4 ${selectedSet.liked_by_client ? 'fill-current' : ''}`} />
-                    {selectedSet.liked_by_client ? '좋아요 취소' : '좋아요'}
-                  </button>
-                  <button
                     onClick={() => handleCopySet(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
                     <Plus className="h-4 w-4" />
                     내 문제집에 담기
                   </button>
                   <button
                     onClick={() => handleStartGame(selectedSet.set_id)}
-                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-sky-500 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
                   >
                     <Play className="h-4 w-4 fill-current" />
-                    바로 게임 시작
+                    게임 시작
                   </button>
                   <button
                     onClick={async () => {
@@ -570,8 +560,8 @@ function PopularPanel({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
-        <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-600">
-          <Trophy className="h-5 w-5" />
+        <div className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100">
+          <Image src="/trophy.webp" alt="" width={20} height={20} className="h-5 w-5 object-contain" />
         </div>
         <h2 className="text-lg font-extrabold text-slate-900">{title}</h2>
       </div>
@@ -663,7 +653,7 @@ function InfoTile({
 
 export default function LibraryPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center text-slate-500">불러오는 중…</div>}>
+    <Suspense fallback={<div className="flex min-h-dvh items-center justify-center text-slate-500">불러오는 중</div>}>
       <LibraryPageContent />
     </Suspense>
   )

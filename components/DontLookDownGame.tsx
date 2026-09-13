@@ -65,6 +65,7 @@ import {
     applyPowerUp,
     updateActivePowerUps,
 } from '@/lib/game/dontlookdown'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 interface DontLookDownGameProps {
     playerId: string
@@ -790,7 +791,7 @@ export default function DontLookDownGame({
 
     // ============ 로딩 가드 ============
     if (!uiPlayer) {
-        return <div className="w-full h-full flex items-center justify-center text-gray-700">불러오는 중...</div>
+        return <div className="w-full h-full flex items-center justify-center text-gray-700">불러오는 중</div>
     }
 
     // ============ UI 파생값 (uiPlayer 기반) ============
@@ -826,7 +827,7 @@ export default function DontLookDownGame({
             <div className="absolute inset-0 pointer-events-none">
                 {remainingTime !== undefined && (
                     <div className="absolute top-[7rem] left-4 sm:top-4 sm:left-1/2 sm:-translate-x-1/2 bg-black/60 text-white px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl font-bold text-lg sm:text-xl tabular-nums whitespace-nowrap">
-                        ⏱️ {Math.floor(remainingTime / 60)}:{String(remainingTime % 60).padStart(2, '0')}
+                        <PixelIcon name="time" size={22} alt="" className="inline-block align-[-5px] mr-1" />{Math.floor(remainingTime / 60)}:{String(remainingTime % 60).padStart(2, '0')}
                     </div>
                 )}
 

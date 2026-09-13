@@ -34,9 +34,6 @@ export const metadata: Metadata = {
   authors: [{ name: '위드현 에듀테크' }],
   creator: '위드현 에듀테크',
   publisher: '위드현 에듀테크',
-  icons: {
-    icon: '/icon.svg',
-  },
   // 배포 도메인이 여러 개(vercel.app 등)여도 검색 결과가 quizdog.kr 하나로 모이게 한다.
   alternates: {
     canonical: '/',

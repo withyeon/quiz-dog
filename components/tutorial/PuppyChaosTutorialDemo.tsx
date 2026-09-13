@@ -400,7 +400,7 @@ function BoxScene() {
         <div className="mb-3 text-center">
           <p className="text-lg font-black text-white sm:text-xl">랜덤박스 하나 고르기!</p>
           <p className="mt-1 text-sm font-black text-rose-300">
-            {opened ? '상자를 여는 중...' : `${CARD_PICK_SECONDS}초 후 랜덤 자동 선택`}
+            {opened ? '상자를 여는 중' : `${CARD_PICK_SECONDS}초 후 랜덤 자동 선택`}
           </p>
         </div>
         <div className="grid grid-cols-3 gap-3">

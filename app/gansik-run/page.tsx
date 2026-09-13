@@ -9,10 +9,12 @@ import Countdown from '@/components/Countdown'
 import GameTimeBadge from '@/components/GameTimeBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Clock, Target, Package } from 'lucide-react'
+import { Target, Package } from 'lucide-react'
 import { type GansikRunState, type ItemType, formatTime, ITEM_DEFS, GAME } from '@/lib/game/간식런'
 import { useGameBase } from '@/hooks/useGameBase'
 import type { Json } from '@/types/database.types'
+import ItemGlyph from '@/components/ItemGlyph'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 const DUMMY_QUESTIONS: GansikRunQuestion[] = [
   { id: '1', question_text: '한국의 수도는?', options: ['서울', '부산', '대구', '인천'], answer: '서울' },
@@ -298,7 +300,7 @@ export default function GansikRunPage() {
                       background: 'rgba(255,255,255,0.05)',
                       border: '1px solid rgba(255,255,255,0.08)',
                     }}>
-                      <div className="text-2xl">{ITEM_DEFS[key].emoji}</div>
+                      <div className="flex justify-center"><ItemGlyph item={ITEM_DEFS[key]} size={24} /></div>
                       <div className="text-xs font-semibold mt-1" style={{ color: 'rgba(200,200,230,0.7)' }}>{ITEM_DEFS[key].name}</div>
                     </div>
                   ))}
@@ -306,7 +308,7 @@ export default function GansikRunPage() {
 
                 <div className="flex gap-3 text-center">
                   {[
-                    { icon: <Clock className="h-5 w-5 mx-auto mb-1" style={{ color: '#818cf8' }} />, value: `${roomMinutes}분`, label: '플레이 시간', color: '#818cf8' },
+                    { icon: <PixelIcon name="time" size={22} alt="" className="mx-auto mb-1" />, value: `${roomMinutes}분`, label: '플레이 시간', color: '#818cf8' },
                     { icon: <Target className="h-5 w-5 mx-auto mb-1" style={{ color: '#a78bfa' }} />, value: '3차선', label: '달리기 코스', color: '#a78bfa' },
                     { icon: <Package className="h-5 w-5 mx-auto mb-1" style={{ color: '#fbbf24' }} />, value: `${ITEM_COUNT}종`, label: '아이템', color: '#fbbf24' },
                   ].map((item, i) => (

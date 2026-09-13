@@ -52,7 +52,7 @@ export default function TeacherGameReportPageClient({ gameId }: { gameId: string
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-slate-50 p-6">
-        <p className="text-xl font-black text-slate-500">결과 데이터를 불러오는 중입니다...</p>
+        <p className="text-xl font-black text-slate-500">결과 데이터를 불러오는 중입니다</p>
       </div>
     )
   }

@@ -40,7 +40,7 @@ function CallbackContent() {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-[#f7f8fa]">
       <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-      <p className="text-sm font-bold text-slate-500">로그인 처리 중...</p>
+      <p className="text-sm font-bold text-slate-500">로그인 처리 중</p>
     </div>
   )
 }

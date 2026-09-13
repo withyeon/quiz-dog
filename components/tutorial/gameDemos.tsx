@@ -48,6 +48,7 @@ import {
   type DemoPhase,
   type HudMetric,
 } from '@/components/tutorial/TutorialDemoFrame'
+import PixelIcon, { PIXEL_ICON } from '@/components/ui/PixelIcon'
 
 /* 공통 4단계(퀴즈→정답→액션→결과) 빌더 */
 function buildPhases(captions: [string, string, string, string]): DemoPhase[] {
@@ -60,11 +61,12 @@ function buildPhases(captions: [string, string, string, string]): DemoPhase[] {
 }
 
 /* score가 result에서 오르는 공통 metric */
-function risingMetric(opts: { emoji: string; base: number; gain: number; suffix: string }) {
+function risingMetric(opts: { emoji?: string; icon?: string; base: number; gain: number; suffix: string }) {
   return (phase: string): HudMetric => {
     const isUp = phase === 'result'
     return {
       emoji: opts.emoji,
+      icon: opts.icon,
       value: isUp ? opts.base + opts.gain : opts.base,
       from: isUp ? opts.base : undefined,
       suffix: opts.suffix,
@@ -234,7 +236,7 @@ function FishingSpeedCounter({ answered }: { answered: boolean }) {
     <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
       <div className="font-bitbit flex items-center gap-2 rounded-full bg-black/50 px-4 py-2 backdrop-blur">
         <span className="text-sm font-black text-white sm:text-base">
-          ⏱️ {answered ? `${FISHING_ANSWER_SECONDS}초 만에 정답` : '빨리 맞힐수록 점수 UP'}
+          <PixelIcon name="time" size={18} alt="" className="mr-1 inline-block align-[-4px]" />{answered ? `${FISHING_ANSWER_SECONDS}초 만에 정답` : '빨리 맞힐수록 점수 UP'}
         </span>
       </div>
       {answered && (
@@ -275,7 +277,7 @@ function ClawMachineScene({ mode }: { mode: 'aim' | 'perfect' | 'catch' }) {
               isAiming ? 'bg-black/50 text-white/85' : 'bg-amber-400 text-[#17262a]'
             }`}
           >
-            {isAiming ? '조준 중…' : `조준 ${getAimGradeLabel('perfect')}`}
+            {isAiming ? '조준 중' : `조준 ${getAimGradeLabel('perfect')}`}
           </motion.span>
         </div>
 
@@ -605,7 +607,7 @@ function MafiaDemo() {
                 {phase === 'action' && <TapPointer />}
               </motion.div>
               <div className={`rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit flex flex-col items-center gap-2 p-5 ${isResult(phase) ? 'opacity-50' : ''}`}>
-                <span className="text-4xl">🔍</span>
+                <PixelIcon name="scan" size={40} alt="" />
                 <span className="text-sm font-black text-white">조사하기</span>
               </div>
             </div>
@@ -977,7 +979,7 @@ function ZombieDemo() {
   return (
     <TutorialDemoFrame
       backgroundSrc="/zombie/background.png"
-      metric={risingMetric({ emoji: '⏱️', base: 40, gain: 10, suffix: '초' })}
+      metric={risingMetric({ icon: PIXEL_ICON.time.src, base: 40, gain: 10, suffix: '초' })}
       phases={buildPhases([
         '퀴즈를 맞혀요',
         '정답! 방어 카드를 얻었어요',

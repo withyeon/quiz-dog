@@ -175,7 +175,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
     }
 
     if (loading) {
-        return <div className="p-8 text-center text-gray-500 font-bold">통계 데이터를 불러오는 중...</div>
+        return <div className="p-8 text-center text-gray-500 font-bold">통계 데이터를 불러오는 중</div>
     }
 
     if (errorMessage && questions.length === 0) {

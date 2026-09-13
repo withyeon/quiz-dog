@@ -56,7 +56,7 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
   if (loading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#102a43] p-6">
-        <p className="text-3xl font-black text-white">결과 발표 준비 중…</p>
+        <p className="text-3xl font-black text-white">결과 발표 준비 중</p>
       </div>
     )
   }

@@ -313,7 +313,7 @@ export default function StudyPage() {
   if (roomLoading || !room) {
     return (
       <StudyShell>
-        <Notice title="방 정보를 불러오는 중..." spinner />
+        <Notice title="방 정보를 불러오는 중" spinner />
       </StudyShell>
     )
   }
@@ -385,7 +385,7 @@ export default function StudyPage() {
 
         {currentView !== 'lobby' && (questionsLoading || (phase === 'loading' && !questionsError && questions.length > 0)) && (
           <motion.div key="loading" {...fade}>
-            <Notice title="문제를 불러오는 중..." spinner />
+            <Notice title="문제를 불러오는 중" spinner />
           </motion.div>
         )}
 

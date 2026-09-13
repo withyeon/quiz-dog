@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Search, Mail, Library } from 'lucide-react'
+import { Loader2, Mail, Library } from 'lucide-react'
 import { fetchAdminJson } from '@/lib/admin/fetchAdmin'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 interface Teacher {
   id: string
@@ -52,7 +53,7 @@ export default function AdminUsersPage() {
           <p className="mt-1 text-sm text-slate-500">가입한 교사 {teachers.length}명</p>
         </div>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <PixelIcon name="scan" size={20} alt="" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}

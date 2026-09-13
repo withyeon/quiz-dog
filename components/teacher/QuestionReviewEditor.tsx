@@ -459,7 +459,7 @@ export default function QuestionReviewEditor({
             className={`h-11 flex-1 rounded-lg font-black ${totalErrors > 0 ? 'bg-slate-300 text-slate-600 hover:bg-slate-300' : 'bg-sky-500 text-white hover:bg-sky-600'}`}
           >
             {isSaving
-              ? '저장 중...'
+              ? '저장 중'
               : totalErrors > 0
                 ? `⚠ ${totalErrors}개 주의 · 저장하기`
                 : `✓ ${generatedQuestions.length}문제 저장하기`

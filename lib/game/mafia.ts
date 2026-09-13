@@ -238,7 +238,7 @@ export function applyCheat(
 
   return {
     newPlayer,
-    log: `${withJosa(player.name, '이/가')} 금고를 몰래 들여다봅니다...`,
+    log: `${withJosa(player.name, '이/가')} 금고를 몰래 들여다봅니다`,
     vaultContents,
   }
 }
@@ -354,10 +354,10 @@ export function attemptInvestigate(
 // AI 치팅 힌트 생성
 export function generateCheatHint(cheater: Player): string {
   const hints = [
-    `${withJosa(cheater.name, '이/가')} 주위를 두리번거립니다...`,
+    `${withJosa(cheater.name, '이/가')} 주위를 두리번거립니다`,
     `${cheater.name}의 행동이 수상합니다.`,
-    `${withJosa(cheater.name, '이/가')} 금고를 계속 들여다봅니다...`,
-    `누군가 치팅을 시도하고 있는 것 같습니다...`,
+    `${withJosa(cheater.name, '이/가')} 금고를 계속 들여다봅니다`,
+    `누군가 치팅을 시도하고 있는 것 같습니다`,
   ]
   return hints[Math.floor(Math.random() * hints.length)]
 }

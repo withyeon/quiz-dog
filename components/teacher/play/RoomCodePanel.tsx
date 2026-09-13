@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import QRCodeSVG from 'react-qr-code'
 import type { GameModeConfig } from '@/lib/game/modes'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 /**
  * 학생 입장용 참가코드·QR 패널.
@@ -109,7 +110,11 @@ export default function RoomCodePanel({
                         : 'bg-slate-50 ring-1 ring-slate-200'
                   }`}>
                     <p className={`text-xs font-black ${timerDisplaySeconds <= 60 ? 'text-red-500' : timerDisplaySeconds <= 120 ? 'text-amber-600' : 'text-slate-500'}`}>
-                      {roomStatus === 'paused' ? '⏸ 일시정지' : '⏱ 남은 시간'}
+                      {roomStatus === 'paused' ? '⏸ 일시정지' : (
+                        <>
+                          <PixelIcon name="time" size={14} alt="" className="mr-0.5 inline-block align-[-2px]" />남은 시간
+                        </>
+                      )}
                     </p>
                     <div className={`text-5xl font-black tabular-nums ${timerDisplaySeconds <= 60 ? 'text-red-600' : timerDisplaySeconds <= 120 ? 'text-amber-600' : 'text-slate-800'}`}>
                       {timerDisplaySeconds >= 60

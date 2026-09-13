@@ -64,7 +64,9 @@ function LobbyPage() {
   const [nickname, setNickname] = useState('')
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [isJoined, setIsJoined] = useState(false)
-  const [selectedCharacter, setSelectedCharacter] = useState<Character>(CHARACTERS[0])
+  // 입장 전에는 아무 캐릭터도 고르지 않은 상태로 둔다. 카드를 눌러야 실제로 방에 들어가므로,
+  // 기본값을 미리 강조해 두면 "가만히 있어도 시바견으로 참가된 줄" 알고 게임에 못 들어가는 학생이 생긴다.
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const [minigameScore, setMinigameScore] = useState(0)
   const [isCheckingRoom, setIsCheckingRoom] = useState(false)
   const [codeError, setCodeError] = useState<string | null>(null)
@@ -114,14 +116,6 @@ function LobbyPage() {
   useEffect(() => () => {
     if (avatarSyncTimer.current) clearTimeout(avatarSyncTimer.current)
   }, [])
-
-  // 입장 전 기본 미리보기 캐릭터가 이미 사용중이면, 비어있는 첫 캐릭터로 바꿔준다.
-  useEffect(() => {
-    if (isJoined || step !== 'character') return
-    if (!takenCharacterIds.has(selectedCharacter.id)) return
-    const firstAvailable = CHARACTERS.find((c) => !takenCharacterIds.has(c.id))
-    if (firstAvailable) setSelectedCharacter(firstAvailable)
-  }, [step, isJoined, takenCharacterIds, selectedCharacter.id])
 
   const { room, refreshRoom } = useRoomRealtime({ roomCode: step !== 'code' ? roomCode : '' })
 
@@ -362,7 +356,7 @@ function LobbyPage() {
                   )}
 
                   <PixelBtn color="blue" onClick={handleCodeSubmit} disabled={isCheckingRoom} className="w-full py-4 text-lg">
-                    {isCheckingRoom ? '⏳ 확인 중...' : '🚪 입장하기'}
+                    {isCheckingRoom ? '⏳ 확인 중' : '🚪 입장하기'}
                   </PixelBtn>
                 </div>
               </PixelPanel>
@@ -432,14 +426,14 @@ function LobbyPage() {
                   {getGameModeConfig(room?.game_mode || DEFAULT_GAME_MODE).shortLabel} · 대기 중
                 </StatusChip>
                 <StatusChip tone="mint">👥 {players.length}명 · 온라인 {Math.max(players.length, onlineCount)}명</StatusChip>
-                <StatusChip tone="sky">{realtimeStatus === 'subscribed' ? '🟢 실시간 연결됨' : '🟡 연결 중...'}</StatusChip>
+                <StatusChip tone="sky">{realtimeStatus === 'subscribed' ? '🟢 실시간 연결됨' : '🟡 연결 중'}</StatusChip>
               </LobbyStatusBar>
 
               <div className="grid gap-5 md:grid-cols-3">
                 <div className="md:col-span-2">
                   <PixelPanel label="🐾 캐릭터 선택" labelColor="#8B5CF6">
                     <div className="max-h-[520px] overflow-y-auto p-5 pt-8 sm:p-6 sm:pt-9">
-                      <CharacterSelector selectedCharacterId={selectedCharacter.id} onSelect={handleCharacterSelect} showCategories={false} takenCharacterIds={takenCharacterIds} />
+                      <CharacterSelector selectedCharacterId={selectedCharacter?.id} onSelect={handleCharacterSelect} showCategories={false} takenCharacterIds={takenCharacterIds} />
                     </div>
                   </PixelPanel>
                 </div>
@@ -448,12 +442,16 @@ function LobbyPage() {
                   <PixelPanel label="✨ 선택된 캐릭터" labelColor="#F97316">
                     <div className="p-5 pt-8 text-center sm:p-6 sm:pt-9">
                       <div
-                        className="relative mx-auto mb-3 h-32 w-32 rounded-3xl"
-                        style={{ backgroundColor: '#F0F9FF', border: '2px solid #BAE6FD', boxShadow: 'inset 0 2px 8px rgba(14,165,233,0.12)' }}
+                        className="relative mx-auto mb-3 flex h-32 w-32 items-center justify-center rounded-3xl"
+                        style={{ backgroundColor: '#F0F9FF', border: selectedCharacter ? '2px solid #BAE6FD' : '2px dashed #BAE6FD', boxShadow: 'inset 0 2px 8px rgba(14,165,233,0.12)' }}
                       >
-                        <Image src={resolveAvatarSrc(selectedCharacter.imagePath)} alt={selectedCharacter.name} fill className="object-contain p-2" sizes="128px" />
+                        {selectedCharacter ? (
+                          <Image src={resolveAvatarSrc(selectedCharacter.imagePath)} alt={selectedCharacter.name} fill className="object-contain p-2" sizes="128px" />
+                        ) : (
+                          <span className="text-5xl" aria-hidden>🐾</span>
+                        )}
                       </div>
-                      <h3 className="mb-4 text-xl font-black" style={{ color: NAVY }}>{selectedCharacter.name}</h3>
+                      <h3 className="mb-4 text-xl font-black" style={{ color: NAVY }}>{selectedCharacter?.name ?? '아직 안 골랐어요'}</h3>
 
                       {isJoined ? (
                         <div className="space-y-3">
@@ -467,7 +465,7 @@ function LobbyPage() {
                           </PixelBtn>
                         </div>
                       ) : (
-                        <LobbyNotice tone="info">⏳ 캐릭터를 선택해주세요!</LobbyNotice>
+                        <LobbyNotice tone="info">👆 마음에 드는 강아지를 눌러야 방에 들어가요!</LobbyNotice>
                       )}
                     </div>
                   </PixelPanel>
@@ -484,7 +482,7 @@ function LobbyPage() {
                       )}
                       <div className="grid max-h-48 grid-cols-4 gap-3 overflow-y-auto">
                         {players.length === 0 ? (
-                          <div className="col-span-4 py-4 text-center text-sm font-black" style={{ color: '#64748B' }}>아직 아무도 없어요...</div>
+                          <div className="col-span-4 py-4 text-center text-sm font-black" style={{ color: '#64748B' }}>아직 아무도 없어요</div>
                         ) : (
                           players.map((p: any) => (
                             <PlayerAvatar key={p.id} nickname={p.nickname} avatar={p.avatar || '🐶'} isReady={isJoined && p.id === playerId} />
@@ -510,7 +508,7 @@ function LobbyPage() {
                 <div className="p-4 pt-8 sm:p-5 sm:pt-9">
                   {/* 폰은 16:9면 높이 166px라 할 수 없어 세로형(4:5)으로, 크롬북처럼 낮은 화면은 최대 높이로 잘림 방지 */}
                   <div className="mx-auto aspect-[4/5] sm:aspect-video max-h-[calc(100dvh_-_250px)] min-h-[240px] overflow-hidden rounded-2xl" style={{ border: '2px solid #BAE6FD' }}>
-                    <Minigame characterImage={selectedCharacter.imagePath} onScoreChange={setMinigameScore} />
+                    <Minigame characterImage={(selectedCharacter ?? CHARACTERS[0]).imagePath} onScoreChange={setMinigameScore} />
                   </div>
                 </div>
               </PixelPanel>

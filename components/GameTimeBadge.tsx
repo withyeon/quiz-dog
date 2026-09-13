@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Clock } from 'lucide-react'
 import { formatTime } from '@/lib/utils/formatTime'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 interface GameTimeBadgeProps {
   /** room.started_at (ISO 문자열) */
@@ -64,7 +64,7 @@ export default function GameTimeBadge({
             : 'border-white/40 bg-black/55 text-white'
         }`}
       >
-        <Clock className="h-3.5 w-3.5" />
+        <PixelIcon name="time" size={18} alt="" />
         <span className="tabular-nums">{formatTime(remaining)}</span>
       </div>
     </div>

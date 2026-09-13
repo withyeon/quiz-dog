@@ -49,7 +49,7 @@ const RESULT_ANNOUNCEMENT_TRACK = {
 /** 등수별 색/아이콘을 한곳에 모아 발표 화면과 시상대가 같은 톤을 쓰게 한다 */
 const RANK_THEME = {
   1: {
-    label: '1등은...',
+    label: '1등은',
     medal: '/trophy.webp',
     cardRing: 'ring-amber-300',
     accent: 'text-amber-300',
@@ -60,7 +60,7 @@ const RANK_THEME = {
     spotlight: 'rgba(251, 191, 36, 0.35)',
   },
   2: {
-    label: '2등은...',
+    label: '2등은',
     medal: '/silver.webp',
     cardRing: 'ring-slate-300',
     accent: 'text-slate-100',
@@ -71,7 +71,7 @@ const RANK_THEME = {
     spotlight: 'rgba(226, 232, 240, 0.28)',
   },
   3: {
-    label: '3등은...',
+    label: '3등은',
     medal: '/bronze.webp',
     cardRing: 'ring-orange-300',
     accent: 'text-orange-300',
@@ -262,7 +262,7 @@ export default function TeacherEndSequence({
                 disabled={!onRestart || isRestarting}
                 className="rounded-lg bg-white px-8 py-5 text-2xl font-black text-slate-900 shadow-xl transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {isRestarting ? '다시 시작 중...' : '다시 시작하기'}
+                {isRestarting ? '다시 시작 중' : '다시 시작하기'}
               </button>
               <Link
                 href={`/teacher/game/${room.room_code}/report`}

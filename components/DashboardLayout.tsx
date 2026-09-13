@@ -299,21 +299,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <span className="text-base font-extrabold text-slate-800">{currentItem.label}</span>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              <Link
-                href="/teacher/play"
-                className="flex h-10 items-center gap-2 rounded-xl px-5 font-bitbit text-sm font-black text-white transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-sky-200"
-                style={{
-                  background: 'linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 45%, #0ea5e9 100%)',
-                  boxShadow: '0 4px 0 #0b8fc4, 0 8px 16px rgba(14,165,233,0.25)',
-                  textShadow: '0 1px 0 rgba(0,0,0,0.18)',
-                }}
-              >
-                <PlayCircle className="h-4 w-4" />
-                게임 시작
-              </Link>
-            </div>
           </div>
         </header>
 

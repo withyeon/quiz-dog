@@ -10,7 +10,6 @@ import {
   FileSpreadsheet,
   HelpCircle,
   Printer,
-  Search,
   Trophy,
   Users,
   X,
@@ -35,6 +34,7 @@ import {
   type QuestionAnalysis,
   type Room,
 } from './resultAnalytics'
+import PixelIcon from '@/components/ui/PixelIcon'
 
 type SortKey = 'score' | 'accuracy' | 'name' | 'time'
 type MatrixSortKey = 'accuracy' | 'score'
@@ -194,7 +194,7 @@ export default function TeacherPostGameReport({
         <div className="flex flex-wrap gap-2">
           <Button onClick={downloadXlsx} disabled={downloading} className="bg-slate-900 hover:bg-slate-800">
             <FileSpreadsheet className="mr-2 h-4 w-4" />
-            {downloading ? '만드는 중…' : '엑셀 다운로드'}
+            {downloading ? '만드는 중' : '엑셀 다운로드'}
           </Button>
           <Button variant="outline" onClick={() => window.print()}>
             <Printer className="mr-2 h-4 w-4" />
@@ -382,7 +382,7 @@ export default function TeacherPostGameReport({
           <h2 className="text-xl font-black">학생별 분석</h2>
           <div className="flex flex-wrap gap-2">
             <label className="flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm">
-              <Search className="h-4 w-4 text-slate-400" />
+              <PixelIcon name="scan" size={20} alt="" className="shrink-0" />
               <input
                 value={studentQuery}
                 onChange={(event) => setStudentQuery(event.target.value)}

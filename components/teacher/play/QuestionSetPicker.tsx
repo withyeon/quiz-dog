@@ -29,7 +29,7 @@ export default function QuestionSetPicker({
 
       {loading ? (
         <div className="rounded-xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-500">
-          문제집을 불러오는 중...
+          문제집을 불러오는 중
         </div>
       ) : error ? (
         <div className="rounded-xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">

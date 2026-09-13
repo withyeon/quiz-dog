@@ -179,7 +179,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
   if (loading) {
     return (
       <div className="min-h-dvh flex items-center justify-center">
-        <div className="text-2xl font-bold text-slate-700">불러오는 중…</div>
+        <div className="text-2xl font-bold text-slate-700">불러오는 중</div>
       </div>
     )
   }
