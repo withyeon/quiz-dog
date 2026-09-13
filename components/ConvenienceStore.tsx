@@ -61,6 +61,8 @@ export default function ConvenienceStore({
   const [eventTimeLeft, setEventTimeLeft] = useState(0)
   const [selectedProductToSell, setSelectedProductToSell] = useState<Product | null>(null)
   const [pendingProductToPlace, setPendingProductToPlace] = useState<Product | null>(null)
+  // 업그레이드/판매 버튼은 마우스 호버로만 나타났는데 태블릿·폰에는 호버가 없다. 매대를 탭하면 토글되게 한다.
+  const [touchActiveSlot, setTouchActiveSlot] = useState<number | null>(null)
   const [, setIncomeTick] = useState(0)
   const [paidProductIds, setPaidProductIds] = useState<Set<string>>(new Set())
   const incomeTickRef = useRef(0)
@@ -422,7 +424,7 @@ export default function ConvenienceStore({
             나의 편의점 생산 라인
           </h2>
 
-          <div className="grid grid-cols-3 gap-4 max-w-[680px] mx-auto">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-[680px] mx-auto">
             {Array(GRID_SIZE)
               .fill(null)
               .map((_, idx) => {
@@ -430,7 +432,13 @@ export default function ConvenienceStore({
                 return (
                   <div
                     key={idx}
-                    onClick={() => handleReplaceProduct(idx)}
+                    onClick={() => {
+                      if (pendingProductToPlace) {
+                        handleReplaceProduct(idx)
+                        return
+                      }
+                      if (slot) setTouchActiveSlot((prev) => (prev === idx ? null : idx))
+                    }}
                     className={`relative aspect-square rounded-xl border-2 border-dashed flex items-center justify-center overflow-hidden transition
                       ${pendingProductToPlace
                         ? 'cursor-pointer border-amber-400 bg-amber-50 ring-2 ring-amber-200 hover:scale-[1.02]'
@@ -441,7 +449,7 @@ export default function ConvenienceStore({
                       <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className={`w-full h-full p-3 flex flex-col items-center justify-between rounded-lg border-2 ${slot.color} ${slot.borderColor} relative group`}
+                        className={`w-full h-full p-1 sm:p-3 flex flex-col items-center justify-between rounded-lg border-2 ${slot.color} ${slot.borderColor} relative group`}
                       >
                         {/* 등급 뱃지 */}
                         <span
@@ -459,7 +467,7 @@ export default function ConvenienceStore({
                           </span>
                         )}
 
-                        <div className="flex-1 flex items-center justify-center filter drop-shadow-md">
+                        <div className="flex-1 min-h-0 flex items-center justify-center filter drop-shadow-md [&>*]:max-h-full [&>*]:max-w-full [&>*]:!h-auto [&>*]:!w-[70%] sm:[&>*]:!w-[80px]">
                           <StoreProductIcon
                             src={slot.image}
                             alt={slot.name}
@@ -469,11 +477,11 @@ export default function ConvenienceStore({
                           />
                         </div>
 
-                        <div className="w-full bg-white/60 backdrop-blur-sm rounded-md py-1 text-center">
-                          <p className="text-xs text-slate-500 line-clamp-1">
+                        <div className="w-full bg-white/60 backdrop-blur-sm rounded-md py-0.5 sm:py-1 text-center">
+                          <p className="hidden text-xs text-slate-500 line-clamp-1 sm:block">
                             {slot.name}
                           </p>
-                          <p className="text-sm font-bold">
+                          <p className="text-[10px] sm:text-sm font-bold leading-tight">
                             {formatProductIncomeRate(slot, products)}
                           </p>
                         </div>
@@ -490,7 +498,7 @@ export default function ConvenienceStore({
                         </motion.div>
 
                         {/* 업그레이드/판매 버튼 (호버 시) */}
-                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                        <div className={`absolute inset-0 bg-black/70 transition-opacity flex flex-col items-center justify-center gap-1 p-1 ${touchActiveSlot === idx ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                           {(slot.level || 1) < 5 && (
                             <button
                               onClick={(e) => {
@@ -543,25 +551,26 @@ export default function ConvenienceStore({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-start sm:items-center justify-center z-50 p-3 sm:p-4 overflow-y-auto"
           >
+            {/* 폰: 3열 세로 카드는 글자가 한 자씩 세로로 깨져서, 한 열의 가로형 카드로 바꾸고 모달은 스크롤 가능하게 */}
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white rounded-3xl p-8 max-w-4xl w-full text-center shadow-2xl border-4 border-purple-500"
+              className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 max-w-4xl w-full text-center shadow-2xl border-4 border-purple-500 my-auto"
             >
-              <div className="mb-8">
-                <h2 className="text-3xl font-black text-slate-800 flex items-center justify-center gap-2">
-                  <Sparkles className="text-yellow-500" /> 상품 도착! 하나를 고르세요
+              <div className="mb-4 sm:mb-8">
+                <h2 className="text-xl sm:text-3xl font-black text-slate-800 flex items-center justify-center gap-2">
+                  <Sparkles className="text-yellow-500 shrink-0" /> 상품 도착! 하나를 고르세요
                 </h2>
-                <p className="text-slate-500">
+                <p className="text-sm sm:text-base text-slate-500">
                   {products.length >= GRID_SIZE
                     ? '9칸이 꽉 찼습니다. 좋은 상품을 고른 뒤 교체할 매대를 선택하세요.'
                     : '높은 등급일수록 더 많은 돈을 법니다. 같은 카테고리끼리 시너지 효과!'}
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4">
                 {selectionOptions.map((item, idx) => (
                   <motion.button
                     key={item.id}
@@ -571,28 +580,14 @@ export default function ConvenienceStore({
                     whileHover={{ scale: 1.05, y: -10 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handlePlaceProduct(item)}
-                    className={`relative p-6 rounded-2xl border-4 ${item.color} ${item.borderColor} flex flex-col items-center gap-3 shadow-lg group overflow-hidden`}
+                    className={`relative p-3 sm:p-6 rounded-2xl border-4 ${item.color} ${item.borderColor} flex flex-row sm:flex-col items-center gap-3 shadow-lg group overflow-hidden text-left sm:text-center`}
                   >
                     {/* 전설/영웅 후광 효과 */}
                     {(item.tier === '전설' || item.tier === '영웅') && (
                       <div className="absolute inset-0 bg-white/30 animate-pulse pointer-events-none"></div>
                     )}
 
-                    <div
-                      className={`text-sm font-bold px-3 py-1 bg-white/50 rounded-full mb-2 ${getTierColor(
-                        item.tier
-                      )} text-white`}
-                    >
-                      {item.tier}
-                    </div>
-
-                    {/* 카테고리 표시 */}
-                    <div className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold flex items-center gap-1">
-                      <StoreCategoryIcon category={item.category} size={14} />
-                      {item.category}
-                    </div>
-
-                    <div className="drop-shadow-md group-hover:scale-110 transition-transform duration-300">
+                    <div className="shrink-0 drop-shadow-md group-hover:scale-110 transition-transform duration-300 sm:order-3 [&>*]:!h-16 [&>*]:!w-16 sm:[&>*]:!h-24 sm:[&>*]:!w-24">
                       <StoreProductIcon
                         src={item.image}
                         alt={item.name}
@@ -601,9 +596,26 @@ export default function ConvenienceStore({
                         size={96}
                       />
                     </div>
-                    <div className="text-xl font-bold text-slate-800">{item.name}</div>
-                    <div className="font-mono text-lg font-bold text-slate-600 bg-white/60 px-4 py-1 rounded-lg">
-                      {formatProductIncomeRate(item)}
+                    <div className="min-w-0 flex-1 flex flex-col gap-1.5 sm:contents">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:contents">
+                        <div
+                          className={`text-xs sm:text-sm font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full sm:mb-2 sm:order-1 ${getTierColor(
+                            item.tier
+                          )} text-white`}
+                        >
+                          {item.tier}
+                        </div>
+
+                        {/* 카테고리 표시 */}
+                        <div className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold flex items-center gap-1 sm:order-2">
+                          <StoreCategoryIcon category={item.category} size={14} />
+                          {item.category}
+                        </div>
+                      </div>
+                      <div className="text-base sm:text-xl font-bold text-slate-800 sm:order-4">{item.name}</div>
+                      <div className="w-fit sm:w-auto font-mono text-sm sm:text-lg font-bold text-slate-600 bg-white/60 px-3 sm:px-4 py-0.5 sm:py-1 rounded-lg sm:order-5">
+                        {formatProductIncomeRate(item)}
+                      </div>
                     </div>
                   </motion.button>
                 ))}

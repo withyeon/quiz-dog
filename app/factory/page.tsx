@@ -556,41 +556,41 @@ export default function FactoryPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
                 {/* 남은 시간 (선생님이 설정한 제한 시간) */}
                 {remainingSeconds != null && (
-                  <div className="rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-1.5 sm:px-4 sm:py-2">
+                  <div className="min-w-0 rounded-lg border-2 border-amber-300 bg-amber-50 px-2 py-1.5 sm:px-4 sm:py-2">
                     <div className="mb-0.5 whitespace-nowrap text-xs font-semibold text-amber-800 sm:mb-1">남은 시간</div>
-                    <div className="text-center text-xl font-bold tabular-nums text-amber-950 sm:text-2xl">
+                    <div className="text-center text-lg font-bold tabular-nums text-amber-950 sm:text-2xl">
                       {Math.floor(remainingSeconds / 60)}:{(remainingSeconds % 60).toString().padStart(2, '0')}
                     </div>
                   </div>
                 )}
                 {/* 정답 카운터 */}
-                <div className="rounded-lg border-2 border-sky-300 bg-sky-50 px-3 py-1.5 sm:px-4 sm:py-2">
-                  <div className="mb-0.5 whitespace-nowrap text-xs font-semibold text-sky-800 sm:mb-1">
+                <div className="min-w-0 rounded-lg border-2 border-sky-300 bg-sky-50 px-2 py-1.5 sm:px-4 sm:py-2">
+                  <div className="mb-0.5 truncate text-xs font-semibold text-sky-800 sm:mb-1">
                     다음 상품까지
                   </div>
                   <motion.div
                     key={correctAnswersCount}
                     initial={{ scale: 1.2 }}
                     animate={{ scale: 1 }}
-                    className="whitespace-nowrap text-center text-xl font-bold text-sky-950 sm:text-2xl"
+                    className="whitespace-nowrap text-center text-lg font-bold text-sky-950 sm:text-2xl"
                   >
                     {QUIZZES_PER_PRODUCT - (correctAnswersCount % QUIZZES_PER_PRODUCT)} 문제
                   </motion.div>
                 </div>
 
                 {currentPlayer && (
-                  <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-3 py-1.5 sm:px-4 sm:py-2">
-                    <div className="mb-0.5 max-w-[120px] truncate text-sm font-semibold text-emerald-800 sm:mb-1">
+                  <div className="min-w-0 rounded-lg border-2 border-emerald-300 bg-emerald-50 px-2 py-1.5 sm:px-4 sm:py-2">
+                    <div className="mb-0.5 truncate text-xs font-semibold text-emerald-800 sm:mb-1 sm:max-w-[120px] sm:text-sm">
                       {currentPlayer.nickname}
                     </div>
                     <motion.div
                       key={money}
                       initial={{ scale: 1.2 }}
                       animate={{ scale: 1 }}
-                      className="whitespace-nowrap text-xl font-bold text-emerald-950 sm:text-2xl"
+                      className="truncate text-lg font-bold text-emerald-950 sm:text-2xl"
                     >
                       {formatMoney(money)}
                     </motion.div>
