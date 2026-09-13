@@ -373,24 +373,25 @@ export default function CafeView({
     <div className="cafe-ambient relative w-full h-dvh overflow-hidden">
       {/* 상단 정보 */}
       <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between pointer-events-auto">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
-              <span className="text-3xl">⏰</span>
+        {/* 폰: 칩 4개 + 상점 버튼이 360px를 넘어 상점 버튼이 화면 밖으로 밀리던 문제 → 칩 축소, 손님 수 칩은 sm부터 */}
+        <div className="max-w-7xl mx-auto px-2 py-2 sm:px-4 sm:py-4 flex items-center justify-between gap-2 pointer-events-auto">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-6">
+            <div className="flex items-center gap-1.5 sm:gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-2 py-1 sm:px-4 sm:py-2 border-2 border-white/30">
+              <span className="text-xl sm:text-3xl">⏰</span>
               <span
-                className={`text-3xl font-bold font-mono ${isUrgent ? 'text-red-600 animate-pulse' : 'text-slate-700'
+                className={`text-lg sm:text-3xl font-bold font-mono whitespace-nowrap ${isUrgent ? 'text-red-600 animate-pulse' : 'text-slate-700'
                   }`}
               >
                 {formatTime(timeRemaining)}
               </span>
             </div>
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
-              <span className="text-3xl">💰</span>
-              <span className="text-3xl font-bold text-slate-700">{formatCafeMoney(cash)}</span>
+            <div className="flex items-center gap-1.5 sm:gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-2 py-1 sm:px-4 sm:py-2 border-2 border-white/30">
+              <span className="text-xl sm:text-3xl">💰</span>
+              <span className="text-lg sm:text-3xl font-bold text-slate-700 whitespace-nowrap">{formatCafeMoney(cash)}</span>
             </div>
-            <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
+            <div className="hidden sm:flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
               <span className="text-2xl">👥</span>
-              <span className="text-xl font-bold text-slate-700">{customersServed}명</span>
+              <span className="text-xl font-bold text-slate-700 whitespace-nowrap">{customersServed}명</span>
             </div>
             <div className="flex items-center gap-2">
               <AnimatePresence>
@@ -428,9 +429,9 @@ export default function CafeView({
           </div>
           <Button
             onClick={() => setShowShop(true)}
-            className="bg-white text-amber-700 hover:bg-amber-50 font-bold text-lg px-6 py-3 shadow-xl border-4 border-amber-800"
+            className="shrink-0 bg-white text-amber-700 hover:bg-amber-50 font-bold text-sm sm:text-lg px-3 py-2 sm:px-6 sm:py-3 shadow-xl border-4 border-amber-800"
           >
-            <ShoppingCart className="mr-2 h-5 w-5" />
+            <ShoppingCart className="mr-1.5 sm:mr-2 h-5 w-5" />
             상점
           </Button>
         </div>
@@ -455,9 +456,10 @@ export default function CafeView({
       {/* 카페 화면 */}
       <>
           {/* 손님 영역 - 카운터 위쪽에 줄지어 배치 */}
-          <div className="absolute bottom-56 left-0 right-0 z-10">
-            <div className="max-w-5xl mx-auto px-4">
-              <div className="flex items-end justify-center gap-3 h-56">
+          {/* 폰: 손님 5명 말풍선이 화면보다 넓어 잘리던 것 → 가로 스크롤. 가로 폰(높이≤500)은 줄 높이를 줄여 HUD·매대와 겹치지 않게 */}
+          <div className="absolute bottom-56 [@media(max-height:500px)]:bottom-32 left-0 right-0 z-10">
+            <div className="max-w-5xl mx-auto px-2 sm:px-4 overflow-x-auto overscroll-x-contain">
+              <div className="flex items-end justify-center gap-2 sm:gap-3 h-56 [@media(max-height:500px)]:h-32 w-max min-w-full mx-auto">
                 <AnimatePresence>
                   {customersInLine.map((customer, index) => {
                     const menu = MENU_ITEMS.find((m) => m.id === customer.order)
@@ -492,7 +494,7 @@ export default function CafeView({
                               : 'group-hover:scale-110'
                             }`}
                         >
-                          <div className="relative w-[4.5rem] h-[4.5rem]">
+                          <div className="relative w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] [@media(max-height:500px)]:w-10 [@media(max-height:500px)]:h-10">
                             <Image
                               src={customer.characterImage}
                               alt="손님"
@@ -515,7 +517,7 @@ export default function CafeView({
                         {/* 주문 말풍선 */}
                         <motion.div
                           whileHover={{ scale: 1.04 }}
-                          className={`bg-white rounded-2xl px-4 py-3 shadow-xl border-4 min-w-[120px] transition-all ${isUrgentCustomer
+                          className={`bg-white rounded-2xl px-2 py-2 sm:px-4 sm:py-3 shadow-xl border-4 min-w-[92px] sm:min-w-[120px] [@media(max-height:500px)]:py-1 transition-all ${isUrgentCustomer
                               ? 'border-red-500 bg-red-50 animate-pulse'
                               : 'border-amber-400 group-hover:border-amber-500'
                             }`}
@@ -528,7 +530,7 @@ export default function CafeView({
                                 width={56}
                                 height={56}
                                 unoptimized
-                                className="w-14 h-14 object-contain"
+                                className="w-10 h-10 sm:w-14 sm:h-14 [@media(max-height:500px)]:w-7 [@media(max-height:500px)]:h-7 object-contain"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement
                                   target.style.display = 'none'
@@ -538,7 +540,7 @@ export default function CafeView({
                                 }}
                               />
                             </div>
-                            <div className="text-sm font-bold text-gray-800 mb-1">{menu.name}</div>
+                            <div className="text-xs sm:text-sm font-bold text-gray-800 mb-0.5 sm:mb-1 whitespace-nowrap">{menu.name}</div>
                             <div className="text-xs font-semibold text-green-600">
                               {formatCafeMoneyDelta(Math.floor(menu.sellPrice * upgrades.sellPriceMultiplier))}
                             </div>
@@ -546,7 +548,7 @@ export default function CafeView({
                         </motion.div>
 
                         {/* 인내심 게이지 */}
-                        <div className="mt-2 w-28 h-2 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-400">
+                        <div className="mt-1.5 sm:mt-2 w-20 sm:w-28 h-2 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-400">
                           <motion.div
                             initial={{ width: '100%' }}
                             animate={{
@@ -569,7 +571,7 @@ export default function CafeView({
           </div>
 
           {/* 접시 영역 - 카운터 아래에 모든 메뉴 슬롯 표시 (그리드 형태) */}
-          <div className="absolute bottom-24 left-0 right-0 z-15">
+          <div className="absolute bottom-24 [@media(max-height:500px)]:bottom-10 left-0 right-0 z-15">
             <div className="max-w-5xl mx-auto px-4 pt-1">
               <div className="grid grid-cols-4 gap-x-2 gap-y-1.5 justify-items-center">
                 {MENU_ITEMS.map((menu, index) => {
@@ -655,8 +657,8 @@ export default function CafeView({
           </div>
 
           {/* 음식 채우기 버튼 및 안내 */}
-          <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-4">
-            <div className="max-w-7xl mx-auto flex flex-col items-center gap-3">
+          <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-4 [@media(max-height:500px)]:pb-1">
+            <div className="max-w-7xl mx-auto flex flex-col items-center gap-3 [@media(max-height:500px)]:gap-0">
               <Button
                 variant="outline"
                 onClick={() => setShowQuiz(true)}
@@ -668,7 +670,7 @@ export default function CafeView({
                 <span>🍽️ 음식 채우기</span>
                 <span className="mr-3 text-xs font-semibold text-[#1a5f8f]/85">스페이스바</span>
               </Button>
-              <div className="mt-3 text-center text-sm font-bold text-slate-700 drop-shadow-sm">
+              <div className="mt-3 text-center text-xs sm:text-sm font-bold text-slate-700 drop-shadow-sm [@media(max-height:500px)]:hidden">
                 손님을 클릭하여 주문한 메뉴를 서빙하세요! 재고가 없으면 음식 채우기 버튼을 눌러주세요.
               </div>
             </div>
@@ -681,7 +683,7 @@ export default function CafeView({
             initial={{ opacity: 0, backdropFilter: 'blur(0px)' }}
             animate={{ opacity: 1, backdropFilter: 'blur(4px)' }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-40 flex items-center justify-center p-4"
+            className="absolute inset-0 z-40 flex items-center justify-center p-4 overflow-y-auto"
             style={{ background: 'rgba(0,0,0,0.45)' }}
           >
             {consecutiveCorrect >= 2 && (
@@ -695,7 +697,7 @@ export default function CafeView({
               </motion.div>
             )}
 
-            <div className="w-full max-w-3xl">
+            <div className="w-full max-w-3xl my-auto">
               {showItemModal ? (
                 <ItemChoiceModal
                   items={itemChoices}

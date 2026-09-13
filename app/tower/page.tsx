@@ -462,6 +462,18 @@ export default function TowerPage() {
 
                         <div className="grid flex-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                             <section className="min-w-0">
+                                {/* 폰·태블릿: 타워 선택 → 맵 터치가 한 화면에서 되도록 축약 패널을 맵 위에 둔다 (xl은 오른쪽 사이드) */}
+                                <div className="mb-3 xl:hidden">
+                                    <TowerPlacementPanel
+                                        compact
+                                        gold={gold}
+                                        selectedTowerType={selectedTowerType}
+                                        onSelectTowerType={(towerType) => {
+                                            setSelectedTower(null)
+                                            setSelectedTowerType(towerType)
+                                        }}
+                                    />
+                                </div>
                                 <TowerWavePanel
                                     currentWave={currentWave}
                                     isWaveActive={isWaveActive}
@@ -519,14 +531,16 @@ export default function TowerPage() {
                             </section>
 
                             <aside className="space-y-4">
-                                <TowerPlacementPanel
-                                    gold={gold}
-                                    selectedTowerType={selectedTowerType}
-                                    onSelectTowerType={(towerType) => {
-                                        setSelectedTower(null)
-                                        setSelectedTowerType(towerType)
-                                    }}
-                                />
+                                <div className="hidden xl:block">
+                                    <TowerPlacementPanel
+                                        gold={gold}
+                                        selectedTowerType={selectedTowerType}
+                                        onSelectTowerType={(towerType) => {
+                                            setSelectedTower(null)
+                                            setSelectedTowerType(towerType)
+                                        }}
+                                    />
+                                </div>
 
                                 <SelectedTowerPanel
                                     selectedTower={selectedTower}
@@ -550,7 +564,7 @@ export default function TowerPage() {
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 1.05 }}
                             transition={{ type: 'spring', damping: 20 }}
-                            className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/70 p-6 backdrop-blur-md"
+                            className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 pt-16 backdrop-blur-md sm:p-6 sm:pt-20"
                         >
                             <motion.div
                                 initial={{ y: -20, opacity: 0 }}
@@ -568,14 +582,16 @@ export default function TowerPage() {
                                     🔥 {consecutiveCorrect}연속 정답! 스킬 보너스 대기 중
                                 </motion.div>
                             )}
-                            <QuizView
-                                question={currentQuestion}
-                                onAnswer={handleAnswer}
-                                onCorrectClick={returnToPlaying}
-                                timeLimit={TOWER_QUIZ_TIME_LIMIT}
-                                paused={isPaused}
-                                variant="glass"
-                            />
+                            <div className="my-auto w-full">
+                                <QuizView
+                                    question={currentQuestion}
+                                    onAnswer={handleAnswer}
+                                    onCorrectClick={returnToPlaying}
+                                    timeLimit={TOWER_QUIZ_TIME_LIMIT}
+                                    paused={isPaused}
+                                    variant="glass"
+                                />
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>

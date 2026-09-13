@@ -936,9 +936,10 @@ export default function DontLookDownGame({
                     </div>
                 )}
 
-                <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-white/95 rounded-xl px-4 py-2 shadow-lg w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px]">
-                    <div className="text-xs font-bold text-gray-600 mb-2 text-center">순위</div>
-                    <div className="space-y-1">
+                {/* 폰: 터치 버튼(점프 80px) 위로 올리고, 가로 폰(높이≤500)은 발판·캐릭터를 가리지 않게 상단으로 */}
+                <div className="absolute bottom-28 sm:bottom-20 [@media(max-height:500px)]:bottom-auto [@media(max-height:500px)]:top-16 left-1/2 -translate-x-1/2 bg-white/95 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-lg w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-[360px]">
+                    <div className="text-xs font-bold text-gray-600 mb-1 sm:mb-2 text-center">순위</div>
+                    <div className="space-y-0.5 sm:space-y-1">
                         {leaderboard.map((player, index) => (
                             <div key={player.id} className={`flex items-center justify-between text-sm ${player.id === playerId ? 'font-bold text-blue-600' : ''}`}>
                                 <div className="flex items-center gap-2">
@@ -964,7 +965,7 @@ export default function DontLookDownGame({
                                 onPointerUp={() => releaseGameKey('left')}
                                 onPointerLeave={() => releaseGameKey('left')}
                                 onPointerCancel={() => releaseGameKey('left')}
-                                className="flex h-16 w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
+                                className="flex h-14 w-14 sm:h-16 sm:w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
                             >
                                 ←
                             </button>
@@ -976,7 +977,7 @@ export default function DontLookDownGame({
                                 onPointerUp={() => releaseGameKey('right')}
                                 onPointerLeave={() => releaseGameKey('right')}
                                 onPointerCancel={() => releaseGameKey('right')}
-                                className="flex h-16 w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
+                                className="flex h-14 w-14 sm:h-16 sm:w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
                             >
                                 →
                             </button>
@@ -986,7 +987,7 @@ export default function DontLookDownGame({
                         <button
                             type="button"
                             onClick={() => setShowQuiz(true)}
-                            className="pointer-events-auto rounded-2xl bg-sky-500 px-4 py-3 text-sm font-black text-white shadow-lg active:bg-sky-600"
+                            className="pointer-events-auto shrink-0 whitespace-nowrap rounded-2xl bg-sky-500 px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-black text-white shadow-lg active:bg-sky-600"
                         >
                             퀴즈 풀기
                         </button>
@@ -1001,7 +1002,7 @@ export default function DontLookDownGame({
                                 onPointerUp={() => releaseGameKey('shift')}
                                 onPointerLeave={() => releaseGameKey('shift')}
                                 onPointerCancel={() => releaseGameKey('shift')}
-                                className="flex h-14 w-14 touch-none items-center justify-center rounded-2xl bg-white/85 text-xs font-black text-slate-700 shadow-lg active:bg-white"
+                                className="flex h-12 w-12 sm:h-14 sm:w-14 touch-none items-center justify-center rounded-2xl bg-white/85 text-xs font-black text-slate-700 shadow-lg active:bg-white"
                             >
                                 질주
                             </button>
@@ -1013,7 +1014,7 @@ export default function DontLookDownGame({
                                 onPointerUp={() => releaseGameKey('jump')}
                                 onPointerLeave={() => releaseGameKey('jump')}
                                 onPointerCancel={() => releaseGameKey('jump')}
-                                className="flex h-20 w-20 touch-none items-center justify-center rounded-full bg-amber-400 text-base font-black text-amber-950 shadow-xl active:bg-amber-500"
+                                className="flex h-16 w-16 sm:h-20 sm:w-20 touch-none items-center justify-center rounded-full bg-amber-400 text-base font-black text-amber-950 shadow-xl active:bg-amber-500"
                             >
                                 점프
                             </button>

@@ -265,7 +265,9 @@ export default function MafiaView({
         : Promise.resolve(),
       commitPlayerPatch(player.id, createFlagPatch(result.newPlayer), 'mafia_cheat_flags'),
     ])
-    broadcastLog(`${withJosa(player.name, '이/가')} 금고 쪽에서 수상한 움직임을 보였습니다.`, 'warning')
+    // 누가 몰래봤는지는 절대 공개하지 않는다(Deceptive Dinos 규칙: 조사로 직접 잡아내야 한다).
+    // 본인 화면에만 경고를 남긴다.
+    addLog('금고를 몰래 들여다봤습니다. 친구가 조사하면 들킵니다!', 'warning')
     playSFX('click')
   }
 
@@ -305,7 +307,9 @@ export default function MafiaView({
       }
 
       await Promise.all(ops)
-      broadcastLog(result.log, result.success ? 'danger' : 'info')
+      // 잡았을 때만 전체에 알린다. CLEAR를 공개하면 소거법으로 몰래본 사람이 드러나므로 조사자 본인만 본다.
+      if (result.success) broadcastLog(result.log, 'danger')
+      else addLog(result.log, 'info')
       if (result.success) {
         setShowCheatCaught(true)
         window.setTimeout(() => setShowCheatCaught(false), 2400)
@@ -445,7 +449,7 @@ export default function MafiaView({
                       {otherPlayers.map((target) => (
                         <Button key={target.id} onClick={() => void handleStartInvestigation(target.id)} className="w-full justify-between bg-gray-800 px-5 py-6 text-xl font-bold text-white hover:bg-gray-700">
                           <span className="flex items-center gap-3">
-                            <ShieldAlert className={target.isCheating ? 'h-6 w-6 text-orange-400' : 'h-6 w-6 text-gray-400'} />
+                            <ShieldAlert className="h-6 w-6 text-gray-400" />
                             {target.name}
                           </span>
                           <span className="text-yellow-300">${calculateLaunderedCash(target).toLocaleString()}</span>
@@ -484,11 +488,11 @@ export default function MafiaView({
         </h2>
         <div className="space-y-3">
           {sortedPlayers.map((member, index) => (
-            <Card key={member.id} className={`border-2 ${member.id === playerId ? 'border-yellow-400 bg-yellow-950/40' : member.isCheating ? 'border-orange-500 bg-orange-950/40' : 'border-gray-700 bg-gray-900/70'}`}>
+            <Card key={member.id} className={`border-2 ${member.id === playerId ? 'border-yellow-400 bg-yellow-950/40' : 'border-gray-700 bg-gray-900/70'}`}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="font-bold text-white">#{index + 1} {member.name}</div>
-                  {member.isCheating && <span className="rounded bg-orange-600 px-2 py-1 text-xs font-bold text-white">수상함</span>}
+                  {/* 몰래보기 여부는 다른 사람에게 절대 표시하지 않는다 — 추측해서 조사하는 게 이 게임의 재미. */}
                 </div>
                 <div className="mt-2 text-xl font-black text-yellow-300">${calculateLaunderedCash(member).toLocaleString()}</div>
               </CardContent>

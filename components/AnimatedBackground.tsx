@@ -49,8 +49,9 @@ export default function AnimatedBackground() {
     }
 
     const animate = () => {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.05)'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      // 반투명 흰색을 덧칠하면 프레임이 쌓여 캔버스가 불투명한 흰색이 되어
+      // 어두운 배경(좀비·마피아)의 배경 그림과 흰 글씨를 전부 덮어버린다. 매 프레임 지운다.
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
 
       particles.forEach((particle) => {
         particle.x += particle.vx

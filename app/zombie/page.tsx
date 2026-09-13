@@ -110,7 +110,10 @@ export default function ZombiePage() {
     () => playersWithRoles.map(roomPlayerToZombiePlayer),
     [playersWithRoles],
   )
-  const myPlayer = currentPlayer ? roomPlayerToZombiePlayer(currentPlayer) : null
+  const myPlayer = useMemo(
+    () => (currentPlayer ? roomPlayerToZombiePlayer(currentPlayer) : null),
+    [currentPlayer],
+  )
   const humanSurvivors = zombiePlayers.filter((player) => player.role === 'human')
   const zombies = zombiePlayers.filter((player) => player.role === 'zombie')
   const winner = humanSurvivors.length === 0 && zombiePlayers.length > 0 ? 'zombie' : 'human'
@@ -145,16 +148,27 @@ export default function ZombiePage() {
     return `zombie_role_reveal_${roomCode}_${playerId}_${room.started_at}`
   }, [playerId, room?.started_at, roomCode])
 
+  // 역할 공개 트리거. 의존성은 전부 원시값이어야 한다 — 이전에는 매 렌더마다 새로 만들어지는
+  // myPlayer 객체가 들어가 있어, 아래 3초 타이머가 cleanup으로 매번 취소되고 sessionStorage
+  // 가드 때문에 다시 걸리지도 않아 역할 화면에서 영원히 멈췄다.
   useEffect(() => {
-    if (room?.status !== 'playing' || !myPlayer || !hasAssignedRoles || !roleRevealKey) return
+    if (room?.status !== 'playing' || isLateJoiner || !hasAssignedRoles || !roleRevealKey) return
     if (typeof window === 'undefined') return
-    if (window.sessionStorage.getItem(roleRevealKey) === '1') return
-
+    try {
+      if (window.sessionStorage.getItem(roleRevealKey) === '1') return
+      window.sessionStorage.setItem(roleRevealKey, '1')
+    } catch {
+      // 비공개 모드 등에서 sessionStorage가 막혀도 한 번은 보여준다.
+    }
     setShowRoleReveal(true)
-    window.sessionStorage.setItem(roleRevealKey, '1')
+  }, [hasAssignedRoles, isLateJoiner, roleRevealKey, room?.status])
+
+  // 3초 뒤 자동으로 게임 화면으로. 트리거 효과와 분리해 재렌더에 타이머가 흔들리지 않게 한다.
+  useEffect(() => {
+    if (!showRoleReveal) return
     const timer = window.setTimeout(() => setShowRoleReveal(false), 3000)
     return () => window.clearTimeout(timer)
-  }, [hasAssignedRoles, myPlayer, roleRevealKey, room?.status])
+  }, [showRoleReveal])
 
   useEffect(() => {
     if (room?.status !== 'playing' || !hasAssignedRoles || zombiePlayers.length === 0) return

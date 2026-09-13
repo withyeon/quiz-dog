@@ -48,11 +48,11 @@ export default function CafeShop() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-center space-y-2">
-                    <div className="text-xl font-bold text-amber-600">{formatCafeMoney(menu.cost)}</div>
+                    <div className="text-base sm:text-xl font-bold text-amber-600 whitespace-nowrap">{formatCafeMoney(menu.cost)}</div>
                     <Button
                       onClick={() => purchaseMenu(menu.id)}
                       disabled={!canBuy}
-                      className={`w-full ${canBuy ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-300 cursor-not-allowed'}`}
+                      className={`w-full whitespace-nowrap px-2 text-xs sm:text-sm ${canBuy ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-300 cursor-not-allowed'}`}
                     >
                       {canBuy ? '잠금 해제!' : '돈 부족'}
                     </Button>
@@ -83,7 +83,7 @@ export default function CafeShop() {
                 <CardContent>
                   <div className="space-y-3">
                     <div className="text-sm text-gray-600">{upgrade.description}</div>
-                    <div className="text-xl font-bold text-blue-600">{formatCafeMoney(upgrade.cost)}</div>
+                    <div className="text-base sm:text-xl font-bold text-blue-600 whitespace-nowrap">{formatCafeMoney(upgrade.cost)}</div>
                     <Button
                       onClick={() => purchaseUpgrade(upgrade.id)}
                       disabled={!canBuy}

@@ -60,11 +60,12 @@ export default function TowerBattleHeader({
     onQuizClick,
     onStartWave,
 }: TowerBattleHeaderProps) {
+    // 폰에서 헤더가 320px(화면 절반)을 차지하던 문제: 제목 축소, HUD 5개를 항상 한 줄
     return (
-        <header className="mb-4 rounded-lg border border-white/70 bg-white/78 p-3 shadow-xl shadow-slate-200/70 backdrop-blur-xl">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-lg">
+        <header className="mb-3 rounded-lg border border-white/70 bg-white/78 p-2.5 shadow-xl shadow-slate-200/70 backdrop-blur-xl sm:mb-4 sm:p-3">
+            <div className="flex flex-col gap-2 sm:gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-lg sm:h-12 sm:w-12">
                         <ShieldCheck className="h-6 w-6" />
                     </div>
                     <div className="min-w-0">
@@ -87,16 +88,16 @@ export default function TowerBattleHeader({
                                 </motion.span>
                             )}
                         </div>
-                        <h1 className="mt-1 truncate text-2xl font-black tracking-normal text-slate-950 sm:text-3xl">
+                        <h1 className="mt-0.5 truncate text-xl font-black tracking-normal text-slate-950 sm:mt-1 sm:text-3xl">
                             타워 디펜스
                         </h1>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:flex">
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2 xl:flex">
                     <HudMetric icon={HeartPulse} label="코어" value={hp} detail="체력" tone="text-red-500" />
                     <HudMetric icon={Coins} label="골드" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
-                    <HudMetric icon={Target} label="웨이브" value={`${Math.min(currentWave + 1, WAVES.length)} / ${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining}마리 남음` : `${waveProgress}% 클리어`} tone="text-indigo-500" />
+                    <HudMetric icon={Target} label="웨이브" value={`${Math.min(currentWave + 1, WAVES.length)}/${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining}마리 남음` : `${waveProgress}% 클리어`} tone="text-indigo-500" />
                     <HudMetric icon={Crosshair} label="배치" value="자유" detail={`${occupiedSlotCount}개 설치`} tone="text-emerald-500" />
                     <HudMetric icon={BrainCircuit} label="퀴즈" value={quizHudValue} detail={quizHudDetail} tone="text-sky-500" />
                 </div>
@@ -107,7 +108,7 @@ export default function TowerBattleHeader({
                         whileTap={isQuizAvailable ? { scale: 0.98 } : {}}
                         onClick={onQuizClick}
                         disabled={!isQuizAvailable}
-                        className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-black text-white shadow-lg shadow-slate-300 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
+                        className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-slate-950 px-3 text-sm font-black text-white shadow-lg shadow-slate-300 sm:h-11 sm:px-4 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
                     >
                         <BrainCircuit className="h-4 w-4" />
                         {quizButtonLabel}
@@ -119,7 +120,7 @@ export default function TowerBattleHeader({
                             whileTap={canStartWave ? { scale: 0.98 } : {}}
                             onClick={onStartWave}
                             disabled={!canStartWave}
-                            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-rose-500 px-4 text-sm font-black text-white shadow-lg shadow-rose-200 transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-slate-200"
+                            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-rose-500 px-3 text-sm font-black text-white shadow-lg shadow-rose-200 sm:h-11 sm:px-4 transition-colors hover:bg-rose-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-slate-200"
                         >
                             <Play className="h-4 w-4 fill-current" />
                             {startWaveButtonLabel}

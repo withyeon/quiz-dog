@@ -698,8 +698,9 @@ export default function TowerDefenseMap({
         }
     }, [])
 
+    // 크롬북(높이 657)에서 맵이 720px로 그려져 출구 쪽이 잘리던 문제: 화면 높이에 맞춰 비율 유지 축소
     return (
-        <div className="relative">
+        <div className="relative mx-auto w-fit max-w-full">
             <canvas
                 ref={canvasRef}
                 width={MAP_WIDTH}
@@ -707,7 +708,7 @@ export default function TowerDefenseMap({
                 onClick={handleCanvasClick}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
-                className={`block aspect-[4/3] h-auto w-full rounded-lg border-4 border-gray-800 bg-white shadow-2xl ${selectedTowerType ? 'cursor-crosshair' : 'cursor-pointer'}`}
+                className={`block aspect-[4/3] h-auto w-auto max-w-full max-h-[calc(100dvh-210px)] rounded-lg border-4 border-gray-800 bg-white shadow-2xl ${selectedTowerType ? 'cursor-crosshair' : 'cursor-pointer'}`}
             />
 
             <div className="absolute right-4 top-4 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-lg">

@@ -339,36 +339,38 @@ export default function ZombieView({
       }}
     >
       <div className={`absolute left-0 right-0 top-0 z-20 border-b-2 ${borderColor} bg-black/80 shadow-lg backdrop-blur-sm`}>
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-2 sm:gap-4 sm:px-4">
+        {/* 폰(360px)에서 오른쪽 수치가 화면 밖으로 잘리던 문제: 타이머·칩·수치 모두 폰에서 한 단계 작게 */}
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-1.5 px-2 py-1.5 sm:gap-4 sm:px-4 sm:py-2">
           <div className="flex shrink-0 items-center gap-2">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <ZombieIcon name="timer" size={28} alt="" />
-              <span className={`text-2xl font-bold tabular-nums sm:text-3xl ${isUrgent ? 'animate-pulse text-red-500' : 'text-white'}`}>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <ZombieIcon name="timer" size={22} alt="" className="sm:hidden" />
+              <ZombieIcon name="timer" size={28} alt="" className="hidden sm:inline-block" />
+              <span className={`text-lg font-bold tabular-nums sm:text-3xl ${isUrgent ? 'animate-pulse text-red-500' : 'text-white'}`}>
                 {formatTime(timeRemaining)}
               </span>
             </div>
           </div>
-          <div className={`flex shrink-0 items-center whitespace-nowrap rounded-full border-2 px-3 py-1 sm:px-4 ${isZombie ? 'border-green-500 bg-green-950/80' : 'border-blue-500 bg-blue-950/80'}`}>
+          <div className={`flex shrink-0 items-center whitespace-nowrap rounded-full border-2 px-2 py-0.5 sm:px-4 sm:py-1 ${isZombie ? 'border-green-500 bg-green-950/80' : 'border-blue-500 bg-blue-950/80'}`}>
             <ZombieIcon
               name={isZombie ? 'zombie' : 'human'}
               size={24}
               className="mr-1.5 inline-block shrink-0 align-middle sm:mr-2"
               alt={isZombie ? '좀비' : '인간'}
             />
-            <span className={`text-base font-bold sm:text-lg ${accentColor}`}>{isZombie ? '좀비' : '인간'}</span>
+            <span className={`text-sm font-bold sm:text-lg ${accentColor}`}>{isZombie ? '좀비' : '인간'}</span>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
-            <span className="inline-flex items-center gap-1 font-bold text-green-400">
-              <ZombieIcon name="human" size={22} alt="인간" />
+          <div className="flex shrink-0 items-center gap-1.5 text-sm sm:gap-4 sm:text-base">
+            <span className="inline-flex items-center gap-0.5 font-bold text-green-400 sm:gap-1">
+              <ZombieIcon name="human" size={18} alt="인간" />
               {humanCount}
             </span>
-            <span className="inline-flex items-center gap-1 font-bold text-red-400">
-              <ZombieIcon name="zombie" size={22} alt="좀비" />
+            <span className="inline-flex items-center gap-0.5 font-bold text-red-400 sm:gap-1">
+              <ZombieIcon name="zombie" size={18} alt="좀비" />
               {zombieCount}
             </span>
             {myPlayer && !isZombie && (
-              <span className="inline-flex items-center gap-2 font-bold text-red-400">
-                <Heart className="h-5 w-5" />{myPlayer.health}
+              <span className="inline-flex items-center gap-1 font-bold text-red-400 sm:gap-2">
+                <Heart className="h-4 w-4 sm:h-5 sm:w-5" />{myPlayer.health}
                 {myPlayer.shield > 0 && (
                   <>
                     <ZombieIcon name="shield" size={20} className="ml-2" alt="방어막" />
@@ -387,7 +389,9 @@ export default function ZombieView({
         </div>
       </div>
 
-      <div className="absolute bottom-36 left-0 right-0 top-14 flex items-center justify-center md:right-80">
+      {/* 가로 폰(높이 390)에서 선택지가 하단 로그 뒤로 숨던 문제: 세로 스크롤 + 짧을 땐 가운데 정렬 */}
+      <div className="absolute bottom-36 left-0 right-0 top-14 overflow-y-auto md:right-80">
+        <div className="flex min-h-full items-center justify-center py-3">
         <AnimatePresence mode="wait">
           {currentView === 'quiz' && (
             <motion.div key="quiz" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full max-w-3xl px-4">
@@ -420,11 +424,11 @@ export default function ZombieView({
                     </Button>
                   ) : (
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                      <Button onClick={() => handleHumanAction('heal')} size="lg" className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-emerald-700 to-emerald-600 text-base font-bold text-white sm:h-28 sm:text-lg">
+                      <Button onClick={() => handleHumanAction('heal')} size="lg" className="flex h-24 flex-col items-center justify-center whitespace-nowrap bg-gradient-to-br from-emerald-700 to-emerald-600 px-2 text-base font-bold text-white sm:h-28 sm:px-4 sm:text-lg">
                         <ZombieIcon name="heal" size={28} className="mb-1.5 sm:mb-2" alt="" />
                         치료
                       </Button>
-                      <Button onClick={() => handleHumanAction('shield')} size="lg" className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-cyan-700 to-cyan-600 text-base font-bold text-white sm:h-28 sm:text-lg">
+                      <Button onClick={() => handleHumanAction('shield')} size="lg" className="flex h-24 flex-col items-center justify-center whitespace-nowrap bg-gradient-to-br from-cyan-700 to-cyan-600 px-2 text-base font-bold text-white sm:h-28 sm:px-4 sm:text-lg">
                         <ZombieIcon name="shield" size={28} className="mb-1.5 sm:mb-2" alt="" />
                         방어막
                       </Button>
@@ -432,7 +436,7 @@ export default function ZombieView({
                         onClick={() => setCurrentView('targetSelect')}
                         disabled={scanCooldown > 0}
                         size="lg"
-                        className="flex h-24 flex-col items-center justify-center bg-gradient-to-br from-purple-700 to-purple-600 text-base font-bold text-white disabled:opacity-50 sm:h-28 sm:text-lg"
+                        className="flex h-24 flex-col items-center justify-center whitespace-nowrap bg-gradient-to-br from-purple-700 to-purple-600 px-2 text-base font-bold text-white disabled:opacity-50 sm:h-28 sm:px-4 sm:text-lg"
                       >
                         <ZombieIcon name="scan" size={28} className="mb-1.5 sm:mb-2" alt="" />
                         {scanCooldown > 0 ? `스캔 (${scanCooldown})` : '스캔'}
@@ -525,6 +529,7 @@ export default function ZombieView({
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
 
       <div className={`absolute bottom-36 right-0 top-14 hidden w-80 overflow-y-auto border-l-2 ${borderColor} bg-black/50 p-4 md:block`}>

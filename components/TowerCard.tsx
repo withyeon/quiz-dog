@@ -12,6 +12,8 @@ interface TowerCardProps {
     canAfford: boolean
     disabledLabel?: string
     onSelect: () => void
+    /** 맵 위 가로 3열 배치용 축약 카드 (폰·태블릿) */
+    compact?: boolean
 }
 
 const towerImagePaths: Record<TowerTypeId, string> = {
@@ -62,7 +64,7 @@ const specialLabels: Record<string, string> = {
     slow: '둔화',
 }
 
-export default function TowerCard({ tower, isSelected, canAfford, disabledLabel = '골드 부족', onSelect }: TowerCardProps) {
+export default function TowerCard({ tower, isSelected, canAfford, disabledLabel = '골드 부족', onSelect, compact = false }: TowerCardProps) {
     const [imageLoaded, setImageLoaded] = useState(false)
     const [imageError, setImageError] = useState(false)
     const tone = towerTone[tower.id]
@@ -75,6 +77,49 @@ export default function TowerCard({ tower, isSelected, canAfford, disabledLabel 
         img.onload = () => setImageLoaded(true)
         img.onerror = () => setImageError(true)
     }, [tower.id])
+
+    if (compact) {
+        return (
+            <motion.button
+                type="button"
+                whileTap={canAfford ? { scale: 0.97 } : {}}
+                onClick={canAfford ? onSelect : undefined}
+                disabled={!canAfford}
+                aria-label={`${tower.name} ${tower.cost}골드`}
+                className={`relative flex min-w-0 flex-col items-center gap-1 overflow-hidden rounded-lg border bg-white px-1 py-2 text-center shadow-sm transition-all sm:px-1.5 ${isSelected
+                    ? `${tone.selected} shadow-lg`
+                    : canAfford
+                        ? 'border-slate-200'
+                        : 'border-slate-200 opacity-55'
+                }`}
+            >
+                <div className={`absolute inset-x-0 top-0 h-1 ${tone.rail}`} />
+                <div className={`flex h-9 w-9 items-center justify-center rounded-lg border sm:h-11 sm:w-11 ${tone.icon}`}>
+                    {imageLoaded && !imageError ? (
+                        <NextImage src={towerImagePaths[tower.id]} alt={tower.name} width={40} height={40} unoptimized className="h-7 w-7 object-contain drop-shadow-sm sm:h-9 sm:w-9" />
+                    ) : (
+                        <Target className={`h-6 w-6 ${tone.text}`} />
+                    )}
+                </div>
+                <div className="w-full truncate text-[10px] font-black text-slate-950 sm:text-xs">{tower.name.replace(' 타워', '')}</div>
+                <div className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-black ${canAfford ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-400'}`}>
+                    <Coins className="h-3 w-3" />
+                    {tower.cost}
+                </div>
+                <div className="hidden w-full truncate text-[10px] font-bold text-slate-500 sm:block">피해 {tower.damage} · 범위 {tower.range} · 속도 {tower.attackSpeed}</div>
+                {isSelected && (
+                    <div className="absolute right-1 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-slate-950 text-white shadow">
+                        <Check className="h-3 w-3" />
+                    </div>
+                )}
+                {!canAfford && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/68">
+                        <Lock className="h-4 w-4 text-slate-700" />
+                    </div>
+                )}
+            </motion.button>
+        )
+    }
 
     return (
         <motion.button
@@ -132,21 +177,21 @@ export default function TowerCard({ tower, isSelected, canAfford, disabledLabel 
 
                     <div className="mt-3 grid grid-cols-3 gap-1.5">
                         <div className="rounded-md bg-slate-50 px-2 py-1.5">
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                            <div className="flex items-center gap-1 whitespace-nowrap text-[10px] font-bold text-slate-500">
                                 <Target className="h-3 w-3" />
                                 피해
                             </div>
                             <div className="mt-0.5 text-sm font-black text-slate-950">{tower.damage}</div>
                         </div>
                         <div className="rounded-md bg-slate-50 px-2 py-1.5">
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                            <div className="flex items-center gap-1 whitespace-nowrap text-[10px] font-bold text-slate-500">
                                 <Crosshair className="h-3 w-3" />
                                 범위
                             </div>
                             <div className="mt-0.5 text-sm font-black text-slate-950">{tower.range}</div>
                         </div>
                         <div className="rounded-md bg-slate-50 px-2 py-1.5">
-                            <div className="flex items-center gap-1 text-[10px] font-bold text-slate-500">
+                            <div className="flex items-center gap-1 whitespace-nowrap text-[10px] font-bold text-slate-500">
                                 <Gauge className="h-3 w-3" />
                                 속도
                             </div>

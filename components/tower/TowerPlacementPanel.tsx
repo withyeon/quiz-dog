@@ -8,13 +8,46 @@ interface TowerPlacementPanelProps {
     gold: number
     selectedTowerType: TowerTypeId | null
     onSelectTowerType: (towerType: TowerTypeId) => void
+    /** 맵 위에 가로로 두는 축약형 (xl 미만 화면) */
+    compact?: boolean
 }
 
 export default function TowerPlacementPanel({
     gold,
     selectedTowerType,
     onSelectTowerType,
+    compact = false,
 }: TowerPlacementPanelProps) {
+    if (compact) {
+        return (
+            <section className="rounded-lg border border-white/70 bg-white/80 p-2.5 shadow-xl shadow-slate-200/70 backdrop-blur-xl">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 text-sm font-black text-slate-950">
+                        <Wrench className="h-4 w-4 text-indigo-500" />
+                        <span className="whitespace-nowrap">타워 배치</span>
+                        <span className="hidden text-[11px] font-bold text-slate-500 sm:inline">· 타워를 고른 뒤 맵을 누르세요</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-black text-amber-900">
+                        골드 {gold.toLocaleString()}
+                    </div>
+                </div>
+                <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                    {Object.values(TOWER_TYPES).map(tower => (
+                        <TowerCard
+                            key={tower.id}
+                            tower={tower}
+                            isSelected={selectedTowerType === tower.id}
+                            canAfford={gold >= tower.cost}
+                            disabledLabel="골드 부족"
+                            onSelect={() => onSelectTowerType(tower.id)}
+                            compact
+                        />
+                    ))}
+                </div>
+            </section>
+        )
+    }
+
     return (
         <section className="rounded-lg border border-white/70 bg-white/80 p-4 shadow-xl shadow-slate-200/70 backdrop-blur-xl">
             <div className="mb-4 flex items-center justify-between gap-3">
