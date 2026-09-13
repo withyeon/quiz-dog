@@ -508,7 +508,8 @@ function LobbyPage() {
 
               <PixelPanel label="🕹️ 미니게임" labelColor="#8B5CF6">
                 <div className="p-4 pt-8 sm:p-5 sm:pt-9">
-                  <div className="aspect-video overflow-hidden rounded-2xl" style={{ border: '2px solid #BAE6FD' }}>
+                  {/* 폰은 16:9면 높이 166px라 할 수 없어 세로형(4:5)으로, 크롬북처럼 낮은 화면은 최대 높이로 잘림 방지 */}
+                  <div className="mx-auto aspect-[4/5] sm:aspect-video max-h-[calc(100dvh_-_250px)] min-h-[240px] overflow-hidden rounded-2xl" style={{ border: '2px solid #BAE6FD' }}>
                     <Minigame characterImage={selectedCharacter.imagePath} onScoreChange={setMinigameScore} />
                   </div>
                 </div>

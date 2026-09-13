@@ -428,12 +428,12 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
         ],
       },
       {
-        title: '틀리면 위험해요',
-        body: `인간은 체력 ${ZOMBIE.HUMAN_INITIAL_HEALTH}으로 시작하고, 오답마다 ${ZOMBIE.WRONG_PENALTY_HUMAN}씩 줄어듭니다.`,
+        title: '체력은 좀비 공격으로만 줄어요',
+        body: `인간은 체력 ${ZOMBIE.HUMAN_INITIAL_HEALTH}으로 시작합니다. 문제를 틀려도 체력은 그대로지만, 그 턴엔 행동할 수 없고 연속 정답도 끊깁니다.`,
         points: [
           '방어막이 있으면 공격 데미지를 먼저 막아줍니다',
           '체력이 0이 되면 감염되어 좀비 편이 됩니다',
-          '좀비가 되어도 계속 플레이해요 — 오답 페널티도 사라집니다',
+          '좀비가 되어도 계속 플레이해요 — 이제 남은 인간을 감염시키는 편입니다',
         ],
       },
       {

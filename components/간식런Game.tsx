@@ -912,7 +912,8 @@ export default function GansikRunGame({
               background: 'rgba(255,255,255,0.14)',
               border: '2px solid rgba(255,255,255,0.25)',
             })}
-            <div className="flex flex-col gap-2 items-center">
+            {/* 가로 폰(높이≤500)은 ↑↓를 세로로 쌓으면 캐릭터를 가리므로 가로로 */}
+            <div className="flex flex-col gap-2 items-center [@media(max-height:500px)]:flex-row [@media(max-height:500px)]:gap-4">
               {controlButton('↑', () => { stateRef.current = jump(stateRef.current) }, {
                 background: 'rgba(16,185,129,0.25)',
                 border: '2px solid rgba(16,185,129,0.5)',

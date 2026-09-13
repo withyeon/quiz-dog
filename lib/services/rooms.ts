@@ -20,6 +20,8 @@ export type StartRoomInput = {
   roomCode: string
   gameMode: GameModeId
   durationSeconds?: number | null
+  /** 시작 시점에 확정하는 방 옵션(rooms.settings). 좀비 모드 옵션 등. 없으면 건드리지 않는다 */
+  settings?: Json
 }
 
 export async function getRoomByCode(roomCode: string): Promise<RoomRow | null> {
@@ -79,7 +81,7 @@ export async function assertQuestionSetHasQuestions(setId: string | null): Promi
   }
 }
 
-export async function startRoom({ roomCode, gameMode, durationSeconds }: StartRoomInput): Promise<void> {
+export async function startRoom({ roomCode, gameMode, durationSeconds, settings }: StartRoomInput): Promise<void> {
   if (gameMode === 'battle_royale') {
     const { error: healthResetError } = await (supabase
       .from('players') as any)
@@ -118,6 +120,9 @@ export async function startRoom({ roomCode, gameMode, durationSeconds }: StartRo
   }
   if (durationSeconds) {
     updatePayload.duration_seconds = durationSeconds
+  }
+  if (settings !== undefined) {
+    updatePayload.settings = settings
   }
 
   const { error } = await (supabase

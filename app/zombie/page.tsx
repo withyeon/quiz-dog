@@ -12,6 +12,7 @@ import { Heart, Trophy } from 'lucide-react'
 import ZombieIcon from '@/components/zombie/ZombieIcon'
 import {
   getZombieMeta,
+  parseZombieSettings,
   roomPlayerToZombiePlayer,
   GAME_CONSTANTS,
   ZOMBIE_ACTION_LIMITS,
@@ -122,6 +123,7 @@ export default function ZombiePage() {
     : `${humanSurvivors.length}명의 인간이 생존했습니다! 인간 팀 승리!`
   const myWon = myPlayer ? myPlayer.role === winner : false
   const hasAssignedRoles = playersWithRoles.length > 0
+  const zombieSettings = useMemo(() => parseZombieSettings(room?.settings), [room?.settings])
   // 게임이 시작된 뒤 들어온 학생은 역할이 없다. 유령 타깃이 되지 않도록 따로 안내한다.
   const isLateJoiner = hasAssignedRoles && !(currentPlayer && getZombieMeta(currentPlayer))
 
@@ -305,6 +307,7 @@ export default function ZombiePage() {
                 roomStartedAt={room?.started_at ?? null}
                 roomDurationSeconds={room?.duration_seconds ?? null}
                 roomPlayers={playersWithRoles}
+                showHumanStatusToZombies={zombieSettings.showHumanStatus}
                 currentQuestion={currentQuestion}
                 onAnswer={checkAnswer}
                 onNextQuestion={goToNextQuestion}

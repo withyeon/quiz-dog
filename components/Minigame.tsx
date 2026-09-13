@@ -105,6 +105,13 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
       const delta = Math.min(50, now - lastTimeRef.current)
       lastTimeRef.current = now
 
+      // 폰처럼 낮은 캔버스(≈300px)에서는 64px 캐릭터·40px 오브젝트가 화면을 다 차지해 피할 수가 없다.
+      // 높이 420px를 기준으로 0.6~1배로 함께 줄인다(낙하 속도도 같은 비율).
+      const k = Math.max(0.6, Math.min(1, h / 420))
+      const objSize = OBJ_SIZE * k
+      const playerW = PLAYER_W * k
+      const playerH = PLAYER_H * k
+
       // 플레이어 이동
       const friction = Math.pow(0.85, delta / 16.67)
       if (keysRef.current.left) playerVelRef.current -= 0.000007 * delta
@@ -124,9 +131,9 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
         objectsRef.current.push({
           id: nextIdRef.current++,
           x: (Math.random() * 0.8 + 0.1) * w,
-          y: -OBJ_SIZE,
+          y: -objSize,
           type,
-          speed: (1.5 + Math.random() + scoreRef.current * 0.01) * 0.12,
+          speed: (1.5 + Math.random() + scoreRef.current * 0.01) * 0.12 * k,
           removed: false,
         })
       }
@@ -141,7 +148,7 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
         obj.y += obj.speed * delta
         const dx = Math.abs(obj.x - playerPx)
         const dy = Math.abs(obj.y - playerPy)
-        if (dx < (OBJ_SIZE + PLAYER_W) * 0.35 && dy < (OBJ_SIZE + PLAYER_H) * 0.35) {
+        if (dx < (objSize + playerW) * 0.35 && dy < (objSize + playerH) * 0.35) {
           obj.removed = true
           if (obj.type === 'coin') {
             scoreRef.current += 10
@@ -159,7 +166,7 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
         return
       }
 
-      objectsRef.current = objectsRef.current.filter(o => !o.removed && o.y < h + OBJ_SIZE)
+      objectsRef.current = objectsRef.current.filter(o => !o.removed && o.y < h + objSize)
 
       // 배경 렌더링
       if (bgImgRef.current) {
@@ -182,18 +189,18 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
           : obj.type === 'rock' ? rockImgRef.current
           : boneImgRef.current
         if (img) {
-          ctx.drawImage(img, obj.x - OBJ_SIZE / 2, obj.y - OBJ_SIZE / 2, OBJ_SIZE, OBJ_SIZE)
+          ctx.drawImage(img, obj.x - objSize / 2, obj.y - objSize / 2, objSize, objSize)
         } else {
           ctx.fillStyle = obj.type === 'coin' ? '#fbbf24' : '#ef4444'
           ctx.beginPath()
-          ctx.arc(obj.x, obj.y, OBJ_SIZE / 2, 0, Math.PI * 2)
+          ctx.arc(obj.x, obj.y, objSize / 2, 0, Math.PI * 2)
           ctx.fill()
         }
       }
 
       // 플레이어 렌더링
       if (playerImgRef.current) {
-        ctx.drawImage(playerImgRef.current, playerPx - PLAYER_W / 2, playerPy - PLAYER_H / 2, PLAYER_W, PLAYER_H)
+        ctx.drawImage(playerImgRef.current, playerPx - playerW / 2, playerPy - playerH / 2, playerW, playerH)
       }
 
       rafRef.current = requestAnimationFrame(loop)
@@ -248,8 +255,9 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
       </div>
 
       {!gameOver && score < 50 && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-          <p className="text-white text-sm font-semibold drop-shadow-lg animate-pulse">
+        {/* 폰에서는 안내문이 아래쪽 캐릭터를 가리므로 점수 아래로 */}
+        <div className="absolute bottom-4 max-sm:bottom-auto max-sm:top-20 left-1/2 w-full -translate-x-1/2 text-center pointer-events-none">
+          <p className="px-3 text-xs sm:text-sm text-white font-semibold drop-shadow-lg animate-pulse">
             ← → 키 또는 클릭으로 이동 | 폭탄·운석 피하기 | 뼈다귀 모으기!
           </p>
         </div>

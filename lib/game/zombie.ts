@@ -6,6 +6,7 @@
 // 오래된 로컬 스냅샷이 감염을 되돌리는 종류의 버그가 그대로 돌아온다.
 
 export { formatTime } from '@/lib/utils/formatTime'
+import type { Json } from '@/types/database.types'
 
 // ─── 타입 정의 ───
 
@@ -76,16 +77,23 @@ export const GAME_CONSTANTS = {
   HUMAN_MAX_SHIELD: 50,
   
   // 좀비 스탯
-  ZOMBIE_BASE_ATTACK: 25,    // 기본 공격력
+  // 인간 오답 페널티를 없애면서(아래 참고) 좀비가 잃은 만큼을 공격력으로 돌려줬다.
+  // 35 = 무방비 인간(100)을 3번에, 방어막 하나(25)를 두른 인간을 4번에 감염시키는 값.
+  ZOMBIE_BASE_ATTACK: 35,    // 기본 공격력
   ZOMBIE_STREAK_BONUS: 5,    // 연속 정답 보너스 공격력
-  ZOMBIE_MAX_ATTACK: 50,     // 최대 공격력
+  ZOMBIE_MAX_ATTACK: 60,     // 최대 공격력
   
   // 감염 임계값
   INFECTION_THRESHOLD: 0,    // 체력이 이 이하면 감염됨
   
   // 보너스/페널티
   CORRECT_STREAK_3_BONUS: 10,  // 3연속 정답 보너스 (인간: 체력, 좀비: 공격력)
-  WRONG_PENALTY_HUMAN: 10,     // 인간 오답 페널티 (체력 감소)
+  // 인간 오답 페널티는 0으로 둔다 (2026-09-13 결정).
+  // 체력이 오답마다 깎이면 HP가 곧 "틀린 횟수"가 되고, 좀비는 그 값을 보고 표적을 고른다.
+  // 문제를 못 푸는 학생이 반 친구들에게 반복해서 찍히는 구조라 낙인 우려가 있어
+  // (리더보드·오류 풍토·피구 논쟁 연구), 체력은 좀비 공격으로만 줄게 했다.
+  // 오답의 대가는 행동 기회 상실과 연속 정답 보너스 초기화만 남는다.
+  WRONG_PENALTY_HUMAN: 0,      // 인간 오답 페널티 (체력 감소) — 0 = 없음
   WRONG_PENALTY_ZOMBIE: 0,     // 좀비 오답 페널티 (없음)
   
   // 스캔
@@ -108,6 +116,44 @@ export const ZOMBIE_ACTION_LIMITS = {
   infectionThreshold: GAME_CONSTANTS.INFECTION_THRESHOLD,
   zombieBaseAttack: GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
 } as const
+
+// ─── 방 옵션 (rooms.settings.zombie) ───
+
+export type ZombieSettings = {
+  /**
+   * 좀비가 공격 대상을 고를 때 인간의 체력·방어막을 보여줄지.
+   * 켜면 집중 공격 전략이 살고, 끄면 누가 약한지 드러나지 않는다. 반 분위기에 따라 교사가 고른다.
+   */
+  showHumanStatus: boolean
+}
+
+export const DEFAULT_ZOMBIE_SETTINGS: ZombieSettings = {
+  showHumanStatus: true,
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+/** rooms.settings 에서 좀비 옵션을 읽는다. 없거나 깨져 있으면 기본값. */
+export function parseZombieSettings(settings: unknown): ZombieSettings {
+  const zombie = isRecord(settings) && isRecord(settings.zombie) ? settings.zombie : null
+  if (!zombie) return { ...DEFAULT_ZOMBIE_SETTINGS }
+  return {
+    showHumanStatus: zombie.showHumanStatus !== false,
+  }
+}
+
+/** 기존 rooms.settings 를 보존한 채 좀비 옵션만 덮어쓴 값 */
+export function buildZombieRoomSettings(
+  zombie: ZombieSettings,
+  existing: Json | null | undefined,
+): Json {
+  return {
+    ...(isRecord(existing) ? existing : {}),
+    zombie: { showHumanStatus: zombie.showHumanStatus },
+  }
+}
 
 /** 클라이언트가 서버에 보고하는 행동. 역할은 서버가 판정하므로 보내지 않는다. */
 export type ZombieActionKind = 'correct' | 'wrong' | 'heal' | 'shield'

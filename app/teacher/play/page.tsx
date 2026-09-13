@@ -26,7 +26,14 @@ import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
 import { Play, Pause, Square, RotateCcw } from 'lucide-react'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
-import { getZombieMeta, roomPlayerToZombiePlayer } from '@/lib/game/zombie'
+import {
+  DEFAULT_ZOMBIE_SETTINGS,
+  buildZombieRoomSettings,
+  getZombieMeta,
+  roomPlayerToZombiePlayer,
+  type ZombieSettings,
+} from '@/lib/game/zombie'
+import ZombieOptionsFields from '@/components/teacher/play/ZombieOptionsFields'
 import { isGameOver as isBattleGameOver } from '@/lib/game/battleRoyale'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
@@ -61,6 +68,8 @@ export default function TeacherDashboard() {
   const [timedDurationMinutes, setTimedDurationMinutes] = useState(5)
   // 공부 모드 옵션 — 방을 만들 때 rooms.settings 에 담긴다
   const [studySettings, setStudySettings] = useState<StudySettings>(DEFAULT_STUDY_SETTINGS)
+  // 좀비 모드 옵션 — 게임 시간처럼 시작 버튼을 누를 때 rooms.settings 에 담긴다
+  const [zombieSettings, setZombieSettings] = useState<ZombieSettings>(DEFAULT_ZOMBIE_SETTINGS)
   const [hostMode, setHostMode] = useState<HostMode>('live')
   const [showStartTutorial, setShowStartTutorial] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
@@ -510,16 +519,21 @@ export default function TeacherDashboard() {
         }
         await assertQuestionSetHasQuestions(setId)
       }
+      const startSettings = gameMode === 'zombie'
+        ? buildZombieRoomSettings(zombieSettings, room?.settings)
+        : undefined
       await startRoom({
         roomCode,
         gameMode,
         durationSeconds: timedDurationMinutes * 60,
+        ...(startSettings ? { settings: startSettings } : {}),
       })
       broadcastRoomPatch({
         status: 'playing',
         game_mode: gameMode,
         started_at: startedAt,
         duration_seconds: timedDurationMinutes * 60,
+        ...(startSettings ? { settings: startSettings } : {}),
       }, 'teacher_start')
 
       setIsGameStarted(true)
@@ -713,6 +727,10 @@ export default function TeacherDashboard() {
         {roomCode ? (
           <div className="space-y-4">
             <GameDurationPicker minutes={timedDurationMinutes} onChange={setTimedDurationMinutes} />
+
+            {gameMode === 'zombie' && roomStatus === 'waiting' && (
+              <ZombieOptionsFields value={zombieSettings} onChange={setZombieSettings} />
+            )}
 
             {roomStatus !== 'finished' && <TeacherBgmControl />}
 

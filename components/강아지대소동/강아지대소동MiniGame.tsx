@@ -245,8 +245,9 @@ export default function DodgeMiniGame({
     const resize = () => {
       const rect = wrap.getBoundingClientRect()
       const ratio = window.devicePixelRatio || 1
-      canvas.width = Math.max(320, rect.width) * ratio
-      canvas.height = Math.max(420, rect.height) * ratio
+      // 무대가 화면에 맞춰 420px보다 낮아질 수 있다. 최소값을 두면 비트맵이 CSS 크기보다 커져 아래에 검은 띠가 생긴다.
+      canvas.width = Math.max(1, rect.width) * ratio
+      canvas.height = Math.max(1, rect.height) * ratio
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0)
     }
 
@@ -523,7 +524,9 @@ export default function DodgeMiniGame({
   }
 
   return (
-    <div className="relative h-[min(72vh,620px)] min-h-[420px] w-full overflow-hidden rounded-[28px] border-4 border-slate-900 bg-sky-100 font-bitbit shadow-[6px_6px_0_#0f172a]">
+    // 무대 높이: 헤더(≈150)+안내(≈60)+여백을 뺀 화면 높이에 맞춘다. 전에는 72vh·최소 420px라
+    // 폰(660)에선 ←/→ 버튼이, 크롬북(657)·노트북(800)에선 강아지가 화면 아래로 잘렸다.
+    <div className="relative h-[clamp(320px,calc(100dvh_-_280px),620px)] w-full overflow-hidden rounded-[28px] border-4 border-slate-900 bg-sky-100 font-bitbit shadow-[6px_6px_0_#0f172a]">
       <div ref={wrapRef} className="h-full w-full touch-none">
         <canvas ref={canvasRef} className="h-full w-full" />
       </div>

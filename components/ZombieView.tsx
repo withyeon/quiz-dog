@@ -33,6 +33,8 @@ type ZombieViewProps = {
   roomStartedAt?: string | null
   roomDurationSeconds?: number | null
   roomPlayers: RoomZombiePlayer[]
+  /** 좀비의 공격 대상 목록에 인간의 체력·방어막을 보여줄지 (방 옵션, 기본 true) */
+  showHumanStatusToZombies?: boolean
   currentQuestion: Question | null
   onAnswer: (answer: string) => Promise<boolean>
   onNextQuestion: () => void
@@ -60,6 +62,7 @@ export default function ZombieView({
   roomStartedAt,
   roomDurationSeconds,
   roomPlayers,
+  showHumanStatusToZombies = true,
   playerId,
   currentQuestion,
   onAnswer,
@@ -235,16 +238,17 @@ export default function ZombieView({
 
     playSFX('incorrect')
     const wasHuman = myPlayer.role === 'human'
-    if (wasHuman) selfHealthDropGuardRef.current += 1
+    // 페널티가 0이면 체력이 안 줄어드니 가드를 올리면 안 된다 — 다음 진짜 피격 알림을 삼킨다.
+    if (wasHuman && GAME_CONSTANTS.WRONG_PENALTY_HUMAN > 0) selfHealthDropGuardRef.current += 1
     reportAction('wrong', (after) => {
       const becameZombie = wasHuman && after.role === 'zombie'
       setGameLog((logs) => addLog(
         logs,
         becameZombie
           ? `${after.name}이(가) 좀비가 되었습니다!`
-          : after.role === 'human'
+          : after.role === 'human' && GAME_CONSTANTS.WRONG_PENALTY_HUMAN > 0
             ? `${after.name} 오답! 체력 -${GAME_CONSTANTS.WRONG_PENALTY_HUMAN} (HP: ${after.health})`
-            : `${after.name} 오답!`,
+            : `${after.name} 오답! 연속 정답이 끊겼어요.`,
         becameZombie ? 'infection' : 'warning',
       ))
     })
@@ -464,7 +468,7 @@ export default function ZombieView({
                         <ZombieIcon name="player" size={28} className="mr-3 shrink-0" alt="" />
                         <div className="min-w-0 text-left">
                           <div className="truncate">{player.name}</div>
-                          {isZombie && <div className="text-xs text-red-300">HP {player.health} {player.shield > 0 ? `방어막 ${player.shield}` : ''}</div>}
+                          {isZombie && showHumanStatusToZombies && <div className="text-xs text-red-300">HP {player.health} {player.shield > 0 ? `방어막 ${player.shield}` : ''}</div>}
                           {!isZombie && (
                             scannedIds.has(player.id)
                               ? <div className={`text-xs ${player.role === 'zombie' ? 'text-red-300' : 'text-blue-300'}`}>스캔 완료 · {player.role === 'zombie' ? '좀비' : '인간'}</div>
@@ -525,7 +529,11 @@ export default function ZombieView({
               </div>
               <p className="text-4xl font-bold text-red-400">틀렸습니다!</p>
               <AnswerReveal answer={revealedAnswer} />
-              {myPlayer?.role === 'human' && <p className="mt-2 text-xl text-gray-400">체력 -{GAME_CONSTANTS.WRONG_PENALTY_HUMAN}</p>}
+              {myPlayer?.role === 'human' && (
+                <p className="mt-2 text-xl text-gray-400">
+                  {GAME_CONSTANTS.WRONG_PENALTY_HUMAN > 0 ? `체력 -${GAME_CONSTANTS.WRONG_PENALTY_HUMAN}` : '이번엔 행동할 수 없어요. 연속 정답도 처음부터!'}
+                </p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

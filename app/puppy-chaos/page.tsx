@@ -535,23 +535,23 @@ export default function PuppyChaosPage() {
           />
         )}
 
-        <header className="rounded-[28px] border-4 border-slate-900 bg-white p-4 shadow-[5px_5px_0_#0f172a]">
+        <header className="rounded-[28px] border-4 border-slate-900 bg-white p-3 shadow-[5px_5px_0_#0f172a] sm:p-4">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-black text-sky-700">강아지 대소동</div>
-              <div className="flex items-center gap-2 text-2xl font-black">
-                <PomeMascot className="h-9 w-9" />
-                {currentPlayer.nickname}
+            <div className="min-w-0">
+              <div className="text-xs font-black text-sky-700 sm:text-sm">강아지 대소동</div>
+              <div className="flex items-center gap-2 text-xl font-black sm:text-2xl">
+                <PomeMascot className="h-8 w-8 sm:h-9 sm:w-9" />
+                <span className="truncate">{currentPlayer.nickname}</span>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-black text-slate-500">내 점수</div>
-              <div className="text-3xl font-black text-amber-600">{score.toLocaleString()}</div>
+            <div className="shrink-0 text-right">
+              <div className="text-xs font-black text-slate-500 sm:text-sm">내 점수</div>
+              <div className="text-2xl font-black text-amber-600 sm:text-3xl">{score.toLocaleString()}</div>
             </div>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-center text-sm font-black">
-            <div className="rounded-2xl bg-sky-100 px-3 py-2">문제 {progressLabel}</div>
-            <div className="rounded-2xl bg-rose-100 px-3 py-2">{combo}콤보</div>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-center text-xs font-black sm:mt-3 sm:text-sm">
+            <div className="rounded-2xl bg-sky-100 px-3 py-1.5 sm:py-2">문제 {progressLabel}</div>
+            <div className="rounded-2xl bg-rose-100 px-3 py-1.5 sm:py-2">{combo}콤보</div>
           </div>
         </header>
 
@@ -656,7 +656,7 @@ export default function PuppyChaosPage() {
 
           {phase === 'dodge' && roundContext && (
             <motion.section key="dodge" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <div className="mb-3 rounded-[24px] border-4 border-slate-900 bg-white p-4 text-center text-xl font-black shadow-[4px_4px_0_#0f172a]">
+              <div className="mb-3 rounded-[24px] border-4 border-slate-900 bg-white p-2.5 text-center text-base font-black shadow-[4px_4px_0_#0f172a] sm:p-4 sm:text-xl">
                 {roundContext.cardLabel ? `${roundContext.cardLabel} 발동! ` : ''}
                 대소동을 버텨요!
               </div>
