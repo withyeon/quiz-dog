@@ -120,7 +120,7 @@ export default function BattleArena({
   const aliveCount = sortedPlayers.filter((player) => (player.health ?? 100) > 0).length
 
   return (
-    <section className="battle-sky-panel battle-snowline overflow-hidden p-4 text-slate-800 sm:p-5">
+    <section className="battle-sky-panel battle-snowline overflow-hidden p-3 text-slate-800 sm:p-5">
       <div className="pointer-events-none absolute inset-0 opacity-40">
         {DRIFTING_SNOW.map((flake) => (
           <motion.span
@@ -147,19 +147,19 @@ export default function BattleArena({
         ))}
       </div>
 
-      <div className="relative z-10 mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative z-10 mb-3 flex items-center justify-between gap-2 sm:mb-4 sm:flex-row sm:gap-3">
         <div>
-          <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/70 px-3 py-1 text-xs font-black text-sky-800">
+          <div className="mb-2 hidden items-center gap-2 rounded-full border border-sky-200 bg-white/70 px-3 py-1 text-xs font-black text-sky-800 sm:inline-flex">
             <Users className="h-3.5 w-3.5" />
             {aliveCount}명 생존
           </div>
-          <h2 className="flex items-center gap-2 text-2xl font-black tracking-normal text-slate-900">
-            <Image src="/trophy.webp" alt="" width={24} height={24} className="h-6 w-6 object-contain" />
+          <h2 className="flex items-center gap-2 text-lg font-black tracking-normal text-slate-900 sm:text-2xl">
+            <Image src="/trophy.webp" alt="" width={24} height={24} className="h-5 w-5 object-contain sm:h-6 sm:w-6" />
             생존자 현황판
           </h2>
         </div>
 
-        <div className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-black ${
+        <div className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1.5 text-xs font-black sm:gap-2 sm:px-3 sm:py-2 sm:text-sm ${
           canAttack
             ? 'battle-status-ready text-white battle-pulse'
             : 'border border-sky-200 bg-white/70 text-sky-800'
@@ -169,7 +169,8 @@ export default function BattleArena({
         </div>
       </div>
 
-      <div className="relative z-10 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {/* 폰 2열·태블릿 3열·노트북 4열: 학생 25명이어도 카드가 한없이 길어지지 않게 */}
+      <div className="relative z-10 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-4">
         <AnimatePresence>
           {sortedPlayers.map((player, index) => {
             const health = Math.max(0, player.health ?? 100)
@@ -223,7 +224,7 @@ export default function BattleArena({
                   boxShadow: isLocked || isDangerous ? { duration: 0.8, repeat: Infinity } : undefined,
                 }}
                 whileHover={canSelectTarget ? { y: -2 } : {}}
-                className={`relative min-h-[180px] overflow-hidden rounded-[8px] border-2 p-4 text-left transition-all duration-300 ${
+                className={`relative min-h-[150px] overflow-hidden rounded-[8px] border-2 p-2.5 text-left transition-all duration-300 sm:min-h-[180px] sm:p-4 ${
                   isCurrentPlayer
                     ? 'border-sky-200 bg-sky-300/[0.16] shadow-lg shadow-sky-300/10'
                     : isLocked
@@ -255,8 +256,8 @@ export default function BattleArena({
                   </>
                 )}
 
-                <div className="flex h-full flex-col items-center justify-between gap-3 text-center">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-sm font-black ${getRankTone(index, isAlive)}`}>
+                <div className="flex h-full flex-col items-center justify-between gap-2 text-center sm:gap-3">
+                  <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] text-xs font-black sm:h-9 sm:w-9 sm:text-sm ${getRankTone(index, isAlive)}`}>
                     {isAlive ? index + 1 : '탈락'}
                   </div>
 
@@ -267,7 +268,7 @@ export default function BattleArena({
                   />
 
                   <div className="min-w-0 w-full">
-                    <div className="mb-2 flex min-w-0 flex-wrap items-center justify-center gap-2">
+                    <div className="mb-1.5 flex min-w-0 flex-wrap items-center justify-center gap-1 sm:mb-2 sm:gap-2">
                       {teamInfo && (
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
@@ -281,7 +282,7 @@ export default function BattleArena({
                           {teamInfo.name}
                         </span>
                       )}
-                      <span className={`max-w-full truncate text-base font-black ${
+                      <span className={`max-w-full truncate text-sm font-black sm:text-base ${
                         isCurrentPlayer ? 'text-sky-800' : 'text-slate-900'
                       }`}>
                         {player.nickname}
@@ -297,7 +298,7 @@ export default function BattleArena({
                         </span>
                       )}
                       {ClassIcon && classVisual && isAlive && (
-                        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black ${classVisual.tone}`}>
+                        <span className={`hidden items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-black sm:inline-flex ${classVisual.tone}`}>
                           <ClassIcon className="h-3 w-3" />
                           {PLAYER_CLASSES[player.player_class!].name}
                         </span>
@@ -327,8 +328,8 @@ export default function BattleArena({
                           style={{ width: `${healthPercent}%`, backgroundColor: hpColor }}
                         />
                       </div>
-                      <span className="w-20 text-right text-xs font-black tabular-nums text-slate-700">
-                        {Math.round(health)}° / {maxHealth}°
+                      <span className="shrink-0 text-right text-[10px] font-black tabular-nums text-slate-700 sm:w-20 sm:text-xs">
+                        {Math.round(health)}°<span className="hidden sm:inline"> / {maxHealth}°</span>
                       </span>
                     </div>
 
@@ -349,12 +350,12 @@ export default function BattleArena({
                     )}
                   </div>
 
-                  <div className="w-full shrink-0 text-center">
-                    <div className="flex items-center justify-center gap-1 text-sm font-black text-slate-800">
+                  <div className="flex w-full shrink-0 items-center justify-center gap-2 text-center sm:block">
+                    <div className="flex items-center justify-center gap-1 text-xs font-black text-slate-800 sm:text-sm">
                       <Medal className="h-4 w-4 text-amber-500" />
                       {player.score ?? 0}
                     </div>
-                    <div className={`mt-1 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black ${
+                    <div className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black sm:mt-1 ${
                       isAlive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
                     }`}>
                       {isAlive && <BadgeCheck className="h-3 w-3" />}
@@ -373,8 +374,8 @@ export default function BattleArena({
         </AnimatePresence>
       </div>
 
-      <div className="relative z-10 mt-4 flex justify-center">
-        <div className="rounded-full border border-sky-200 bg-white/70 px-3 py-1.5 text-sm font-black text-sky-800">
+      <div className="relative z-10 mt-3 flex justify-center sm:mt-4">
+        <div className="rounded-full border border-sky-200 bg-white/70 px-3 py-1 text-xs font-black text-sky-800 sm:py-1.5 sm:text-sm">
           {aliveCount} / {sortedPlayers.length} 생존
         </div>
       </div>

@@ -74,7 +74,8 @@ export default function PlayerSelector({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* 15초 안에 골라야 하므로 한 화면에 최대한 많이: 폰은 카드 높이를 줄이고, 태블릿(sm)부터 2열. (패널이 max-w-4xl이라 3열은 카드가 너무 좁아짐) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
         {otherPlayers.map((player, index) => {
           const isTopPlayer = index === 0
           return (
@@ -83,7 +84,7 @@ export default function PlayerSelector({
               onClick={() => onSelect(player.id)}
               whileHover={{ y: -5 }}
               whileTap={{ scale: 0.98 }}
-              className={`group min-h-[128px] rounded-lg border p-4 text-left transition-all ${
+              className={`group min-h-[88px] sm:min-h-[128px] rounded-lg border p-3 sm:p-4 text-left transition-all ${
                 isTopPlayer
                   ? 'border-red-300/70 bg-red-50 shadow-lg shadow-red-950/10'
                   : 'border-amber-300/70 bg-white/[0.82] hover:border-[#b7791f] hover:bg-[#fff5dc]'
@@ -103,7 +104,7 @@ export default function PlayerSelector({
                       {player.nickname}
                     </span>
                     {isTopPlayer && (
-                      <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-black text-white">
+                      <span className="shrink-0 whitespace-nowrap rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-black text-white">
                         1위
                       </span>
                     )}

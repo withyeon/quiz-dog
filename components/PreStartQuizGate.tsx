@@ -43,11 +43,9 @@ export default function PreStartQuizGate({
         <div className="mb-4 rounded-lg border border-white/15 bg-white/95 px-5 py-4 shadow-2xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <div className="text-sm font-black text-slate-500">게임 시작 조건</div>
               <h1 className="text-2xl font-black text-slate-950 sm:text-3xl">{title}</h1>
             </div>
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-center">
-              <div className="text-xs font-black text-slate-500">제출</div>
               <div className="text-2xl font-black tabular-nums text-slate-950">{progressLabel}</div>
             </div>
           </div>

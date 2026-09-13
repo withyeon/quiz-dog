@@ -321,7 +321,7 @@ function LobbyPage() {
               transition={{ type: 'spring', bounce: 0.3 }}
               className="w-full max-w-md text-center"
             >
-              <PixelPanel label="🐶 퀴즈독 입장하기">
+              <PixelPanel label="퀴즈독 입장하기">
                 <div className="p-5 pt-10 sm:p-9 sm:pt-12">
                   <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 2.5, repeat: Infinity }} className="mb-4">
                     <Image src="/quizdog-logo.webp" alt="퀴즈독" width={320} height={100} className="mx-auto w-full max-w-[240px] sm:max-w-[280px]" priority />
@@ -416,7 +416,7 @@ function LobbyPage() {
                   )}
 
                   <PixelBtn color="blue" onClick={handleNicknameSubmit} className="w-full py-4 text-lg">
-                    🐶 다음으로 →
+                    다음으로 →
                   </PixelBtn>
                 </div>
               </PixelPanel>

@@ -25,7 +25,7 @@ function PlayerAvatar({ avatar, nickname }: { avatar: string | null; nickname: s
   return <>{normalizedAvatar || '🐶'}</>
 }
 
-/** 대기실에 들어온 학생 목록 (아무도 없으면 안내) */
+/** 대기실에 들어온 학생 목록 */
 export default function WaitingPlayers({ players }: { players: PlayerRow[] }) {
   if (players.length === 0) {
     return (
@@ -35,10 +35,8 @@ export default function WaitingPlayers({ players }: { players: PlayerRow[] }) {
           alt=""
           width={56}
           height={56}
-          className="mx-auto mb-3 h-14 w-14 object-contain"
+          className="mx-auto h-14 w-14 object-contain"
         />
-        <p className="text-lg font-bold text-slate-700">참가자 없음</p>
-        <p className="mt-1 text-sm font-medium text-slate-500">학생이 코드를 입력하면 여기에 표시돼요</p>
       </div>
     )
   }
@@ -57,7 +55,7 @@ export default function WaitingPlayers({ players }: { players: PlayerRow[] }) {
               <PlayerAvatar avatar={player.avatar} nickname={displayNickname} />
             </div>
             <div className="min-w-0">
-              <div className="truncate text-base font-black text-black">{displayNickname}</div>
+              <div className="truncate font-bitbit text-base font-black text-black">{displayNickname}</div>
               <div className="mt-1 text-xs font-bold text-emerald-600">준비 완료</div>
             </div>
           </div>

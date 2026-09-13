@@ -80,6 +80,15 @@ export default function FishingPage() {
     }
   }, [currentView, isPreStartQuizComplete, room?.status, setCurrentView, showCountdown])
 
+  // 정답 후 자동으로 집게 화면으로 넘어간다(1.5초). 폰에서는 '정답입니다 →' 배너가 첫 화면 아래에 있어
+  // 학생이 스크롤해서 눌러야만 진행되던 문제를 막는다. 배너/스페이스로 먼저 넘어가면 그대로 진행된다.
+  // 특별 아이템 모달이 떠 있으면 닫힌 뒤부터 센다.
+  useEffect(() => {
+    if (currentView !== 'quiz' || !pendingPull || showItemModal || fishingState !== 'idle') return
+    const timer = window.setTimeout(() => handleOpenClaw(), 1500)
+    return () => window.clearTimeout(timer)
+  }, [currentView, pendingPull, showItemModal, fishingState, handleOpenClaw])
+
   useEffect(() => {
     if (!pendingItem || !ATTACK_ITEM_TYPES.has(pendingItem.type)) return
     const effect = pendingItem.type === 'SCREEN_FLIP' ? 'screen_flip' : 'screen_shrink'
@@ -159,8 +168,12 @@ export default function FishingPage() {
       <div className="relative z-30 p-3 sm:p-4">
         {/* ── 상단 헤더 ── */}
         <div className="mx-auto mb-4 max-w-7xl">
-          <div className="rounded-xl border border-white/80 bg-white/90 px-4 py-3 shadow-lg shadow-slate-200/60">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          {/*
+            폰에서 스탯 칩 4개가 두 줄로 쌓여 헤더가 화면의 40%를 차지하고, 집게 화면의 '내리기' 버튼이
+            첫 화면 밖으로 밀리던 문제: 폰은 칩을 한 줄 4열로 작게, 콤보 칩은 숨긴다(콤보는 문제 아래·사이드에도 표시됨).
+          */}
+          <div className="rounded-xl border border-white/80 bg-white/90 px-3 py-2 shadow-lg shadow-slate-200/60 sm:px-4 sm:py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               {/* 타이틀 */}
               <div className="flex min-w-0 items-center gap-3">
                 <div className="min-w-0">
@@ -169,18 +182,18 @@ export default function FishingPage() {
                     alt="인형뽑기"
                     width={360}
                     height={96}
-                    className="h-10 w-auto max-w-full object-contain sm:h-12"
+                    className="h-8 w-auto max-w-full object-contain sm:h-12"
                     priority
                   />
                 </div>
               </div>
 
               {/* 스탯 패널 */}
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-4 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
                 {/* 기계 랭크 */}
-                <div className="min-w-[110px] rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
+                <div className="min-w-0 rounded-lg border border-slate-200 bg-white/90 px-2 py-1.5 sm:min-w-[110px] sm:px-3 sm:py-2">
                   <div className="mb-0.5 text-[10px] font-bold text-slate-500">기계 등급</div>
-                  <div className="truncate text-sm font-extrabold text-slate-900">{getMachineRankName(machineRank)}</div>
+                  <div className="truncate text-xs font-extrabold text-slate-900 sm:text-sm">{getMachineRankName(machineRank)}</div>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-100">
                     <motion.div
                       className="h-full rounded-full bg-cyan-400"
@@ -191,17 +204,17 @@ export default function FishingPage() {
                 </div>
 
                 {/* 내 점수 */}
-                <div className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
-                  <div className="mb-0.5 text-[10px] font-bold text-slate-500">
+                <div className="min-w-0 rounded-lg border border-slate-200 bg-white/90 px-2 py-1.5 sm:px-3 sm:py-2">
+                  <div className="mb-0.5 truncate text-[10px] font-bold text-slate-500">
                     {(currentPlayer as FishingPlayer)?.nickname || '플레이어'}
                   </div>
-                  <div className="text-xl font-extrabold text-slate-900">{totalPoints.toLocaleString()}점</div>
+                  <div className="truncate text-base font-extrabold text-slate-900 sm:text-xl">{totalPoints.toLocaleString()}점</div>
                 </div>
 
                 {/* 컬렉션 */}
-                <div className="rounded-lg border border-slate-200 bg-white/90 px-3 py-2">
+                <div className="min-w-0 rounded-lg border border-slate-200 bg-white/90 px-2 py-1.5 sm:px-3 sm:py-2">
                   <div className="mb-0.5 text-[10px] font-bold text-slate-500">컬렉션</div>
-                  <div className="text-xl font-extrabold text-slate-900">{caughtDolls.length}개</div>
+                  <div className="text-base font-extrabold text-slate-900 sm:text-xl">{caughtDolls.length}개</div>
                 </div>
 
                 {/* 콤보 */}
@@ -210,7 +223,7 @@ export default function FishingPage() {
                     key={consecutiveCorrect}
                     initial={{ scale: 0.5, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
-                    className="rounded-lg border border-orange-200 bg-orange-50 px-3 py-2"
+                    className="hidden rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 sm:block"
                   >
                     <div className="mb-0.5 text-[10px] font-bold text-orange-600">
                       콤보
@@ -220,9 +233,9 @@ export default function FishingPage() {
                 )}
 
                 {/* 정답 보상 상태 */}
-                <div className={`rounded-lg border px-3 py-2 transition-colors ${pendingPull ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-white/80'}`}>
+                <div className={`min-w-0 rounded-lg border px-2 py-1.5 transition-colors sm:px-3 sm:py-2 ${pendingPull ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-white/80'}`}>
                   <div className="mb-0.5 text-[10px] font-bold text-slate-500">뽑기 전력</div>
-                  <div className={`flex items-center gap-1 text-xl font-extrabold ${pendingPull ? 'text-green-600' : 'text-slate-400'}`}>
+                  <div className={`flex items-center gap-1 text-base font-extrabold sm:text-xl ${pendingPull ? 'text-green-600' : 'text-slate-400'}`}>
                     {pendingPull ? (
                       <>충전 <Zap size={16} className="text-green-500" /></>
                     ) : '대기'}

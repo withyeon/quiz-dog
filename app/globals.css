@@ -53,6 +53,21 @@
     background-attachment: fixed;
   }
 
+  /* 인형뽑기 무대 높이: 폰은 낮게(내리기 버튼이 첫 화면에 보이도록), 크롬북처럼 높이가 낮은 가로 화면도 조금 줄인다 */
+  .fishing-stage {
+    height: 240px;
+  }
+  @media (min-width: 640px) {
+    .fishing-stage {
+      height: 340px;
+    }
+  }
+  @media (min-width: 640px) and (max-height: 700px) {
+    .fishing-stage {
+      height: 280px;
+    }
+  }
+
   .fishing-ambient {
     isolation: isolate;
     background:

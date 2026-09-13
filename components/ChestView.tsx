@@ -75,19 +75,21 @@ export default function ChestView({
   }
 
   return (
+    <>
     <motion.section
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      className="gold-quest-panel p-5 sm:p-7 max-w-4xl mx-auto"
+      className="gold-quest-panel p-4 sm:p-7 max-w-4xl mx-auto"
     >
-      <div className="mb-6">
-        <h2 className="gold-quest-title flex items-center gap-3 text-3xl sm:text-4xl font-black text-[#17262a]">
-          <Image src="/gold-quest/gold-stack.webp" alt="" width={36} height={36} className="h-9 w-9 flex-shrink-0 object-contain" />
+      <div className="mb-4 sm:mb-6">
+        <h2 className="gold-quest-title flex items-center gap-3 text-2xl sm:text-4xl font-black text-[#17262a]">
+          <Image src="/gold-quest/gold-stack.webp" alt="" width={36} height={36} className="h-7 w-7 sm:h-9 sm:w-9 flex-shrink-0 object-contain" />
           보물 상자 선택
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5 mb-6">
+      {/* 폰에서도 상자 3개가 한 화면에 나란히 보이도록 항상 3열 (세로로 쌓으면 2·3번 상자가 화면 밖으로 밀림) */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-5 mb-4 sm:mb-6">
         {CHEST_INDEXES.map((index) => (
           <motion.button
             key={index}
@@ -100,7 +102,7 @@ export default function ChestView({
               }
             }}
             disabled={isProcessing || revealedChests[index]}
-            className={`group relative min-h-[220px] overflow-hidden rounded-lg border p-5 text-left transition-all ${
+            className={`group relative min-h-[150px] sm:min-h-[220px] overflow-hidden rounded-lg border p-3 sm:p-5 text-left transition-all ${
               getRewardTone(revealedChests[index] && selectedChest === index ? reward : null)
             } ${isProcessing || revealedChests[index]
               ? 'cursor-not-allowed'
@@ -108,20 +110,20 @@ export default function ChestView({
             }`}
             aria-label={`${index + 1}번 보물상자 선택`}
           >
-            <div className="mb-5 flex items-center justify-between">
-              <span className="text-2xl sm:text-3xl font-black tracking-normal text-slate-600">
+            <div className="mb-2 sm:mb-5 flex items-center justify-between">
+              <span className="text-lg sm:text-3xl font-black tracking-normal text-slate-600">
                 {index + 1}
               </span>
             </div>
 
-            <div className="mb-5 flex h-[168px] items-center justify-center">
+            <div className="mb-2 sm:mb-5 flex h-20 sm:h-[168px] items-center justify-center">
               {getChestIconSrc(index) ? (
                 <Image
                   src={getChestIconSrc(index)!}
                   alt={reward?.itemName ?? '아이템'}
                   width={180}
                   height={180}
-                  className="h-[168px] w-[168px] drop-shadow-xl"
+                  className="h-20 w-20 sm:h-[168px] sm:w-[168px] drop-shadow-xl"
                 />
               ) : (
                 <Image
@@ -129,12 +131,12 @@ export default function ChestView({
                   alt="보물상자"
                   width={120}
                   height={120}
-                  className="h-28 w-28 drop-shadow-xl transition-transform duration-300 group-hover:scale-105"
+                  className="h-16 w-16 sm:h-28 sm:w-28 drop-shadow-xl transition-transform duration-300 group-hover:scale-105"
                 />
               )}
             </div>
             {(revealedChests[index] && selectedChest === index && reward) || (isProcessing && selectedChest === index) ? (
-              <div className="min-h-[44px] text-base font-black leading-snug text-[#17262a]">
+              <div className="min-h-[44px] text-xs sm:text-base font-black leading-snug text-[#17262a]">
                 {revealedChests[index] && selectedChest === index && reward
                   ? reward.itemName || reward.message
                   : '개봉 중'}
@@ -143,7 +145,12 @@ export default function ChestView({
           </motion.button>
         ))}
       </div>
+    </motion.section>
 
+      {/*
+        보상 팝업은 패널 밖에 둔다. .gold-quest-panel의 backdrop-filter가 fixed 요소의 기준 상자가 되어
+        팝업이 화면이 아니라 패널 안에서 가운데 정렬됐고, 폰에서는 화면 아래로 밀려 보이지 않았다.
+      */}
       <AnimatePresence>
         {reward && selectedChest !== null && (
           <motion.div
@@ -178,6 +185,6 @@ export default function ChestView({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.section>
+    </>
   )
 }

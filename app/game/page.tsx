@@ -4,7 +4,7 @@ import { toast } from '@/components/ui/Toaster'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
-import { AlertTriangle, Anchor, CheckCircle2, Coins, Radio, ShieldCheck, XCircle } from 'lucide-react'
+import { AlertTriangle, Anchor, CheckCircle2, XCircle } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import GameTimeBadge from '@/components/GameTimeBadge'
 import ShieldPromptModal from '@/components/ShieldPromptModal'
@@ -93,7 +93,6 @@ export default function GamePage() {
     commitPlayerDelta,
     commitPlayerSteal,
     commitPlayerSwap,
-    roomChannelStatus,
       sessionStartedAt,
   } = useGameBase({ expectedGameMode: 'gold_quest' })
 
@@ -588,54 +587,67 @@ export default function GamePage() {
         <motion.header
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="gold-quest-ink-panel mb-6 p-4 sm:p-5 text-[#17262a]"
+          className="gold-quest-ink-panel mb-4 p-3 sm:mb-6 sm:p-5 text-[#17262a]"
         >
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-white/60 bg-white/35 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]">
-                <Anchor className="h-6 w-6 text-amber-700" />
+          {/*
+            폰(세로·가로)에서 헤더가 화면의 30~50%를 먹어 문제 선택지가 첫 화면에 안 보이던 문제:
+            제목과 정보 칩을 sm(640px)부터 한 줄로 두고, 폰에서는 칩 3개를 한 줄(grid-cols-3)로 줄인다.
+          */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-white/60 bg-white/35 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] sm:h-12 sm:w-12">
+                <Image
+                  src="/title/gold-quest.webp"
+                  alt=""
+                  fill
+                  className="object-contain p-1"
+                  sizes="48px"
+                />
               </div>
               <div>
-                <div className="mb-1 flex items-center gap-2 text-xs font-black uppercase tracking-normal text-amber-700">
-                  Treasure Run
-                  <span className="h-1 w-1 rounded-full bg-amber-500" />
-                  Room {roomCode}
-                </div>
-                <h1 className="gold-quest-title text-2xl sm:text-3xl font-black leading-none">
+                <h1 className="gold-quest-title text-xl sm:text-3xl font-black leading-none">
                   해적왕의 보물찾기
                 </h1>
-                <p className="mt-2 inline-flex items-center gap-2 text-xs font-bold text-slate-500">
-                  <Radio className="h-4 w-4" />
-                  실시간 {roomChannelStatus === 'subscribed' ? '연결됨' : '연결 중'}
-                </p>
               </div>
             </div>
             {currentPlayer && (
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:items-stretch">
-                <div className="gold-quest-glass-chip rounded-lg px-4 py-3">
-                  <div className="text-xs font-bold text-slate-500">플레이어</div>
-                  <div className="max-w-[180px] truncate text-lg font-black">{currentPlayer.nickname}</div>
+              <div className="grid grid-cols-3 gap-2 sm:flex sm:items-stretch">
+                <div className="gold-quest-glass-chip min-w-0 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
+                  <div className="text-xs font-bold text-slate-500">참가자</div>
+                  <div className="truncate text-base font-black sm:max-w-[180px] sm:text-lg">{currentPlayer.nickname}</div>
                 </div>
-                <div className="gold-quest-glass-chip rounded-lg px-4 py-3">
+                <div className="gold-quest-glass-chip min-w-0 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                    <Coins className="h-4 w-4 text-amber-600" />
+                    <Image
+                      src="/gold-quest/gold-stack.webp"
+                      alt=""
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 object-contain"
+                    />
                     골드
                   </div>
-                  <div className="text-lg font-black text-amber-700 tabular-nums">{currentPlayer.gold}</div>
+                  <div className="text-base font-black text-amber-700 tabular-nums sm:text-lg">{currentPlayer.gold}</div>
                 </div>
-                <div className={`rounded-lg border px-4 py-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] ${
+                <div className={`min-w-0 rounded-lg border px-3 py-2 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] sm:px-4 sm:py-3 ${
                   hasShield
                     ? 'border-emerald-200/70 bg-emerald-100/45 text-emerald-800'
                     : 'gold-quest-glass-chip text-slate-500'
                 }`}>
                   <div className="flex items-center gap-2 text-xs font-bold">
-                    <ShieldCheck className="h-4 w-4" />
+                    <Image
+                      src="/gold-quest/shield.webp"
+                      alt=""
+                      width={16}
+                      height={16}
+                      className="h-4 w-4 object-contain"
+                    />
                     방어권
                   </div>
                   {hasShield && (
-                    <div className="text-lg font-black">보유</div>
+                    <div className="text-base font-black sm:text-lg">보유</div>
                   )}
-                  {!hasShield && <div className="text-lg font-black">없음</div>}
+                  {!hasShield && <div className="text-base font-black sm:text-lg">없음</div>}
                 </div>
               </div>
             )}

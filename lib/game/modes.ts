@@ -223,13 +223,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
  * 라우트와 getGameModeConfig는 그대로 동작하므로 이미 만들어진 방은 문제없이 진행된다.
  * 공개할 때는 여기서 id만 빼면 모든 목록에 한 번에 다시 나온다.
  */
-export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = [
-  'battle_royale',
-  'mafia',
-  'dontlookdown',
-  'zombie',
-  'treat_rush',
-]
+export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = []
 
 export function isHiddenGameMode(mode: string | null | undefined): boolean {
   return HIDDEN_GAME_MODE_IDS.includes(mode as GameModeId)

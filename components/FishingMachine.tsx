@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Crosshair, Gamepad2, Gift, Zap } from 'lucide-react'
 import {
@@ -56,6 +57,10 @@ const TIER_GLOW: Record<string, string> = {
 
 const AIM_TRACK_H = 44
 const CLAW_WIDTH = 112
+/** 무대 기본 높이(px). 폰/낮은 화면은 CSS(.fishing-stage)로 줄이고, 집게 하강 거리는 실제 높이에 맞춰 계산한다 */
+const DEFAULT_STAGE_H = 340
+/** 무대 높이에서 이 값을 뺀 만큼 집게가 내려간다 (340px 무대에서 185px) */
+const CLAW_DROP_OFFSET = 155
 
 const MYSTERY_FLOOR = [
   { left: '4%', size: 38, color: '#f59e0b', rotate: -8 },
@@ -76,8 +81,8 @@ function getClawLeft(fishingState: FishingState, aimPosition: number) {
   return `${aimPosition}%`
 }
 
-function getClawY(fishingState: FishingState) {
-  if (fishingState === 'down' || fishingState === 'grab') return 185
+function getClawY(fishingState: FishingState, stageHeight: number) {
+  if (fishingState === 'down' || fishingState === 'grab') return Math.max(80, stageHeight - CLAW_DROP_OFFSET)
   return 0
 }
 
@@ -105,11 +110,24 @@ export default function FishingMachine({
   const isInAction = fishingState !== 'idle'
   const isReleasing = fishingState === 'release'
 
+  // 무대 실제 높이(반응형)에 맞춰 집게 하강 거리를 정한다
+  const stageRef = useRef<HTMLDivElement | null>(null)
+  const [stageHeight, setStageHeight] = useState(DEFAULT_STAGE_H)
+  useEffect(() => {
+    const el = stageRef.current
+    if (!el) return
+    const update = () => setStageHeight(el.clientHeight || DEFAULT_STAGE_H)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <div className="relative flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white/95 shadow-xl shadow-slate-200/70">
       <div className="h-1 bg-gradient-to-r from-sky-400 via-violet-400 to-amber-300" />
 
-      <div className="relative flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-3">
+      <div className="relative flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-2 sm:px-5 sm:py-3">
         <div className="flex min-w-0 items-center gap-2 text-slate-900">
           <Gamepad2 size={18} className={isFrenzy ? 'text-amber-500' : 'text-sky-500'} />
           <span className="truncate text-lg font-extrabold tracking-normal">인형뽑기</span>
@@ -131,11 +149,11 @@ export default function FishingMachine({
         </div>
       </div>
 
-      <div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-center text-sm font-bold text-slate-600">
+      <div className="border-b border-slate-100 bg-slate-50 px-3 py-1.5 text-center text-xs font-bold text-slate-600 sm:px-4 sm:py-2 sm:text-sm">
         {message}
       </div>
 
-      <div className="relative h-[340px] overflow-hidden border-b border-slate-200 bg-gradient-to-b from-sky-50 via-white to-rose-50">
+      <div ref={stageRef} className="fishing-stage relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-sky-50 via-white to-rose-50">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(14,165,233,0.11)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.11)_1px,transparent_1px)] bg-[size:30px_30px]" />
 
         <div className="absolute bottom-0 left-0 right-0 top-0">
@@ -192,7 +210,7 @@ export default function FishingMachine({
               style={{ top: AIM_TRACK_H, width: CLAW_WIDTH, marginLeft: -CLAW_WIDTH / 2 }}
               animate={{
                 left: getClawLeft(fishingState, aimPosition),
-                y: getClawY(fishingState),
+                y: getClawY(fishingState, stageHeight),
               }}
               transition={{
                 duration: fishingState === 'aim' ? 0.04 : 0.75,
@@ -309,7 +327,7 @@ export default function FishingMachine({
         <div className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-white/70 to-transparent" />
       </div>
 
-      <div className="flex items-center justify-between px-5 pb-1 pt-3">
+      <div className="flex items-center justify-between px-4 pb-1 pt-2 sm:px-5 sm:pt-3">
         <div className="flex gap-2.5 text-[9px] font-bold">
           <span className="text-emerald-500">■ 일반</span>
           <span className="text-sky-400">■ 희귀</span>
@@ -326,12 +344,12 @@ export default function FishingMachine({
         </motion.span>
       </div>
 
-      <div className="px-5 pb-5 pt-2">
+      <div className="px-4 pb-4 pt-2 sm:px-5 sm:pb-5">
         <motion.button
           type="button"
           onClick={onDropClaw}
           disabled={!canDrop}
-          className="relative w-full overflow-hidden rounded-lg border-b-4 border-red-700 bg-red-500 py-4 text-xl font-extrabold text-white transition-colors disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-400"
+          className="relative w-full overflow-hidden rounded-lg border-b-4 border-red-700 bg-red-500 py-3 text-xl font-extrabold sm:py-4 text-white transition-colors disabled:cursor-not-allowed disabled:border-slate-300 disabled:bg-slate-200 disabled:text-slate-400"
           whileTap={canDrop ? { y: 4, borderBottomWidth: '1px' } : {}}
         >
           {canDrop && (

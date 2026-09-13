@@ -78,7 +78,6 @@ export default function BattlePage() {
     setCurrentView,
     revealedAnswer,
     showCountdown,
-    setShowCountdown,
     players,
     room,
     roomLoading,
@@ -279,22 +278,9 @@ export default function BattlePage() {
     setShowTeamReveal(true)
   }, [currentPlayerTeam, players, room?.status, teamRevealComplete])
 
-  // 배틀로얄 전용: 게임 시작 시 직업 선택 단계 추가
-  useEffect(() => {
-    if (room?.status === 'playing' && currentView === 'countdown' && !selectedClass) {
-      setCurrentView('classSelect')
-      setShowCountdown(false)
-    }
-  }, [room?.status, currentView, selectedClass, setCurrentView, setShowCountdown])
-
-  // 직업 선택 후 다시 카운트다운으로
-  useEffect(() => {
-    if (currentView === 'classSelect' && selectedClass) {
-      setShowCountdown(true)
-      setGameStartTime(Date.now())
-      setCurrentView('countdown')
-    }
-  }, [currentView, selectedClass, setShowCountdown, setCurrentView])
+  // 장비 선택 단계는 렌더에서 처리한다: 훅이 카운트다운을 켜면(showCountdown) 장비를 고를 때까지
+  // 카운트다운 대신 ClassSelector를 보여주고, 고른 뒤 카운트다운 → 시작 전 퀴즈로 이어진다.
+  // (예전에는 currentView === 'countdown'을 기다렸는데 훅이 그 값을 쓰지 않아 장비 선택 화면이 한 번도 뜨지 않았다.)
 
   useEffect(() => {
     if (room?.status !== 'playing') {
@@ -720,10 +706,11 @@ export default function BattlePage() {
       <ScreenShake intensity={15} duration={500} isShaking={isShaking}>
         <div className="relative z-10 px-3 py-4 sm:px-5 sm:py-6">
           <div className="mx-auto mb-4 max-w-7xl">
-            <header className="battle-frost-panel overflow-hidden p-4 sm:p-5">
-              <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-white shadow-lg">
+            {/* 폰에서 헤더가 화면의 60%를 차지하던 문제: 설명·배지는 sm부터만, HUD 타일은 항상 한 줄 4열 */}
+            <header className="battle-frost-panel overflow-hidden p-3 sm:p-5">
+              <div className="flex flex-col gap-3 sm:gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex items-center gap-3 sm:items-start">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-white shadow-lg sm:h-14 sm:w-14">
                     <Image
                       src="/title/battle-royale.webp"
                       alt="눈싸움 대작전"
@@ -733,21 +720,21 @@ export default function BattlePage() {
                     />
                   </div>
                   <div>
-                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <div className="mb-2 hidden flex-wrap items-center gap-2 sm:flex">
                       <span className="battle-chip px-3 py-1 text-xs font-black text-slate-600">
                         실시간 배틀
                       </span>
                     </div>
-                    <h1 className="text-3xl font-black leading-tight text-slate-950 sm:text-4xl">
+                    <h1 className="text-2xl font-black leading-tight text-slate-950 sm:text-4xl">
                       눈싸움 대작전
                     </h1>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
+                    <p className="mt-1 hidden text-sm font-semibold text-slate-500 sm:block">
                       퀴즈로 장전하고, 체온이 남은 플레이어가 끝까지 버팁니다.
                     </p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[620px]">
+                <div className="grid grid-cols-4 gap-1.5 sm:gap-2 xl:min-w-[620px]">
                   <HudTile
                     icon={<Thermometer className="h-3.5 w-3.5" />}
                     label="체온"
@@ -777,7 +764,7 @@ export default function BattlePage() {
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2 sm:mt-4">
                 {myTeamInfo && teamAlive && (
                   <div
                     className={`inline-flex items-center gap-2 rounded-full border-2 px-3 py-2 text-sm font-black ${
@@ -877,7 +864,14 @@ export default function BattlePage() {
               />
             )}
 
-            {showCountdown && (
+            {showCountdown && !selectedClass && (
+              <ClassSelector
+                onSelect={handleClassSelect}
+                selectedClass={selectedClass || undefined}
+              />
+            )}
+
+            {showCountdown && selectedClass && (
               <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 backdrop-blur">
                 <motion.div
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -892,7 +886,7 @@ export default function BattlePage() {
               </div>
             )}
 
-            {currentView === 'lobby' && (
+            {currentView === 'lobby' && !showCountdown && (
               <motion.section
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -927,13 +921,6 @@ export default function BattlePage() {
                   canAttack={false}
                 />
               </motion.section>
-            )}
-
-            {currentView === 'classSelect' && (
-              <ClassSelector
-                onSelect={handleClassSelect}
-                selectedClass={selectedClass || undefined}
-              />
             )}
 
             <AnimatePresence>
@@ -1047,30 +1034,41 @@ export default function BattlePage() {
                   </motion.div>
                 )}
 
-                <BattleArena
-                  players={players as Player[]}
-                  currentPlayerId={playerId}
-                  attackResult={attackResult}
-                  lockedTarget={lockedTarget}
-                  onTargetSelect={hasSnowball ? handlePlayerAttack : handleTargetLock}
-                  canAttack={(hasSnowball || (!isReloading && !hasSnowball))}
-                />
-
-                {currentQuestion ? (
-                  <QuizView
-                    question={currentQuestion}
-                    onAnswer={handleAnswerSubmit}
-                    onCorrectClick={goToNextQuiz}
-                    timeLimit={30}
-                    paused={isPaused}
-                    variant="glass"
-                    className="lg-panel lg-ink-outline font-bitbit mx-auto max-w-3xl p-5 sm:p-7"
-                  />
-                ) : (
-                  <div className="battle-frost-panel p-8 text-center">
-                    <p className="font-bold text-slate-700">문제를 불러오는 중...</p>
+                {/*
+                  학생이 많으면 생존자 카드가 길게 늘어져 퀴즈가 화면 밖으로 밀린다.
+                  xl(1280px~, 크롬북·노트북·갤럭시탭 가로)에서는 아레나 왼쪽 + 퀴즈 오른쪽 고정(sticky),
+                  그보다 작은 화면에서는 아레나를 화면 높이의 45%까지만 보여주고 안에서 스크롤한다.
+                */}
+                <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start">
+                  <div className="max-h-[45vh] overflow-y-auto overscroll-contain rounded-[8px] xl:max-h-none xl:overflow-visible">
+                    <BattleArena
+                      players={players as Player[]}
+                      currentPlayerId={playerId}
+                      attackResult={attackResult}
+                      lockedTarget={lockedTarget}
+                      onTargetSelect={hasSnowball ? handlePlayerAttack : handleTargetLock}
+                      canAttack={(hasSnowball || (!isReloading && !hasSnowball))}
+                    />
                   </div>
-                )}
+
+                  <div className="xl:sticky xl:top-4">
+                    {currentQuestion ? (
+                      <QuizView
+                        question={currentQuestion}
+                        onAnswer={handleAnswerSubmit}
+                        onCorrectClick={goToNextQuiz}
+                        timeLimit={30}
+                        paused={isPaused}
+                        variant="glass"
+                        className="lg-panel lg-ink-outline font-bitbit mx-auto max-w-3xl p-5 sm:p-7"
+                      />
+                    ) : (
+                      <div className="battle-frost-panel p-8 text-center">
+                        <p className="font-bold text-slate-700">문제를 불러오는 중...</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 

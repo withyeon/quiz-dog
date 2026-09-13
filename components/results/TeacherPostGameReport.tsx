@@ -53,14 +53,16 @@ function accuracyColor(accuracy: number) {
   return '#22c55e'
 }
 
+// 학생을 등급으로 판정하는 말('최하위', '개념 부족' 등)은 교사 화면에서도 절대 쓰지 않는다.
+// 화면이 학생에게 노출될 수 있고, 교사에게도 '무엇을 하면 되는지'가 더 쓸모 있기 때문.
 function badgeForStudent(player: PlayerAnalysis) {
   const unansweredRatio = player.totalCount > 0
     ? (player.totalCount - player.answeredCount) / player.totalCount
     : 0
-  if (unansweredRatio >= 0.3) return '미응답 多'
-  if (player.accuracy < 40) return '최하위'
-  if (player.accuracy < 60) return '개념 부족'
-  return '점검 필요'
+  if (unansweredRatio >= 0.3) return '안 푼 문제가 많아요'
+  if (player.accuracy < 40) return '함께 복습이 필요해요'
+  if (player.accuracy < 60) return '틀린 문제를 다시 봐요'
+  return '한 번 더 확인해요'
 }
 
 function answerForQuestion(player: PlayerAnalysis, questionIndex: number) {
@@ -186,7 +188,7 @@ export default function TeacherPostGameReport({
             <span>방 코드 {room.room_code}</span>
             <span>{mode.shortLabel}</span>
           </div>
-          <h1 className="mt-2 text-3xl font-black text-slate-950">게임 결과 사후 분석 리포트</h1>
+          <h1 className="mt-2 text-3xl font-black text-slate-950">게임 결과 분석 리포트</h1>
           <p className="mt-1 text-sm text-slate-500">점수 순위와 학습 정답률을 분리해서 확인합니다.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -220,8 +222,8 @@ export default function TeacherPostGameReport({
 
       <section className="flex flex-col gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 md:flex-row md:items-center md:justify-between">
         <p className="text-base font-bold text-emerald-950">{analytics.journalSummary}</p>
-        <Button variant="outline" onClick={copyJournal} className="border-emerald-300 bg-white">
-          <ClipboardCopy className="mr-2 h-4 w-4" />
+        <Button variant="outline" onClick={copyJournal} className="shrink-0 whitespace-nowrap border-emerald-300 bg-white">
+          <ClipboardCopy className="mr-2 h-4 w-4 shrink-0" />
           {copied ? '복사됨' : '복사'}
         </Button>
       </section>
@@ -446,8 +448,8 @@ export default function TeacherPostGameReport({
         {diagnosticTab === 'students' && (
           <div className="grid gap-3 lg:grid-cols-5">
             {[...analytics.players].sort((a, b) => a.accuracy - b.accuracy).slice(0, 5).map((player) => (
-              <button key={player.id} onClick={() => setSelectedStudent(player)} className="rounded-lg border border-red-100 bg-red-50 p-4 text-left">
-                <div className="text-sm font-bold text-red-600">{badgeForStudent(player)}</div>
+              <button key={player.id} onClick={() => setSelectedStudent(player)} className="rounded-lg border border-sky-100 bg-sky-50 p-4 text-left">
+                <div className="text-sm font-bold text-sky-700">{badgeForStudent(player)}</div>
                 <div className="mt-2 text-lg font-black">{player.nickname}</div>
                 <div className="mt-2 text-sm text-slate-600">정답률 {player.accuracy}% · {player.score.toLocaleString()}점</div>
               </button>

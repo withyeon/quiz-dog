@@ -57,6 +57,9 @@ export function useRoomRealtime({
   const [error, setError] = useState<Error | null>(null)
 
   const loadSeqRef = useRef(0)
+  // 비-silent 조회가 loading=true를 켠 뒤, silent 재동기화가 seq를 앞질러도 마지막에 끝나는
+  // 조회가 loading을 꺼주도록 한다. (안 그러면 초기 조회가 silent에 추월당해 '로딩 중'에 영원히 갇힘)
+  const loadingPendingRef = useRef(false)
   const onRoomUpdateRef = useRef(onRoomUpdate)
 
   useEffect(() => {
@@ -103,7 +106,10 @@ export function useRoomRealtime({
     }
 
     const seq = ++loadSeqRef.current
-    if (!silent) setLoading(true)
+    if (!silent) {
+      loadingPendingRef.current = true
+      setLoading(true)
+    }
 
     try {
       setError(null)
@@ -132,7 +138,8 @@ export function useRoomRealtime({
         console.warn('방 로드 실패:', errorMessage)
       }
     } finally {
-      if (seq === loadSeqRef.current && !silent) {
+      if (seq === loadSeqRef.current && loadingPendingRef.current) {
+        loadingPendingRef.current = false
         setLoading(false)
       }
     }

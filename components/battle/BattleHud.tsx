@@ -37,13 +37,13 @@ export function HudTile({
     }[tone]
 
     return (
-        <div className={`rounded-[8px] border px-3 py-2 shadow-sm ${toneClass}`}>
-            <div className="mb-1 flex items-center gap-1.5 text-[11px] font-black text-slate-500">
+        <div className={`min-w-0 rounded-[8px] border px-2 py-1.5 shadow-sm sm:px-3 sm:py-2 ${toneClass}`}>
+            <div className="mb-1 flex items-center gap-1.5 text-[10px] font-black text-slate-500 sm:text-[11px]">
                 {icon}
                 {label}
             </div>
-            <div className="text-xl font-black leading-tight text-slate-950 tabular-nums">{value}</div>
-            {detail && <div className="mt-0.5 text-[11px] font-bold text-slate-500">{detail}</div>}
+            <div className="truncate text-base font-black leading-tight text-slate-950 tabular-nums sm:text-xl">{value}</div>
+            {detail && <div className="mt-0.5 hidden text-[11px] font-bold text-slate-500 sm:block">{detail}</div>}
         </div>
     )
 }

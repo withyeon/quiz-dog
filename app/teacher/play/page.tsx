@@ -23,7 +23,6 @@ import StudyOptionsFields from '@/components/teacher/play/StudyOptionsFields'
 import { DEFAULT_STUDY_SETTINGS, buildRoomSettings, type StudySettings } from '@/lib/game/studySettings'
 import LiveDashboardRenderer from '@/components/dashboards/LiveDashboardRenderer'
 import TeacherBgmControl from '@/components/teacher/TeacherBgmControl'
-import QRCodeSVG from 'react-qr-code'
 import { Play, Pause, Square, RotateCcw } from 'lucide-react'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
@@ -58,7 +57,6 @@ export default function TeacherDashboard() {
   const [setsError, setSetsError] = useState<string | null>(null)
   const [isGameStarted, setIsGameStarted] = useState(false)
   const [showGameCodeModal, setShowGameCodeModal] = useState(false)
-  const [showLargeQrModal, setShowLargeQrModal] = useState(false)
   const [gameMode, setGameMode] = useState<GameModeId>(DEFAULT_GAME_MODE)
   const [timedDurationMinutes, setTimedDurationMinutes] = useState(5)
   // 공부 모드 옵션 — 방을 만들 때 rooms.settings 에 담긴다
@@ -726,7 +724,7 @@ export default function TeacherDashboard() {
               playerCount={players.length}
               activeSetLabel={activeSetLabel}
               timerDisplaySeconds={timerDisplaySeconds}
-              onShowLargeQr={() => setShowLargeQrModal(true)}
+              onShowLargeCode={() => setShowGameCodeModal(true)}
               onCopyInvite={handleCopyInvite}
             />
 
@@ -751,45 +749,38 @@ export default function TeacherDashboard() {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowGameCodeModal(true)}
-                className="flex-1 rounded-2xl border border-sky-200 bg-sky-50 px-6 py-5 text-xl font-extrabold text-sky-700 shadow-sm transition-all hover:-translate-y-0.5 hover:bg-sky-100 hover:shadow-md"
-              >
-                코드 크게 보기
-              </button>
-              {isGameStarted && (
-                <>
-                  {roomStatus === 'paused' ? (
-                    <button
-                      onClick={handleResumeGame}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-emerald-600"
-                    >
-                      <Play className="h-5 w-5 fill-current" /> 다시 시작
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handlePauseGame}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-amber-600"
-                    >
-                      <Pause className="h-5 w-5 fill-current" /> 일시정지
-                    </button>
-                  )}
+            {/* 코드 크게 보기 버튼은 없앴다. 위 참가코드 패널의 QR을 누르면 같은 모달이 열린다. */}
+            {isGameStarted && (
+              <div className="flex flex-wrap gap-3">
+                {roomStatus === 'paused' ? (
                   <button
-                    onClick={handleEndGame}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-red-600"
+                    onClick={handleResumeGame}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-emerald-600"
                   >
-                    <Square className="h-5 w-5 fill-current" /> 게임 종료
+                    <Play className="h-5 w-5 fill-current" /> 다시 시작
                   </button>
+                ) : (
                   <button
-                    onClick={handleResetGame}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-slate-600"
+                    onClick={handlePauseGame}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-amber-600"
                   >
+                    <Pause className="h-5 w-5 fill-current" /> 일시정지
+                  </button>
+                )}
+                <button
+                  onClick={handleEndGame}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-red-600"
+                >
+                  <Square className="h-5 w-5 fill-current" /> 게임 종료
+                </button>
+                <button
+                  onClick={handleResetGame}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-500 px-4 py-3 font-bold text-white shadow-sm transition-colors hover:bg-slate-600"
+                >
                     <RotateCcw className="h-5 w-5" /> 초기화
                   </button>
-                </>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="py-12">
@@ -862,37 +853,6 @@ export default function TeacherDashboard() {
         />
       </div>
 
-      {showLargeQrModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm">
-          <div className="w-full max-w-xl rounded-3xl bg-white p-8 text-center shadow-2xl">
-            <p className="text-base font-black text-sky-500">참가코드</p>
-            <div className="mt-1 text-6xl font-black tracking-wider text-black">{roomCode}</div>
-            <div className="mx-auto mt-6 inline-block rounded-3xl border-4 border-sky-100 bg-white p-6 shadow-lg">
-              <QRCodeSVG
-                value={inviteUrl}
-                size={360}
-                level="H"
-              />
-            </div>
-            <div className="mt-6 flex gap-3">
-              <button
-                type="button"
-                onClick={handleCopyInvite}
-                className="flex-1 rounded-2xl bg-sky-500 px-5 py-4 text-lg font-black text-white shadow-lg shadow-sky-100 transition hover:bg-sky-600"
-              >
-                초대 링크 복사
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLargeQrModal(false)}
-                className="flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 text-lg font-black text-slate-700 transition hover:bg-slate-100"
-              >
-                닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

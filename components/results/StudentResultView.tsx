@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { BookOpen, CheckCircle2, RotateCcw, Target, Trophy, X } from 'lucide-react'
+import { BookOpen, CheckCircle2, KeyRound, RotateCcw, Target, Trophy, X } from 'lucide-react'
 import { isHomeworkPastDue } from '@/lib/game/roomStatus'
 import {
   canStartNewAttempt,
@@ -68,6 +68,9 @@ export default function StudentResultView({
         <div className="mx-auto max-w-xl rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm">
           <h1 className="text-2xl font-black text-slate-950">내 결과를 찾을 수 없어요</h1>
           <p className="mt-2 text-slate-500">학생 결과 화면은 개인 식별용 playerId가 필요합니다.</p>
+          <div className="mt-5 flex justify-center">
+            <LobbyLink />
+          </div>
         </div>
       </div>
     )
@@ -225,6 +228,18 @@ export default function StudentResultView({
             </div>
           )}
         </section>
+
+        <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-left">
+            <div>
+              <p className="text-lg font-black text-slate-900">다음 게임 준비됐나요?</p>
+              <p className="mt-1 text-sm font-bold text-slate-500">
+                선생님이 새 코드를 알려주면 여기서 바로 입력할 수 있어요.
+              </p>
+            </div>
+            <LobbyLink />
+          </div>
+        </section>
       </div>
 
       {selectedQuestion && (
@@ -240,6 +255,19 @@ export default function StudentResultView({
 
 function answerForQuestion(student: PlayerAnalysis, questionIndex: number) {
   return student.history.find((answer) => answer.questionIndex === questionIndex)
+}
+
+/** 로비(코드 입력 화면)로 가는 버튼. 선생님이 다른 문제집으로 새 방을 열었을 때 쓴다. */
+function LobbyLink() {
+  return (
+    <Link
+      href="/lobby"
+      className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 font-black text-white shadow-sm transition hover:bg-slate-700"
+    >
+      <KeyRound className="h-4 w-4" />
+      새 게임 코드 입력하기
+    </Link>
+  )
 }
 
 function ReviewModal({
