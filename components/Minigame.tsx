@@ -255,7 +255,6 @@ export default function Minigame({ characterImage, onScoreChange }: MinigameProp
       </div>
 
       {!gameOver && score < 50 && (
-        {/* 폰에서는 안내문이 아래쪽 캐릭터를 가리므로 점수 아래로 */}
         <div className="absolute bottom-4 max-sm:bottom-auto max-sm:top-20 left-1/2 w-full -translate-x-1/2 text-center pointer-events-none">
           <p className="px-3 text-xs sm:text-sm text-white font-semibold drop-shadow-lg animate-pulse">
             ← → 키 또는 클릭으로 이동 | 폭탄·운석 피하기 | 뼈다귀 모으기!
