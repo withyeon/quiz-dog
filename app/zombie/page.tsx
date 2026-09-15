@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import ZombieView from '@/components/ZombieView'
@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Heart, Trophy } from 'lucide-react'
 import ZombieIcon from '@/components/zombie/ZombieIcon'
 import {
+  createLateJoinerPatch,
   getZombieMeta,
   parseZombieSettings,
   roomPlayerToZombiePlayer,
@@ -50,6 +51,7 @@ export default function ZombiePage() {
     goToNextQuestion,
     sendRoomEvent,
     applyPlayerPatch,
+    commitPlayerPatch,
     roomLoading,
     playersLoading,
   } = useGameBase({
@@ -124,8 +126,21 @@ export default function ZombiePage() {
   const myWon = myPlayer ? myPlayer.role === winner : false
   const hasAssignedRoles = playersWithRoles.length > 0
   const zombieSettings = useMemo(() => parseZombieSettings(room?.settings), [room?.settings])
-  // 게임이 시작된 뒤 들어온 학생은 역할이 없다. 유령 타깃이 되지 않도록 따로 안내한다.
+  // 게임이 시작된 뒤 들어온 학생은 시작 때의 역할 배정을 놓친다. 로비가 행을 만들 때 인간 역할을
+  // 같이 넣어 주지만(createPlayerForRoom), 시작 직전에 들어와 배정 사이에 낀 학생은 여전히 역할이
+  // 없을 수 있다. 그런 학생은 아래 효과에서 스스로 인간으로 참여한다.
   const isLateJoiner = hasAssignedRoles && !(currentPlayer && getZombieMeta(currentPlayer))
+  const lateJoinRequestedRef = useRef(false)
+  useEffect(() => {
+    if (room?.status !== 'playing' || !isLateJoiner || !playerId) return
+    if (lateJoinRequestedRef.current) return
+    lateJoinRequestedRef.current = true
+    commitPlayerPatch(playerId, createLateJoinerPatch(), 'zombie_late_join').catch((error) => {
+      // 한 번 실패하면 다음 players 갱신 때 다시 시도한다
+      lateJoinRequestedRef.current = false
+      console.error('도중 입장 역할 배정 실패:', error)
+    })
+  }, [commitPlayerPatch, isLateJoiner, playerId, room?.status])
 
   useEffect(() => {
     if (room?.status === 'waiting' && currentView !== 'lobby') {
@@ -286,19 +301,7 @@ export default function ZombiePage() {
         )}
 
         {room?.status === 'playing' && currentView !== 'lobby' && !showRoleReveal && (
-          isLateJoiner ? (
-            <motion.div key="late" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex min-h-dvh items-center justify-center p-6 text-center">
-              <div className="max-w-md rounded-2xl border-4 border-green-600 bg-black/85 p-8">
-                <div className="mb-4 flex justify-center">
-                  <ZombieIcon name="zombie" size={72} alt="" />
-                </div>
-                <p className="text-3xl font-black text-green-300">이미 시작된 게임이에요</p>
-                <p className="mt-3 text-lg text-gray-300">
-                  역할은 게임이 시작될 때 한 번만 배정돼요. 다음 게임에 참여해 주세요!
-                </p>
-              </div>
-            </motion.div>
-          ) : hasAssignedRoles ? (
+          hasAssignedRoles && !isLateJoiner ? (
             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-dvh w-full">
               <ZombieView
                 roomCode={roomCode}

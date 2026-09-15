@@ -134,6 +134,10 @@ const FAQS = [
     q: '연간 플랜은 어떤 점이 좋은가요?',
     a: '월간 대비 2개월치를 절약할 수 있어요. 한 번 결제하면 1년 내내 Pro 기능을 사용할 수 있습니다.',
   },
+  {
+    q: '학교 예산 편성용 견적서가 필요해요.',
+    a: '견적서 발행 페이지에서 인원과 사용 기간만 고르면 부가세 포함 견적서가 바로 나와요. 인쇄·PDF·이미지로 저장해 품의에 그대로 쓰실 수 있습니다.',
+  },
 ]
 
 export default function PricingPage() {
@@ -352,6 +356,39 @@ export default function PricingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ── 학교·단체 견적 ── */}
+      <section className="px-4 pb-4">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mx-auto max-w-5xl rounded-3xl p-8 md:p-10"
+          style={{
+            background: 'linear-gradient(135deg, #3B82F6, #2563EB)',
+            boxShadow: '0 20px 60px rgba(37,99,235,0.25)',
+            fontFamily: "'DNFBitBitv2', sans-serif",
+          }}
+        >
+          <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+            <div>
+              <p className="mb-2 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-black text-white">🧾 예산 편성 · 품의</p>
+              <h2 className="text-3xl font-black leading-tight text-white md:text-4xl">
+                견적서가 필요하세요?
+              </h2>
+              <p className="mt-2 text-sm font-black text-blue-100 md:text-base">
+                인원과 기간만 고르면 부가세 포함 견적서가 바로 나와요. 선생님 5명 이상이면 단체 할인 최대 50%, 학생은 언제나 무료.
+              </p>
+            </div>
+            <Link
+              href="/pricing/quote"
+              className="w-full whitespace-nowrap rounded-xl bg-white px-6 py-3.5 text-center text-base font-black text-[#1E3A8A] shadow-lg transition hover:bg-blue-50 sm:w-auto sm:min-w-[220px]"
+            >
+              🧾 견적서 바로 발행
+            </Link>
+          </div>
+        </motion.div>
       </section>
 
       {/* ── FAQ ── */}

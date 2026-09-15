@@ -234,14 +234,34 @@ export function roomPlayerToZombiePlayer(player: RoomZombiePlayer): ZombiePlayer
 // 주의: 클라이언트에서 players 행을 절대값으로 덮어쓰는 함수는 두지 않는다.
 // role/health/attack_power/shield/infectCount 는 전부 서버(zombie_apply_action,
 // zombie_attack)가 소유한다 — 로컬 스냅샷으로 덮어쓰면 감염이 취소된다.
+export type ZombieRolePatch = {
+  active_item: ZombiePlayerMeta
+  health: number
+  attack_power: number
+  score: number
+}
+
+/** 역할 하나를 새로 받는 플레이어 행의 초기값 (시작 배정·도중 입장 공용). */
+export function createRolePatch(role: ZombieRole): ZombieRolePatch {
+  return {
+    active_item: createZombieMeta(role),
+    health: role === 'zombie' ? 999 : GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
+    attack_power: role === 'zombie' ? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK : 0,
+    score: zombieScore(role, GAME_CONSTANTS.HUMAN_INITIAL_HEALTH, 0),
+  }
+}
+
+/**
+ * 게임이 시작된 뒤 들어온 학생의 역할. 항상 인간으로 시작한다 —
+ * 늦게 온 학생이 좀비면 시작부터 공격당하는 쪽이 억울하고, 좀비 비율도 시작 때 이미 맞춰져 있다.
+ */
+export function createLateJoinerPatch(): ZombieRolePatch {
+  return createRolePatch('human')
+}
+
 export function createRoleAssignmentPatches(players: RoomZombiePlayer[]): Array<{
   playerId: string
-  patch: {
-    active_item: ZombiePlayerMeta
-    health: number
-    attack_power: number
-    score: number
-  }
+  patch: ZombieRolePatch
 }> {
   const zombieCount = calculateZombieCount(players.length)
   const zombieIds = new Set(
@@ -251,18 +271,10 @@ export function createRoleAssignmentPatches(players: RoomZombiePlayer[]): Array<
       .map((player) => player.id),
   )
 
-  return players.map((player) => {
-    const role: ZombieRole = zombieIds.has(player.id) ? 'zombie' : 'human'
-    return {
-      playerId: player.id,
-      patch: {
-        active_item: createZombieMeta(role),
-        health: role === 'zombie' ? 999 : GAME_CONSTANTS.HUMAN_INITIAL_HEALTH,
-        attack_power: role === 'zombie' ? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK : 0,
-        score: zombieScore(role, GAME_CONSTANTS.HUMAN_INITIAL_HEALTH, 0),
-      },
-    }
-  })
+  return players.map((player) => ({
+    playerId: player.id,
+    patch: createRolePatch(zombieIds.has(player.id) ? 'zombie' : 'human'),
+  }))
 }
 
 /**

@@ -263,6 +263,36 @@ export default function BattlePage() {
     })
   }, [isPreStartQuizComplete, isRoomHost, players, room?.status])
 
+  // 게임 도중 들어온 학생은 시작 때의 팀 배정을 놓친다. 팀전이 이미 진행 중이면
+  // 생존자가 적은 팀(같으면 인원이 적은 팀)에 스스로 합류한다.
+  // 팀이 없는 채로 두면 canAttackTarget 이 양쪽 모두를 공격 가능하게 봐서 팀전이 깨진다.
+  const lateTeamRequestedRef = useRef(false)
+  useEffect(() => {
+    if (room?.status !== 'playing' || !playerId || !currentPlayer) return
+    if (currentPlayerTeam || lateTeamRequestedRef.current) return
+    const teamed = players.filter((p) => (p as Player).team && !p.is_kicked)
+    if (teamed.length === 0) return // 개인전이거나 호스트가 아직 배정 중
+
+    const count = (team: Team, aliveOnly: boolean) => teamed.filter((p) =>
+      (p as Player).team === team && (!aliveOnly || (p.health ?? 100) > 0)
+    ).length
+    const pick = (): Team => {
+      const redAlive = count('red', true)
+      const blueAlive = count('blue', true)
+      if (redAlive !== blueAlive) return redAlive < blueAlive ? 'red' : 'blue'
+      const redAll = count('red', false)
+      const blueAll = count('blue', false)
+      if (redAll !== blueAll) return redAll < blueAll ? 'red' : 'blue'
+      return Math.random() < 0.5 ? 'red' : 'blue'
+    }
+
+    lateTeamRequestedRef.current = true
+    updatePlayer(playerId, { team: pick(), revival_streak: 0 }).catch((error) => {
+      lateTeamRequestedRef.current = false
+      console.error('도중 입장 팀 배정 실패:', error)
+    })
+  }, [currentPlayer, currentPlayerTeam, playerId, players, room?.status])
+
   // 팀 배정이 완료되면 reveal 표시 (모든 플레이어가 보게 됨)
   useEffect(() => {
     if (room?.status !== 'playing') return

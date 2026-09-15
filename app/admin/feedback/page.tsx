@@ -23,6 +23,7 @@ const CATEGORY_LABEL: Record<string, string> = {
   bug: '오류/버그',
   question_error: '문제 오류',
   payment: '결제',
+  quote: '견적 발행',
   suggestion: '제안',
   other: '기타',
 }

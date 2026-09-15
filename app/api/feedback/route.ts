@@ -3,7 +3,7 @@ import { getAdminSupabase } from '@/lib/supabase/admin'
 
 export const runtime = 'nodejs'
 
-const CATEGORIES = ['general', 'bug', 'question_error', 'payment', 'suggestion', 'other']
+const CATEGORIES = ['general', 'bug', 'question_error', 'payment', 'quote', 'suggestion', 'other']
 const MAX_MESSAGE = 2000
 
 // 간단한 IP 레이트리밋 (인스턴스 메모리 기준)

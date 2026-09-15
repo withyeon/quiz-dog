@@ -510,6 +510,13 @@
     font-family: 'DNFBitBitv2', sans-serif !important;
   }
 
+  /* 픽셀 폰트 강제(.font-bitbit *) 안에서 서류처럼 보여야 하는 영역(견적서 등).
+     같은 명시도라 뒤에 두어야 이긴다. */
+  .font-plain,
+  .font-plain * {
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', system-ui, sans-serif !important;
+  }
+
   
   .star-pattern {
     background-image: 

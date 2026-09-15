@@ -270,6 +270,7 @@ function LobbyPage() {
         nickname: finalNickname,
         avatar,
         gameMode: roomData.game_mode,
+        roomStatus: roomData.status,
       })
 
       setPlayerId(playerData.id)
@@ -458,7 +459,11 @@ function LobbyPage() {
                           <LobbyNotice tone="success">
                             <div className="mb-1 text-2xl">✅</div>
                             <div>입장 완료!</div>
-                            <div className="mt-1 text-xs opacity-80">선생님이 시작하면 자동으로 이동해요</div>
+                            <div className="mt-1 text-xs opacity-80">
+                              {room?.status === 'paused'
+                                ? '게임이 잠시 멈춰 있어요. 선생님이 다시 시작하면 자동으로 이동해요'
+                                : '선생님이 시작하면 자동으로 이동해요'}
+                            </div>
                           </LobbyNotice>
                           <PixelBtn color="purple" onClick={() => setStep('minigame')} className="w-full py-3 text-base">
                             🎮 기다리는 동안 미니게임

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/utils/gameCode'
 import { DEFAULT_GAME_MODE, getModeInitialPlayerState, isGameModeId, type GameModeId } from '@/lib/game/modes'
-import { createRoleAssignmentPatches } from '@/lib/game/zombie'
+import { createLateJoinerPatch, createRoleAssignmentPatches } from '@/lib/game/zombie'
 import type { Database, Json } from '@/types/database.types'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -234,9 +234,15 @@ export async function createPlayerForRoom(input: {
   nickname: string
   avatar: string | null
   gameMode?: string | null
+  /** 입장 시점의 방 상태. 게임이 이미 시작된 뒤(도중 입장)면 시작 때 받았을 초기 역할을 함께 넣는다 */
+  roomStatus?: RoomRow['status'] | null
 }): Promise<{ id: string }> {
   const mode = isGameModeId(input.gameMode) ? input.gameMode : DEFAULT_GAME_MODE
   const normalizedNickname = input.nickname.trim()
+  // 좀비 모드는 역할을 startRoom 이 한 번에 배정한다. 시작 뒤에 들어온 학생은 그 배정을 놓치므로
+  // 행을 만들 때 바로 인간 역할을 넣는다 (별도 update 없이 처음부터 게임에 참여할 수 있게).
+  const joinedMidGame = input.roomStatus != null && input.roomStatus !== 'waiting'
+  const lateJoinState = joinedMidGame && mode === 'zombie' ? createLateJoinerPatch() : {}
   const payload: PlayerInsert = {
     room_code: input.roomCode,
     nickname: normalizedNickname,
@@ -245,6 +251,7 @@ export async function createPlayerForRoom(input: {
     avatar: input.avatar,
     is_online: true,
     ...getModeInitialPlayerState(mode),
+    ...lateJoinState,
   }
 
   const { data, error } = await (supabase

@@ -100,6 +100,8 @@ export default function RoomCodePanel({
                 <div className="font-bitbit">
                   <p className="text-xs font-black text-sky-500">참가코드</p>
                   <div className="text-4xl font-black tracking-wider text-black">{roomCode}</div>
+                  {/* 늦게 온 학생도 같은 코드로 바로 들어올 수 있다는 걸 교사가 알게 */}
+                  <p className="mt-1 text-[11px] font-bold text-slate-400">게임 중에도 이 코드로 입장할 수 있어요</p>
                 </div>
                 {timerDisplaySeconds !== null && (
                   <div className={`flex flex-col items-center rounded-2xl px-6 py-3 font-bitbit ${
