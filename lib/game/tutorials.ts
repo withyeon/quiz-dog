@@ -67,9 +67,9 @@ import {
 import { withJosa } from '@/lib/utils/korean'
 
 /** 조준을 가장 잘 맞혔을 때 보장되는 최소 인형 등급 */
-const AIM_PERFECT_TIER = getAimTierFloor('perfect') ?? '영웅'
-/** 전설 인형이 줄 수 있는 최고 점수 */
-const LEGEND_MAX_SCORE = Math.max(...DOLL_TYPES.filter((doll) => doll.tier === '전설').map((doll) => doll.maxScore))
+const AIM_PERFECT_TIER = getAimTierFloor('perfect') ?? '특별'
+/** 보물 인형이 줄 수 있는 최고 점수 */
+const LEGEND_MAX_SCORE = Math.max(...DOLL_TYPES.filter((doll) => doll.tier === '보물').map((doll) => doll.maxScore))
 
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
@@ -207,7 +207,7 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
       {
         title: '인형마다 점수가 달라요',
-        body: `전설 인형은 한 마리에 ${LEGEND_MAX_SCORE.toLocaleString()}점 넘게!`,
+        body: `보물 인형은 한 마리에 ${LEGEND_MAX_SCORE.toLocaleString()}점 넘게!`,
       },
       {
         title: `연속 정답이면 점수 ${getComboState(MAX_COMBO_STREAK).multiplier}배`,

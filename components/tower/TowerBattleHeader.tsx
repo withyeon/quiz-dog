@@ -16,9 +16,11 @@ import {
     TowerTypeId,
     WAVES,
 } from '@/lib/game/tower'
+import QuizSetName from '@/components/game/QuizSetName'
 
 interface TowerBattleHeaderProps {
     roomCode: string
+    questionSetTitle: string | null
     selectedTowerType: TowerTypeId | null
     hp: number
     gold: number
@@ -52,6 +54,7 @@ export default function TowerBattleHeader({
     occupiedSlotCount,
     quizHudValue,
     quizHudDetail,
+    questionSetTitle,
     quizButtonLabel,
     consecutiveCorrect,
     isQuizAvailable,
@@ -71,6 +74,7 @@ export default function TowerBattleHeader({
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2 text-xs font-black text-slate-500">
                             <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1">방 {roomCode}</span>
+                            <QuizSetName title={questionSetTitle} />
                             {selectedTowerType && (
                                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-800">
                                     <Crosshair className="h-3.5 w-3.5" />

@@ -16,6 +16,7 @@ import {
 } from '@/lib/realtime/roomChannel'
 import { finishRoom } from '@/lib/services/rooms'
 import { formatServiceError } from '@/lib/services/errors'
+import { getQuestionSetTitle } from '@/lib/services/questionSets'
 import { updatePlayer } from '@/lib/services/players'
 import {
     applyPlayerDelta,
@@ -147,6 +148,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [questions, setQuestions] = useState<Question[]>([])
     const [questionsLoading, setQuestionsLoading] = useState(false)
     const [questionsError, setQuestionsError] = useState<string | null>(null)
+    const [questionSetTitle, setQuestionSetTitle] = useState<string | null>(null)
     const [isAnswerLocked, setIsAnswerLocked] = useState(false) // 중복 제출 방지
     const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
     const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
@@ -435,6 +437,28 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
 
         fetchQuestions()
+        return () => {
+            isMounted = false
+        }
+    }, [room?.set_id])
+
+    // ─── 문제집 이름 (게임 헤더 표시용) ───
+    useEffect(() => {
+        const setId = room?.set_id
+        if (!setId) {
+            setQuestionSetTitle(null)
+            return
+        }
+        let isMounted = true
+        getQuestionSetTitle(setId)
+            .then((title) => {
+                if (isMounted) setQuestionSetTitle(title)
+            })
+            .catch((error) => {
+                // 이름은 장식이라 실패해도 게임은 그대로 진행한다
+                console.error('Error fetching question set title:', formatServiceError(error))
+                if (isMounted) setQuestionSetTitle(null)
+            })
         return () => {
             isMounted = false
         }
@@ -836,6 +860,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         questions,
         questionsLoading,
         questionsError,
+        questionSetTitle,
         isAnswerLocked,
         preStartQuizQuestion,
         preStartSubmittedCount,

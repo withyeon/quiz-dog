@@ -30,10 +30,10 @@ export const ITEM_LABELS: Record<SpecialItemType, string> = {
 }
 
 const COLLECTION_TIER_STYLE: Record<string, string> = {
-    일반: 'border-slate-200 bg-white',
-    희귀: 'border-sky-200 bg-sky-50',
-    영웅: 'border-violet-200 bg-violet-50',
-    전설: 'border-amber-200 bg-amber-50',
+    기본: 'border-slate-200 bg-white',
+    인기: 'border-sky-200 bg-sky-50',
+    특별: 'border-violet-200 bg-violet-50',
+    보물: 'treasure-aura border-amber-400 bg-amber-100',
     꽝: 'border-slate-200 bg-slate-50',
 }
 
@@ -72,7 +72,7 @@ export function CollectionGrid({ dolls }: { dolls: Doll[] }) {
                     <div
                         key={`${item.id}-${index}`}
                         title={`${item.name} (+${item.score}점)`}
-                        className={`group relative flex aspect-square cursor-default items-center justify-center rounded-lg border ${COLLECTION_TIER_STYLE[item.tier] ?? COLLECTION_TIER_STYLE['일반']} shadow-sm`}
+                        className={`group relative flex aspect-square cursor-default items-center justify-center rounded-lg border ${COLLECTION_TIER_STYLE[item.tier] ?? COLLECTION_TIER_STYLE['기본']} shadow-sm`}
                     >
                         {item.image ? (
                             <Image src={item.image} alt={item.name} width={36} height={36} unoptimized className="h-9 w-9 object-contain drop-shadow" />
@@ -144,20 +144,21 @@ export function ResultCard({
     if (!doll) return null
 
     const tierLabel: Record<string, string> = {
-        일반: '획득 완료',
-        희귀: '희귀 인형',
-        영웅: '영웅 인형',
-        전설: '전설 인형',
+        기본: '획득 완료',
+        인기: '인기 인형',
+        특별: '특별 인형',
+        보물: '보물 인형',
     }
 
     const tierCardStyle: Record<string, string> = {
-        일반: 'from-amber-100 via-white to-orange-100 border-amber-300',
-        희귀: 'from-sky-100 via-white to-cyan-100 border-sky-300',
-        영웅: 'from-violet-100 via-white to-fuchsia-100 border-violet-300',
-        전설: 'from-yellow-100 via-white to-amber-200 border-yellow-300',
+        기본: 'from-amber-100 via-white to-orange-100 border-amber-300',
+        인기: 'from-sky-100 via-white to-cyan-100 border-sky-300',
+        특별: 'from-violet-100 via-white to-fuchsia-100 border-violet-300',
+        보물: 'treasure-aura from-amber-200 via-yellow-50 to-amber-300 border-amber-400',
     }
 
-    const cardStyle = tierCardStyle[doll.tier] ?? tierCardStyle['일반']
+    const cardStyle = tierCardStyle[doll.tier] ?? tierCardStyle['기본']
+    const isTreasure = doll.tier === '보물'
 
     return (
         <motion.div
@@ -180,8 +181,9 @@ export function ResultCard({
                     animate={{ x: ['-120%', '120%'] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
                 />
+                {isTreasure && <div className="treasure-sparks" />}
 
-                <p className="mb-1 text-center text-sm font-extrabold text-slate-500">
+                <p className={`mb-1 text-center text-sm font-extrabold ${isTreasure ? 'treasure-text' : 'text-slate-500'}`}>
                     {tierLabel[doll.tier] ?? '획득 완료'}
                 </p>
                 <h2 className="mb-4 text-center text-2xl font-extrabold text-slate-900">{doll.name}</h2>
@@ -193,7 +195,7 @@ export function ResultCard({
                         className="flex h-36 w-36 items-center justify-center rounded-xl border border-white bg-white/70 shadow-inner"
                     >
                         {doll.image ? (
-                            <Image src={doll.image} alt={doll.name} width={120} height={120} unoptimized className="h-28 w-28 object-contain drop-shadow-2xl" />
+                            <Image src={doll.image} alt={doll.name} width={120} height={120} unoptimized className={`h-28 w-28 object-contain ${isTreasure ? 'treasure-glow' : 'drop-shadow-2xl'}`} />
                         ) : (
                             <Gift size={76} className="text-slate-400" />
                         )}

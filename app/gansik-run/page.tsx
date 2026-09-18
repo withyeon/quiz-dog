@@ -55,7 +55,7 @@ export default function GansikRunPage() {
   const {
     roomCode, playerId,
     room, playBGM, playSFX, questions: serverQuestions,
-    questionsLoading, questionsError,
+    questionsLoading, questionsError, questionSetTitle,
     preStartQuizQuestion, preStartSubmittedCount, preStartQuizTotal,
     shouldShowPreStartQuiz, isPreStartQuizComplete,
     handlePreStartQuizAnswer,
@@ -343,6 +343,7 @@ export default function GansikRunPage() {
           <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="w-full h-dvh">
             <GansikRunGame
+              questionSetTitle={questionSetTitle}
               questions={gameQuestions}
               onGameEnd={handleGameEnd}
               playerId={playerId}

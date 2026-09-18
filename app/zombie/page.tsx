@@ -41,6 +41,7 @@ export default function ZombiePage() {
     currentQuestion,
     questionsLoading,
     questionsError,
+    questionSetTitle,
     preStartQuizQuestion,
     preStartSubmittedCount,
     preStartQuizTotal,
@@ -305,6 +306,7 @@ export default function ZombiePage() {
             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-dvh w-full">
               <ZombieView
                 roomCode={roomCode}
+                questionSetTitle={questionSetTitle}
                 playerId={playerId}
                 roomStatus={room?.status ?? 'waiting'}
                 roomStartedAt={room?.started_at ?? null}

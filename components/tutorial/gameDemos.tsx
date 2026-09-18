@@ -186,10 +186,10 @@ const FISHING_TARGET = 50 // 조준 목표 위치(%) — 실제 게임에선 뽑
 const FISHING_ANSWER_SECONDS = ANSWER_SPEED_THRESHOLDS.perfect - 1 // 번개 정답이 나오는 시간
 const FISHING_DEMO_RANK: MachineRank = 3
 const FISHING_AIM_ZONE = getAimGradeZoneWidth(FISHING_DEMO_RANK) // 데모 집게 등급에 맞는 조준 칸 폭
-const FISHING_AIM_TIER_FLOOR = getAimTierFloor('perfect') ?? '영웅' // 노란 칸에 맞혔을 때 보장되는 등급
-const FISHING_TIERS: DollTier[] = ['일반', '희귀', '영웅', '전설']
+const FISHING_AIM_TIER_FLOOR = getAimTierFloor('perfect') ?? '특별' // 노란 칸에 맞혔을 때 보장되는 등급
+const FISHING_TIERS: DollTier[] = ['기본', '인기', '특별', '보물']
 
-/** 데모에서 뽑는 전설 인형 — 배경이 비치는 그림이라 무대 위에 얹어도 깔끔합니다 */
+/** 데모에서 뽑는 보물 인형 — 배경이 비치는 그림이라 무대 위에 얹어도 깔끔합니다 */
 const FISHING_DEMO_DOLL = DOLL_TYPES.find((doll) => doll.image === '/fishing/16.webp') ?? DOLL_TYPES[DOLL_TYPES.length - 1]
 const FISHING_DEMO_DOLL_IMAGE = FISHING_DEMO_DOLL.image ?? '/fishing/16.webp'
 /** 바닥에 깔아 두는 인형들 — 가운데가 집게로 건져 올릴 인형입니다 */

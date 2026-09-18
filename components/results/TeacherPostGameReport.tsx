@@ -28,6 +28,7 @@ import type { AnalyticsQuestion } from '@/lib/services/questions'
 import { getGameModeConfig } from '@/lib/game/modes'
 import {
   buildResultAnalytics,
+  formatQuestionAccuracy,
   formatResponseTime,
   type Player,
   type PlayerAnalysis,
@@ -56,10 +57,8 @@ function accuracyColor(accuracy: number) {
 // 학생을 등급으로 판정하는 말('최하위', '개념 부족' 등)은 교사 화면에서도 절대 쓰지 않는다.
 // 화면이 학생에게 노출될 수 있고, 교사에게도 '무엇을 하면 되는지'가 더 쓸모 있기 때문.
 function badgeForStudent(player: PlayerAnalysis) {
-  const unansweredRatio = player.totalCount > 0
-    ? (player.totalCount - player.answeredCount) / player.totalCount
-    : 0
-  if (unansweredRatio >= 0.3) return '안 푼 문제가 많아요'
+  if (player.answeredCount === 0) return '아직 문제를 안 풀었어요'
+  if (player.unservedQuestionCount > 0) return '아직 못 만난 문제가 있어요'
   if (player.accuracy < 40) return '함께 복습이 필요해요'
   if (player.accuracy < 60) return '틀린 문제를 다시 봐요'
   return '한 번 더 확인해요'
@@ -67,6 +66,11 @@ function badgeForStudent(player: PlayerAnalysis) {
 
 function answerForQuestion(player: PlayerAnalysis, questionIndex: number) {
   return player.history.find((answer) => answer.questionIndex === questionIndex)
+}
+
+/** 한 학생이 한 문항을 푼 모든 시도. 반복 출제 게임에서는 2회 이상일 수 있다. */
+function attemptsForQuestion(player: PlayerAnalysis, questionIndex: number) {
+  return player.history.filter((answer) => answer.questionIndex === questionIndex)
 }
 
 export default function TeacherPostGameReport({
@@ -135,17 +139,24 @@ export default function TeacherPostGameReport({
       const studentSheet = {
         name: '학생별',
         rows: [
-          ['학생명', '정답률(%)', '점수', '평균응답시간',
+          ['학생명', '정답률(%)', '푼 횟수', '맞힌 횟수', '받아본 문항', '점수', '평균응답시간',
             ...analytics.questions.map((question) => `Q${question.index + 1}`)],
           ...analytics.players.map((player) => [
             player.nickname,
             player.accuracy,
+            player.answeredCount,
+            player.correctCount,
+            `${player.servedQuestionCount}/${analytics.totalQuestions}`,
             player.score,
             formatResponseTime(player.avgResponseTimeMs),
             ...analytics.questions.map((question) => {
-              const answer = answerForQuestion(player, question.index)
-              if (!answer) return '미응답'
-              return answer.isCorrect ? '정답' : `오답:${answer.selectedAnswer || '미응답'}`
+              const attempts = attemptsForQuestion(player, question.index)
+              if (attempts.length === 0) return '미출제'
+              const correct = attempts.filter((attempt) => attempt.isCorrect).length
+              if (attempts.length === 1) {
+                return correct === 1 ? '정답' : `오답:${attempts[0].selectedAnswer || '시간초과'}`
+              }
+              return `${correct}/${attempts.length}`
             }),
           ]),
         ],
@@ -154,16 +165,18 @@ export default function TeacherPostGameReport({
       const questionSheet = {
         name: '문항별',
         rows: [
-          ['번호', '문항', '정답', '정답률(%)', '맞힘', '틀림', '미응답', '가장 많은 오답'],
+          ['번호', '문항', '정답', '정답률(%)', '푼 횟수', '맞힘', '틀림', '받아본 학생', '미출제 학생', '가장 많은 오답'],
           ...analytics.questions.map((question) => [
             question.index + 1,
             question.text,
             question.answer,
-            question.accuracy,
+            question.accuracy ?? '미출제',
+            question.attemptCount,
             question.correctCount,
             question.incorrectCount,
-            question.unansweredCount,
-            question.topWrongAnswer ? `${question.topWrongAnswer[0]} (${question.topWrongAnswer[1]}명)` : '',
+            question.servedPlayerCount,
+            question.unservedPlayerCount,
+            question.topWrongAnswer ? `${question.topWrongAnswer[0]} (${question.topWrongAnswer[1]}회)` : '',
           ]),
         ],
       }
@@ -205,10 +218,22 @@ export default function TeacherPostGameReport({
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {[
-          { label: '참여 학생', value: `${analytics.totalParticipants}명`, icon: Users },
-          { label: '평균 정답률', value: `${analytics.averageAccuracy}%`, icon: CheckCircle2 },
-          { label: '평균 점수', value: analytics.averageScore.toLocaleString(), icon: Trophy },
-          { label: '완주율', value: `${analytics.completionRate}%`, icon: BarChart3 },
+          { label: '참여 학생', value: `${analytics.totalParticipants}명`, hint: null, icon: Users },
+          {
+            label: '평균 정답률',
+            value: `${analytics.averageAccuracy}%`,
+            // 문제가 반복해서 나오는 게임에서는 푼 횟수가 문항 수보다 훨씬 많다.
+            // 정답률만 보면 "5문제를 다 맞혔다"로 오해하기 쉬워서 분모를 같이 보여준다.
+            hint: `${analytics.totalAttempts}번 풀어서 ${analytics.totalCorrectAttempts}번 정답`,
+            icon: CheckCircle2,
+          },
+          { label: '평균 점수', value: analytics.averageScore.toLocaleString(), hint: null, icon: Trophy },
+          {
+            label: '전체 문항 경험률',
+            value: `${analytics.completionRate}%`,
+            hint: `${analytics.totalQuestions}문항을 모두 받아본 학생 비율`,
+            icon: BarChart3,
+          },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex items-center justify-between">
@@ -216,6 +241,7 @@ export default function TeacherPostGameReport({
               <item.icon className="h-5 w-5 text-slate-400" />
             </div>
             <div className="mt-3 text-3xl font-black text-slate-950">{item.value}</div>
+            {item.hint && <div className="mt-1 text-xs font-bold text-slate-400">{item.hint}</div>}
           </div>
         ))}
       </section>
@@ -271,8 +297,13 @@ export default function TeacherPostGameReport({
                       <div className="max-w-sm rounded-lg border border-slate-200 bg-white p-3 shadow-lg">
                         <p className="font-black">Q{question.index + 1}. {question.text}</p>
                         <p className="mt-2 text-sm text-slate-600">
-                          정답률 {question.accuracy}% · {question.correctCount}/{question.totalCount}명
+                          정답률 {formatQuestionAccuracy(question.accuracy)} · {question.correctCount}/{question.attemptCount}회
                         </p>
+                        {question.unservedPlayerCount > 0 && (
+                          <p className="mt-1 text-xs text-slate-500">
+                            {question.unservedPlayerCount}명에게는 아직 안 나온 문제예요
+                          </p>
+                        )}
                       </div>
                     )
                   }}
@@ -335,18 +366,27 @@ export default function TeacherPostGameReport({
                       {player.nickname}
                     </td>
                     {analytics.questions.map((question) => {
-                      const answer = answerForQuestion(player, question.index)
-                      const label = answer?.isCorrect ? 'O' : answer ? normalizeCellAnswer(answer.selectedAnswer) : '-'
+                      // 같은 문제를 여러 번 만난 학생은 'O'/'X' 하나로 요약할 수 없다.
+                      // 2회 이상이면 '맞힌 횟수/푼 횟수'를 보여준다.
+                      const attempts = attemptsForQuestion(player, question.index)
+                      const correct = attempts.filter((attempt) => attempt.isCorrect).length
+                      const label = attempts.length === 0
+                        ? '미출제'
+                        : attempts.length === 1
+                          ? (correct === 1 ? 'O' : normalizeCellAnswer(attempts[0].selectedAnswer))
+                          : `${correct}/${attempts.length}`
+                      const tone = attempts.length === 0
+                        ? 'bg-slate-100 text-slate-400'
+                        : correct === attempts.length
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : correct === 0
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-amber-100 text-amber-700'
                       return (
                         <td
                           key={`${player.id}-${question.id}`}
-                          className={`h-9 min-w-9 border border-slate-200 text-center font-black ${
-                            answer?.isCorrect
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : answer
-                                ? 'bg-red-100 text-red-700'
-                                : 'bg-slate-100 text-slate-400'
-                          }`}
+                          title={attempts.length > 1 ? `${attempts.length}번 풀어서 ${correct}번 정답` : undefined}
+                          className={`h-9 min-w-9 whitespace-nowrap border border-slate-200 px-1 text-center text-xs font-black ${tone}`}
                         >
                           {label}
                         </td>
@@ -361,11 +401,13 @@ export default function TeacherPostGameReport({
                   {analytics.questions.map((question) => (
                     <td
                       key={question.id}
-                      className={`border border-slate-200 px-2 py-2 text-center font-black ${
-                        question.accuracy < 60 ? 'text-red-600' : 'text-slate-700'
+                      className={`border border-slate-200 px-2 py-2 text-center text-xs font-black ${
+                        question.accuracy === null
+                          ? 'text-slate-400'
+                          : question.accuracy < 60 ? 'text-red-600' : 'text-slate-700'
                       }`}
                     >
-                      {question.accuracy}%
+                      {formatQuestionAccuracy(question.accuracy)}
                     </td>
                   ))}
                   <td />
@@ -464,7 +506,7 @@ export default function TeacherPostGameReport({
                 <div className="text-sm font-bold text-amber-700">Q{question.index + 1} · {question.accuracy}%</div>
                 <div className="mt-2 line-clamp-3 text-sm font-bold">{question.text}</div>
                 <div className="mt-2 text-xs text-slate-600">
-                  최다 오답 {question.topWrongAnswer ? `${question.topWrongAnswer[0]} (${question.topWrongAnswer[1]}명)` : '-'}
+                  최다 오답 {question.topWrongAnswer ? `${question.topWrongAnswer[0]} (${question.topWrongAnswer[1]}회)` : '-'}
                 </div>
               </button>
             ))}
@@ -517,7 +559,14 @@ function QuestionDetailModal({
         <div className="sticky top-0 flex items-start justify-between border-b border-slate-200 bg-white p-5">
           <div>
             <h3 className="text-xl font-black">Q{question.index + 1}. 문항 상세</h3>
-            <p className="mt-1 text-sm text-slate-500">정답률 {question.accuracy}% · 정답 {question.answer}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              정답률 {formatQuestionAccuracy(question.accuracy)} · {question.correctCount}/{question.attemptCount}회 · 정답 {question.answer}
+            </p>
+            {question.unservedPlayerCount > 0 && (
+              <p className="mt-1 text-sm text-slate-400">
+                {question.unservedPlayerCount}명에게는 아직 안 나온 문제라 정답률에서 뺐어요
+              </p>
+            )}
           </div>
           <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100">
             <X className="h-5 w-5" />
@@ -541,7 +590,7 @@ function QuestionDetailModal({
                 <div key={answer} className="rounded-md bg-slate-50 p-3">
                   <div className="flex items-center justify-between">
                     <span className="font-bold">{answer}</span>
-                    <span className="font-black">{count}명</span>
+                    <span className="font-black">{count}회</span>
                   </div>
                   {question.wrongStudentsByAnswer[answer]?.length > 0 && (
                     <p className="mt-1 text-sm text-slate-500">{question.wrongStudentsByAnswer[answer].join(', ')}</p>
@@ -571,7 +620,9 @@ function StudentDetailModal({
         <div className="sticky top-0 flex items-start justify-between border-b border-slate-200 bg-white p-5">
           <div>
             <h3 className="text-xl font-black">{student.nickname} 학생 답안 상세</h3>
-            <p className="mt-1 text-sm text-slate-500">정답률 {student.accuracy}% · 점수 {student.score.toLocaleString()} · 평균 응답시간 {formatResponseTime(student.avgResponseTimeMs)}</p>
+            <p className="mt-1 text-sm text-slate-500">
+              정답률 {student.accuracy}% ({student.answeredCount}번 풀어서 {student.correctCount}번 정답) · 점수 {student.score.toLocaleString()} · 평균 응답시간 {formatResponseTime(student.avgResponseTimeMs)}
+            </p>
           </div>
           <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100">
             <X className="h-5 w-5" />
@@ -579,24 +630,46 @@ function StudentDetailModal({
         </div>
         <div className="divide-y divide-slate-100">
           {questions.map((question) => {
-            const answer = answerForQuestion(student, question.index)
+            // 같은 문제를 여러 번 만났으면 시도를 전부 보여준다 —
+            // 첫 시도만 보여주면 "틀렸다가 맞힌" 학습 과정이 사라진다.
+            const attempts = attemptsForQuestion(student, question.index)
+            const correct = attempts.filter((attempt) => attempt.isCorrect).length
             return (
               <div key={question.id} className="p-4">
                 <div className="flex items-start gap-3">
-                  {answer?.isCorrect ? (
-                    <CheckCircle2 className="mt-1 h-5 w-5 text-emerald-500" />
-                  ) : answer ? (
-                    <AlertTriangle className="mt-1 h-5 w-5 text-red-500" />
-                  ) : (
+                  {attempts.length === 0 ? (
                     <HelpCircle className="mt-1 h-5 w-5 text-slate-400" />
+                  ) : correct === attempts.length ? (
+                    <CheckCircle2 className="mt-1 h-5 w-5 text-emerald-500" />
+                  ) : (
+                    <AlertTriangle className={`mt-1 h-5 w-5 ${correct > 0 ? 'text-amber-500' : 'text-red-500'}`} />
                   )}
                   <div className="min-w-0 flex-1">
                     <p className="font-black">Q{question.index + 1}. {question.text}</p>
-                    <div className="mt-2 grid gap-2 text-sm md:grid-cols-3">
-                      <span>학생 답: <strong>{answer ? (answer.selectedAnswer || '미응답') : '미응답'}</strong></span>
-                      <span>정답: <strong>{question.answer}</strong></span>
-                      <span>응답시간: <strong>{formatResponseTime(answer?.responseTimeMs ?? answer?.response_time_ms ?? null)}</strong></span>
-                    </div>
+                    {attempts.length === 0 ? (
+                      <p className="mt-2 text-sm text-slate-500">아직 이 문제를 받지 못했어요 (정답률 계산에서 제외)</p>
+                    ) : (
+                      <>
+                        <div className="mt-2 text-sm">
+                          정답: <strong>{question.answer}</strong>
+                          {attempts.length > 1 && <span className="ml-2 text-slate-500">{attempts.length}번 풀어서 {correct}번 정답</span>}
+                        </div>
+                        <ul className="mt-2 space-y-1 text-sm">
+                          {attempts.map((attempt, attemptIndex) => (
+                            <li key={attemptIndex} className="flex flex-wrap items-center gap-2">
+                              {attempts.length > 1 && <span className="text-slate-400">{attemptIndex + 1}회차</span>}
+                              <span className={attempt.isCorrect ? 'font-bold text-emerald-600' : 'font-bold text-red-600'}>
+                                {attempt.isCorrect ? '정답' : '오답'}
+                              </span>
+                              <span>{attempt.selectedAnswer || '시간 초과'}</span>
+                              <span className="text-slate-400">
+                                {formatResponseTime(attempt.responseTimeMs ?? attempt.response_time_ms ?? null)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

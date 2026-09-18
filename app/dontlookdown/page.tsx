@@ -51,6 +51,7 @@ export default function DontLookDownPage() {
         questions,
         questionsLoading,
         questionsError,
+    questionSetTitle,
         preStartQuizQuestion,
         preStartSubmittedCount,
         preStartQuizTotal,
@@ -403,6 +404,7 @@ export default function DontLookDownPage() {
                         className="relative z-10 w-full h-dvh"
                     >
                         <DontLookDownGame
+                            questionSetTitle={questionSetTitle}
                             playerId={playerId}
                             playerName={currentPlayer.nickname}
                             characterImage={currentPlayer.avatar || ''}

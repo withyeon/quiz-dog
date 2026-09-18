@@ -113,7 +113,13 @@ export default function TeacherEndSequence({
   const [reviewIndex, setReviewIndex] = useState(0)
   const { playBGM, stopBGM } = useAudioContext()
   const topThree = useMemo(() => analytics.players.slice(0, 3), [analytics])
-  const reviewQuestions = useMemo(() => analytics.hardestQuestions.slice(0, 3), [analytics])
+  // 실제로 틀린 적이 있는 문항만 복습 화면에 올린다.
+  // 전에는 정답률 낮은 순 상위 3개를 무조건 올려서, 모두 100%인 방에서도
+  // "정답률 100%만 맞췄어요" 같은 화면이 떴다.
+  const reviewQuestions = useMemo(
+    () => analytics.hardestQuestions.filter((question) => question.incorrectCount > 0).slice(0, 3),
+    [analytics],
+  )
 
   useEffect(() => {
     // 참가자가 3명이 안 되면 빈 등수는 건너뛴다 (빈 카드가 뜨지 않게)
@@ -509,7 +515,7 @@ function ReviewQuestionStage({
             정답: {question.answer}
           </div>
           <div className="rounded-2xl bg-orange-100 px-8 py-5 text-[clamp(28px,3vw,46px)] font-black text-orange-950">
-            정답률 {question.accuracy}%만 맞췄어요
+            정답률 {question.accuracy}% · {question.attemptCount}번 중 {question.correctCount}번 정답
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ import {
 import type { ZombieAttackResult } from '@/lib/services/playerMutations'
 import type { Question } from '@/hooks/useGameBase'
 import PixelIcon from '@/components/ui/PixelIcon'
+import QuizSetName from '@/components/game/QuizSetName'
 
 type ViewState = 'quiz' | 'actionSelect' | 'targetSelect' | 'scanResult' | 'attackResult' | 'wrong'
 
@@ -44,6 +45,7 @@ type ZombieViewProps = {
   /** 정답·오답·치료·방어막을 서버에 보고하고, 권위 있는 최종 상태를 돌려받는다. */
   onZombieAction: (action: ZombieActionKind) => Promise<RoomZombiePlayer | null>
   onZombieAttack: (zombieId: string, targetId: string, damage: number) => Promise<ZombieAttackResult>
+  questionSetTitle?: string | null
 }
 
 function addLog(logs: ZombieGameLog[], message: string, type: ZombieGameLog['type'] = 'info'): ZombieGameLog[] {
@@ -71,6 +73,7 @@ export default function ZombieView({
   onFinishRoom,
   onZombieAction,
   onZombieAttack,
+  questionSetTitle,
 }: ZombieViewProps) {
   const startedAtMs = roomStartedAt ? new Date(roomStartedAt).getTime() : null
   const totalDurationSec = roomDurationSeconds ?? GAME_CONSTANTS.GAME_DURATION
@@ -219,7 +222,9 @@ export default function ZombieView({
   const handleAnswerSubmit = async (answer: string) => {
     if (!myPlayer || roomStatus !== 'playing') return false
 
-    const correct = answer ? await onAnswer(answer) : false
+    // 빈 답(시간 초과)도 onAnswer에 넘긴다 — 넘기지 않으면 오답 기록이 남지 않아
+    // 리포트 정답률의 분모에서 통째로 빠진다.
+    const correct = await onAnswer(answer)
 
     if (correct) {
       playSFX('correct')
@@ -354,6 +359,7 @@ export default function ZombieView({
                 {formatTime(timeRemaining)}
               </span>
             </div>
+            <QuizSetName title={questionSetTitle} tone="dark" className="hidden lg:flex" />
           </div>
           <div className={`flex shrink-0 items-center whitespace-nowrap rounded-full border-2 px-2 py-0.5 sm:px-4 sm:py-1 ${isZombie ? 'border-green-500 bg-green-950/80' : 'border-blue-500 bg-blue-950/80'}`}>
             <ZombieIcon

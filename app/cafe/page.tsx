@@ -30,6 +30,7 @@ export default function CafePage() {
     currentQuestion,
     questionsLoading,
     questionsError,
+    questionSetTitle,
     preStartQuizQuestion,
     preStartSubmittedCount,
     preStartQuizTotal,
@@ -247,6 +248,7 @@ export default function CafePage() {
           >
             <CafeView
               onGameEnd={() => setCurrentView('result')}
+              questionSetTitle={questionSetTitle}
               roomCode={roomCode}
               currentQuestion={currentQuestion}
               onAnswer={handleAnswer}

@@ -25,6 +25,7 @@ import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { checkQuestionAnswer } from '@/lib/services/questions'
 import PixelIcon from '@/components/ui/PixelIcon'
 import ItemGlyph from '@/components/ItemGlyph'
+import QuizSetName from '@/components/game/QuizSetName'
 
 export interface GansikRunQuestion {
   id: string
@@ -48,6 +49,7 @@ interface GansikRunGameProps {
     state: GansikRunState,
   ) => Promise<{ scoreDelta?: number; message?: string } | void> | { scoreDelta?: number; message?: string } | void
   onScoreSnapshot?: (state: GansikRunState) => void
+  questionSetTitle?: string | null
   /** 퀴즈를 풀 때마다 (정답 기록용) */
   onQuizAnswered?: (question: GansikRunQuestion, correct: boolean, answer: string) => void
 }
@@ -82,6 +84,7 @@ const OPTION_COLORS = [
 
 export default function GansikRunGame({
   questions, onGameEnd, playerId, durationSeconds, initialScore = 0, onItemActivated, onScoreSnapshot, onQuizAnswered,
+  questionSetTitle,
 }: GansikRunGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -695,6 +698,8 @@ export default function GansikRunGame({
               {displayScore.toLocaleString()}
             </span>
           </div>
+
+          <QuizSetName title={questionSetTitle} tone="dark" className="hidden md:flex" />
 
           {/* 타이머 */}
           <div className="flex items-center gap-1.5 shrink-0">

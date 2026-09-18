@@ -14,7 +14,8 @@ import {
 } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import GameTimeBadge from '@/components/GameTimeBadge'
-import BattleArena from '@/components/BattleArena'
+import SnowBattlefield from '@/components/battle/SnowBattlefield'
+import FrostVignette from '@/components/battle/FrostVignette'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
@@ -52,9 +53,10 @@ import BlizzardOverlay from '@/components/BlizzardOverlay'
 import ScreenShake from '@/components/ScreenShake'
 import type { Database } from '@/types/database.types'
 import { updatePlayer } from '@/lib/services/players'
-import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import { emitRoomRuntimeEvent, subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import AnswerReveal from '@/components/AnswerReveal'
 import PixelIcon from '@/components/ui/PixelIcon'
+import QuizSetName from '@/components/game/QuizSetName'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   health?: number
@@ -87,6 +89,7 @@ export default function BattlePage() {
     currentQuestion,
     questionsLoading,
     questionsError,
+    questionSetTitle,
     preStartQuizQuestion,
     preStartSubmittedCount,
     preStartQuizTotal,
@@ -205,16 +208,19 @@ export default function BattlePage() {
         clearTimeout(incomingAttackTimerRef.current)
       }
 
-      setIncomingAttack({
-        attackerNickname: payload.attackerNickname || '상대',
-        damage: payload.damage ?? 0,
-        isCritical: Boolean(payload.isCritical),
-      })
-      setShowSnowEffect(true)
+      // 전장에서 눈뭉치가 날아오는 시간(약 0.5초)만큼 기다렸다가 맞는다
       incomingAttackTimerRef.current = setTimeout(() => {
-        setIncomingAttack(null)
-        setShowSnowEffect(false)
-      }, 2000)
+        setIncomingAttack({
+          attackerNickname: payload.attackerNickname || '상대',
+          damage: payload.damage ?? 0,
+          isCritical: Boolean(payload.isCritical),
+        })
+        setShowSnowEffect(true)
+        incomingAttackTimerRef.current = setTimeout(() => {
+          setIncomingAttack(null)
+          setShowSnowEffect(false)
+        }, 1300)
+      }, 520)
     })
   }, [playerId])
 
@@ -389,7 +395,11 @@ export default function BattlePage() {
   // 상대팀이 전멸해도 승패가 갈리지 않는다.
   useEffect(() => {
     const combatants = (players as Player[]).filter((p) => p.player_class)
-    if (combatants.length >= 2 && room?.status === 'playing' && isPreStartQuizComplete) {
+    // 팀 배정은 학생마다 따로 저장되어 실시간으로 한 명씩 도착한다. 첫 한 명만 팀이 붙은 순간
+    // "상대팀 생존자 0"으로 읽혀 시작하자마자 결과 화면이 뜨던 레이스 — 전원 배정 전엔 판정하지 않는다.
+    const teamedCount = combatants.filter((p) => p.team === 'red' || p.team === 'blue').length
+    const teamAssignmentInProgress = teamedCount > 0 && teamedCount < combatants.length
+    if (combatants.length >= 2 && room?.status === 'playing' && isPreStartQuizComplete && !teamAssignmentInProgress) {
       const winningTeam = checkWinningTeam(combatants)
       const winner = checkWinner(combatants)
       if (winningTeam || winner || isGameOver(combatants)) {
@@ -412,6 +422,7 @@ export default function BattlePage() {
       clearTimeout(nextQuestionTimerRef.current)
       nextQuestionTimerRef.current = null
     }
+    setAttackResult(null)
     goToNextQuestion()
   }
 
@@ -584,24 +595,30 @@ export default function BattlePage() {
 
       try {
         await commitPlayerDelta(targetId, { health: -reduction }, { reason: 'battle_attack' })
-        await sendRoomEvent('battle:attacked', {
+        const attackPayload = {
           attackerId: playerId,
           attackerNickname: currentPlayer.nickname,
           targetId,
           damage,
           isCritical,
           itemType: attack.itemType ?? null,
+        }
+        await sendRoomEvent('battle:attacked', attackPayload)
+        // 브로드캐스트는 self: false라 내 화면에는 안 돌아온다. 전장이 내 눈뭉치도
+        // 날리도록 같은 이벤트를 로컬로 흘려 준다.
+        emitRoomRuntimeEvent({
+          type: 'battle:attacked',
+          roomCode: roomCode ?? '',
+          clientId: 'local',
+          playerId,
+          sentAt: new Date().toISOString(),
+          seq: 0,
+          payload: attackPayload,
         })
 
-        // 공격 화면 표시 및 이펙트
+        // 화면은 그대로 두고(퀴즈 옆 전장에서 눈뭉치가 날아간다) 짧게 흔들기만 한다
         setIsShaking(true)
-        setShowSnowEffect(true)
-        setCurrentView('attack')
-
-        setTimeout(() => {
-          setIsShaking(false)
-          setShowSnowEffect(false)
-        }, 500)
+        setTimeout(() => setIsShaking(false), 350)
 
         // 왕눈덩이 아이템 사용
         if (hasGiantBall) {
@@ -610,10 +627,14 @@ export default function BattlePage() {
 
         // 다음 문제까지의 간격을 직업 장전 속도에 맞춘다. 예전에는 전 직업 2000ms 고정이라,
         // 타겟을 미리 찍는 순간 attackSpeed(스노우 런처의 유일한 장점)가 통째로 사라졌다.
-        setTimeout(() => {
+        // 타이머는 nextQuestionTimerRef에 둔다 — 정답 배너를 눌러 먼저 넘어가면 이 타이머가
+        // 한 번 더 넘겨 문제를 건너뛰었다.
+        if (nextQuestionTimerRef.current) clearTimeout(nextQuestionTimerRef.current)
+        nextQuestionTimerRef.current = setTimeout(() => {
+          nextQuestionTimerRef.current = null
           setAttackResult(null)
           goToNextQuestion()
-        }, getReloadDelay(selectedClass) + 600)
+        }, getReloadDelay(selectedClass) + 700)
       } catch (error) {
         console.error('Error updating health:', error)
       }
@@ -710,6 +731,9 @@ export default function BattlePage() {
         duration={showEliminationEffect || isEliminated ? 3000 : 2000}
       />
       <HitOverlay attack={incomingAttack} />
+      {currentView !== 'result' && selectedClassInfo && currentHealth > 0 && (
+        <FrostVignette healthPercent={(currentHealth / selectedClassInfo.maxHealth) * 100} />
+      )}
       {isBlizzardActive && <BlizzardOverlay isActive={true} />}
 
       <AnimatePresence>
@@ -759,8 +783,9 @@ export default function BattlePage() {
                     <h1 className="text-2xl font-black leading-tight text-slate-950 sm:text-4xl">
                       눈싸움 대작전
                     </h1>
+                    <QuizSetName title={questionSetTitle} className="mt-1.5" />
                     <p className="mt-1 hidden text-sm font-semibold text-slate-500 sm:block">
-                      퀴즈로 장전하고, 체온이 남은 플레이어가 끝까지 버팁니다.
+                      퀴즈를 맞히면 눈뭉치가 날아갑니다. 상대 팀을 전부 눈사람으로 만드세요.
                     </p>
                   </div>
                 </div>
@@ -902,20 +927,6 @@ export default function BattlePage() {
               />
             )}
 
-            {showCountdown && selectedClass && (
-              <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 backdrop-blur">
-                <motion.div
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="pointer-events-none absolute inset-x-0 top-[18vh] text-center text-white"
-                >
-                  <div className="mb-4 text-8xl">❄️</div>
-                  <h1 className="mb-2 text-5xl font-black">눈싸움 대작전</h1>
-                  <p className="text-xl font-bold text-cyan-200">타겟을 조준하고 퀴즈로 눈뭉치를 날려라!</p>
-                </motion.div>
-                <Countdown onComplete={handleBattleCountdownComplete} />
-              </div>
-            )}
 
             {currentView === 'lobby' && !showCountdown && (
               <motion.section
@@ -946,84 +957,15 @@ export default function BattlePage() {
                     </span>
                   </div>
                 </div>
-                <BattleArena
+                <SnowBattlefield
                   players={players as Player[]}
-                  currentPlayerId={playerId}
-                  canAttack={false}
+                  currentPlayerId={null}
+                  showTicker={false}
+                  className="h-[clamp(240px,36dvh,360px)]"
                 />
               </motion.section>
             )}
 
-            <AnimatePresence>
-              {isEliminated && currentView !== 'result' && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-40 flex flex-col items-center justify-center overflow-y-auto bg-slate-950/90 p-5"
-                >
-                  <motion.div
-                    animate={{ y: [0, -10, 0] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                    className="mb-6 text-9xl"
-                  >
-                    ⛄
-                  </motion.div>
-                  <h2 className="mb-3 text-center text-5xl font-black text-white">눈사람이 되었습니다</h2>
-                  <p className="mb-6 text-center text-xl font-bold text-cyan-200">체온이 0°까지 떨어졌습니다</p>
-
-                  {/* 부활 진행도 — 3연속 정답으로 50% 체력 부활 */}
-                  <div className="mb-8 w-full max-w-md rounded-2xl border-2 border-amber-300/40 bg-amber-500/10 p-5">
-                    <div className="mb-2 flex items-center justify-between text-amber-200">
-                      <span className="text-sm font-black">🔥 부활 게이지</span>
-                      <span className="text-sm font-black tabular-nums">
-                        {(currentPlayer as Player | null)?.revival_streak ?? 0} / {REVIVAL_STREAK_REQUIRED}
-                      </span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded-full bg-slate-950/60">
-                      <motion.div
-                        animate={{
-                          width: `${Math.min(
-                            100,
-                            (((currentPlayer as Player | null)?.revival_streak ?? 0) /
-                              REVIVAL_STREAK_REQUIRED) *
-                              100,
-                          )}%`,
-                        }}
-                        transition={{ duration: 0.4 }}
-                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500"
-                      />
-                    </div>
-                    <p className="mt-3 text-center text-xs font-bold text-amber-100">
-                      퀴즈를 3연속 맞히면 50% 체력으로 부활!
-                    </p>
-                  </div>
-
-                  {currentQuestion && (
-                    <div className="w-full max-w-3xl">
-                      <QuizView
-                        question={currentQuestion}
-                        onAnswer={handleAnswerSubmit}
-                        onCorrectClick={goToNextQuiz}
-                        timeLimit={30}
-                        paused={isPaused}
-                        variant="glass"
-                        className="lg-panel lg-ink-outline font-bitbit mx-auto p-5 sm:p-7"
-                      />
-                    </div>
-                  )}
-
-                  <div className="mt-6 w-full max-w-4xl">
-                    <p className="mb-4 text-center font-bold text-slate-400">남은 생존자 현황</p>
-                    <BattleArena
-                      players={players as Player[]}
-                      currentPlayerId={playerId}
-                      canAttack={false}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
 
             {currentView === 'quiz' && !showCountdown && currentPlayer && (currentPlayer.health ?? 100) > 0 && !isEliminated && (
               <div className="space-y-4">
@@ -1043,7 +985,7 @@ export default function BattlePage() {
                     className="battle-status-ready flex items-center justify-center gap-2 rounded-[8px] px-4 py-3 text-center text-base font-black text-white"
                   >
                     <Crosshair className="h-5 w-5" />
-                    눈뭉치 준비 완료. 바로 공격할 타깃을 선택하세요
+                    눈뭉치 준비 완료! 전장에서 상대를 누르면 바로 던집니다
                   </motion.div>
                 ) : isReloading ? (
                   <motion.div
@@ -1061,7 +1003,7 @@ export default function BattlePage() {
                     className="battle-frost-panel flex items-center justify-center gap-2 px-4 py-3 text-center text-base font-black text-slate-700"
                   >
                     <Crosshair className="h-5 w-5 text-rose-500" />
-                    먼저 타깃을 조준한 뒤 퀴즈를 풀어보세요
+                    전장에서 상대를 눌러 조준하고 퀴즈를 풀면 바로 날아갑니다
                   </motion.div>
                 )}
 
@@ -1071,18 +1013,38 @@ export default function BattlePage() {
                   그보다 작은 화면에서는 아레나를 화면 높이의 45%까지만 보여주고 안에서 스크롤한다.
                 */}
                 <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-start">
-                  <div className="max-h-[45vh] overflow-y-auto overscroll-contain rounded-[8px] xl:max-h-none xl:overflow-visible">
-                    <BattleArena
-                      players={players as Player[]}
-                      currentPlayerId={playerId}
-                      attackResult={attackResult}
-                      lockedTarget={lockedTarget}
-                      onTargetSelect={hasSnowball ? handlePlayerAttack : handleTargetLock}
-                      canAttack={(hasSnowball || (!isReloading && !hasSnowball))}
-                    />
-                  </div>
+                  <SnowBattlefield
+                    players={players as Player[]}
+                    currentPlayerId={playerId}
+                    lockedTarget={lockedTarget}
+                    onTargetSelect={hasSnowball ? handlePlayerAttack : handleTargetLock}
+                    canAttack={(hasSnowball || (!isReloading && !hasSnowball))}
+                    zoneLevel={zoneLevel}
+                    className="h-[clamp(300px,48dvh,480px)] xl:h-[clamp(320px,calc(100dvh_-_330px),640px)]"
+                  />
 
-                  <div className="xl:sticky xl:top-4">
+                  <div className="relative xl:sticky xl:top-4">
+                    <AnimatePresence>
+                      {attackResult && (
+                        <motion.div
+                          key={`${attackResult.targetId}-${attackResult.damage}`}
+                          initial={{ opacity: 0, y: -14, scale: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          className={`pointer-events-none absolute inset-x-3 top-3 z-20 flex items-center justify-center gap-2 rounded-[8px] px-4 py-2.5 text-center text-base font-black text-white shadow-xl ${
+                            attackResult.isCritical
+                              ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                              : 'battle-status-ready'
+                          }`}
+                        >
+                          {attackResult.isCritical ? <Flame className="h-5 w-5" /> : <Snowflake className="h-5 w-5" />}
+                          {attackResult.isCritical ? '크리티컬 히트!' : '눈뭉치 명중!'}
+                          {' '}
+                          {players.find((p) => p.id === attackResult.targetId)?.nickname ?? '상대'} -{attackResult.damage}°
+                          {attackResult.itemType === 'giant_ball' && ' · 왕눈덩이'}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                     {currentQuestion ? (
                       <QuizView
                         question={currentQuestion}
@@ -1101,40 +1063,6 @@ export default function BattlePage() {
                   </div>
                 </div>
               </div>
-            )}
-
-            {currentView === 'attack' && attackResult && (
-              <motion.section
-                initial={{ opacity: 0, scale: 0.96 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="battle-ink-panel mx-auto max-w-3xl p-8 text-center text-white"
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 0.5 }}
-                  className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[8px] bg-white text-slate-950"
-                >
-                  {attackResult.isCritical ? (
-                    <Flame className="h-9 w-9 text-orange-500" />
-                  ) : (
-                    <Snowflake className="h-9 w-9 text-cyan-600" />
-                  )}
-                </motion.div>
-                <h2 className="text-4xl font-black">
-                  {attackResult.isCritical ? '크리티컬 히트' : '눈뭉치 명중'}
-                </h2>
-                <p className="mt-3 text-2xl font-black text-cyan-100">
-                  {attackResult.damage}° 감소
-                </p>
-                {attackResult.itemType === 'giant_ball' && (
-                  <p className="mt-3 text-base font-black text-amber-200">
-                    왕눈덩이 보너스 적용
-                  </p>
-                )}
-                <p className="mt-5 text-sm font-semibold text-cyan-100/70">
-                  다음 문제로 이동합니다
-                </p>
-              </motion.section>
             )}
 
             {currentView === 'wrong' && (
@@ -1162,6 +1090,96 @@ export default function BattlePage() {
           </div>
         </div>
       </ScreenShake>
+
+      {/* fixed 오버레이는 ScreenShake 밖에 둔다. 흔들림이 끝나도 남는 transform이
+          fixed의 기준 상자가 되어 오버레이가 화면 일부만 덮고 아래가 비어 보였다. */}
+      {showCountdown && selectedClass && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-950/60 backdrop-blur">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="pointer-events-none absolute inset-x-0 top-[18vh] text-center text-white"
+          >
+            <div className="mb-4 text-8xl">❄️</div>
+            <h1 className="mb-2 text-5xl font-black">눈싸움 대작전</h1>
+            <p className="text-xl font-bold text-cyan-200">타겟을 조준하고 퀴즈로 눈뭉치를 날려라!</p>
+          </motion.div>
+          <Countdown onComplete={handleBattleCountdownComplete} />
+        </div>
+      )}
+
+      <AnimatePresence>
+        {isEliminated && currentView !== 'result' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 flex flex-col items-center [justify-content:safe_center] overflow-y-auto bg-slate-950/90 p-5"
+          >
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="mb-6 text-9xl"
+            >
+              ⛄
+            </motion.div>
+            <h2 className="mb-3 text-center text-5xl font-black text-white">눈사람이 되었습니다</h2>
+            <p className="mb-6 text-center text-xl font-bold text-cyan-200">체온이 0°까지 떨어졌습니다</p>
+
+            {/* 부활 진행도 — 3연속 정답으로 50% 체력 부활 */}
+            <div className="mb-8 w-full max-w-md rounded-2xl border-2 border-amber-300/40 bg-amber-500/10 p-5">
+              <div className="mb-2 flex items-center justify-between text-amber-200">
+                <span className="text-sm font-black">🔥 부활 게이지</span>
+                <span className="text-sm font-black tabular-nums">
+                  {(currentPlayer as Player | null)?.revival_streak ?? 0} / {REVIVAL_STREAK_REQUIRED}
+                </span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-slate-950/60">
+                <motion.div
+                  animate={{
+                    width: `${Math.min(
+                      100,
+                      (((currentPlayer as Player | null)?.revival_streak ?? 0) /
+                        REVIVAL_STREAK_REQUIRED) *
+                        100,
+                    )}%`,
+                  }}
+                  transition={{ duration: 0.4 }}
+                  className="h-full bg-gradient-to-r from-amber-400 to-orange-500"
+                />
+              </div>
+              <p className="mt-3 text-center text-xs font-bold text-amber-100">
+                퀴즈를 3연속 맞히면 50% 체력으로 부활!
+              </p>
+            </div>
+
+            {currentQuestion && (
+              <div className="w-full max-w-3xl">
+                <QuizView
+                  question={currentQuestion}
+                  onAnswer={handleAnswerSubmit}
+                  onCorrectClick={goToNextQuiz}
+                  timeLimit={30}
+                  paused={isPaused}
+                  variant="glass"
+                  className="lg-panel lg-ink-outline font-bitbit mx-auto p-5 sm:p-7"
+                />
+              </div>
+            )}
+
+            <div className="mt-6 w-full max-w-4xl">
+              <p className="mb-4 text-center font-bold text-slate-400">전장은 계속됩니다</p>
+              <SnowBattlefield
+                players={players as Player[]}
+                currentPlayerId={playerId}
+                zoneLevel={zoneLevel}
+                className="h-[clamp(220px,32dvh,340px)]"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {isPaused && currentView !== 'lobby' && currentView !== 'result' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
           <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black text-slate-900 shadow-2xl">

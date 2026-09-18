@@ -40,6 +40,8 @@ import {
   type GameQuestion,
 } from '@/lib/services/questions'
 import PixelIcon from '@/components/ui/PixelIcon'
+import QuizSetName from '@/components/game/QuizSetName'
+import { getQuestionSetTitle } from '@/lib/services/questionSets'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
   convenience_money?: number
@@ -65,6 +67,7 @@ export default function FactoryPage() {
   const [questions, setQuestions] = useState<GameQuestion[]>([])
   const [questionsLoading, setQuestionsLoading] = useState(false)
   const [questionsError, setQuestionsError] = useState<string | null>(null)
+  const [questionSetTitle, setQuestionSetTitle] = useState<string | null>(null)
   const [correctAnswersCount, setCorrectAnswersCount] = useState(0) // Blooket: 3문제마다 유닛 획득
   const [showOrderModal, setShowOrderModal] = useState(false) // 정답 3개마다 발주 모달
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null) // 제한 시간 남은 초
@@ -185,6 +188,27 @@ export default function FactoryPage() {
     }
 
     fetchQuestions()
+  }, [room?.set_id])
+
+  // 헤더에 띄울 문제집 이름 (편의점은 공용 훅을 쓰지 않아 여기서 직접 가져온다)
+  useEffect(() => {
+    const setId = room?.set_id
+    if (!setId) {
+      setQuestionSetTitle(null)
+      return
+    }
+    let isMounted = true
+    getQuestionSetTitle(setId)
+      .then((title) => {
+        if (isMounted) setQuestionSetTitle(title)
+      })
+      .catch((error) => {
+        console.error('Error fetching question set title:', formatServiceError(error))
+        if (isMounted) setQuestionSetTitle(null)
+      })
+    return () => {
+      isMounted = false
+    }
   }, [room?.set_id])
 
   // 무한 반복: 인덱스는 나머지로 사용, 다음 문제는 랜덤 선택
@@ -553,7 +577,10 @@ export default function FactoryPage() {
                 </div>
                 <div className="min-w-0">
                   <h1 className="truncate text-xl font-bold text-emerald-950 sm:text-2xl">전설의 편의점</h1>
-                  <p className="text-xs font-bold text-emerald-700">방 코드: {roomCode}</p>
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <p className="text-xs font-bold text-emerald-700">방 코드: {roomCode}</p>
+                    <QuizSetName title={questionSetTitle} />
+                  </div>
                 </div>
               </div>
 

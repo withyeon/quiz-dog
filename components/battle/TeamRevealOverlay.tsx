@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TEAM_INFO, type Team } from '@/lib/game/battleRoyale'
 
@@ -29,6 +29,13 @@ export default function TeamRevealOverlay({
 }: TeamRevealOverlayProps) {
   const [phase, setPhase] = useState<Phase>('shuffle')
   const [revealedIds, setRevealedIds] = useState<Set<string>>(new Set())
+  // 부모(app/battle/page.tsx)는 players를 매 렌더마다 .map()으로 새로 만들고 onComplete도 인라인이다.
+  // 이걸 deps에 그대로 두면 부모가 렌더될 때마다 뒤집기 interval이 i=0부터 다시 돌고
+  // 결투 준비 타이머도 리셋되어, 방이 조금만 바빠도 오버레이가 영영 끝나지 않는다.
+  const playersRef = useRef(players)
+  playersRef.current = players
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
 
   useEffect(() => {
     if (phase !== 'shuffle') return
@@ -40,7 +47,7 @@ export default function TeamRevealOverlay({
     if (phase !== 'flipping') return
     let i = 0
     const interval = setInterval(() => {
-      const player = players[i]
+      const player = playersRef.current[i]
       if (!player) {
         clearInterval(interval)
         setPhase('showdown')
@@ -54,16 +61,16 @@ export default function TeamRevealOverlay({
       i += 1
     }, FLIP_INTERVAL_MS)
     return () => clearInterval(interval)
-  }, [phase, players])
+  }, [phase])
 
   useEffect(() => {
     if (phase !== 'showdown') return
     const timer = setTimeout(() => {
       setPhase('done')
-      onComplete()
+      onCompleteRef.current()
     }, SHOWDOWN_MS)
     return () => clearTimeout(timer)
-  }, [phase, onComplete])
+  }, [phase])
 
   if (phase === 'done') return null
 

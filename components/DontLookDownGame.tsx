@@ -66,6 +66,7 @@ import {
     updateActivePowerUps,
 } from '@/lib/game/dontlookdown'
 import PixelIcon from '@/components/ui/PixelIcon'
+import QuizSetName from '@/components/game/QuizSetName'
 
 interface DontLookDownGameProps {
     playerId: string
@@ -81,9 +82,11 @@ interface DontLookDownGameProps {
     currentQuestion: DontLookDownQuestion | null
     onAnswerQuestion: (answer: string) => boolean | Promise<boolean>
     remainingTime?: number
+    questionSetTitle?: string | null
 }
 
 export default function DontLookDownGame({
+    questionSetTitle,
     playerId,
     playerName,
     characterImage,
@@ -832,6 +835,7 @@ export default function DontLookDownGame({
                 )}
 
                 <div className="absolute top-4 left-4 bg-white/95 rounded-xl px-3 py-2 sm:px-5 sm:py-3 shadow-lg pointer-events-auto w-[calc(50vw-1.5rem)] sm:w-auto sm:min-w-[200px]">
+                    <QuizSetName title={questionSetTitle} className="mb-2 max-w-full" />
                     <div className="flex items-center justify-between mb-2">
                         <span className="text-sm font-semibold text-gray-600">🏔️ 구역 {uiPlayer.currentSummit}/{SUMMITS.length}</span>
                         <span className="text-xs text-gray-500">{Math.floor(summitProgress)}%</span>

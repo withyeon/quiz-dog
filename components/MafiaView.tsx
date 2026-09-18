@@ -26,6 +26,7 @@ import { subscribeRoomRuntimeEvent, type RoomEventType } from '@/lib/realtime/ro
 import type { Database, Json } from '@/types/database.types'
 import type { Question } from '@/hooks/useGameBase'
 import PixelIcon from '@/components/ui/PixelIcon'
+import QuizSetName from '@/components/game/QuizSetName'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type PlayerPatch = Partial<PlayerRow> & Record<string, unknown>
@@ -56,6 +57,7 @@ interface MafiaViewProps {
   commitPlayerSteal: (victimId: string, thiefId: string, amount: number, columns: Array<'mafia_cash' | 'score' | 'gold'>, reason?: string) => Promise<unknown>
   sendRoomEvent: (type: RoomEventType, payload?: unknown) => Promise<unknown> | { ok: boolean; reason?: string }
   playSFX: (sound: 'correct' | 'incorrect' | 'item' | 'click') => void
+  questionSetTitle?: string | null
 }
 
 type MafiaViewType = 'quiz' | 'actionSelect' | 'vaultSelection' | 'vaultResult' | 'investigation' | 'wrong'
@@ -140,6 +142,7 @@ export default function MafiaView({
   commitPlayerSteal,
   sendRoomEvent,
   playSFX,
+  questionSetTitle,
 }: MafiaViewProps) {
   const [currentView, setCurrentView] = useState<MafiaViewType>('quiz')
   const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
@@ -361,6 +364,7 @@ export default function MafiaView({
             )}
           </div>
           <div className="flex items-center gap-2 whitespace-nowrap text-base font-bold text-white sm:text-lg">
+            <QuizSetName title={questionSetTitle} tone="dark" className="hidden lg:flex" />
             <Users className="h-5 w-5 shrink-0 text-yellow-300" />
             {players.length}명
           </div>

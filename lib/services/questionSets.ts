@@ -377,6 +377,18 @@ export async function listQuestionSetsExcept(excludedSetId: string): Promise<Que
   return (data ?? []) as QuestionSetRow[]
 }
 
+/** 게임 화면 헤더에 띄울 문제집 이름만 가볍게 가져온다. */
+export async function getQuestionSetTitle(setId: string): Promise<string | null> {
+  const { data, error } = await (supabase
+    .from('question_sets') as any)
+    .select('title')
+    .eq('id', setId)
+    .maybeSingle()
+
+  if (error) throw error
+  return (data?.title as string | undefined) ?? null
+}
+
 export async function getQuestionSetWithQuestions(setId: string): Promise<QuestionSetWithQuestions> {
   const { data: set, error: setError } = await (supabase
     .from('question_sets') as any)

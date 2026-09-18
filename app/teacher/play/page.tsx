@@ -14,7 +14,7 @@ import GameCodeModal from '@/components/GameCodeModal'
 import GameStartTutorialModal from '@/components/GameStartTutorialModal'
 import GameModeSelector from '@/components/dashboards/GameModeSelector'
 import PlaySteps from '@/components/teacher/play/PlaySteps'
-import QuestionSetPicker from '@/components/teacher/play/QuestionSetPicker'
+import SelectedQuestionSet from '@/components/teacher/play/SelectedQuestionSet'
 import WaitingPlayers from '@/components/teacher/play/WaitingPlayers'
 import GameDurationPicker from '@/components/teacher/play/GameDurationPicker'
 import RoomCodePanel from '@/components/teacher/play/RoomCodePanel'
@@ -57,7 +57,7 @@ export default function TeacherDashboard() {
   const { user } = useAuth()
   const ownerId = user?.id ?? null
   const [roomCode, setRoomCode] = useState('')
-  // 게임 시작에 쓸 문제집 — 예전에는 URL(?set=)로만 받아서 대시보드에서 고를 방법이 없었다.
+  // 게임 시작에 쓸 문제집. 고르는 곳은 자료실 한 곳이고, 여기로는 ?set= 으로 넘어온다.
   const [questionSets, setQuestionSets] = useState<QuestionSetSummary[]>([])
   const [selectedSetId, setSelectedSetId] = useState<string>('')
   const [setsLoading, setSetsLoading] = useState(true)
@@ -95,6 +95,11 @@ export default function TeacherDashboard() {
   })
   const roomStatus = room?.status
   const activeModeConfig = getGameModeConfig(gameMode)
+  // 자료실에서 골라 ?set= 으로 넘어온 문제집. 이 화면에서는 고르지 않고 보여주기만 한다.
+  const selectedSet = useMemo(
+    () => questionSets.find((set) => set.id === selectedSetId) ?? null,
+    [questionSets, selectedSetId],
+  )
   // 현재 방(또는 선택된) 문제집 제목 — 대기방에서 어떤 문제집인지 확인용
   const activeSetLabel = useMemo(() => {
     const activeId = room?.set_id || selectedSetId
@@ -426,12 +431,13 @@ export default function TeacherDashboard() {
         const usable = sets.filter((set) => (set.question_count ?? 0) > 0)
         setQuestionSets(usable)
 
-        // URL(?set=)로 들어온 경우 우선 선택, 없으면 첫 문제집
+        // 문제집은 자료실에서 고르고 ?set= 으로 넘어온다.
+        // 예전에는 ?set= 이 없으면 목록의 첫 문제집을 자동으로 골랐는데,
+        // 선생님이 의도하지 않은 문제집으로 수업이 시작될 수 있어 없앴다.
         const fromUrl = new URLSearchParams(window.location.search).get('set')
         setSelectedSetId((prev) => {
           if (prev) return prev
-          if (fromUrl && usable.some((set) => set.id === fromUrl)) return fromUrl
-          return usable[0]?.id ?? ''
+          return fromUrl && usable.some((set) => set.id === fromUrl) ? fromUrl : ''
         })
       } catch (error) {
         if (!cancelled) setSetsError(formatServiceError(error))
@@ -463,7 +469,7 @@ export default function TeacherDashboard() {
           toast.info(
             questionSets.length === 0
               ? '아직 사용할 수 있는 문제집이 없어요. 먼저 문제집을 만들어주세요.'
-              : '이 게임은 문제집이 필요합니다. 위에서 문제집을 선택해주세요.',
+              : '이 게임은 문제집이 필요합니다. 자료실에서 문제집을 먼저 골라주세요.',
           )
           return
         }
@@ -699,7 +705,6 @@ export default function TeacherDashboard() {
         <HomeworkPanel
           questionSets={questionSets}
           selectedSetId={selectedSetId}
-          onSelectSet={setSelectedSetId}
           setsLoading={setsLoading}
           setsError={setsError}
           ownerId={ownerId}
@@ -802,23 +807,19 @@ export default function TeacherDashboard() {
           </div>
         ) : (
           <div className="py-12">
-            {/* 문제집 선택 — 예전에는 URL(?set=)로만 지정할 수 있어서
-                대시보드에서 바로 게임을 시작할 방법이 없었다. */}
+            {/* 문제집은 자료실에서 이미 고른 상태로 넘어온다. 여기서는 확인만 한다. */}
             {activeModeConfig.requiresQuestionSet && (
-              <QuestionSetPicker
-                questionSets={questionSets}
-                selectedSetId={selectedSetId}
+              <SelectedQuestionSet
+                set={selectedSet}
                 loading={setsLoading}
                 error={setsError}
-                onSelect={setSelectedSetId}
-                onCreateQuestionSet={() => router.push('/teacher/create')}
               />
             )}
 
             <div className="text-center">
               <p className="mb-6 text-lg font-medium text-slate-500">
                 {activeModeConfig.requiresQuestionSet && !selectedSetId
-                  ? '문제집을 선택하면 게임을 시작할 수 있어요'
+                  ? '자료실에서 문제집을 고르면 게임을 시작할 수 있어요'
                   : '모드를 고르고 새 게임 만들기'}
               </p>
               <button

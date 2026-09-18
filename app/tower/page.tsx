@@ -44,6 +44,7 @@ export default function TowerPage() {
         currentQuestion,
         questionsLoading,
         questionsError,
+    questionSetTitle,
         preStartQuizQuestion,
         preStartSubmittedCount,
         preStartQuizTotal,
@@ -440,6 +441,7 @@ export default function TowerPage() {
                     <div className="flex min-h-[calc(100dvh-40px)] flex-col">
                         <TowerBattleHeader
                             roomCode={roomCode}
+                            questionSetTitle={questionSetTitle}
                             selectedTowerType={selectedTowerType}
                             hp={hp}
                             gold={gold}

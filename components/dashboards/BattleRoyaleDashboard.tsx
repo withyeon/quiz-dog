@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
 import { PLAYER_CLASSES, TEAM_INFO, type PlayerClass, type Team } from '@/lib/game/battleRoyale'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import SnowBattlefield from '@/components/battle/SnowBattlefield'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -168,6 +169,17 @@ export default function BattleRoyaleDashboard({
                     <span className="rounded-full bg-white/10 px-3 py-2 text-cyan-100">경과 {formatTime(elapsed)}</span>
                     <span className="rounded-full bg-rose-500/80 px-3 py-2 text-white">폭설 Lv.{zoneLevel}</span>
                 </div>
+            </div>
+
+            {/* 눈밭 전장 — 학생 화면과 같은 실시간 스테이지(가로형). 프로젝터에서 반 전체가 같이 본다. */}
+            <div className="p-4 pb-0">
+                <SnowBattlefield
+                    players={players}
+                    currentPlayerId={null}
+                    zoneLevel={zoneLevel}
+                    orientation="horizontal"
+                    className="h-[clamp(300px,50vh,560px)]"
+                />
             </div>
 
             {isTeamGame && teamRosters ? (

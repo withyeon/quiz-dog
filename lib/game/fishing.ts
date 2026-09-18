@@ -1,4 +1,4 @@
-export type DollTier = '꽝' | '일반' | '희귀' | '영웅' | '전설'
+export type DollTier = '꽝' | '기본' | '인기' | '특별' | '보물'
 export type AnswerSpeedGrade = 'perfect' | 'fast' | 'steady' | 'slow'
 export type AimGrade = 'perfect' | 'great' | 'good' | 'safe'
 
@@ -47,25 +47,25 @@ export interface Doll {
 
 // 인형 데이터: 정답 보상과 조작 정확도에 따라 희귀도 가중치가 달라진다.
 export const DOLL_TYPES: Omit<Doll, 'id' | 'score'>[] = [
-  { name: '목욕탕 고무오리', emoji: '🦆', image: '/fishing/10.webp', tier: '일반', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 18 },
-  { name: '삐약이 병아리', emoji: '🐥', image: '/fishing/7.webp', tier: '일반', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 17 },
-  { name: '무지개 막대사탕', emoji: '🍭', image: '/fishing/14.webp', tier: '일반', minScore: 45, maxScore: 85, color: 'text-amber-600', catchChance: 13 },
-  { name: '빨간 리본 곰 인형', emoji: '🧸', image: '/fishing/1.webp', tier: '일반', minScore: 55, maxScore: 105, color: 'text-amber-600', catchChance: 13 },
+  { name: '목욕탕 고무오리', emoji: '🦆', image: '/fishing/10.webp', tier: '기본', minScore: 20, maxScore: 45, color: 'text-amber-600', catchChance: 18 },
+  { name: '삐약이 병아리', emoji: '🐥', image: '/fishing/7.webp', tier: '기본', minScore: 30, maxScore: 65, color: 'text-amber-600', catchChance: 17 },
+  { name: '무지개 막대사탕', emoji: '🍭', image: '/fishing/14.webp', tier: '기본', minScore: 45, maxScore: 85, color: 'text-amber-600', catchChance: 13 },
+  { name: '빨간 리본 곰 인형', emoji: '🧸', image: '/fishing/1.webp', tier: '기본', minScore: 55, maxScore: 105, color: 'text-amber-600', catchChance: 13 },
 
-  { name: '느긋한 거북 인형', emoji: '🐢', image: '/fishing/15.webp', tier: '희귀', minScore: 110, maxScore: 180, color: 'text-blue-500', catchChance: 6 },
-  { name: '골든 강아지 인형', emoji: '🐶', image: '/fishing/13.webp', tier: '희귀', minScore: 125, maxScore: 210, color: 'text-blue-500', catchChance: 5.5 },
-  { name: '줄무늬 고양이 인형', emoji: '🐱', image: '/fishing/4.webp', tier: '희귀', minScore: 150, maxScore: 260, color: 'text-blue-500', catchChance: 4.5 },
-  { name: '분홍 돌고래 인형', emoji: '🐬', image: '/fishing/12.webp', tier: '희귀', minScore: 180, maxScore: 330, color: 'text-blue-500', catchChance: 3.5 },
+  { name: '느긋한 거북 인형', emoji: '🐢', image: '/fishing/15.webp', tier: '인기', minScore: 110, maxScore: 180, color: 'text-blue-500', catchChance: 6 },
+  { name: '골든 강아지 인형', emoji: '🐶', image: '/fishing/13.webp', tier: '인기', minScore: 125, maxScore: 210, color: 'text-blue-500', catchChance: 5.5 },
+  { name: '줄무늬 고양이 인형', emoji: '🐱', image: '/fishing/4.webp', tier: '인기', minScore: 150, maxScore: 260, color: 'text-blue-500', catchChance: 4.5 },
+  { name: '분홍 돌고래 인형', emoji: '🐬', image: '/fishing/12.webp', tier: '인기', minScore: 180, maxScore: 330, color: 'text-blue-500', catchChance: 3.5 },
 
-  { name: '말랑 보라 문어', emoji: '🐙', image: '/fishing/8.webp', tier: '영웅', minScore: 260, maxScore: 460, color: 'text-purple-600', catchChance: 2.6 },
-  { name: '무시무시 상어 인형', emoji: '🦈', image: '/fishing/9.webp', tier: '영웅', minScore: 320, maxScore: 560, color: 'text-purple-600', catchChance: 2.2 },
-  { name: '황금 왕관 곰 인형', emoji: '🧸', image: '/fishing/2.webp', tier: '영웅', minScore: 380, maxScore: 680, color: 'text-purple-600', catchChance: 1.9 },
+  { name: '말랑 보라 문어', emoji: '🐙', image: '/fishing/8.webp', tier: '특별', minScore: 260, maxScore: 460, color: 'text-purple-600', catchChance: 2.6 },
+  { name: '무시무시 상어 인형', emoji: '🦈', image: '/fishing/9.webp', tier: '특별', minScore: 320, maxScore: 560, color: 'text-purple-600', catchChance: 2.2 },
+  { name: '황금 왕관 곰 인형', emoji: '🧸', image: '/fishing/2.webp', tier: '특별', minScore: 380, maxScore: 680, color: 'text-purple-600', catchChance: 1.9 },
 
-  { name: '신사 눈사람 인형', emoji: '⛄', image: '/fishing/3.webp', tier: '전설', minScore: 580, maxScore: 980, color: 'text-yellow-500', catchChance: 1.1 },
-  { name: '모험가 레서판다', emoji: '🦝', image: '/fishing/16.webp', tier: '전설', minScore: 720, maxScore: 1200, color: 'text-yellow-500', catchChance: 0.8 },
-  { name: '해적선장 거북이', emoji: '🐢', image: '/fishing/5.webp', tier: '전설', minScore: 850, maxScore: 1450, color: 'text-yellow-500', catchChance: 0.6 },
-  { name: '붉은 해적 문어', emoji: '🐙', image: '/fishing/6.webp', tier: '전설', minScore: 1200, maxScore: 2200, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.7)]', catchChance: 0.35 },
-  { name: '문어 왕자님', emoji: '👑', image: '/fishing/11.webp', tier: '전설', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
+  { name: '신사 눈사람 인형', emoji: '⛄', image: '/fishing/3.webp', tier: '보물', minScore: 580, maxScore: 980, color: 'text-yellow-500', catchChance: 1.1 },
+  { name: '모험가 레서판다', emoji: '🦝', image: '/fishing/16.webp', tier: '보물', minScore: 720, maxScore: 1200, color: 'text-yellow-500', catchChance: 0.8 },
+  { name: '해적선장 거북이', emoji: '🐢', image: '/fishing/5.webp', tier: '보물', minScore: 850, maxScore: 1450, color: 'text-yellow-500', catchChance: 0.6 },
+  { name: '붉은 해적 문어', emoji: '🐙', image: '/fishing/6.webp', tier: '보물', minScore: 1200, maxScore: 2200, color: 'text-yellow-500 drop-shadow-[0_0_10px_rgba(255,215,0,0.7)]', catchChance: 0.35 },
+  { name: '문어 왕자님', emoji: '👑', image: '/fishing/11.webp', tier: '보물', minScore: 1600, maxScore: 3000, color: 'text-yellow-500 drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]', catchChance: 0.18 },
 ]
 
 // 인형뽑기 상태
@@ -109,7 +109,7 @@ export interface SpecialItem {
   name: string
   description: string
   emoji: string
-  rarity: '일반' | '희귀' | '전설'
+  rarity: '기본' | '인기' | '보물'
   bonusPoints?: number  // COIN_RAIN 전용
   catchChance: number   // 발동 확률 (0~100 중 가중치)
 }
@@ -120,7 +120,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
     name: '보너스 코인',
     description: '이번 뽑기 점수 +150',
     emoji: '🪙',
-    rarity: '일반',
+    rarity: '기본',
     bonusPoints: 150,
     catchChance: 3.5,
   },
@@ -129,15 +129,15 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
     name: '2배 부스터',
     description: '다음 인형 점수가 2배로 적용됩니다',
     emoji: '⚡',
-    rarity: '희귀',
+    rarity: '인기',
     catchChance: 2.5,
   },
   {
     type: 'LUCKY_BOOST',
     name: '행운의 별',
-    description: '다음 뽑기에서 희귀 인형 확률이 상승합니다',
+    description: '다음 뽑기에서 좋은 인형이 나올 확률이 올라갑니다',
     emoji: '⭐',
-    rarity: '희귀',
+    rarity: '인기',
     catchChance: 1.5,
   },
   {
@@ -145,7 +145,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
     name: '복습 티켓',
     description: '다음 정답 보상이 더 커져요.',
     emoji: '🎰',
-    rarity: '전설',
+    rarity: '보물',
     catchChance: 0.4,
   },
   {
@@ -153,7 +153,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
     name: '행운의 부적',
     description: '다음 뽑기에서 꽝이 나오지 않아요',
     emoji: '🍀',
-    rarity: '전설',
+    rarity: '보물',
     catchChance: 0.3,
   },
   {
@@ -161,7 +161,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
     name: '화면 뒤집기',
     description: '다른 모든 친구의 화면이 7초간 뒤집혀요!',
     emoji: '🙃',
-    rarity: '전설',
+    rarity: '보물',
     catchChance: 0.25,
   },
   {
@@ -169,7 +169,7 @@ export const SPECIAL_ITEMS: SpecialItem[] = [
     name: '화면 축소',
     description: '다른 모든 친구의 화면이 7초간 반으로 줄어들어요!',
     emoji: '🔭',
-    rarity: '전설',
+    rarity: '보물',
     catchChance: 0.2,
   },
 ]
@@ -197,11 +197,11 @@ export function trySpecialItem(): SpecialItem | null {
  */
 function getRarityMultiplier(rank: MachineRank, tier: DollTier): number {
   const baseMultipliers: Record<MachineRank, Record<DollTier, number>> = {
-    1: { '꽝': 0, '일반': 1.15, '희귀': 0.45, '영웅': 0.18, '전설': 0.05 },
-    2: { '꽝': 0, '일반': 1.0, '희귀': 0.7, '영웅': 0.3, '전설': 0.1 },
-    3: { '꽝': 0, '일반': 0.9, '희귀': 1.0, '영웅': 0.55, '전설': 0.2 },
-    4: { '꽝': 0, '일반': 0.72, '희귀': 1.08, '영웅': 0.85, '전설': 0.38 },
-    5: { '꽝': 0, '일반': 0.58, '희귀': 1.0, '영웅': 1.05, '전설': 0.62 },
+    1: { '꽝': 0, '기본': 1.15, '인기': 0.45, '특별': 0.18, '보물': 0.05 },
+    2: { '꽝': 0, '기본': 1.0, '인기': 0.7, '특별': 0.3, '보물': 0.1 },
+    3: { '꽝': 0, '기본': 0.9, '인기': 1.0, '특별': 0.55, '보물': 0.2 },
+    4: { '꽝': 0, '기본': 0.72, '인기': 1.08, '특별': 0.85, '보물': 0.38 },
+    5: { '꽝': 0, '기본': 0.58, '인기': 1.0, '특별': 1.05, '보물': 0.62 },
   }
   return baseMultipliers[rank][tier]
 }
@@ -213,9 +213,9 @@ function getAccuracyTierMultiplier(accuracy: number, tier: DollTier): number {
   const rareLift = 0.65 + safeAccuracy * 0.95
   const commonBalance = 1.18 - safeAccuracy * 0.35
 
-  if (tier === '일반') return commonBalance
-  if (tier === '희귀') return 0.78 + safeAccuracy * 0.62
-  if (tier === '영웅') return rareLift
+  if (tier === '기본') return commonBalance
+  if (tier === '인기') return 0.78 + safeAccuracy * 0.62
+  if (tier === '특별') return rareLift
   return 0.45 + safeAccuracy * 1.25
 }
 
@@ -271,7 +271,7 @@ export const AIM_TICK_MS = 24
  * 바가 노란(훌륭함) 칸을 지나가는 시간(ms).
  *
  * 칸 폭을 고정하면 랭크가 오를수록 바만 빨라져서 통과 시간이 77ms → 37ms 로 반토막 난다.
- * 훌륭함 조준은 전설 인형을 뽑는 거의 유일한 수단인데(getAimTierFloor 참고),
+ * 훌륭함 조준은 보물 인형을 뽑는 거의 유일한 수단인데(getAimTierFloor 참고),
  * 정답을 맞혀 랭크를 올릴수록 그게 실력이 아니라 운이 되어버리는 역전이 생긴다.
  * 그래서 폭이 아니라 "지나가는 시간"을 랭크별로 정하고 폭은 속도에서 거꾸로 계산한다.
  * 여기 값만 바꾸면 조준 난이도 곡선을 조정할 수 있다.
@@ -331,21 +331,21 @@ export function getRankScoreMultiplier(rank: MachineRank): number {
 // 등급 서열 (낮음 → 높음). 조준 하한 비교용.
 const TIER_ORDER: Record<DollTier, number> = {
   '꽝': 0,
-  '일반': 1,
-  '희귀': 2,
-  '영웅': 3,
-  '전설': 4,
+  '기본': 1,
+  '인기': 2,
+  '특별': 3,
+  '보물': 4,
 }
 
 /**
  * 조준 등급에 따른 최소 인형 등급 하한.
- * perfect(가장 좁고 어려운 구간) → 최소 영웅, great → 최소 희귀.
- * good/safe는 하한 없음(기존 확률). 전설은 하한에서 제외해 희소성을 유지한다.
+ * perfect(가장 좁고 어려운 구간) → 최소 특별, great → 최소 인기.
+ * good/safe는 하한 없음(기존 확률). 보물은 하한에서 제외해 희소성을 유지한다.
  * 조준 실력이 인형 등급에 직접 반영되게 하는 핵심 테이블 — 여기 값만 바꾸면 밸런스 조정 가능.
  */
 export function getAimTierFloor(aimGrade: AimGrade): DollTier | null {
-  if (aimGrade === 'perfect') return '영웅'
-  if (aimGrade === 'great') return '희귀'
+  if (aimGrade === 'perfect') return '특별'
+  if (aimGrade === 'great') return '인기'
   return null
 }
 
@@ -439,14 +439,14 @@ export function getTierColor(tier: DollTier): string {
   switch (tier) {
     case '꽝':
       return 'bg-gray-500'
-    case '일반':
+    case '기본':
       return 'bg-amber-500'
-    case '희귀':
+    case '인기':
       return 'bg-blue-500'
-    case '영웅':
+    case '특별':
       return 'bg-purple-500'
-    case '전설':
-      return 'bg-yellow-500'
+    case '보물':
+      return 'treasure-chip'
     default:
       return 'bg-gray-500'
   }
@@ -456,14 +456,14 @@ export function getTierBorderColor(tier: DollTier): string {
   switch (tier) {
     case '꽝':
       return 'border-gray-400'
-    case '일반':
+    case '기본':
       return 'border-amber-300'
-    case '희귀':
+    case '인기':
       return 'border-sky-300'
-    case '영웅':
+    case '특별':
       return 'border-violet-300'
-    case '전설':
-      return 'border-yellow-300'
+    case '보물':
+      return 'border-amber-400'
     default:
       return 'border-gray-300'
   }

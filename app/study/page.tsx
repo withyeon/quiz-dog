@@ -34,6 +34,7 @@ import {
   type StudySettings,
 } from '@/lib/game/studySettings'
 import type { Json } from '@/types/database.types'
+import QuizSetName from '@/components/game/QuizSetName'
 
 /**
  * 공부 모드 학생 화면.
@@ -78,6 +79,7 @@ export default function StudyPage() {
     questions,
     questionsLoading,
     questionsError,
+    questionSetTitle,
     showCountdown,
     handleCountdownComplete,
     isHomework,
@@ -366,6 +368,7 @@ export default function StudyPage() {
             <span className="text-sm font-black text-slate-700">{nickname}</span>
           </div>
         )}
+        <QuizSetName title={questionSetTitle} />
         {!isHomework && room.duration_seconds ? (
           <GameTimeBadge startedAt={sessionStartedAt} durationSeconds={room.duration_seconds} status={room.status} />
         ) : null}

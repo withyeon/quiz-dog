@@ -23,6 +23,7 @@ import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import { useAudioContext } from '@/components/AudioProvider'
 import type { Database } from '@/types/database.types'
 import PixelIcon from '@/components/ui/PixelIcon'
+import QuizSetName from '@/components/game/QuizSetName'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -45,6 +46,7 @@ interface CafeViewProps {
   consecutiveCorrect: number
   onSendEvent: (type: 'cafe:item_attack', payload: unknown) => Promise<unknown> | void
   onScoreChange?: (totalCash: number) => void
+  questionSetTitle?: string | null
   paused?: boolean
 }
 
@@ -59,6 +61,7 @@ export default function CafeView({
   onSendEvent,
   onScoreChange,
   paused = false,
+  questionSetTitle,
 }: CafeViewProps) {
   const {
     status,
@@ -246,7 +249,10 @@ export default function CafeView({
   // 퀴즈 정답 제출
   const handleAnswerSubmit = async (answer: string) => {
     if (!answer) {
-      // 시간 초과
+      // 시간 초과 — 오답으로 기록해야 리포트 분모에 잡힌다.
+      // 예전에는 여기서 바로 리턴해서 시간 초과가 한 건도 기록되지 않았고,
+      // 그 결과 정답률이 늘 100%로 나왔다.
+      await onAnswer('')
       playSFX('incorrect')
       setShowWrong(true)
       setShowQuiz(false)
@@ -391,6 +397,7 @@ export default function CafeView({
               <span className="text-xl sm:text-3xl">💰</span>
               <span className="text-lg sm:text-3xl font-bold text-slate-700 whitespace-nowrap">{formatCafeMoney(cash)}</span>
             </div>
+            <QuizSetName title={questionSetTitle} className="hidden lg:flex" />
             <div className="hidden sm:flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
               <span className="text-2xl">👥</span>
               <span className="text-xl font-bold text-slate-700 whitespace-nowrap">{customersServed}명</span>

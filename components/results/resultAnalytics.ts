@@ -19,9 +19,14 @@ export type PlayerAnalysis = {
   nickname: string
   avatar: string | null
   score: number
+  /** 맞힌 "시도" 수. 같은 문제를 두 번 맞히면 2 */
   correctCount: number
+  /** 푼 "시도" 수. 정답률의 분모 */
   answeredCount: number
-  totalCount: number
+  /** 한 번이라도 받아본 고유 문항 수 */
+  servedQuestionCount: number
+  /** 이 학생에게 한 번도 나오지 않은 문항 수 */
+  unservedQuestionCount: number
   accuracy: number
   avgResponseTimeMs: number | null
   rankByScore: number
@@ -39,22 +44,36 @@ export type QuestionAnalysis = {
   answer: string
   options: string[]
   tag: string
+  /** 이 문항이 풀린 총 횟수(모든 학생 × 모든 바퀴) */
+  attemptCount: number
   correctCount: number
+  /** 시간 초과·미제출도 여기 포함된다 */
   incorrectCount: number
-  unansweredCount: number
-  totalCount: number
-  accuracy: number
+  /** 이 문항을 한 번이라도 받은 학생 수 */
+  servedPlayerCount: number
+  /** 이 문항이 한 번도 나오지 않은 학생 수 */
+  unservedPlayerCount: number
+  /** null = 아무도 받지 못한 문항(미출제). 0%와 구분한다 */
+  accuracy: number | null
   optionDistribution: Record<string, number>
   wrongStudentsByAnswer: Record<string, string[]>
   topWrongAnswer: [string, number] | null
 }
 
+/** 최소 한 명에게는 출제된 문항 — accuracy가 항상 숫자다 */
+export type ServedQuestionAnalysis = QuestionAnalysis & { accuracy: number }
+
 export type ResultAnalytics = {
   players: PlayerAnalysis[]
   playersByAccuracy: PlayerAnalysis[]
   questions: QuestionAnalysis[]
-  hardestQuestions: QuestionAnalysis[]
+  hardestQuestions: ServedQuestionAnalysis[]
   averageAccuracy: number
+  /** 전체 학생이 문제를 푼 총 횟수 */
+  totalAttempts: number
+  totalCorrectAttempts: number
+  /** 한 명에게도 나오지 않은 문항 수 */
+  unservedQuestionCount: number
   averageScore: number
   completionRate: number
   totalParticipants: number
@@ -102,6 +121,17 @@ function normalizeAnswer(value: string | number | null | undefined): string {
   return String(value)
 }
 
+/**
+ * 정답률은 "푼 시도" 기준이다.
+ *
+ * 카페·낚시처럼 제한 시간 동안 문제가 계속 도는 게임에서는 한 학생이 같은 문제를 여러 번
+ * 푼다. 분모는 그 시도 횟수 전부이고, 분자는 그중 맞힌 횟수다. Q1을 두 번 만나 한 번 틀리고
+ * 한 번 맞혔으면 1/2 = 50%.
+ *
+ * 반대로 "그 학생에게 한 번도 나오지 않은 문항"은 분모에 넣지 않는다(미출제). 문제 순서가
+ * 섞여서 못 만난 것을 이해하지 못한 것으로 읽으면, 셔플 운이 나쁜 학생이 이해도가 낮은 것처럼
+ * 보이기 때문이다. 화면에서도 0%가 아니라 '미출제'로 따로 표시한다.
+ */
 export function buildResultAnalytics(
   players: Player[],
   questions: AnalyticsQuestion[],
@@ -117,11 +147,11 @@ export function buildResultAnalytics(
     const history = toAnswerHistory(player.answer_history)
     const correctCount = history.filter((answer) => answer.isCorrect).length
     const answeredCount = history.length
-    // 카페·낚시처럼 한 문제를 여러 번 푸는 게임에서는 정답 수(correctCount)가
-    // 문제집 문항 수(totalQuestions)를 넘을 수 있다. 이때 분모를 totalQuestions로 두면
-    // 정답률이 100%를 초과한다. 실제 푼 문항 수(answeredCount)를 분모 하한으로 삼아
-    // 정답률이 항상 ≤100%가 되도록 한다(일반 퀴즈는 answeredCount ≤ totalQuestions라 변화 없음).
-    const denominator = Math.max(totalQuestions, answeredCount)
+    const servedQuestions = new Set(
+      history
+        .map((answer) => answer.questionIndex)
+        .filter((questionIndex) => Number.isInteger(questionIndex) && questionIndex >= 0 && questionIndex < totalQuestions),
+    )
 
     return {
       id: player.id,
@@ -130,51 +160,51 @@ export function buildResultAnalytics(
       score: getDisplayScore(player, room),
       correctCount,
       answeredCount,
-      totalCount: denominator,
-      accuracy: denominator > 0 ? Math.min(100, Math.round((correctCount / denominator) * 100)) : 0,
+      servedQuestionCount: servedQuestions.size,
+      unservedQuestionCount: Math.max(0, totalQuestions - servedQuestions.size),
+      accuracy: answeredCount > 0 ? Math.min(100, Math.round((correctCount / answeredCount) * 100)) : 0,
       avgResponseTimeMs: getAverageResponseTime(history),
       rankByScore: playerRank.get(player.id) ?? index + 1,
       history,
     }
   })
 
-  const questionAnalyses = questions.map((question, index) => {
+  const questionAnalyses: QuestionAnalysis[] = questions.map((question, index) => {
     const optionDistribution: Record<string, number> = {}
-    const wrongStudentsByAnswer: Record<string, string[]> = {}
+    const wrongStudentsByAnswer: Record<string, Set<string>> = {}
     question.options.forEach((option, optionIndex) => {
       optionDistribution[String(optionIndex + 1)] = 0
       optionDistribution[option] = 0
     })
 
+    let attemptCount = 0
     let correctCount = 0
     let incorrectCount = 0
-    let unansweredCount = 0
+    let servedPlayerCount = 0
 
     playerAnalyses.forEach((player) => {
-      const answer = player.history.find((item) => item.questionIndex === index)
-      if (!answer) {
-        unansweredCount += 1
-        optionDistribution['미응답'] = (optionDistribution['미응답'] ?? 0) + 1
-        return
-      }
+      const attempts = player.history.filter((item) => item.questionIndex === index)
+      // 한 번도 받지 못한 학생은 분모에서 빠진다.
+      if (attempts.length === 0) return
+      servedPlayerCount += 1
 
-      if (answer.isCorrect) {
-        correctCount += 1
-        return
-      }
+      attempts.forEach((attempt) => {
+        attemptCount += 1
+        if (attempt.isCorrect) {
+          correctCount += 1
+          return
+        }
 
-      const selectedAnswer = normalizeAnswer(answer.selectedAnswer)
-      if (selectedAnswer === '미응답') unansweredCount += 1
-      else incorrectCount += 1
-
-      optionDistribution[selectedAnswer] = (optionDistribution[selectedAnswer] ?? 0) + 1
-      wrongStudentsByAnswer[selectedAnswer] = [
-        ...(wrongStudentsByAnswer[selectedAnswer] ?? []),
-        player.nickname,
-      ]
+        // 시간 초과·미제출은 '미응답'으로 모이지만 오답으로 센다.
+        incorrectCount += 1
+        const selectedAnswer = normalizeAnswer(attempt.selectedAnswer)
+        optionDistribution[selectedAnswer] = (optionDistribution[selectedAnswer] ?? 0) + 1
+        const students = wrongStudentsByAnswer[selectedAnswer] ?? new Set<string>()
+        students.add(player.nickname)
+        wrongStudentsByAnswer[selectedAnswer] = students
+      })
     })
 
-    const totalCount = players.length
     const wrongEntries = Object.entries(optionDistribution)
       .filter(([answer]) => answer !== question.answer)
       .sort((a, b) => b[1] - a[1])
@@ -190,33 +220,51 @@ export function buildResultAnalytics(
       answer: question.answer,
       options: question.options,
       tag: question.type === 'CHOICE' ? '선택지 이해' : question.type === 'OX' ? '개념 판단' : '서술 응답',
+      attemptCount,
       correctCount,
       incorrectCount,
-      unansweredCount,
-      totalCount,
-      accuracy: totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0,
+      servedPlayerCount,
+      unservedPlayerCount: Math.max(0, playerAnalyses.length - servedPlayerCount),
+      accuracy: attemptCount > 0 ? Math.round((correctCount / attemptCount) * 100) : null,
       optionDistribution,
-      wrongStudentsByAnswer,
+      wrongStudentsByAnswer: Object.fromEntries(
+        Object.entries(wrongStudentsByAnswer).map(([answer, students]) => [answer, [...students]]),
+      ),
       topWrongAnswer,
     }
   })
 
-  const totalCorrect = playerAnalyses.reduce((sum, player) => sum + player.correctCount, 0)
-  const totalPossible = playerAnalyses.reduce((sum, player) => sum + player.totalCount, 0)
-  const averageAccuracy = totalPossible > 0 ? Math.min(100, Math.round((totalCorrect / totalPossible) * 100)) : 0
+  const totalCorrectAttempts = playerAnalyses.reduce((sum, player) => sum + player.correctCount, 0)
+  const totalAttempts = playerAnalyses.reduce((sum, player) => sum + player.answeredCount, 0)
+  const averageAccuracy = totalAttempts > 0 ? Math.min(100, Math.round((totalCorrectAttempts / totalAttempts) * 100)) : 0
   const averageScore = playerAnalyses.length > 0
     ? Math.round(playerAnalyses.reduce((sum, player) => sum + player.score, 0) / playerAnalyses.length)
     : 0
-  const completionRate = playerAnalyses.length > 0
-    ? Math.round((playerAnalyses.filter((player) => player.answeredCount >= totalQuestions && totalQuestions > 0).length / playerAnalyses.length) * 100)
+  // 완주 = 모든 문항을 한 번 이상 받아서 풀었다. 반복 출제 게임에서는 푼 횟수로는 알 수 없다.
+  const completionRate = playerAnalyses.length > 0 && totalQuestions > 0
+    ? Math.round((playerAnalyses.filter((player) => player.servedQuestionCount >= totalQuestions).length / playerAnalyses.length) * 100)
     : 0
-  const hardestQuestions = [...questionAnalyses].sort((a, b) => a.accuracy - b.accuracy)
-  const evaluation = averageAccuracy >= 80 ? '우수' : averageAccuracy >= 60 ? '양호' : '보충 필요'
-  const weakQuestions = hardestQuestions.slice(0, 2).map((question) => `${question.index + 1}번 문항(${question.tag})`)
+
+  const servedQuestions = questionAnalyses
+    .filter((question): question is ServedQuestionAnalysis => question.accuracy !== null)
+  const hardestQuestions = [...servedQuestions].sort((a, b) => a.accuracy - b.accuracy)
+  const unservedQuestionCount = questionAnalyses.length - servedQuestions.length
+
   const unitName = room?.game_mode ? getGameModeConfig(room.game_mode).shortLabel : '이번 수업'
-  const journalSummary = weakQuestions.length > 0
-    ? `${unitName} 평균 ${averageAccuracy}%로 ${evaluation}. ${weakQuestions.join(', ')}에서 다수 학생이 어려움을 보임.`
-    : `${unitName} 평균 ${averageAccuracy}%로 ${evaluation}.`
+  // 학급 전체를 '우수/보충 필요'로 판정하지 않는다. 숫자와 '무엇을 다시 볼지'만 남긴다.
+  const summaryParts = [
+    `${unitName} 평균 정답률 ${averageAccuracy}% (${totalAttempts}번 풀어서 ${totalCorrectAttempts}번 정답).`,
+  ]
+  const weakQuestions = hardestQuestions
+    .filter((question) => question.accuracy < 60)
+    .slice(0, 2)
+    .map((question) => `${question.index + 1}번 문항(${question.tag})`)
+  if (weakQuestions.length > 0) {
+    summaryParts.push(`${weakQuestions.join(', ')}은 함께 다시 짚어보면 좋겠음.`)
+  }
+  if (unservedQuestionCount > 0) {
+    summaryParts.push(`${unservedQuestionCount}문항은 아직 아무에게도 나오지 않음.`)
+  }
 
   return {
     players: playerAnalyses,
@@ -224,12 +272,20 @@ export function buildResultAnalytics(
     questions: questionAnalyses,
     hardestQuestions,
     averageAccuracy,
+    totalAttempts,
+    totalCorrectAttempts,
+    unservedQuestionCount,
     averageScore,
     completionRate,
     totalParticipants: playerAnalyses.length,
     totalQuestions,
-    journalSummary,
+    journalSummary: summaryParts.join(' '),
   }
+}
+
+/** 미출제(아무도 받지 못한 문항)와 0%를 구분해서 보여준다. */
+export function formatQuestionAccuracy(accuracy: number | null): string {
+  return accuracy === null ? '미출제' : `${accuracy}%`
 }
 
 export function formatResponseTime(value: number | null): string {

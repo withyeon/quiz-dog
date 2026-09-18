@@ -42,17 +42,17 @@ const ITEM_BADGES: Record<SpecialItemType, { icon: string; label: string; color:
 }
 
 const AIM_STYLE = {
-  perfect: { label: '전설 목표', textColor: 'text-amber-700', barColor: 'bg-amber-500', glow: 'shadow-[0_0_14px_rgba(251,191,36,0.58)]' },
-  great: { label: '영웅 구간', textColor: 'text-violet-700', barColor: 'bg-violet-500', glow: 'shadow-[0_0_12px_rgba(167,139,250,0.48)]' },
-  good: { label: '희귀 구간', textColor: 'text-sky-700', barColor: 'bg-sky-500', glow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]' },
-  safe: { label: '일반 구간', textColor: 'text-emerald-700', barColor: 'bg-emerald-500', glow: '' },
+  perfect: { label: '보물 목표', textColor: 'treasure-text', barColor: 'bg-amber-400', glow: 'shadow-[0_0_18px_rgba(250,204,21,0.9)]' },
+  great: { label: '특별 구간', textColor: 'text-violet-700', barColor: 'bg-violet-500', glow: 'shadow-[0_0_12px_rgba(167,139,250,0.48)]' },
+  good: { label: '인기 구간', textColor: 'text-sky-700', barColor: 'bg-sky-500', glow: 'shadow-[0_0_8px_rgba(56,189,248,0.45)]' },
+  safe: { label: '기본 구간', textColor: 'text-emerald-700', barColor: 'bg-emerald-500', glow: '' },
 }
 
 const TIER_GLOW: Record<string, string> = {
-  일반: '',
-  희귀: 'drop-shadow-[0_0_10px_rgba(56,189,248,0.58)]',
-  영웅: 'drop-shadow-[0_0_14px_rgba(167,139,250,0.62)]',
-  전설: 'drop-shadow-[0_0_18px_rgba(250,204,21,0.86)]',
+  기본: '',
+  인기: 'drop-shadow-[0_0_10px_rgba(56,189,248,0.58)]',
+  특별: 'drop-shadow-[0_0_14px_rgba(167,139,250,0.62)]',
+  보물: 'treasure-glow',
 }
 
 const AIM_TRACK_H = 44
@@ -163,6 +163,8 @@ export default function FishingMachine({
               style={{ height: AIM_TRACK_H }}
             >
               {/* 등급 구간 — 목표 위치를 따라 이동 */}
+              {/* 기본 구간: 트랙 전체가 기본값이므로 바탕을 초록으로 깐다 */}
+              <div className="pointer-events-none absolute inset-0 bg-emerald-100/55" />
               <div
                 className="pointer-events-none absolute bottom-0 top-0 -translate-x-1/2 border border-sky-200/70 bg-sky-100/45"
                 style={{ left: `${targetPosition}%`, width: `${aimZoneWidth.good}%` }}
@@ -329,10 +331,10 @@ export default function FishingMachine({
 
       <div className="flex items-center justify-between px-4 pb-1 pt-2 sm:px-5 sm:pt-3">
         <div className="flex gap-2.5 text-[9px] font-bold">
-          <span className="text-emerald-500">■ 일반</span>
-          <span className="text-sky-400">■ 희귀</span>
-          <span className="text-violet-400">■ 영웅</span>
-          <span className="text-amber-400">■ 전설</span>
+          <span className="text-emerald-500">■ 기본</span>
+          <span className="text-sky-400">■ 인기</span>
+          <span className="text-violet-400">■ 특별</span>
+          <span className="treasure-text">■ 보물</span>
         </div>
         <motion.span
           key={aimGrade}

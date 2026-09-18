@@ -7,7 +7,7 @@ import QRCodeSVG from 'react-qr-code'
 import { BookOpenCheck, Copy, ExternalLink, Loader2, Radio, Square } from 'lucide-react'
 import { toast } from '@/components/ui/Toaster'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
-import QuestionSetPicker from '@/components/teacher/play/QuestionSetPicker'
+import SelectedQuestionSet from '@/components/teacher/play/SelectedQuestionSet'
 import GameDurationPicker from '@/components/teacher/play/GameDurationPicker'
 import StudyOptionsFields from '@/components/teacher/play/StudyOptionsFields'
 import { HOMEWORK_PLAY_MODES, getGameModeConfig, type GameModeId } from '@/lib/game/modes'
@@ -70,7 +70,6 @@ export function HostModeToggle({ value, onChange }: { value: HostMode; onChange:
 interface HomeworkPanelProps {
   questionSets: QuestionSetSummary[]
   selectedSetId: string
-  onSelectSet: (setId: string) => void
   setsLoading: boolean
   setsError: string | null
   ownerId: string | null
@@ -81,7 +80,7 @@ interface HomeworkPanelProps {
  * 실시간 수업과 달리 방을 만드는 순간 playing이 되고 선생님 화면은 닫아도 된다.
  */
 export default function HomeworkPanel({
-  questionSets, selectedSetId, onSelectSet, setsLoading, setsError, ownerId,
+  questionSets, selectedSetId, setsLoading, setsError, ownerId,
 }: HomeworkPanelProps) {
   const router = useRouter()
   // 과제는 공부 모드가 기본이다. 게임을 고르면 혼자서도 성립하는 게임 목록이 나온다.
@@ -264,14 +263,12 @@ export default function HomeworkPanel({
           )}
         </div>
 
+        {/* 문제집은 자료실에서 고르고 ?set= 으로 넘어온다. 여기서는 확인만 한다. */}
         <div className="mb-5">
-          <QuestionSetPicker
-            questionSets={questionSets}
-            selectedSetId={selectedSetId}
+          <SelectedQuestionSet
+            set={questionSets.find((set) => set.id === selectedSetId) ?? null}
             loading={setsLoading}
             error={setsError}
-            onSelect={onSelectSet}
-            onCreateQuestionSet={() => router.push('/teacher/create')}
           />
         </div>
 

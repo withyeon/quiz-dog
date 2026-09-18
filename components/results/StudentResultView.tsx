@@ -76,12 +76,11 @@ export default function StudentResultView({
     )
   }
 
-  const wrongQuestions = analytics.questions.filter((question) => {
-    const answer = answerForQuestion(student, question.index)
-    return !answer?.isCorrect
-  })
+  // 복습 목록 = "한 번이라도 틀린 문제". 아직 나오지 않은 문제는 틀린 게 아니므로 넣지 않는다.
+  const wrongQuestions = analytics.questions.filter((question) =>
+    attemptsForQuestion(student, question.index).some((attempt) => !attempt.isCorrect))
   const correctCount = student.correctCount
-  const wrongCount = Math.max(0, student.totalCount - correctCount)
+  const wrongCount = Math.max(0, student.answeredCount - correctCount)
   const chartData = [
     { name: '정답', value: correctCount },
     { name: '복습', value: wrongCount },
@@ -103,7 +102,7 @@ export default function StudentResultView({
                 {student.rankByScore}등 · {studentScoreDisplay?.text}
               </h1>
               <p className="mt-3 text-lg font-bold text-slate-600">
-                {student.totalCount}문제 중 {student.correctCount}개 정답
+                {student.answeredCount}번 풀어서 {student.correctCount}번 정답
               </p>
             </div>
             <PlayerAvatarDisplay
@@ -174,9 +173,9 @@ export default function StudentResultView({
             <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
               <div className="flex items-center gap-2 text-sm font-black text-emerald-700">
                 <CheckCircle2 className="h-4 w-4" />
-                맞춘 문제
+                맞춘 횟수
               </div>
-              <div className="mt-2 text-3xl font-black">{correctCount}개</div>
+              <div className="mt-2 text-3xl font-black">{correctCount}번</div>
             </div>
             <div className="rounded-lg border border-orange-200 bg-orange-50 p-4">
               <div className="flex items-center gap-2 text-sm font-black text-orange-700">
@@ -208,7 +207,9 @@ export default function StudentResultView({
           ) : (
             <div className="space-y-2">
               {wrongQuestions.map((question) => {
-                const answer = answerForQuestion(student, question.index)
+                const answer = reviewAnswerForQuestion(student, question.index)
+                const attempts = attemptsForQuestion(student, question.index)
+                const correct = attempts.filter((attempt) => attempt.isCorrect).length
                 return (
                   <button
                     key={question.id}
@@ -221,7 +222,10 @@ export default function StudentResultView({
                       <img src={question.imageUrl} alt="" className="mt-2 max-h-24 w-auto rounded-md border border-slate-200 object-contain" />
                     )}
                     <div className="mt-1 font-bold text-slate-900">{question.text}</div>
-                    <div className="mt-2 text-sm text-slate-500">내 답: {answer?.selectedAnswer || '미응답'}</div>
+                    <div className="mt-2 text-sm text-slate-500">
+                      내 답: {answer?.selectedAnswer || '시간 초과'}
+                      {attempts.length > 1 && <span className="ml-2">· {attempts.length}번 중 {correct}번 맞혔어요</span>}
+                    </div>
                   </button>
                 )
               })}
@@ -253,8 +257,16 @@ export default function StudentResultView({
   )
 }
 
-function answerForQuestion(student: PlayerAnalysis, questionIndex: number) {
-  return student.history.find((answer) => answer.questionIndex === questionIndex)
+/** 한 문항을 푼 모든 시도. 제한 시간 동안 문제가 반복되는 게임에서는 2회 이상일 수 있다. */
+function attemptsForQuestion(student: PlayerAnalysis, questionIndex: number) {
+  return student.history.filter((answer) => answer.questionIndex === questionIndex)
+}
+
+/** 복습 화면에서 보여줄 답 — 틀린 시도가 있으면 마지막으로 틀린 답을 보여준다. */
+function reviewAnswerForQuestion(student: PlayerAnalysis, questionIndex: number) {
+  const attempts = attemptsForQuestion(student, questionIndex)
+  const wrong = attempts.filter((attempt) => !attempt.isCorrect)
+  return wrong[wrong.length - 1] ?? attempts[attempts.length - 1]
 }
 
 /** 로비(코드 입력 화면)로 가는 버튼. 선생님이 다른 문제집으로 새 방을 열었을 때 쓴다. */
@@ -279,7 +291,7 @@ function ReviewModal({
   student: PlayerAnalysis
   onClose: () => void
 }) {
-  const answer = answerForQuestion(student, question.index)
+  const answer = reviewAnswerForQuestion(student, question.index)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">

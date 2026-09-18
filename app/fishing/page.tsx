@@ -3,7 +3,8 @@
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { Award, Gamepad2, PackageCheck, Settings, Star, Target, Zap } from 'lucide-react'
+import { Award, Gamepad2, PackageCheck, Settings, Star, Zap } from 'lucide-react'
+import QuizSetName from '@/components/game/QuizSetName'
 import QuizView from '@/components/QuizView'
 import GameTimeBadge from '@/components/GameTimeBadge'
 import GameResult from '@/components/GameResult'
@@ -38,7 +39,7 @@ export default function FishingPage() {
   const {
     roomCode, playerId, currentView, setCurrentView, revealedAnswer,
     showCountdown, players, room, roomLoading, playersLoading,
-    currentPlayer, currentQuestion, questionsLoading, questionsError,
+    currentPlayer, currentQuestion, questionsLoading, questionsError, questionSetTitle,
     preStartQuizQuestion, preStartSubmittedCount, preStartQuizTotal,
     shouldShowPreStartQuiz, isPreStartQuizComplete,
     playSFX, handlePreStartQuizAnswer,
@@ -175,7 +176,7 @@ export default function FishingPage() {
           */}
           <div className="rounded-xl border border-white/80 bg-white/90 px-3 py-2 shadow-lg shadow-slate-200/60 sm:px-4 sm:py-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              {/* 타이틀 */}
+              {/* 타이틀 + 지금 푸는 문제집 */}
               <div className="flex min-w-0 items-center gap-3">
                 <div className="min-w-0">
                   <Image
@@ -187,6 +188,7 @@ export default function FishingPage() {
                     priority
                   />
                 </div>
+                <QuizSetName title={questionSetTitle} />
               </div>
 
               {/* 스탯 패널 */}
@@ -408,7 +410,7 @@ export default function FishingPage() {
                       </div>
                     )}
                     <p className="text-xs text-slate-500 leading-relaxed">
-                      등급이 높을수록 희귀 인형 확률이 올라가고, 빠른 정답에는 점수 보너스가 붙습니다.
+                      등급이 높을수록 좋은 인형 확률이 올라가고, 빠른 정답에는 점수 보너스가 붙습니다.
                     </p>
                   </div>
                 </div>
@@ -456,37 +458,6 @@ export default function FishingPage() {
 
               {/* 오른쪽 사이드바 */}
               <aside className="flex flex-col gap-4">
-                {/* 조준 가이드 */}
-                <div className="rounded-xl border border-slate-200 bg-white/90 p-4 text-slate-800 shadow-lg shadow-slate-200/50">
-                  <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-slate-800">
-                    <Target size={14} /> 조준 가이드
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2 rounded-lg border border-yellow-100 bg-yellow-50 px-3 py-2">
-                      <span className="text-yellow-700 font-black">전설</span>
-                      <span className="text-slate-600 text-xs">노란 구간, 목표선에 가까울수록 최고</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-lg border border-violet-100 bg-violet-50 px-3 py-2">
-                      <span className="text-violet-700 font-black">영웅</span>
-                      <span className="text-slate-600 text-xs">보라 구간 · 높은 점수 확률 증가</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2">
-                      <span className="text-sky-700 font-black">희귀</span>
-                      <span className="text-slate-600 text-xs">하늘 구간 · 희귀 인형 확률 증가</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-lg border border-green-100 bg-green-50 px-3 py-2">
-                      <span className="text-green-700 font-black">일반</span>
-                      <span className="text-slate-600 text-xs">구간 밖 · 일반 인형 위주</span>
-                    </div>
-                  </div>
-                  <p className="mt-3 text-xs text-slate-500">
-                    목표는 매번 다른 위치에 나타납니다. 노란 구간 안의 목표선에 가까울수록 높은 등급입니다.
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">
-                    Rank {machineRank}에서는 집게가 {machineRank >= 4 ? '빠르게' : machineRank >= 3 ? '적당히' : '천천히'} 움직입니다.
-                  </p>
-                </div>
-
                 {/* 콤보 상태 */}
                 {consecutiveCorrect >= 2 && (
                   <motion.div
@@ -574,8 +545,8 @@ export default function FishingPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className={`mb-4 inline-block rounded-full px-3 py-1 text-sm font-bold ${
-                pendingItem.rarity === '전설' ? 'bg-yellow-400 text-yellow-950'
-                  : pendingItem.rarity === '희귀' ? 'bg-sky-400 text-white'
+                pendingItem.rarity === '보물' ? 'bg-yellow-400 text-yellow-950'
+                  : pendingItem.rarity === '인기' ? 'bg-sky-400 text-white'
                   : 'bg-slate-200 text-slate-700'
               }`}>
                 {pendingItem.rarity} 보너스 획득

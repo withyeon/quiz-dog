@@ -4,7 +4,7 @@ import { Check } from 'lucide-react'
 
 /**
  * 게임 시작 화면 상단의 진행 단계 표시.
- * 문제집 고르기 → 방 만들기 → 학생 입장 → 게임 진행이 한 화면에서 순차적으로 일어나는데,
+ * 문제집 고르기(자료실) → 방 만들기 → 학생 입장 → 게임 진행으로 이어지는데,
  * 지금 어디까지 왔는지 알 수 없어서 처음 쓰는 선생님이 헤매던 문제를 해결한다.
  */
 
@@ -22,7 +22,7 @@ export function getPlaySteps(state: PlayStepState): { steps: Step[]; currentInde
   const steps: Step[] = [{ label: '게임 고르기', hint: '수업에 맞는 게임 선택' }]
 
   if (state.requiresQuestionSet) {
-    steps.push({ label: '문제집 고르기', hint: '학생이 풀 문제' })
+    steps.push({ label: '문제집 고르기', hint: '자료실에서 고르기' })
   }
 
   steps.push(

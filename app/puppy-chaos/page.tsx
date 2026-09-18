@@ -36,6 +36,7 @@ import { createPuppyChaosEvent } from '@/lib/services/강아지대소동Events'
 import { updatePlayer } from '@/lib/services/players'
 import { checkQuestionAnswer } from '@/lib/services/questions'
 import { sortPlayersByScore } from '@/lib/utils/playerSorting'
+import QuizSetName from '@/components/game/QuizSetName'
 
 /** 콤보 이벤트(TV 알림)는 배수가 가장 높은 단계부터 알립니다 */
 const COMBO_EVENT_STREAK = Math.max(...COMBO_STEPS.map((step) => step.streak))
@@ -85,6 +86,7 @@ export default function PuppyChaosPage() {
     questions,
     questionsLoading,
     questionsError,
+    questionSetTitle,
     preStartQuizQuestion,
     preStartSubmittedCount,
     preStartQuizTotal,
@@ -538,7 +540,10 @@ export default function PuppyChaosPage() {
         <header className="rounded-[28px] border-4 border-slate-900 bg-white p-3 shadow-[5px_5px_0_#0f172a] sm:p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-xs font-black text-sky-700 sm:text-sm">강아지 대소동</div>
+              <div className="flex items-center gap-2">
+                <div className="text-xs font-black text-sky-700 sm:text-sm">강아지 대소동</div>
+                <QuizSetName title={questionSetTitle} />
+              </div>
               <div className="flex items-center gap-2 text-xl font-black sm:text-2xl">
                 <PomeMascot className="h-8 w-8 sm:h-9 sm:w-9" />
                 <span className="truncate">{currentPlayer.nickname}</span>

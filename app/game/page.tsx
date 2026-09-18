@@ -28,6 +28,7 @@ import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import AnswerReveal from '@/components/AnswerReveal'
 import type { Database } from '@/types/database.types'
 import PixelIcon from '@/components/ui/PixelIcon'
+import QuizSetName from '@/components/game/QuizSetName'
 
 type Player = Database['public']['Tables']['players']['Row']
 type AttackRequestPayload = {
@@ -75,6 +76,7 @@ export default function GamePage() {
     questions,
     questionsLoading,
     questionsError,
+    questionSetTitle,
     preStartQuizQuestion,
     preStartSubmittedCount,
     preStartQuizTotal,
@@ -609,6 +611,7 @@ export default function GamePage() {
                 <h1 className="gold-quest-title text-xl sm:text-3xl font-black leading-none">
                   해적왕의 보물찾기
                 </h1>
+                <QuizSetName title={questionSetTitle} className="mt-1.5" />
               </div>
             </div>
             {currentPlayer && (

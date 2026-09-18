@@ -30,6 +30,7 @@ export default function MafiaPage() {
     currentQuestion,
     questionsLoading,
     questionsError,
+    questionSetTitle,
     preStartQuizQuestion,
     preStartSubmittedCount,
     preStartQuizTotal,
@@ -179,6 +180,7 @@ export default function MafiaPage() {
           >
             <MafiaView
               roomCode={roomCode}
+              questionSetTitle={questionSetTitle}
               playerId={playerId}
               players={players}
               currentQuestion={currentQuestion}
