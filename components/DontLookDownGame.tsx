@@ -118,6 +118,10 @@ export default function DontLookDownGame({
 
     // 외부 상태 스냅샷 (props → ref, 게임 루프는 항상 최신 ref를 읽음)
     const otherPlayersRef = useRef<DLDPlayer[]>([])
+    // 다른 학생의 화면상 위치. 좌표 패킷은 200ms 간격으로 띄엄띄엄 오므로, 받은 좌표(목표)를 향해
+    // 매 프레임 조금씩 따라가게 해서 순간이동처럼 보이지 않게 한다.
+    const otherDisplayRef = useRef<Map<string, { x: number; y: number }>>(new Map())
+    const lastDrawTimeRef = useRef<number>(0)
     const platformsRef = useRef<Platform[]>(platforms)
     const obstaclesRef = useRef<Obstacle[]>(obstacles)
     const powerUpsRef = useRef<PowerUp[]>(powerUps)
@@ -504,16 +508,39 @@ export default function DontLookDownGame({
             drawObstacles(ctx, obstaclesRef.current, now)
             drawPowerUps(ctx, powerUpsRef.current, powerUpImagesRef.current, now)
 
-            // 다른 플레이어
+            // 다른 플레이어 (목표 좌표를 향해 보간)
+            const drawNow = performance.now()
+            const drawDt = Math.min(0.05, Math.max(0, (drawNow - (lastDrawTimeRef.current || drawNow)) / 1000))
+            lastDrawTimeRef.current = drawNow
+            // 약 80ms 시간상수: 200ms 패킷 간격 안에 목표에 거의 도달한다
+            const follow = 1 - Math.exp(-drawDt / 0.08)
+            const displayMap = otherDisplayRef.current
+            const aliveIds = new Set<string>()
             for (const op of otherPlayersRef.current) {
+                aliveIds.add(op.id)
+                let display = displayMap.get(op.id)
+                if (!display || Math.hypot(display.x - op.x, display.y - op.y) > 900) {
+                    // 첫 등장이거나 체크포인트로 떨어지는 등 큰 점프면 바로 이동
+                    display = { x: op.x, y: op.y }
+                } else {
+                    display = {
+                        x: display.x + (op.x - display.x) * follow,
+                        y: display.y + (op.y - display.y) * follow,
+                    }
+                }
+                displayMap.set(op.id, display)
+
                 const avatar = op.avatar || '🐕'
                 drawCharacter(ctx, {
-                    player: op,
+                    player: { ...op, x: display.x, y: display.y },
                     avatar,
                     avatarImage: getAvatarImage(avatar),
                     isLocal: false,
                 })
             }
+            displayMap.forEach((_, id) => {
+                if (!aliveIds.has(id)) displayMap.delete(id)
+            })
 
             drawTrail(ctx, trailRef.current)
 

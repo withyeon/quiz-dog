@@ -33,6 +33,7 @@ import {
   TapPointer,
   PLAYER_NAME,
 } from '@/components/tutorial/TutorialDemoFrame'
+import { PIXEL_ICON } from '@/components/ui/PixelIcon'
 
 /**
  * 전설의 편의점 튜토리얼 데모.
@@ -414,7 +415,7 @@ export default function FactoryTutorialDemo() {
     <TutorialDemoFrame
       backgroundSrc="/background/factory.webp"
       metric={(phase) => ({
-        emoji: '💰',
+        icon: PIXEL_ICON.gold.src,
         value: MONEY_BY_PHASE[phase]?.value ?? MONEY_AFTER_TICK,
         from: MONEY_BY_PHASE[phase]?.from,
         suffix: '원',

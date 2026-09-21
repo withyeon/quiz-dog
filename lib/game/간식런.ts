@@ -138,7 +138,7 @@ export const ITEM_DEFS: Record<ItemType, { emoji: string; icon?: PixelIconName; 
   shield:       { emoji: '🛡️', name: '방어막',     rarity: 'common',    duration: 9999, description: '충돌 1회 무효화' },
   double_score: { emoji: '✨', name: '점수 2배',   rarity: 'common',    duration: 900,  description: '모든 점수 ×2' },
   magnet:       { emoji: '🧲', name: '자석',       rarity: 'rare',      duration: 600,  description: '인접 차선 뼈다귀 흡수' },
-  golden_rain:  { emoji: '💰', name: '황금 비',    rarity: 'rare',      duration: 300,  description: '황금 뼈다귀 3배' },
+  golden_rain:  { emoji: '💰', icon: 'gold', name: '황금 비',    rarity: 'rare',      duration: 300,  description: '황금 뼈다귀 3배' },
   score_steal:  { emoji: '🕶️', name: '점수 뺏기',  rarity: 'rare',      duration: 0,    description: '친구 점수 일부 훔치기' },
   big_dog:      { emoji: '🐕‍🦺', name: '큰 강아지', rarity: 'epic',      duration: 420,  description: '장애물 파괴 + 점수' },
   drone:        { emoji: '🚁', name: '드론',       rarity: 'epic',      duration: 480,  description: '공중 비행, 장애물 무시' },

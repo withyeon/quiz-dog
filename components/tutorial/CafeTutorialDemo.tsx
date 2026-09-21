@@ -3,6 +3,8 @@
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { ShoppingCart } from 'lucide-react'
+import CafeImage from '@/components/cafe/CafeImage'
+import PixelIcon from '@/components/ui/PixelIcon'
 import {
   ADVERTISING_SPEED_MULTIPLIER,
   CUSTOMER_PATIENCE_SECONDS,
@@ -29,6 +31,7 @@ import {
   TapPointer,
   PLAYER_NAME,
 } from '@/components/tutorial/TutorialDemoFrame'
+import { PIXEL_ICON } from '@/components/ui/PixelIcon'
 
 /**
  * 달콤 바삭 카페 튜토리얼 데모.
@@ -199,12 +202,20 @@ function ItemScene() {
                   isBuff ? 'border-emerald-400 bg-emerald-50' : 'border-rose-400 bg-rose-50'
                 } ${item.rarity === 'rare' ? 'ring-2 ring-amber-400' : ''}`}
               >
-                <span className="text-3xl">{item.emoji}</span>
+                <CafeImage
+                  src={item.image}
+                  alt={item.name}
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain"
+                  fallbackEmoji={item.emoji}
+                  fallbackClassName="h-10 w-10 text-3xl"
+                />
                 <p className="text-center text-sm font-black text-slate-900">{item.name}</p>
                 <p className="text-center text-[10px] font-bold leading-tight text-slate-600">{item.description}</p>
                 {item.rarity === 'rare' && (
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">
-                    ✨ 희귀
+                    <PixelIcon name="rare" size={12} alt="" /> 희귀
                   </span>
                 )}
                 <span
@@ -273,10 +284,20 @@ function RareScene() {
       <CafePanel>
         <div className="mb-2 flex flex-wrap items-center justify-center gap-2">
           <span className="rounded-full bg-orange-500 px-3 py-1 text-xs font-black text-white shadow">
-            🔥 {RARE_ITEM_STREAK}연속 정답
+            <PixelIcon name="streak" size={14} alt="" className="mr-1 inline-block align-text-bottom" />
+            {RARE_ITEM_STREAK}연속 정답
           </span>
           <span className="rounded-lg bg-amber-400 px-3 py-1 text-xs font-black text-amber-950 shadow">
-            {CAFE_ITEMS.GOLDEN_SPATULA.emoji} {GOLDEN_SPATULA_MULTIPLIER}배
+            <CafeImage
+              src={CAFE_ITEMS.GOLDEN_SPATULA.image}
+              alt={CAFE_ITEMS.GOLDEN_SPATULA.name}
+              width={16}
+              height={16}
+              className="mr-1 inline-block h-4 w-4 object-contain align-text-bottom"
+              fallbackEmoji={CAFE_ITEMS.GOLDEN_SPATULA.emoji}
+              fallbackClassName="h-4 w-4"
+            />
+            {GOLDEN_SPATULA_MULTIPLIER}배
           </span>
         </div>
         <div className="flex justify-center">
@@ -351,7 +372,7 @@ export default function CafeTutorialDemo() {
     <TutorialDemoFrame
       backgroundSrc="/background/cafe.webp"
       metric={(phase) => ({
-        emoji: '💰',
+        icon: PIXEL_ICON.gold.src,
         value: MONEY_BY_PHASE[phase]?.value ?? MONEY_AFTER_GOLDEN,
         from: MONEY_BY_PHASE[phase]?.from,
         suffix: '원',

@@ -299,6 +299,42 @@ export const DEFAULT_SETTINGS: GameSettings = {
 // 플랫폼 스타일 풀 (디자인 다양화)
 const PLATFORM_STYLES: PlatformStyle[] = ['stone', 'wood', 'chair', 'barrel', 'table', 'brick']
 
+// ============================================
+// 맵 시드 (모든 학생이 같은 맵을 보게 한다)
+// ============================================
+//
+// 예전에는 맵을 각 학생 브라우저에서 Math.random()으로 따로 만들어 학생마다 발판 배치가
+// 달랐다. 같은 방·같은 판이면 같은 시드로 같은 맵이 나오게 한다.
+
+/** mulberry32: 작고 결정적인 32비트 시드 난수. [0, 1) */
+export function createSeededRandom(seed: number): () => number {
+    let state = seed >>> 0
+    return () => {
+        state = (state + 0x6d2b79f5) | 0
+        let t = Math.imul(state ^ (state >>> 15), 1 | state)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+}
+
+/** FNV-1a 32비트 문자열 해시 */
+export function hashStringToSeed(input: string): number {
+    let hash = 0x811c9dc5
+    for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i)
+        hash = Math.imul(hash, 0x01000193)
+    }
+    return hash >>> 0
+}
+
+/**
+ * 이번 판의 맵 시드. 방 코드 + 판 시작 시각(room.started_at)으로 만들어
+ * 같은 판의 모든 학생(늦게 들어온 학생 포함)이 같은 맵을 받고, 다음 판에는 새 맵이 나온다.
+ */
+export function getMapSeed(roomCode: string, startedAt: string | null | undefined): number {
+    return hashStringToSeed(`dontlookdown:${roomCode}:${startedAt ?? ''}`)
+}
+
 /**
  * 특정 높이(m)에서 등반 루트가 지나는 x 좌표.
  * 맵 생성과, 좌표를 모르는 다른 플레이어의 위치 추정이 같은 식을 쓰도록 한 곳에 둔다.
@@ -309,7 +345,11 @@ export function estimateRouteX(heightMeters: number, summitGoal: number): number
     return CLIMB_START_X + routeProgress * (routeEndX - CLIMB_START_X)
 }
 
-export function generatePlatformMap(summitGoal: number, settings: GameSettings): Platform[] {
+export function generatePlatformMap(
+    summitGoal: number,
+    settings: GameSettings,
+    random: () => number = Math.random,
+): Platform[] {
     const platforms: Platform[] = []
 
     // 시작 플랫폼 (절벽 입구)
@@ -364,17 +404,17 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
             lastRouteX = baseX
 
             // === 메인 루트 플랫폼 (항상 올라갈 수 있는 안전 발판) ===
-            const mainIsTight = summit.id >= 4 && Math.random() < 0.08 + difficulty * 0.22
+            const mainIsTight = summit.id >= 4 && random() < 0.08 + difficulty * 0.22
             const mainWidth = mainIsTight
                 ? PLATFORM.NORMAL_MIN
-                : PLATFORM.NORMAL_MIN + Math.random() * (PLATFORM.NORMAL_MAX - PLATFORM.NORMAL_MIN)
+                : PLATFORM.NORMAL_MIN + random() * (PLATFORM.NORMAL_MAX - PLATFORM.NORMAL_MIN)
             let mainType: Platform['type'] = mainIsTight ? 'narrow' : 'normal'
-            if (summit.id >= 5 && Math.random() < 0.08 + difficulty * 0.08) mainType = 'ice'
-            else if (summit.id >= 6 && Math.random() < 0.05 + difficulty * 0.05) mainType = 'moving'
-            else if (summit.id >= 7 && Math.random() < 0.04 + difficulty * 0.04) mainType = 'disappearing'
+            if (summit.id >= 5 && random() < 0.08 + difficulty * 0.08) mainType = 'ice'
+            else if (summit.id >= 6 && random() < 0.05 + difficulty * 0.05) mainType = 'moving'
+            else if (summit.id >= 7 && random() < 0.04 + difficulty * 0.04) mainType = 'disappearing'
             const mainStyle = PLATFORM_STYLES[rowIndex % PLATFORM_STYLES.length]
             const mainImgId = pickPlatformImageId(mainType, platformId)
-            const moveRange = mainType === 'moving' ? 45 + Math.random() * 45 : undefined
+            const moveRange = mainType === 'moving' ? 45 + random() * 45 : undefined
 
             platforms.push({
                 id: `platform_${platformId++}`,
@@ -389,29 +429,29 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                 isVisible: true,
                 baseX: mainType === 'moving' ? baseX : undefined,
                 moveRange,
-                moveSpeed: mainType === 'moving' ? 0.45 + Math.random() * 0.35 : undefined,
-                movePhase: mainType === 'moving' ? Math.random() * Math.PI * 2 : undefined,
+                moveSpeed: mainType === 'moving' ? 0.45 + random() * 0.35 : undefined,
+                movePhase: mainType === 'moving' ? random() * Math.PI * 2 : undefined,
                 routeRole: 'main',
             })
 
             // === 선택 루트 플랫폼: 더 빠르지만 위험하고 보상이 많은 루트 ===
-            if (Math.random() < 0.72) {
-                const useNarrow2 = Math.random() < narrowRatio + 0.12
+            if (random() < 0.72) {
+                const useNarrow2 = random() < narrowRatio + 0.12
                 const width2 = useNarrow2 ? PLATFORM.NARROW_WIDTH : PLATFORM.NORMAL_MIN + 20
 
                 let type2: Platform['type'] = useNarrow2 ? 'narrow' : 'normal'
-                if (summit.id >= 2 && Math.random() < 0.08 + hazardRatio * 0.12) type2 = 'disappearing'
-                else if (summit.id >= 4 && Math.random() < 0.08 + hazardRatio * 0.08) type2 = 'moving'
-                else if (summit.id >= 5 && Math.random() < 0.06 + hazardRatio * 0.08) type2 = 'spike'
-                else if (summit.id >= 7 && Math.random() < 0.18) type2 = 'ice'
+                if (summit.id >= 2 && random() < 0.08 + hazardRatio * 0.12) type2 = 'disappearing'
+                else if (summit.id >= 4 && random() < 0.08 + hazardRatio * 0.08) type2 = 'moving'
+                else if (summit.id >= 5 && random() < 0.06 + hazardRatio * 0.08) type2 = 'spike'
+                else if (summit.id >= 7 && random() < 0.18) type2 = 'ice'
 
                 const imgId2 = pickPlatformImageId(type2, platformId)
                 const side = rowIndex % 2 === 0 ? 1 : -1
-                const x2 = Math.max(240, Math.min(WORLD.WIDTH - 360, baseX + side * (175 + Math.random() * 85)))
+                const x2 = Math.max(240, Math.min(WORLD.WIDTH - 360, baseX + side * (175 + random() * 85)))
                 platforms.push({
                     id: `platform_${platformId++}`,
                     x: x2,
-                    y: summitCurrentY - 28 + Math.random() * 18,
+                    y: summitCurrentY - 28 + random() * 18,
                     width: width2,
                     height: 24,
                     type: type2,
@@ -420,15 +460,15 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
                     summit: summit.id,
                     isVisible: true,
                     baseX: type2 === 'moving' ? x2 : undefined,
-                    moveRange: type2 === 'moving' ? 70 + Math.random() * 55 : undefined,
-                    moveSpeed: type2 === 'moving' ? 0.55 + Math.random() * 0.45 : undefined,
-                    movePhase: type2 === 'moving' ? Math.random() * Math.PI * 2 : undefined,
+                    moveRange: type2 === 'moving' ? 70 + random() * 55 : undefined,
+                    moveSpeed: type2 === 'moving' ? 0.55 + random() * 0.45 : undefined,
+                    movePhase: type2 === 'moving' ? random() * Math.PI * 2 : undefined,
                     routeRole: 'side',
                 })
             }
 
             // 고지대에는 짧은 회복 발판을 가끔 배치해 실패 직전 구사일생 순간을 만든다.
-            if (summit.id >= 5 && rowIndex % 4 === 2 && Math.random() < 0.45) {
+            if (summit.id >= 5 && rowIndex % 4 === 2 && random() < 0.45) {
                 platforms.push({
                     id: `rescue_${platformId++}`,
                     x: Math.max(260, Math.min(WORLD.WIDTH - 380, baseX + (rowIndex % 2 === 0 ? -120 : 120))),
@@ -494,13 +534,13 @@ export function generatePlatformMap(summitGoal: number, settings: GameSettings):
 // 장애물 생성
 // ============================================
 
-export function generateObstacles(platforms: Platform[]): Obstacle[] {
+export function generateObstacles(platforms: Platform[], random: () => number = Math.random): Obstacle[] {
     const obstacles: Obstacle[] = []
     let obstacleId = 0
 
     platforms.forEach(platform => {
         // Summit 4 이상부터 바람. 위로 갈수록 방향 압박이 강해진다.
-        if (platform.summit >= 4 && Math.random() < 0.08 + platform.summit * 0.01) {
+        if (platform.summit >= 4 && random() < 0.08 + platform.summit * 0.01) {
             obstacles.push({
                 id: `wind_${obstacleId++}`,
                 type: 'wind',
@@ -508,23 +548,23 @@ export function generateObstacles(platforms: Platform[]): Obstacle[] {
                 y: platform.y - 100,
                 width: platform.width + 100,
                 height: 100,
-                direction: Math.random() > 0.5 ? 'left' : 'right',
+                direction: random() > 0.5 ? 'left' : 'right',
                 active: true,
             })
         }
 
         // Summit 6 이상부터 움직이는 레이저. 직접 맞으면 체크포인트로 떨어진다.
-        if (platform.summit >= 6 && platform.type !== 'checkpoint' && Math.random() < 0.06) {
+        if (platform.summit >= 6 && platform.type !== 'checkpoint' && random() < 0.06) {
             const minX = Math.max(80, platform.x - 130)
             const maxX = Math.min(WORLD.WIDTH - 120, platform.x + platform.width + 130)
             obstacles.push({
                 id: `laser_${obstacleId++}`,
                 type: 'laser',
-                x: minX + Math.random() * Math.max(1, maxX - minX),
+                x: minX + random() * Math.max(1, maxX - minX),
                 y: platform.y - 72,
                 width: 70,
                 height: 8,
-                direction: Math.random() > 0.5 ? 'left' : 'right',
+                direction: random() > 0.5 ? 'left' : 'right',
                 speed: 140 + platform.summit * 18,
                 minX,
                 maxX,

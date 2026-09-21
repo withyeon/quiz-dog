@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import PixelIcon from '@/components/ui/PixelIcon'
+
+// 정답 파티클. 'gold'은 이모지 대신 픽셀 아이콘으로 그린다.
+const CONFETTI = ['✨', 'gold', '🎉', '⭐', 'gold', '💎'] as const
 
 interface BetResultViewProps {
   isCorrect: boolean
@@ -93,7 +97,9 @@ export default function BetResultView({
                 delay: i * 0.08,
               }}
             >
-              {['✨', '💰', '🎉', '⭐', '🪙', '💎'][i % 6]}
+              {CONFETTI[i % CONFETTI.length] === 'gold'
+                ? <PixelIcon name="gold" size={28} alt="" />
+                : CONFETTI[i % CONFETTI.length]}
             </motion.div>
           ))}
         </div>

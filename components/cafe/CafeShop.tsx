@@ -1,6 +1,7 @@
 'use client'
 
-import Image from 'next/image'
+import CafeImage from '@/components/cafe/CafeImage'
+import PixelIcon from '@/components/ui/PixelIcon'
 import { TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -16,7 +17,7 @@ export default function CafeShop() {
     <div className="space-y-6">
       <div>
         <h3 className="text-2xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>🍽️</span> 메뉴 잠금 해제
+          <PixelIcon name="dish" size={28} alt="" /> 메뉴 잠금 해제
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {lockedMenus.map((menu) => {
@@ -28,20 +29,14 @@ export default function CafeShop() {
               >
                 <CardHeader>
                   <div className="flex justify-center mb-2">
-                    <Image
+                    <CafeImage
                       src={menu.image}
                       alt={menu.name}
                       width={64}
                       height={64}
-                      unoptimized
                       className="h-16 w-16 object-contain"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement
-                        target.style.display = 'none'
-                        if (target.parentElement) {
-                          target.parentElement.innerHTML = `<div class="text-4xl text-center">${menu.emoji}</div>`
-                        }
-                      }}
+                      fallbackEmoji={menu.emoji}
+                      fallbackClassName="h-16 w-16 text-4xl"
                     />
                   </div>
                   <CardTitle className="text-center text-lg">{menu.name}</CardTitle>

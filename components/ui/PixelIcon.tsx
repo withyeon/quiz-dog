@@ -9,6 +9,12 @@ export const PIXEL_ICON = {
   wrong: { src: '/icons/wrong.webp', emoji: '❌', label: '오답' },
   scan: { src: '/icons/scan.webp', emoji: '🔍', label: '조사' },
   time: { src: '/icons/time.webp', emoji: '⏰', label: '시간' },
+  gold: { src: '/icons/gold-stack.webp', emoji: '💰', label: '돈' },
+  streak: { src: '/icons/streak.webp', emoji: '🔥', label: '연속 정답' },
+  rare: { src: '/icons/rare.webp', emoji: '✨', label: '희귀' },
+  people: { src: '/icons/people.webp', emoji: '👥', label: '인원' },
+  dish: { src: '/icons/dish.webp', emoji: '🍽️', label: '음식' },
+  waiting: { src: '/icons/waiting.webp', emoji: '⏳', label: '기다리는 중' },
 } as const
 
 export type PixelIconName = keyof typeof PIXEL_ICON

@@ -1,3 +1,5 @@
+import type { PixelIconName } from '@/components/ui/PixelIcon'
+
 export type SkillId =
     | 'THUNDER'
     | 'BLIZZARD'
@@ -11,6 +13,7 @@ export interface Skill {
     name: string
     description: string
     emoji: string
+    icon?: PixelIconName // 있으면 화면에서는 이모지 대신 픽셀 아이콘을 그린다 (components/ItemGlyph)
     color: string
 }
 
@@ -55,6 +58,7 @@ export const SKILLS: Record<SkillId, Skill> = {
         name: '골드러시',
         description: '즉시 200G를 획득합니다.',
         emoji: '💰',
+        icon: 'gold',
         color: 'bg-amber-500',
     },
 }

@@ -49,6 +49,7 @@ import {
   type HudMetric,
 } from '@/components/tutorial/TutorialDemoFrame'
 import PixelIcon, { PIXEL_ICON } from '@/components/ui/PixelIcon'
+import ItemGlyph from '@/components/ItemGlyph'
 
 /* 공통 4단계(퀴즈→정답→액션→결과) 빌더 */
 function buildPhases(captions: [string, string, string, string]): DemoPhase[] {
@@ -602,7 +603,7 @@ function MafiaDemo() {
                   isResult(phase) ? 'ring-2 ring-amber-300' : ''
                 }`}
               >
-                <span className="text-4xl">{isResult(phase) ? '💰' : '🔓'}</span>
+                {isResult(phase) ? <PixelIcon name="gold" size={40} alt="" /> : <span className="text-4xl">🔓</span>}
                 <span className="text-sm font-black text-white">금고 털기</span>
                 {phase === 'action' && <TapPointer />}
               </motion.div>
@@ -884,7 +885,7 @@ function TowerDemo() {
     <TutorialDemoFrame
       backgroundSrc="/background/tower-defense.webp"
       metric={(phase) => ({
-        emoji: '💰',
+        icon: PIXEL_ICON.gold.src,
         value: TOWER_GOLD_BY_PHASE[phase]?.value ?? PLAYER_START_GOLD,
         from: TOWER_GOLD_BY_PHASE[phase]?.from,
         suffix: '골드',
@@ -944,7 +945,7 @@ function TowerDemo() {
                         }`}
                       >
                         <span className={`flex h-14 w-14 items-center justify-center rounded-xl ${skill.color} text-3xl shadow-lg`}>
-                          {skill.emoji}
+                          <ItemGlyph item={skill} size={30} />
                         </span>
                         <span className={`text-base font-black ${picked ? 'text-[#17262a]' : 'text-white'}`}>
                           {skill.name}

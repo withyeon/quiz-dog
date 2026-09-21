@@ -20,7 +20,7 @@ export interface Character {
 // 캐릭터 목록
 // public/character/ 폴더에 이미지를 넣고 여기에 추가하세요
 export const CHARACTERS: Character[] = [
-  // 강아지 캐릭터 (1.webp ~ 24.webp)
+  // 강아지 캐릭터 (1.webp ~ 30.webp)
   { id: 'blook_1', name: '시바견', imagePath: '/character/1.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_2', name: '비숑 프리제', imagePath: '/character/2.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_3', name: '사모예드', imagePath: '/character/3.webp', emoji: '🐶', category: 'default' },
@@ -41,10 +41,16 @@ export const CHARACTERS: Character[] = [
   { id: 'blook_18', name: '닥스훈트', imagePath: '/character/18.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_19', name: '치와와', imagePath: '/character/19.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_20', name: '요크셔 테리어', imagePath: '/character/20.webp', emoji: '🐶', category: 'default' },
-  { id: 'blook_21', name: '재패니즈 스피츠', imagePath: '/character/21.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_21', name: '진돗개', imagePath: '/character/21.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_22', name: '래브라도 리트리버', imagePath: '/character/22.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_23', name: '비글', imagePath: '/character/23.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_24', name: '퍼그', imagePath: '/character/24.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_25', name: '달마시안', imagePath: '/character/25.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_26', name: '저먼 셰퍼드', imagePath: '/character/26.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_27', name: '차우차우', imagePath: '/character/27.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_28', name: '미니어처 슈나우저', imagePath: '/character/28.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_29', name: '바셋 하운드', imagePath: '/character/29.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_30', name: '세인트 버나드', imagePath: '/character/30.webp', emoji: '🐶', category: 'default' },
 ]
 
 /**

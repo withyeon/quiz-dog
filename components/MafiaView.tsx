@@ -25,7 +25,7 @@ import {
 import { subscribeRoomRuntimeEvent, type RoomEventType } from '@/lib/realtime/roomChannel'
 import type { Database, Json } from '@/types/database.types'
 import type { Question } from '@/hooks/useGameBase'
-import PixelIcon from '@/components/ui/PixelIcon'
+import PixelIcon, { type PixelIconName } from '@/components/ui/PixelIcon'
 import QuizSetName from '@/components/game/QuizSetName'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
@@ -127,6 +127,22 @@ function mafiaNumericDelta(
   const scoreDelta = cashDelta + diamondsDelta * 100
   if (scoreDelta !== 0) deltas.score = scoreDelta
   return deltas
+}
+
+// 금고 속 내용물 아이콘. 돈 금고만 픽셀 아이콘이고 나머지는 이모지를 그대로 쓴다.
+function VaultIcon({
+  display,
+  size,
+  className = '',
+}: {
+  display: { icon: string; pixel?: PixelIconName }
+  size: number
+  className?: string
+}) {
+  if (display.pixel) {
+    return <PixelIcon name={display.pixel} size={size} alt="" className={`inline-block ${className}`} />
+  }
+  return <span className={`inline-block leading-none ${className}`}>{display.icon}</span>
 }
 
 export default function MafiaView({
@@ -322,9 +338,10 @@ export default function MafiaView({
     }, 1400)
   }
 
-  const getVaultDisplay = (vault: SafeVault, isRevealed: boolean) => {
+  // pixel이 있으면 이모지 대신 픽셀 아이콘을 그린다 (VaultIcon).
+  const getVaultDisplay = (vault: SafeVault, isRevealed: boolean): { icon: string; text: string; pixel?: PixelIconName } => {
     if (!isRevealed) return { icon: '🔒', text: '???' }
-    if (vault.reward === 'cash') return { icon: '💵', text: `$${vault.amount}` }
+    if (vault.reward === 'cash') return { icon: '💰', pixel: 'gold', text: `$${vault.amount}` }
     if (vault.reward === 'diamond') return { icon: '💎', text: `${vault.amount}개` }
     if (vault.reward === 'multiplier_1.5') return { icon: '⚡', text: 'x1.5' }
     if (vault.reward === 'multiplier_2') return { icon: '⚡⚡', text: 'x2' }
@@ -414,7 +431,10 @@ export default function MafiaView({
                           onClick={() => void handleVaultSelect(vault.id)}
                           className={`aspect-square rounded-xl border-4 p-2 transition hover:scale-105 sm:p-5 ${revealed ? 'border-cyan-400 bg-cyan-900' : 'border-yellow-600 bg-yellow-900'}`}
                         >
-                          <div className="text-4xl sm:text-7xl">{display.icon}</div>
+                          <div className="text-4xl sm:text-7xl">
+                            <VaultIcon display={display} size={40} className="sm:hidden" />
+                            <VaultIcon display={display} size={72} className="hidden sm:inline-block" />
+                          </div>
                           <div className="mt-1.5 text-base font-black text-white sm:mt-3 sm:text-2xl">{display.text}</div>
                         </button>
                       )
@@ -471,7 +491,9 @@ export default function MafiaView({
 
           {currentView === 'vaultResult' && selectedVaultResult && (
             <motion.div key="vaultResult" initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="text-center">
-              <div className="mb-4 text-8xl">{getVaultDisplay(selectedVaultResult.vault, true).icon}</div>
+              <div className="mb-4 text-8xl">
+                <VaultIcon display={getVaultDisplay(selectedVaultResult.vault, true)} size={96} />
+              </div>
               <div className="max-w-2xl rounded-xl border-4 border-yellow-600 bg-black/90 p-8 text-3xl font-black text-yellow-300">
                 {selectedVaultResult.log}
               </div>

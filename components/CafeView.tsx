@@ -1,13 +1,14 @@
 'use client'
 
-import Image from 'next/image'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import CafeShop from '@/components/cafe/CafeShop'
 import ItemChoiceModal from '@/components/cafe/ItemChoiceModal'
+import CafeImage from '@/components/cafe/CafeImage'
 import { useCafeStore } from '@/store/cafeStore'
 import {
   MENU_ITEMS,
+  CUSTOMER_FALLBACK_EMOJI,
   Customer,
   formatCafeMoney,
   formatCafeMoneyDelta,
@@ -394,12 +395,13 @@ export default function CafeView({
               </span>
             </div>
             <div className="flex items-center gap-1.5 sm:gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-2 py-1 sm:px-4 sm:py-2 border-2 border-white/30">
-              <span className="text-xl sm:text-3xl">💰</span>
+              <PixelIcon name="gold" size={22} alt="" className="sm:hidden" />
+              <PixelIcon name="gold" size={32} alt="" className="hidden sm:inline-block" />
               <span className="text-lg sm:text-3xl font-bold text-slate-700 whitespace-nowrap">{formatCafeMoney(cash)}</span>
             </div>
             <QuizSetName title={questionSetTitle} className="hidden lg:flex" />
             <div className="hidden sm:flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2 border-2 border-white/30">
-              <span className="text-2xl">👥</span>
+              <PixelIcon name="people" size={28} alt="" />
               <span className="text-xl font-bold text-slate-700 whitespace-nowrap">{customersServed}명</span>
             </div>
             <div className="flex items-center gap-2">
@@ -417,7 +419,15 @@ export default function CafeView({
                         item.type === 'buff' ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
                       }`}
                     >
-                      <span>{item.emoji}</span>
+                      <CafeImage
+                        src={item.image}
+                        alt={item.name}
+                        width={20}
+                        height={20}
+                        className="h-5 w-5 object-contain"
+                        fallbackEmoji={item.emoji}
+                        fallbackClassName="h-5 w-5 text-sm"
+                      />
                       <span>{remaining}초</span>
                     </motion.div>
                   )
@@ -430,7 +440,16 @@ export default function CafeView({
                     exit={{ scale: 0 }}
                     className="flex items-center gap-1 rounded-lg bg-amber-400 px-2 py-1 text-sm font-black text-amber-950"
                   >
-                    🥄 {GOLDEN_SPATULA_MULTIPLIER}배
+                    <CafeImage
+                      src={CAFE_ITEMS.GOLDEN_SPATULA.image}
+                      alt={CAFE_ITEMS.GOLDEN_SPATULA.name}
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 object-contain"
+                      fallbackEmoji={CAFE_ITEMS.GOLDEN_SPATULA.emoji}
+                      fallbackClassName="h-5 w-5 text-sm"
+                    />
+                    {GOLDEN_SPATULA_MULTIPLIER}배
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -506,21 +525,14 @@ export default function CafeView({
                             }`}
                         >
                           <div className="relative w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] [@media(max-height:500px)]:w-10 [@media(max-height:500px)]:h-10">
-                            <Image
+                            <CafeImage
                               src={customer.characterImage}
                               alt="손님"
                               width={72}
                               height={72}
-                              unoptimized
                               className="w-full h-full object-contain"
-                              onError={(e) => {
-                                // SVG 로드 실패 시 이모지로 대체
-                                const target = e.target as HTMLImageElement
-                                target.style.display = 'none'
-                                if (target.parentElement) {
-                                  target.parentElement.innerHTML = `<div class="text-5xl">${customer.emoji}</div>`
-                                }
-                              }}
+                              fallbackEmoji={CUSTOMER_FALLBACK_EMOJI}
+                              fallbackClassName="w-full h-full text-5xl"
                             />
                           </div>
                         </motion.div>
@@ -535,20 +547,14 @@ export default function CafeView({
                         >
                           <div className="text-center">
                             <div className="mb-1.5 flex items-center justify-center">
-                              <Image
+                              <CafeImage
                                 src={menu.image}
                                 alt={menu.name}
                                 width={56}
                                 height={56}
-                                unoptimized
                                 className="w-10 h-10 sm:w-14 sm:h-14 [@media(max-height:500px)]:w-7 [@media(max-height:500px)]:h-7 object-contain"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement
-                                  target.style.display = 'none'
-                                  if (target.parentElement) {
-                                    target.parentElement.innerHTML = `<div class="text-3xl">${menu.emoji}</div>`
-                                  }
-                                }}
+                                fallbackEmoji={menu.emoji}
+                                fallbackClassName="text-3xl"
                               />
                             </div>
                             <div className="text-xs sm:text-sm font-bold text-gray-800 mb-0.5 sm:mb-1 whitespace-nowrap">{menu.name}</div>
@@ -612,20 +618,14 @@ export default function CafeView({
                         {/* 메뉴 이미지 (해금되고 재고가 있을 때만) */}
                         {isUnlocked && stock > 0 && (
                           <div className="absolute inset-0 flex items-center justify-center p-1.5">
-                            <Image
+                            <CafeImage
                               src={menu.image}
                               alt={menu.name}
                               width={40}
                               height={40}
-                              unoptimized
                               className="w-full h-full object-contain"
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement
-                                target.style.display = 'none'
-                                if (target.parentElement) {
-                                  target.parentElement.innerHTML = `<span class="text-2xl">${menu.emoji}</span>`
-                                }
-                              }}
+                              fallbackEmoji={menu.emoji}
+                              fallbackClassName="text-2xl"
                             />
                           </div>
                         )}
@@ -678,7 +678,10 @@ export default function CafeView({
                   backgroundImage: 'linear-gradient(180deg, #D9F2F9 0%, #88D1E7 52%, #7ec5e8 100%)',
                 }}
               >
-                <span>🍽️ 음식 채우기</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <PixelIcon name="dish" size={22} alt="" />
+                  음식 채우기
+                </span>
                 <span className="mr-3 text-xs font-semibold text-[#1a5f8f]/85">스페이스바</span>
               </Button>
               <div className="mt-3 text-center text-xs sm:text-sm font-bold text-slate-700 drop-shadow-sm [@media(max-height:500px)]:hidden">
@@ -704,7 +707,8 @@ export default function CafeView({
                 animate={{ scale: 1, opacity: 1 }}
                 className="absolute left-1/2 top-4 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white shadow-lg"
               >
-                🔥 {consecutiveCorrect}연속 정답! 희귀 아이템이 더 잘 나와요
+                <PixelIcon name="streak" size={18} alt="" />
+                {consecutiveCorrect}연속 정답! 희귀 아이템이 더 잘 나와요
               </motion.div>
             )}
 
@@ -766,7 +770,18 @@ export default function CafeView({
             className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-amber-300/15"
           >
             <div className="rounded-lg bg-amber-400 px-8 py-5 text-3xl font-black text-amber-950 shadow-2xl">
-              🥄 황금 주걱 3배 수익!
+              <span className="inline-flex items-center gap-2">
+                <CafeImage
+                  src={CAFE_ITEMS.GOLDEN_SPATULA.image}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="h-10 w-10 object-contain"
+                  fallbackEmoji={CAFE_ITEMS.GOLDEN_SPATULA.emoji}
+                  fallbackClassName="h-10 w-10 text-3xl"
+                />
+                {CAFE_ITEMS.GOLDEN_SPATULA.name} {GOLDEN_SPATULA_MULTIPLIER}배 수익!
+              </span>
             </div>
           </motion.div>
         )}

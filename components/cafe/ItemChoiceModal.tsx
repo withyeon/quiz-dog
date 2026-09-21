@@ -6,6 +6,8 @@ import type { Database } from '@/types/database.types'
 import { formatCafeMoney } from '@/lib/game/cafe'
 import type { CafeItem, ItemId } from '@/lib/game/cafeItems'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import PixelIcon from '@/components/ui/PixelIcon'
+import CafeImage from '@/components/cafe/CafeImage'
 
 type Player = Database['public']['Tables']['players']['Row']
 
@@ -57,10 +59,18 @@ export default function ItemChoiceModal({
       className="rounded-lg border-4 border-amber-300 bg-white p-5 shadow-2xl"
     >
       <div className="mb-5 text-center">
-        <div className="text-2xl font-black text-slate-950">✅ 정답! 🍽️ {restockedMenuName} 재고 충전!</div>
+        <div className="flex items-center justify-center gap-2 text-2xl font-black text-slate-950">
+          <PixelIcon name="correct" size={28} alt="정답" />
+          <span className="inline-flex items-center gap-1">
+            정답!
+            <PixelIcon name="dish" size={24} alt="" />
+            {restockedMenuName} 재고 충전!
+          </span>
+        </div>
         {consecutiveCorrect >= 2 && (
           <div className="mt-2 inline-flex rounded-full bg-orange-500 px-4 py-2 text-sm font-black text-white">
-            🔥 {consecutiveCorrect}연속 정답! 희귀 아이템이 더 잘 나와요
+            <PixelIcon name="streak" size={16} alt="" className="mr-1 inline-block align-text-bottom" />
+            {consecutiveCorrect}연속 정답! 희귀 아이템이 더 잘 나와요
           </div>
         )}
       </div>
@@ -86,12 +96,20 @@ export default function ItemChoiceModal({
                   : 'border-rose-400 bg-rose-50 hover:bg-rose-100'
               } ${item.rarity === 'rare' ? 'ring-4 ring-amber-400 ring-offset-2' : ''}`}
             >
-              <span className="text-5xl">{item.emoji}</span>
+              <CafeImage
+                src={item.image}
+                alt={item.name}
+                width={64}
+                height={64}
+                className="h-16 w-16 object-contain"
+                fallbackEmoji={item.emoji}
+                fallbackClassName="h-16 w-16 text-5xl"
+              />
               <span className="text-base font-black text-slate-900">{item.name}</span>
               <span className="text-center text-xs font-semibold text-slate-600">{item.description}</span>
               {item.rarity === 'rare' && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-600">
-                  ✨ 희귀
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black text-amber-600">
+                  <PixelIcon name="rare" size={14} alt="" /> 희귀
                 </span>
               )}
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${

@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import ItemGlyph from '@/components/ItemGlyph'
 import type { Skill, SkillId } from '@/lib/game/skills'
 
 interface SkillChoiceModalProps {
@@ -58,7 +59,7 @@ export default function SkillChoiceModal({
                             className="min-h-[190px] rounded-lg border border-slate-200 bg-white p-5 text-left shadow-lg transition-shadow hover:shadow-xl"
                         >
                             <div className={`mb-4 flex h-16 w-16 items-center justify-center rounded-lg ${skill.color} text-4xl shadow-lg`}>
-                                {skill.emoji}
+                                <ItemGlyph item={skill} size={36} />
                             </div>
                             <h3 className="text-xl font-black text-slate-950">{skill.name}</h3>
                             <p className="mt-2 text-sm font-bold leading-6 text-slate-600">{skill.description}</p>

@@ -13,6 +13,7 @@ import { useGameBase } from '@/hooks/useGameBase'
 import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import PixelIcon from '@/components/ui/PixelIcon'
+import CafeImage from '@/components/cafe/CafeImage'
 
 type CafeViewType = 'lobby' | 'playing' | 'result'
 
@@ -52,6 +53,7 @@ export default function CafePage() {
     attackerNickname: string
     itemName: string
     itemEmoji: string
+    itemImage: string
   } | null>(null)
   const isPaused = room?.status === 'paused'
   const scoreSyncTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -118,6 +120,7 @@ export default function CafePage() {
         attackerNickname: payload.attackerNickname || '상대',
         itemName: item.name,
         itemEmoji: item.emoji,
+        itemImage: item.image,
       })
       setTimeout(() => setIncomingAttack(null), 3000)
 
@@ -201,7 +204,17 @@ export default function CafePage() {
           >
             <Card className="w-full max-w-2xl border-4 border-amber-300 shadow-2xl bg-white/95">
               <CardHeader className="text-center pb-4">
-                <div className="text-6xl mb-4">☕</div>
+                <div className="mb-4 flex justify-center">
+                  <CafeImage
+                    src="/cafe-items/cafe-logo.webp"
+                    alt=""
+                    width={80}
+                    height={80}
+                    className="h-20 w-20 object-contain"
+                    fallbackEmoji="☕"
+                    fallbackClassName="h-20 w-20 text-6xl"
+                  />
+                </div>
                 <CardTitle className="text-4xl font-bold text-gray-900 mb-2">
                   달콤 바삭 카페
                 </CardTitle>
@@ -229,7 +242,7 @@ export default function CafePage() {
 
                 {/* 시작은 선생님이 한다. 학생은 대기만. */}
                 <div className="flex flex-col items-center gap-3 rounded-xl border-4 border-dashed border-amber-300 bg-white/60 py-6">
-                  <div className="text-4xl animate-pulse">⏳</div>
+                  <PixelIcon name="waiting" size={48} alt="" className="animate-pulse" />
                   <p className="text-lg font-bold text-gray-700">선생님이 시작하면 자동으로 시작돼요</p>
                   <p className="text-sm text-gray-500">잠시만 기다려 주세요</p>
                 </div>

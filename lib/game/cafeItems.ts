@@ -12,7 +12,8 @@ export type ItemId =
 export interface CafeItem {
   id: ItemId
   name: string
-  emoji: string
+  emoji: string // 이미지를 못 불러올 때 쓰는 대체 문자
+  image: string // 픽셀 아트 경로
   description: string
   type: 'buff' | 'debuff'
   duration?: number
@@ -27,6 +28,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'GOLDEN_SPATULA',
     name: '황금 주걱',
     emoji: '🥄',
+    image: '/cafe-items/golden-spatula.webp',
     description: `다음 서빙 수익 ${GOLDEN_SPATULA_MULTIPLIER}배!`,
     type: 'buff',
     rarity: 'rare',
@@ -35,6 +37,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'EXPRESS_LANE',
     name: '특급 배달',
     emoji: '🚀',
+    image: '/cafe-items/express-lane.webp',
     description: '30초간 손님 인내심 2배',
     type: 'buff',
     duration: 30000,
@@ -44,6 +47,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'SECRET_RECIPE',
     name: '비법 레시피',
     emoji: '📖',
+    image: '/cafe-items/secret-recipe.webp',
     description: '잠금 해제한 모든 메뉴 재고 +2',
     type: 'buff',
     rarity: 'common',
@@ -52,6 +56,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'RUSH_HOUR',
     name: '러시아워',
     emoji: '⚡',
+    image: '/cafe-items/rush-hour.webp',
     description: '20초간 손님이 2배로 몰려옴',
     type: 'buff',
     duration: 20000,
@@ -61,6 +66,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'BAD_REVIEW',
     name: '악성 리뷰',
     emoji: '⭐',
+    image: '/cafe-items/bad-review.webp',
     description: '상대 카페에 15초간 손님 발길 끊김',
     type: 'debuff',
     duration: 15000,
@@ -70,6 +76,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'COPY_CAT',
     name: '카피캣',
     emoji: '🐱',
+    image: '/cafe-items/copy-cat.webp',
     description: '1등 플레이어 메뉴 1개 무료 잠금 해제!',
     type: 'buff',
     rarity: 'rare',
@@ -78,6 +85,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'ROACH_ALERT',
     name: '바퀴벌레 경보',
     emoji: '🪳',
+    image: '/cafe-items/roach-alert.webp',
     description: '상대 카페 손님 절반이 도망감!',
     type: 'debuff',
     rarity: 'rare',
@@ -86,6 +94,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'PRICE_CRASH',
     name: '가격 폭락',
     emoji: '📉',
+    image: '/cafe-items/price-crash.webp',
     description: '상대 판매가 20초간 반토막',
     type: 'debuff',
     duration: 20000,
@@ -95,6 +104,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     id: 'SUPER_AD',
     name: '슈퍼 광고',
     emoji: '📢',
+    image: '/cafe-items/super-ad.webp',
     description: '30초간 내 수익 1.5배',
     type: 'buff',
     duration: 30000,

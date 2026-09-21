@@ -1,5 +1,7 @@
 // Cafe 게임 로직 및 타입 정의
 
+import { CHARACTERS } from '@/lib/utils/characters'
+
 /** 카페 게임 화폐: 예전 $1 단위 = ₩1,000 */
 export const CAFE_WON_PER_DOLLAR = 1000
 
@@ -24,7 +26,6 @@ export interface MenuItem {
 export interface Customer {
   id: string
   order: string // 주문한 메뉴 ID
-  emoji: string // 하위 호환성을 위해 유지
   characterImage: string // 캐릭터 이미지 경로
   patience: number // 인내심 (초 단위)
   spawnTime: number // 생성 시간
@@ -204,11 +205,21 @@ export const RESTOCK_PER_CORRECT = 1
 export const STARTER_MENU_ID = 'toast'
 
 // 손님 이모티콘 (하위 호환성)
-export const CUSTOMER_EMOJIS = ['🐱', '🐶', '🐰', '🐻', '🐼', '🐨', '🦊', '🐷', '🐸', '🐯']
+/**
+ * 손님 이미지를 못 불러올 때 쓰는 대체 이모지.
+ * 캐릭터가 모두 강아지라 예전처럼 동물 이모지를 무작위로 뽑지 않는다.
+ * (강아지 그림 자리에 🐸가 나오던 문제)
+ */
+export const CUSTOMER_FALLBACK_EMOJI = '🐶'
 
-// 캐릭터 이미지 경로 (1.svg ~ 20.svg)
+/**
+ * 손님 캐릭터 이미지 경로.
+ * 로비와 같은 캐릭터 로스터(CHARACTERS)를 쓰므로, 로스터에 캐릭터를 추가하면
+ * 카페 손님에도 자동으로 등장한다. 예전에는 20이 하드코딩돼 있어서
+ * 21~30번 캐릭터가 손님으로 영영 나오지 않았다.
+ */
 export function getRandomCharacterImage(): string {
-  const characterNumber = Math.floor(Math.random() * 20) + 1 // 1~20
+  const characterNumber = Math.floor(Math.random() * CHARACTERS.length) + 1
   return `/character/webp/${characterNumber}.webp`
 }
 
@@ -314,13 +325,11 @@ export function spawnCustomer(state: CafeGameState, currentTime: number): Custom
     ? availableMenus[Math.floor(Math.random() * availableMenus.length)]
     : state.unlockedMenus[Math.floor(Math.random() * state.unlockedMenus.length)]
 
-  const randomEmoji = CUSTOMER_EMOJIS[Math.floor(Math.random() * CUSTOMER_EMOJIS.length)]
   const characterImage = getRandomCharacterImage()
 
   return {
     id: `customer-${Date.now()}-${Math.random()}`,
     order: randomMenu,
-    emoji: randomEmoji, // 하위 호환성
     characterImage: characterImage,
     patience: CUSTOMER_PATIENCE_SECONDS,
     spawnTime: currentTime,

@@ -24,6 +24,8 @@ import {
     PLAYER_SIZE,
     generatePlatformMap,
     generateObstacles,
+    createSeededRandom,
+    getMapSeed,
     spawnPowerUp,
     getLeaderboard,
     updateObstacles,
@@ -32,6 +34,7 @@ import {
     SUMMITS,
 } from '@/lib/game/dontlookdown'
 import { useGameBase } from '@/hooks/useGameBase'
+import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -39,6 +42,22 @@ type Player = Database['public']['Tables']['players']['Row']
 // 'quiz'는 훅(useGameBase)이 카운트다운과 시작 전 퀴즈를 마쳤을 때 넘겨주는 시작 신호.
 // 이 페이지는 그 즉시 맵을 만들고 'game'으로 들어가므로 화면에 머무는 뷰는 아니다.
 type DLDView = 'lobby' | 'quiz' | 'game' | 'result'
+
+/** 다른 학생이 broadcast로 보내는 좌표 패킷 */
+type RemotePosition = {
+    x: number
+    y: number
+    vx: number
+    vy: number
+    facingRight: boolean
+    isOnGround: boolean
+    height?: number
+    energy?: number
+}
+/** 모인 좌표 패킷을 화면에 반영하는 주기(ms) */
+const REMOTE_POS_FLUSH_MS = 100
+/** 이 시간(ms) 안에 좌표 패킷이 없으면 높이 기반 근사 위치로 돌아간다 */
+const REMOTE_POS_STALE_MS = 3000
 
 export default function DontLookDownPage() {
     const {
@@ -70,6 +89,7 @@ export default function DontLookDownPage() {
         sessionStartedAt,
         showCountdown,
         handleCountdownComplete,
+        sendRoomEvent,
     } = useGameBase({ expectedGameMode: 'dontlookdown' })
 
     const [gameSettings, setGameSettings] = useState<GameSettings>(DEFAULT_SETTINGS)
@@ -86,6 +106,12 @@ export default function DontLookDownPage() {
     // 이번 판이 이미 시작됐는지. 훅의 goToNextQuestion은 문제마다 currentView를 'quiz'로
     // 되돌리므로, 'quiz'를 시작 신호로 쓰는 아래 효과가 판 중간에 맵을 다시 만들지 않게 막는다.
     const runStartedRef = useRef(false)
+    // 다른 학생이 broadcast로 보낸 실제 좌표. 200ms마다 오는 패킷을 곧바로 setState 하면
+    // 학생 수만큼 리렌더가 늘어나므로 ref에 모았다가 짧은 주기로 한 번에 반영한다.
+    const remotePositionsRef = useRef<Map<string, RemotePosition>>(new Map())
+    // 좌표 패킷을 마지막으로 받은 시각(ms). 최근 패킷이 있으면 높이 기반 근사로 덮어쓰지 않는다.
+    const remotePosSeenAtRef = useRef<Map<string, number>>(new Map())
+    const roomStartedAt = room?.started_at ?? null
     // 과제 방은 학생 개인 시작 시각(sessionStartedAt)을 쓴다
     const resolvedGameStartTime = sessionStartedAt
         ? gameStartTime || new Date(sessionStartedAt).getTime()
@@ -124,12 +150,14 @@ export default function DontLookDownPage() {
         runStartedRef.current = true
         setWinner(null)
 
-        // 플랫폼 맵 생성
-        const generatedPlatforms = generatePlatformMap(gameSettings.summitGoal, gameSettings)
+        // 플랫폼 맵 생성. 방 코드 + 판 시작 시각으로 시드를 고정해 모든 학생이 같은 맵을 본다.
+        // (예전에는 학생마다 Math.random()으로 따로 만들어 화면마다 발판 배치가 달랐다.)
+        const random = createSeededRandom(getMapSeed(roomCode ?? '', roomStartedAt))
+        const generatedPlatforms = generatePlatformMap(gameSettings.summitGoal, gameSettings, random)
         setPlatforms(generatedPlatforms)
 
-        // 장애물 생성
-        setObstacles(generateObstacles(generatedPlatforms))
+        // 장애물 생성 (같은 시드 난수를 이어서 써서 장애물 배치도 같아진다)
+        setObstacles(generateObstacles(generatedPlatforms, random))
 
         // 파워업 초기화
         setPowerUps([])
@@ -147,7 +175,7 @@ export default function DontLookDownPage() {
         setRemainingTime(gameSettings.duration)
         setGameStartTime(Date.now())
         setCurrentView('game')
-    }, [room?.status, currentView, players, gameSettings, playerId, setCurrentView])
+    }, [room?.status, currentView, players, gameSettings, playerId, setCurrentView, roomCode, roomStartedAt])
 
     // Update platformsRef when platforms change
     useEffect(() => {
@@ -179,19 +207,86 @@ export default function DontLookDownPage() {
                 const energy = Math.max(0, Number(row.gold ?? 0))
                 if (existing.height === height && existing.energy === energy) continue
 
-                next.set(row.id, {
-                    ...existing,
-                    height,
-                    energy,
-                    y: 600 - height / METERS_PER_PIXEL - PLAYER_SIZE.HEIGHT,
-                    x: estimateRouteX(height, gameSettings.summitGoal),
-                })
+                // 최근에 실제 좌표 패킷을 받은 학생은 그 좌표를 유지하고 높이·에너지만 갱신한다.
+                // 패킷이 끊긴 학생(구버전·패킷 유실)만 높이 기반 근사로 위치를 잡는다.
+                const seenAt = remotePosSeenAtRef.current.get(row.id) ?? 0
+                const hasFreshPosition = Date.now() - seenAt < REMOTE_POS_STALE_MS
+                next.set(row.id, hasFreshPosition
+                    ? { ...existing, height, energy }
+                    : {
+                        ...existing,
+                        height,
+                        energy,
+                        y: 600 - height / METERS_PER_PIXEL - PLAYER_SIZE.HEIGHT,
+                        x: estimateRouteX(height, gameSettings.summitGoal),
+                    })
                 changed = true
             }
 
             return changed ? next : prev
         })
     }, [currentView, gameSettings.summitGoal, playerId, players])
+
+    // 다른 학생의 실제 좌표를 broadcast(dontlookdown:pos)로 받는다.
+    // 높이만으로 근사하면 상대가 발판이 아니라 허공에 떠 보이므로, 각자 200ms마다 보내는
+    // x/y/속도/방향을 받아 그대로 그린다. 패킷이 끊기면 위의 높이 기반 근사가 대신한다.
+    useEffect(() => {
+        if (currentView !== 'game') return
+
+        const unsubscribe = subscribeRoomRuntimeEvent((event) => {
+            if (event.type !== 'dontlookdown:pos') return
+            const senderId = event.playerId
+            if (!senderId || senderId === playerId) return
+            const payload = event.payload as Partial<RemotePosition> | undefined
+            if (!payload || typeof payload.x !== 'number' || typeof payload.y !== 'number') return
+            remotePositionsRef.current.set(senderId, {
+                x: payload.x,
+                y: payload.y,
+                vx: typeof payload.vx === 'number' ? payload.vx : 0,
+                vy: typeof payload.vy === 'number' ? payload.vy : 0,
+                facingRight: payload.facingRight !== false,
+                isOnGround: payload.isOnGround === true,
+                height: typeof payload.height === 'number' ? payload.height : undefined,
+                energy: typeof payload.energy === 'number' ? payload.energy : undefined,
+            })
+            remotePosSeenAtRef.current.set(senderId, Date.now())
+        })
+
+        // 모인 패킷을 한 번에 반영 (학생 수와 무관하게 리렌더 상한 = 초당 10회)
+        const flush = setInterval(() => {
+            const pending = remotePositionsRef.current
+            if (pending.size === 0) return
+            const snapshot = new Map(pending)
+            pending.clear()
+
+            setDldPlayers((prev) => {
+                let changed = false
+                const next = new Map(prev)
+                snapshot.forEach((pos, id) => {
+                    const existing = next.get(id)
+                    if (!existing) return
+                    next.set(id, {
+                        ...existing,
+                        x: pos.x,
+                        y: pos.y,
+                        vx: pos.vx,
+                        vy: pos.vy,
+                        facingRight: pos.facingRight,
+                        isOnGround: pos.isOnGround,
+                        height: Math.max(existing.height, pos.height ?? existing.height),
+                        energy: pos.energy ?? existing.energy,
+                    })
+                    changed = true
+                })
+                return changed ? next : prev
+            })
+        }, REMOTE_POS_FLUSH_MS)
+
+        return () => {
+            unsubscribe()
+            clearInterval(flush)
+        }
+    }, [currentView, playerId])
 
     // 월드 타이머(파워업 생성, 장애물·플랫폼 갱신, 플랫폼 리스폰)는 'game' 뷰 동안만 돌고,
     // 결과 화면이나 로비로 나가면 정리된다.
@@ -242,6 +337,18 @@ export default function DontLookDownPage() {
             updated.set(player.id, player)
             return updated
         })
+
+        // 실제 좌표는 DB에 쓰지 않고 broadcast로만 뿌린다 (다른 학생 화면에 내 강아지를 발판 위에 그리기 위함)
+        void sendRoomEvent('dontlookdown:pos', {
+            x: Math.round(player.x),
+            y: Math.round(player.y),
+            vx: Math.round(player.vx),
+            vy: Math.round(player.vy),
+            facingRight: player.facingRight,
+            isOnGround: player.isOnGround,
+            height: Math.floor(player.height),
+            energy: Math.floor(player.energy),
+        } satisfies RemotePosition)
 
         // 데이터베이스 업데이트
         const updateData = {
