@@ -1,5 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database.types'
+import { getRememberLogin } from '@/lib/auth/rememberLogin'
 
 const SUPABASE_PUBLIC_KEY_ENV_HINT =
   'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or legacy NEXT_PUBLIC_SUPABASE_ANON_KEY)'
@@ -25,6 +26,47 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// "자동 로그인" 설정에 따라 세션 저장소를 고르는 어댑터.
+// 켜짐(기본) → localStorage (브라우저를 닫아도 유지), 꺼짐 → sessionStorage (닫으면 로그아웃).
+// 읽을 때는 둘 다 확인하므로 설정을 바꿔도 기존 세션이 갑자기 사라지지 않는다.
+function storageOrNull(kind: 'localStorage' | 'sessionStorage'): Storage | null {
+  try {
+    if (typeof window === 'undefined') return null
+    return window[kind]
+  } catch {
+    return null
+  }
+}
+
+const rememberAwareStorage = {
+  getItem(key: string): string | null {
+    try {
+      return storageOrNull('localStorage')?.getItem(key) ?? storageOrNull('sessionStorage')?.getItem(key) ?? null
+    } catch {
+      return null
+    }
+  },
+  setItem(key: string, value: string): void {
+    const remember = getRememberLogin()
+    const target = storageOrNull(remember ? 'localStorage' : 'sessionStorage')
+    const other = storageOrNull(remember ? 'sessionStorage' : 'localStorage')
+    try {
+      other?.removeItem(key)
+      target?.setItem(key, value)
+    } catch {
+      /* 저장이 막힌 환경(비공개 모드 등)에서는 메모리 세션으로만 동작 */
+    }
+  },
+  removeItem(key: string): void {
+    try {
+      storageOrNull('localStorage')?.removeItem(key)
+      storageOrNull('sessionStorage')?.removeItem(key)
+    } catch {
+      /* ignore */
+    }
+  },
+}
+
 // 환경 변수가 있을 때만 제대로 타입이 전파되도록 클라이언트 생성
 export const supabase: SupabaseClient<Database> = supabaseUrl && supabasePublicKey
   ? createClient<Database>(supabaseUrl, supabasePublicKey, {
@@ -36,6 +78,7 @@ export const supabase: SupabaseClient<Database> = supabaseUrl && supabasePublicK
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        storage: rememberAwareStorage,
       },
     })
   : createClient<Database>(

@@ -19,6 +19,7 @@ import {
   type MachineRank,
   type SpecialItem,
   type SpecialItemType,
+  normalizeSavedDolls,
 } from '@/lib/game/fishing'
 import { updatePlayer } from '@/lib/services/players'
 import type { SFXType } from '@/hooks/useAudio'
@@ -110,7 +111,7 @@ export function useFishingGame({
   useEffect(() => {
     if (!currentPlayer) return
     const savedDolls = Array.isArray(currentPlayer.caught_dolls)
-      ? (currentPlayer.caught_dolls as Doll[])
+      ? normalizeSavedDolls(currentPlayer.caught_dolls as Doll[])
       : []
     setCaughtDolls(savedDolls)
     setCorrectAnswers(savedDolls.length)

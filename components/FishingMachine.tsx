@@ -15,6 +15,7 @@ import {
   type MachineRank,
   type SpecialItemType,
 } from '@/lib/game/fishing'
+import { SpecialItemIcon } from '@/components/fishing/FishingPanels'
 
 interface FishingMachineProps {
   fishingState: FishingState
@@ -31,14 +32,14 @@ interface FishingMachineProps {
   isFrenzy?: boolean
 }
 
-const ITEM_BADGES: Record<SpecialItemType, { icon: string; label: string; color: string }> = {
-  DOUBLE_SCORE: { icon: '2x', label: '2배 점수', color: 'border-amber-200 bg-amber-50 text-amber-700' },
-  LUCKY_BOOST: { icon: 'LU', label: '행운 부스트', color: 'border-violet-200 bg-violet-50 text-violet-700' },
-  COIN_RAIN: { icon: 'CR', label: '보너스 코인', color: 'border-yellow-200 bg-yellow-50 text-yellow-700' },
-  EXTRA_PULL: { icon: 'EX', label: '복습 티켓', color: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
-  SHIELD: { icon: 'SH', label: '꽝 방지', color: 'border-teal-200 bg-teal-50 text-teal-700' },
-  SCREEN_FLIP: { icon: '🙃', label: '화면 뒤집기', color: 'border-violet-200 bg-violet-50 text-violet-700' },
-  SCREEN_SHRINK: { icon: '🔭', label: '화면 축소', color: 'border-violet-200 bg-violet-50 text-violet-700' },
+const ITEM_BADGES: Record<SpecialItemType, { label: string; color: string }> = {
+  DOUBLE_SCORE: { label: '2배 점수', color: 'border-amber-200 bg-amber-50' },
+  LUCKY_BOOST: { label: '행운 부스트', color: 'border-violet-200 bg-violet-50' },
+  COIN_RAIN: { label: '보너스 코인', color: 'border-yellow-200 bg-yellow-50' },
+  EXTRA_PULL: { label: '복습 티켓', color: 'border-emerald-200 bg-emerald-50' },
+  SHIELD: { label: '꽝 방지', color: 'border-teal-200 bg-teal-50' },
+  SCREEN_FLIP: { label: '화면 뒤집기', color: 'border-violet-200 bg-violet-50' },
+  SCREEN_SHRINK: { label: '화면 축소', color: 'border-violet-200 bg-violet-50' },
 }
 
 const AIM_STYLE = {
@@ -55,6 +56,10 @@ const TIER_GLOW: Record<string, string> = {
   보물: 'treasure-glow',
 }
 
+const STAGE_BG = '/fishing/machine/case-bg.webp'
+const CLAW_OPEN = '/fishing/machine/claw-open.webp'
+const CLAW_CLOSED = '/fishing/machine/claw-closed.webp'
+
 const AIM_TRACK_H = 44
 const CLAW_WIDTH = 112
 /** 무대 기본 높이(px). 폰/낮은 화면은 CSS(.fishing-stage)로 줄이고, 집게 하강 거리는 실제 높이에 맞춰 계산한다 */
@@ -62,17 +67,18 @@ const DEFAULT_STAGE_H = 340
 /** 무대 높이에서 이 값을 뺀 만큼 집게가 내려간다 (340px 무대에서 185px) */
 const CLAW_DROP_OFFSET = 155
 
+// 바닥에 깔린 미스터리 상자. 그림 8종을 자리마다 돌려 쓴다 (public/fishing/machine).
 const MYSTERY_FLOOR = [
-  { left: '4%', size: 38, color: '#f59e0b', rotate: -8 },
-  { left: '13%', size: 44, color: '#7c3aed', rotate: 5 },
-  { left: '23%', size: 36, color: '#0ea5e9', rotate: -4 },
-  { left: '33%', size: 42, color: '#ec4899', rotate: 7 },
-  { left: '43%', size: 48, color: '#facc15', rotate: -3 },
-  { left: '54%', size: 40, color: '#7c3aed', rotate: 6 },
-  { left: '64%', size: 36, color: '#0ea5e9', rotate: -6 },
-  { left: '73%', size: 44, color: '#f59e0b', rotate: 4 },
-  { left: '83%', size: 38, color: '#ec4899', rotate: -5 },
-  { left: '91%', size: 42, color: '#facc15', rotate: 3 },
+  { left: '4%', size: 40, image: '/fishing/machine/box-pink.webp', rotate: -8 },
+  { left: '13%', size: 46, image: '/fishing/machine/box-purple.webp', rotate: 5 },
+  { left: '23%', size: 38, image: '/fishing/machine/box-skyblue.webp', rotate: -4 },
+  { left: '33%', size: 44, image: '/fishing/machine/box-mint.webp', rotate: 7 },
+  { left: '43%', size: 50, image: '/fishing/machine/box-gold.webp', rotate: -3 },
+  { left: '54%', size: 42, image: '/fishing/machine/box-red.webp', rotate: 6 },
+  { left: '64%', size: 38, image: '/fishing/machine/box-blue.webp', rotate: -6 },
+  { left: '73%', size: 46, image: '/fishing/machine/box-shine.webp', rotate: 4 },
+  { left: '83%', size: 40, image: '/fishing/machine/box-pink.webp', rotate: -5 },
+  { left: '91%', size: 44, image: '/fishing/machine/box-purple.webp', rotate: 3 },
 ]
 
 function getClawLeft(fishingState: FishingState, aimPosition: number) {
@@ -107,6 +113,7 @@ export default function FishingMachine({
   const aimZoneWidth = getAimGradeZoneWidth(machineRank)
   const aimStyle = AIM_STYLE[aimGrade]
 
+  const isGripping = fishingState === 'grab' || fishingState === 'up' || fishingState === 'return'
   const isInAction = fishingState !== 'idle'
   const isReleasing = fishingState === 'release'
 
@@ -138,9 +145,9 @@ export default function FishingMachine({
             <span
               key={`${item}-${i}`}
               title={ITEM_BADGES[item].label}
-              className={`rounded-md border px-2 py-0.5 text-xs font-bold ${ITEM_BADGES[item].color}`}
+              className={`flex items-center rounded-md border px-1.5 py-0.5 ${ITEM_BADGES[item].color}`}
             >
-              {ITEM_BADGES[item].icon}
+              <SpecialItemIcon type={item} size={18} />
             </span>
           ))}
           <span className="rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-extrabold text-slate-700">
@@ -153,8 +160,16 @@ export default function FishingMachine({
         {message}
       </div>
 
-      <div ref={stageRef} className="fishing-stage relative overflow-hidden border-b border-slate-200 bg-gradient-to-b from-sky-50 via-white to-rose-50">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(14,165,233,0.11)_1px,transparent_1px),linear-gradient(90deg,rgba(14,165,233,0.11)_1px,transparent_1px)] bg-[size:30px_30px]" />
+      <div ref={stageRef} className="fishing-stage relative overflow-hidden border-b border-slate-200 bg-rose-50">
+        {/* 유리 케이스 안쪽. 화면 비율이 제각각이라 바닥선을 아래에 고정하고 위쪽 벽을 잘라낸다 */}
+        <Image
+          src={STAGE_BG}
+          alt=""
+          fill
+          priority
+          sizes="(max-width: 1024px) 100vw, 964px"
+          className="object-cover object-bottom"
+        />
 
         <div className="absolute bottom-0 left-0 right-0 top-0">
           <div className="absolute bottom-0 top-0 left-12 right-12 sm:left-14 sm:right-14">
@@ -219,18 +234,17 @@ export default function FishingMachine({
                 ease: fishingState === 'aim' ? 'linear' : 'easeInOut',
               }}
             >
-              <div className="h-14 w-0.5 rounded-b-full bg-slate-400 shadow-[0_0_4px_rgba(148,163,184,0.35)]" />
-              <div className="relative h-24 w-28">
-                <div className="absolute left-1/2 top-0 h-9 w-12 -translate-x-1/2 rounded-md border-4 border-slate-300 bg-slate-100 shadow-lg" />
-                <motion.div
-                  className="absolute left-[18px] top-[26px] h-[68px] w-[46px] rounded-bl-[36px] border-b-[7px] border-l-[7px] border-slate-400"
-                  animate={{ rotate: (fishingState === 'grab' || fishingState === 'up' || fishingState === 'return') ? 16 : -10 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
-                />
-                <motion.div
-                  className="absolute right-[18px] top-[26px] h-[68px] w-[46px] rounded-br-[36px] border-b-[7px] border-r-[7px] border-slate-400"
-                  animate={{ rotate: (fishingState === 'grab' || fishingState === 'up' || fishingState === 'return') ? -16 : 10 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
+              {/* 줄은 길이가 변하니 그대로 CSS로 그리고, 집게 머리만 그림 두 장을 바꿔 끼운다 */}
+              <div className="h-10 w-0.5 rounded-b-full bg-slate-400 shadow-[0_0_4px_rgba(148,163,184,0.35)]" />
+              <div className="relative h-28 w-28">
+                <Image
+                  src={isGripping ? CLAW_CLOSED : CLAW_OPEN}
+                  alt=""
+                  fill
+                  sizes="112px"
+                  unoptimized
+                  draggable={false}
+                  className="select-none object-contain"
                 />
               </div>
 
@@ -264,20 +278,17 @@ export default function FishingMachine({
 
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-around px-2 pb-2">
           {MYSTERY_FLOOR.map((box, i) => (
-            <div
+            <Image
               key={i}
-              className="relative flex select-none items-center justify-center rounded-md text-sm font-extrabold text-slate-700"
-              style={{
-                width: box.size,
-                height: box.size,
-                backgroundImage: `linear-gradient(135deg, ${box.color}45, ${box.color}16)`,
-                border: `1px solid ${box.color}50`,
-                transform: `rotate(${box.rotate}deg)`,
-                boxShadow: `0 8px 18px ${box.color}18`,
-              }}
-            >
-              ?
-            </div>
+              src={box.image}
+              alt=""
+              width={box.size}
+              height={box.size}
+              unoptimized
+              draggable={false}
+              className="select-none object-contain"
+              style={{ width: box.size, height: box.size, transform: `rotate(${box.rotate}deg)` }}
+            />
           ))}
         </div>
 
@@ -325,8 +336,6 @@ export default function FishingMachine({
           )}
         </AnimatePresence>
 
-        <div className="pointer-events-none absolute inset-y-0 left-0 w-4 bg-gradient-to-r from-white/70 to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 w-4 bg-gradient-to-l from-white/70 to-transparent" />
       </div>
 
       <div className="flex items-center justify-between px-4 pb-1 pt-2 sm:px-5 sm:pt-3">

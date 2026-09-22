@@ -432,6 +432,27 @@ export function tryFishing(
   }
 }
 
+/** 이름을 바꾸기 전(일반·희귀·영웅·전설)에 저장된 인형도 제대로 보이게 등급을 옮겨준다 */
+const LEGACY_TIER: Record<string, DollTier> = {
+  '일반': '기본',
+  '희귀': '인기',
+  '영웅': '특별',
+  '전설': '보물',
+}
+
+export function normalizeDollTier(tier: string | null | undefined): DollTier {
+  if (!tier) return '기본'
+  return LEGACY_TIER[tier] ?? (tier as DollTier)
+}
+
+/** DB에 저장돼 있던 인형 목록을 지금 등급 이름으로 맞춘다 */
+export function normalizeSavedDolls(dolls: Doll[]): Doll[] {
+  return dolls.map((doll) => {
+    const tier = normalizeDollTier(doll.tier)
+    return tier === doll.tier ? doll : { ...doll, tier }
+  })
+}
+
 /**
  * 티어별 색상 클래스
  */

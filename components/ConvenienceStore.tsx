@@ -368,15 +368,15 @@ export default function ConvenienceStore({
                 </span>
               </li>
               <li className="flex justify-between text-amber-600">
-                <span>전설 아이템</span>
+                <span>보물 아이템</span>
                 <span className="font-bold">
-                  {products.filter((i) => i?.tier === '전설').length}개
+                  {products.filter((i) => i?.tier === '보물').length}개
                 </span>
               </li>
               <li className="flex justify-between text-purple-600">
-                <span>영웅 아이템</span>
+                <span>특별 아이템</span>
                 <span className="font-bold">
-                  {products.filter((i) => i?.tier === '영웅').length}개
+                  {products.filter((i) => i?.tier === '특별').length}개
                 </span>
               </li>
             </ul>
@@ -582,8 +582,8 @@ export default function ConvenienceStore({
                     onClick={() => handlePlaceProduct(item)}
                     className={`relative p-3 sm:p-6 rounded-2xl border-4 ${item.color} ${item.borderColor} flex flex-row sm:flex-col items-center gap-3 shadow-lg group overflow-hidden text-left sm:text-center`}
                   >
-                    {/* 전설/영웅 후광 효과 */}
-                    {(item.tier === '전설' || item.tier === '영웅') && (
+                    {/* 보물/특별 후광 효과 */}
+                    {(item.tier === '보물' || item.tier === '특별') && (
                       <div className="absolute inset-0 bg-white/30 animate-pulse pointer-events-none"></div>
                     )}
 

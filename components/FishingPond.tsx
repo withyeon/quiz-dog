@@ -5,7 +5,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Database } from '@/types/database.types'
 import type { Doll } from '@/lib/game/fishing'
-import { getTierColor, getTierName } from '@/lib/game/fishing'
+import { getTierColor, getTierName, normalizeSavedDolls } from '@/lib/game/fishing'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 
 type Player = Database['public']['Tables']['players']['Row'] & {
@@ -69,7 +69,7 @@ export default function FishingPond({
         {sortedPlayers.map((player, index) => {
           const isCurrentPlayer = player.id === currentPlayerId
           const points = (player as Player).claw_points || 0
-          const caughtDolls = ((player as Player).caught_dolls as Doll[]) || []
+          const caughtDolls = normalizeSavedDolls(((player as Player).caught_dolls as Doll[]) || [])
           const dollCount = caughtDolls.length
 
           return (

@@ -206,6 +206,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     label: '공부 모드',
     shortLabel: '공부',
     emoji: '📖',
+    image: '/title/study.webp',
     fontFamily: GAME_FONT_FAMILY,
     bgm: {
       title: 'Flowerbed Fields',

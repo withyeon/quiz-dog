@@ -2,17 +2,18 @@
 
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Coins, Gift, ShieldCheck, Star, Target, Ticket, Zap } from 'lucide-react'
+import { Gift, Star, Target } from 'lucide-react'
 import {
     getAimGradeLabel,
     getAnswerSpeedLabel,
     type Doll,
     type SpecialItemType,
+  normalizeSavedDolls,
 } from '@/lib/game/fishing'
 import type { useFishingGame } from '@/hooks/useFishingGame'
 import type { Database } from '@/types/database.types'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
-import PixelIcon from '@/components/ui/PixelIcon'
+import PixelIcon, { type PixelIconName } from '@/components/ui/PixelIcon'
 
 export type FishingPlayer = Database['public']['Tables']['players']['Row'] & {
     caught_dolls?: Doll[]
@@ -38,7 +39,18 @@ const COLLECTION_TIER_STYLE: Record<string, string> = {
 }
 
 function getPlayerDolls(player: FishingPlayer) {
-    return Array.isArray(player.caught_dolls) ? (player.caught_dolls as Doll[]) : []
+    return Array.isArray(player.caught_dolls) ? normalizeSavedDolls(player.caught_dolls as Doll[]) : []
+}
+
+/** 특수 아이템별 픽셀 아이콘. 코인·축소는 다른 모드와 같은 공용 아이콘을 쓴다. */
+export const SPECIAL_ITEM_ICON: Record<SpecialItemType, PixelIconName> = {
+    DOUBLE_SCORE: 'double',
+    LUCKY_BOOST: 'lucky',
+    COIN_RAIN: 'gold',
+    EXTRA_PULL: 'ticket',
+    SHIELD: 'shield',
+    SCREEN_FLIP: 'flip',
+    SCREEN_SHRINK: 'scan',
 }
 
 export function SpecialItemIcon({
@@ -50,14 +62,9 @@ export function SpecialItemIcon({
     size?: number
     className?: string
 }) {
-    if (type === 'DOUBLE_SCORE') return <Zap size={size} className={className} />
-    if (type === 'LUCKY_BOOST') return <Star size={size} className={className} />
-    if (type === 'COIN_RAIN') return <Coins size={size} className={className} />
-    if (type === 'EXTRA_PULL') return <Ticket size={size} className={className} />
-    if (type === 'SHIELD') return <ShieldCheck size={size} className={className} />
-    if (type === 'SCREEN_FLIP') return <span className={className} style={{ fontSize: size }}>🙃</span>
-    if (type === 'SCREEN_SHRINK') return <span className={className} style={{ fontSize: size }}>🔭</span>
-    return <Gift size={size} className={className} />
+    const icon = SPECIAL_ITEM_ICON[type]
+    if (!icon) return <Gift size={size} className={className} />
+    return <PixelIcon name={icon} size={size} alt={ITEM_LABELS[type]} className={`inline-block ${className}`} />
 }
 
 export function CollectionGrid({ dolls }: { dolls: Doll[] }) {

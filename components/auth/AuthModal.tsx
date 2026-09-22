@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Loader2, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
+import { applyRememberLogin, getRememberLogin, getRememberedEmail, setRememberLogin } from '@/lib/auth/rememberLogin'
+import RememberLoginToggle from './RememberLoginToggle'
 
 interface AuthModalProps {
   isOpen: boolean
@@ -28,6 +30,20 @@ export default function AuthModal({
   const [socialLoading, setSocialLoading] = useState<'google' | 'kakao' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [rememberLogin, setRememberLoginState] = useState(true)
+  // 토글 즉시 저장해 새로고침·다음 방문에도 선택이 유지되게 한다
+  const handleRememberChange = (remember: boolean) => {
+    setRememberLoginState(remember)
+    setRememberLogin(remember)
+  }
+
+  // 모달을 열 때 저장된 "자동 로그인" 설정과 기억한 이메일을 불러온다 (SSR 불일치 방지용 effect)
+  useEffect(() => {
+    if (!isOpen) return
+    setRememberLoginState(getRememberLogin())
+    const remembered = getRememberedEmail()
+    if (remembered) setEmail((prev) => prev || remembered)
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -47,6 +63,7 @@ export default function AuthModal({
 
     try {
       if (tab === 'signin') {
+        applyRememberLogin(rememberLogin, email)
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         onClose()
@@ -96,6 +113,7 @@ export default function AuthModal({
   const handleOAuth = async (provider: 'google' | 'kakao') => {
     setError(null)
     setSocialLoading(provider)
+    applyRememberLogin(rememberLogin)
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${siteUrl}/auth/callback?redirect=${encodeURIComponent(redirectTo)}` },
@@ -237,6 +255,10 @@ export default function AuthModal({
                   문제집을 공유할 때 &quot;원작: OO 선생님&quot;으로 표시돼요. 나중에 바꿀 수 있어요.
                 </p>
               </div>
+            )}
+
+            {tab === 'signin' && (
+              <RememberLoginToggle checked={rememberLogin} onChange={handleRememberChange} disabled={loading} />
             )}
 
             <button

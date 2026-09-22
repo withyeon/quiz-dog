@@ -7,6 +7,8 @@ import Image from 'next/image'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/AuthContext'
+import { applyRememberLogin, getRememberLogin, getRememberedEmail, setRememberLogin } from '@/lib/auth/rememberLogin'
+import RememberLoginToggle from '@/components/auth/RememberLoginToggle'
 
 function LoginPageContent() {
   const router = useRouter()
@@ -23,6 +25,19 @@ function LoginPageContent() {
   const [socialLoading, setSocialLoading] = useState<'google' | 'kakao' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+  const [rememberLogin, setRememberLoginState] = useState(true)
+  // 토글 즉시 저장해 새로고침·다음 방문에도 선택이 유지되게 한다
+  const handleRememberChange = (remember: boolean) => {
+    setRememberLoginState(remember)
+    setRememberLogin(remember)
+  }
+
+  // 저장된 "자동 로그인" 설정과 기억한 이메일을 불러온다 (SSR 불일치 방지용 effect)
+  useEffect(() => {
+    setRememberLoginState(getRememberLogin())
+    const remembered = getRememberedEmail()
+    if (remembered) setEmail((prev) => prev || remembered)
+  }, [])
 
   // 이미 로그인된 경우 리다이렉트
   useEffect(() => {
@@ -55,6 +70,7 @@ function LoginPageContent() {
 
     try {
       if (tab === 'signin') {
+        applyRememberLogin(rememberLogin, email)
         const { error } = await supabase.auth.signInWithPassword({ email, password })
         if (error) throw error
         router.replace(redirectTo)
@@ -99,6 +115,7 @@ function LoginPageContent() {
   const handleOAuth = async (provider: 'google' | 'kakao') => {
     setError(null)
     setSocialLoading(provider)
+    applyRememberLogin(rememberLogin)
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -221,6 +238,10 @@ function LoginPageContent() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-black placeholder-slate-400 outline-none transition focus:border-black focus:ring-2 focus:ring-black/5"
                 />
               </div>
+            )}
+
+            {tab === 'signin' && (
+              <RememberLoginToggle checked={rememberLogin} onChange={handleRememberChange} disabled={loading} />
             )}
 
             <button

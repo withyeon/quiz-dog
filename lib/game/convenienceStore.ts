@@ -2,7 +2,7 @@
  * 편의점 운영 게임 로직
  */
 
-export type ProductTier = '일반' | '희귀' | '영웅' | '전설'
+export type ProductTier = '기본' | '인기' | '특별' | '보물'
 
 export interface Product {
   id: string // 고유 ID (배치될 때마다 생성)
@@ -36,26 +36,26 @@ export function formatMoney(value: number): string {
 }
 
 export const PRODUCT_POOL: Omit<Product, 'id' | 'sellPrice' | 'level'>[] = [
-  // 일반 (Common) - 50%
-  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.webp', tier: '일반', income: 100, incomeSeconds: 2, orderSeconds: 2, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
-  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.webp', tier: '일반', income: 180, incomeSeconds: 2, orderSeconds: 2, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
-  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.webp', tier: '일반', income: 250, incomeSeconds: 3, orderSeconds: 2, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
-  { baseId: 'p4', name: '초콜릿', emoji: '🍫', image: '/store/chocolate.webp', tier: '일반', income: 500, incomeSeconds: 3, orderSeconds: 3, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
+  // 기본 (Common) - 50%
+  { baseId: 'p1', name: '생수', emoji: '💧', image: '/store/water.webp', tier: '기본', income: 100, incomeSeconds: 2, orderSeconds: 2, color: 'bg-slate-100', borderColor: 'border-slate-400', category: '음료' },
+  { baseId: 'p2', name: '삼각김밥', emoji: '🍙', image: '/store/kimbap.webp', tier: '기본', income: 180, incomeSeconds: 2, orderSeconds: 2, color: 'bg-green-50', borderColor: 'border-green-400', category: '식품' },
+  { baseId: 'p3', name: '츄파춥스', emoji: '🍭', image: '/store/lollipop.webp', tier: '기본', income: 250, incomeSeconds: 3, orderSeconds: 2, color: 'bg-pink-50', borderColor: 'border-pink-300', category: '간식' },
+  { baseId: 'p4', name: '초콜릿', emoji: '🍫', image: '/store/chocolate.webp', tier: '기본', income: 500, incomeSeconds: 3, orderSeconds: 3, color: 'bg-amber-50', borderColor: 'border-amber-300', category: '간식' },
 
-  // 희귀 (Rare) - 30%
-  { baseId: 'p5', name: '바나나 우유', emoji: '🍌', image: '/store/banana_milk.svg', tier: '희귀', income: 300, incomeSeconds: 2, orderSeconds: 3, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
-  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.webp', tier: '희귀', income: 700, incomeSeconds: 4, orderSeconds: 4, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
-  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.webp', tier: '희귀', income: 900, incomeSeconds: 5, orderSeconds: 4, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
+  // 인기 (Rare) - 30%
+  { baseId: 'p5', name: '바나나 우유', emoji: '🍌', image: '/store/banana_milk.svg', tier: '인기', income: 300, incomeSeconds: 2, orderSeconds: 3, color: 'bg-yellow-50', borderColor: 'border-yellow-400', category: '음료' },
+  { baseId: 'p6', name: '컵라면', emoji: '🍜', image: '/store/cup_ramen.webp', tier: '인기', income: 700, incomeSeconds: 4, orderSeconds: 4, color: 'bg-orange-50', borderColor: 'border-orange-400', category: '식품' },
+  { baseId: 'p7', name: '도시락', emoji: '🍱', image: '/store/lunch_box.webp', tier: '인기', income: 900, incomeSeconds: 5, orderSeconds: 4, color: 'bg-red-50', borderColor: 'border-red-400', category: '식품' },
 
-  // 영웅 (Epic) - 15%
-  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.webp', tier: '영웅', income: 900, incomeSeconds: 4, orderSeconds: 6, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
-  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.webp', tier: '영웅', income: 1200, incomeSeconds: 5, orderSeconds: 7, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
-  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.webp', tier: '영웅', income: 1500, incomeSeconds: 6, orderSeconds: 7, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
+  // 특별 (Epic) - 15%
+  { baseId: 'p8', name: '탄산음료', emoji: '🥤', image: '/store/soda.webp', tier: '특별', income: 900, incomeSeconds: 4, orderSeconds: 6, color: 'bg-blue-50', borderColor: 'border-blue-500', category: '음료' },
+  { baseId: 'p9', name: '아이스크림 콘', emoji: '🍦', image: '/store/ice_cream.webp', tier: '특별', income: 1200, incomeSeconds: 5, orderSeconds: 7, color: 'bg-purple-50', borderColor: 'border-purple-500', category: '프리미엄' },
+  { baseId: 'p10', name: '치킨', emoji: '🍗', image: '/store/chicken.webp', tier: '특별', income: 1500, incomeSeconds: 6, orderSeconds: 7, color: 'bg-emerald-50', borderColor: 'border-emerald-500', category: '식품' },
 
-  // 전설 (Legendary) - 5%
-  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.webp', tier: '전설', income: 2500, incomeSeconds: 8, orderSeconds: 10, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
-  { baseId: 'p12', name: '식빵', emoji: '🍞', image: '/store/character_bread.webp', tier: '전설', income: 1000, incomeSeconds: 1, orderSeconds: 10, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
-  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.webp', tier: '전설', income: 3000, incomeSeconds: 10, orderSeconds: 12, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
+  // 보물 (Legendary) - 5%
+  { baseId: 'p11', name: '두바이 초콜릿', emoji: '🍫', image: '/store/dubai_choco.webp', tier: '보물', income: 2500, incomeSeconds: 8, orderSeconds: 10, color: 'bg-amber-50', borderColor: 'border-amber-500', category: '프리미엄' },
+  { baseId: 'p12', name: '식빵', emoji: '🍞', image: '/store/character_bread.webp', tier: '보물', income: 1000, incomeSeconds: 1, orderSeconds: 10, color: 'bg-indigo-50', borderColor: 'border-indigo-500', category: '간식' },
+  { baseId: 'p13', name: '떡볶이', emoji: '🍢', image: '/store/tteokbokki.webp', tier: '보물', income: 3000, incomeSeconds: 10, orderSeconds: 12, color: 'bg-red-50', borderColor: 'border-red-500', category: '식품' },
 ]
 
 export const GRID_SIZE = 9 // Factory 스타일: 3x3 생산/진열 슬롯
@@ -161,16 +161,16 @@ export type AnswerSpeed = 'fast' | 'normal' | 'slow'
 
 /**
  * 정답 속도별 상품 등급 확률 (%). 빨리 맞힐수록 좋은 등급이 잘 나온다.
- * 일반 확률은 나머지 전부.
+ * 기본 확률은 나머지 전부.
  */
-export const GACHA_TIER_CHANCE: Record<AnswerSpeed, { 전설: number; 영웅: number; 희귀: number }> = {
-  fast: { 전설: 15, 영웅: 30, 희귀: 35 },
-  normal: { 전설: 5, 영웅: 15, 희귀: 30 },
-  slow: { 전설: 2, 영웅: 8, 희귀: 30 },
+export const GACHA_TIER_CHANCE: Record<AnswerSpeed, { 보물: number; 특별: number; 인기: number }> = {
+  fast: { 보물: 15, 특별: 30, 인기: 35 },
+  normal: { 보물: 5, 특별: 15, 인기: 30 },
+  slow: { 보물: 2, 특별: 8, 인기: 30 },
 }
 
 /** 9칸을 다 채운 뒤에는 교체 전략이 시작되도록 고등급 비중을 더 올린다 (%p) */
-export const SHELF_FULL_TIER_BONUS = { 전설: 6, 영웅: 10, 희귀: 4 }
+export const SHELF_FULL_TIER_BONUS = { 보물: 6, 특별: 10, 인기: 4 }
 
 /**
  * 가챠 시스템 (랜덤 뽑기)
@@ -184,25 +184,25 @@ export function generateProductOptions(
 
   // 정답 속도에 따른 확률 보정
   const base = GACHA_TIER_CHANCE[answerSpeed ?? 'normal']
-  let legendChance = base.전설
-  let epicChance = base.영웅
-  let rareChance = base.희귀
+  let legendChance = base.보물
+  let epicChance = base.특별
+  let rareChance = base.인기
 
   // 9칸을 모두 채운 뒤에는 Blooket Factory처럼 교체 전략이 시작되도록 고등급 비중 증가
   if (shelfIsFull) {
-    legendChance += SHELF_FULL_TIER_BONUS.전설
-    epicChance += SHELF_FULL_TIER_BONUS.영웅
-    rareChance += SHELF_FULL_TIER_BONUS.희귀
+    legendChance += SHELF_FULL_TIER_BONUS.보물
+    epicChance += SHELF_FULL_TIER_BONUS.특별
+    rareChance += SHELF_FULL_TIER_BONUS.인기
   }
 
   for (let i = 0; i < PRODUCT_OPTION_COUNT; i++) {
     const rand = Math.random() * 100
-    let tier: ProductTier = '일반'
+    let tier: ProductTier = '기본'
 
-    if (rand > (100 - legendChance)) tier = '전설'
-    else if (rand > (100 - legendChance - epicChance)) tier = '영웅'
-    else if (rand > (100 - legendChance - epicChance - rareChance)) tier = '희귀'
-    else tier = '일반'
+    if (rand > (100 - legendChance)) tier = '보물'
+    else if (rand > (100 - legendChance - epicChance)) tier = '특별'
+    else if (rand > (100 - legendChance - epicChance - rareChance)) tier = '인기'
+    else tier = '기본'
 
     // 해당 티어 풀에서 랜덤 선택
     const pool = PRODUCT_POOL.filter(p => p.tier === tier)
@@ -354,18 +354,35 @@ export function checkEvent(): StoreEvent | null {
   return null
 }
 
+/** 이름을 바꾸기 전(일반·희귀·영웅·전설)에 저장된 상품도 제대로 보이게 등급을 옮겨준다 */
+const LEGACY_TIER: Record<string, ProductTier> = {
+  '일반': '기본',
+  '희귀': '인기',
+  '영웅': '특별',
+  '전설': '보물',
+}
+
+/** DB에 저장돼 있던 매대 상품을 지금 등급 이름으로 맞춘다 */
+export function normalizeSavedProducts(products: Product[]): Product[] {
+  return products.map((product) => {
+    if (!product) return product
+    const tier = LEGACY_TIER[product.tier] ?? product.tier
+    return tier === product.tier ? product : { ...product, tier }
+  })
+}
+
 /**
  * 티어별 색상 클래스
  */
 export function getTierColor(tier: ProductTier): string {
   switch (tier) {
-    case '일반':
+    case '기본':
       return 'bg-green-500'
-    case '희귀':
+    case '인기':
       return 'bg-blue-500'
-    case '영웅':
+    case '특별':
       return 'bg-purple-500'
-    case '전설':
+    case '보물':
       return 'bg-amber-500'
     default:
       return 'bg-gray-500'

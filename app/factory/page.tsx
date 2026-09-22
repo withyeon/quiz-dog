@@ -26,6 +26,7 @@ import {
   getAnswerSpeed,
   getSpeedBonus,
   getWrongPenalty,
+  normalizeSavedProducts,
   roundMoney,
 } from '@/lib/game/convenienceStore'
 import { STORE_BRAND_ICON } from '@/lib/game/storeAssets'
@@ -223,7 +224,7 @@ export default function FactoryPage() {
         setMoney(currentPlayer.convenience_money)
       }
       if (currentPlayer.convenience_products) {
-        setProducts(currentPlayer.convenience_products as unknown as Product[])
+        setProducts(normalizeSavedProducts(currentPlayer.convenience_products as unknown as Product[]))
       }
     }
   }, [currentPlayer])

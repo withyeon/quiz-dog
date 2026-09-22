@@ -38,6 +38,15 @@ const PRESETS = {
   'gansik-run': [
     { match: /./, size: 512 }, // 캔버스 스프라이트. 2x 태블릿에서 최대 약 250px로 그림
   ],
+  fishing: [
+    { match: /^machine\/case-bg\./, size: 1536 }, // 무대 배경: 데스크톱에서 최대 964px 폭
+    { match: /^machine\/claw/, size: 512 },        // 집게 머리 112px
+    { match: /^machine\/box/, size: 256 },         // 바닥 상자 36~48px
+    { match: /./, size: 512 },                     // 인형
+  ],
+  icons: [
+    { match: /./, size: 500 }, // 공용 픽셀 아이콘. 가장 크게 쓰는 곳이 112px
+  ],
 }
 
 const DEFAULT_SIZE = 1024

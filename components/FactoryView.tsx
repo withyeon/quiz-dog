@@ -47,7 +47,7 @@ export default function FactoryView({
           const playerMoney = getPlayerMoney(player)
           const products = getPlayerProducts(player)
           const productCount = products.length
-          const legendaryCount = products.filter((p) => p?.tier === '전설').length
+          const legendaryCount = products.filter((p) => p?.tier === '보물').length
           const cps = calculateTotalCPS(products)
           const displayNickname = getPlayerDisplayNickname(player.nickname, player.avatar)
 
@@ -94,7 +94,7 @@ export default function FactoryView({
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-gray-600">
                     <span>상품 {productCount}개</span>
                     {legendaryCount > 0 && (
-                      <span className="font-bold text-amber-600">· 전설 {legendaryCount}</span>
+                      <span className="font-bold text-amber-600">· 보물 {legendaryCount}</span>
                     )}
                     <span className="text-green-600">· ⚡ {formatMoney(cps)}/초</span>
                   </div>

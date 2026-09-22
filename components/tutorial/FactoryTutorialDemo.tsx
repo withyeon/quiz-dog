@@ -56,21 +56,21 @@ function topProductOfTier(tier: ProductTier): Product {
   return makeProduct(best.baseId)
 }
 
-/** 정답 속도별 등급 확률(%). 일반은 나머지 전부라 따로 계산한다. */
+/** 정답 속도별 등급 확률(%). 기본은 나머지 전부라 따로 계산한다. */
 function tierChance(speed: AnswerSpeed, tier: ProductTier): number {
   const chance = GACHA_TIER_CHANCE[speed]
-  if (tier === '일반') return 100 - chance.전설 - chance.영웅 - chance.희귀
+  if (tier === '기본') return 100 - chance.보물 - chance.특별 - chance.인기
   return chance[tier]
 }
 
-const TIERS: ProductTier[] = ['전설', '영웅', '희귀', '일반']
+const TIERS: ProductTier[] = ['보물', '특별', '인기', '기본']
 const CATEGORIES: ProductCategory[] = ['식품', '음료', '간식', '프리미엄']
 
 /** 데모에서 문제를 푸는 데 걸린 시간 — 빠른 정답 구간 안쪽 */
 const ANSWER_SECONDS = 7
 const SPEED_BONUS = getSpeedBonus(ANSWER_SECONDS * 1000, QUIZ_TIME_LIMIT)
 
-/** 규칙 3 — 상품 도착 모달에 뜨는 후보들. 가운데(희귀)가 이 중 가장 좋은 상품이다. */
+/** 규칙 3 — 상품 도착 모달에 뜨는 후보들. 가운데(인기)가 이 중 가장 좋은 상품이다. */
 const PICK_OPTIONS = ['p4', 'p6', 'p3'].map(makeProduct)
 const PICKED_INDEX = 1
 
@@ -84,7 +84,7 @@ const START_SHELF_TICK = calculateTickIncome(START_SHELF, 4)
 /** 규칙 6 — 9칸이 꽉 찬 매대와, 가장 적게 버는 칸(생수) */
 const FULL_SHELF = ['p1', 'p5', 'p8', 'p2', 'p6', 'p7', 'p10', 'p4', 'p9'].map(makeProduct)
 const REPLACE_INDEX = 0
-/** 교체해서 넣을 새 상품 — 전설 떡볶이 */
+/** 교체해서 넣을 새 상품 — 보물 떡볶이 */
 const NEW_PRODUCT = makeProduct('p13')
 
 /** 규칙 7 — 교체를 마친 매대. 식품이 하나 늘어 시너지가 올라간다. */
@@ -297,7 +297,7 @@ function ShelfScene() {
 
 /** 규칙 5 — 등급이 오르면 수익도 확률도 달라진다 */
 function TierScene() {
-  const topIncome = topProductOfTier('전설').income
+  const topIncome = topProductOfTier('보물').income
 
   return (
     <StageCard id="factory-tier" className="w-full max-w-xl">

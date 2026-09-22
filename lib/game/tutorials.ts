@@ -73,8 +73,8 @@ const LEGEND_MAX_SCORE = Math.max(...DOLL_TYPES.filter((doll) => doll.tier === '
 
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
-/** 빨리 맞혔을 때 전설 확률이 평소의 몇 배가 되는지 */
-const FAST_LEGEND_ODDS_RATIO = Math.round(GACHA_TIER_CHANCE.fast.전설 / GACHA_TIER_CHANCE.normal.전설)
+/** 빨리 맞혔을 때 보물 확률이 평소의 몇 배가 되는지 */
+const FAST_LEGEND_ODDS_RATIO = Math.round(GACHA_TIER_CHANCE.fast.보물 / GACHA_TIER_CHANCE.normal.보물)
 /** 진열대를 한 종류로 채웠을 때 나오는 최대 시너지 배율 */
 const MAX_SYNERGY = getMaxReachableSynergy()
 
@@ -248,7 +248,7 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
       {
         title: '등급이 높을수록 좋아요',
-        body: `빨리 맞히면 전설 확률 ${FAST_LEGEND_ODDS_RATIO}배`,
+        body: `빨리 맞히면 보물 확률 ${FAST_LEGEND_ODDS_RATIO}배`,
       },
       {
         title: `${GRID_SIZE}칸이 꽉 차면 교체해요`,
