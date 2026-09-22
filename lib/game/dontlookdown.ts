@@ -72,7 +72,7 @@ export interface Platform {
     height: number         // 높이
     type: 'normal' | 'narrow' | 'checkpoint' | 'peak' | 'start' | 'disappearing' | 'spike' | 'moving' | 'ice'
     style?: PlatformStyle  // 디자인 변형 (이미지 연결용)
-    imageId?: number       // 1~10, public/dontlookdown/platforms/{imageId}.webp (pickPlatformImageId 참고)
+    imageId?: number       // 1~13, public/dontlookdown/platforms/{imageId}.webp (pickPlatformImageId 참고)
     summit: number         // 속한 Summit (1-6)
     disappearTime?: number // 사라지는 플랫폼의 사라질 시간
     isVisible?: boolean    // 사라지는 플랫폼의 가시성
@@ -83,11 +83,12 @@ export interface Platform {
     routeRole?: 'main' | 'side' | 'rescue' | 'checkpoint' | 'peak' | 'start'
 }
 
-export const PLATFORM_IMAGE_COUNT = 10
+export const PLATFORM_IMAGE_COUNT = 13
 export const getPlatformImagePath = (imageId: number) => `/dontlookdown/platforms/${imageId}.webp`
 
-// 발판 이미지 번호 (public/dontlookdown/platforms/{n}.webp)
-// 1 나무판자 · 2 얼음 · 3 돌 · 4 구름 · 5 잔디 · 6 이끼 벽돌 · 7 돌블록 · 8 버섯 · 9 나무상자 · 10 돌기둥
+// 발판 이미지 번호 (public/dontlookdown/platforms/{n}.webp) — 그림 출처·용도는 public/dontlookdown/README.md
+// 1 이끼 낀 나무판자 · 2 별 젤리(얼음) · 3 돌담 · 4 구름 · 5 잔디 흙블록 · 6 해골 나무판자 · 7 경고 상자
+// 8 도넛 · 9 노란 철봉(움직임) · 10 돌기둥 · 11 공주 대리석(체크포인트·정상) · 12 위험 줄무늬(가시 바탕) · 13 슬라임 큐브
 export const PLATFORM_IMAGE = {
     WOOD: 1,
     ICE: 2,
@@ -95,23 +96,32 @@ export const PLATFORM_IMAGE = {
     CLOUD: 4,
     GRASS: 5,
     MOSSY_BRICK: 6,
-    STONE_BLOCK: 7,
-    MUSHROOM: 8,
-    CRATE: 9,
+    CRATE: 7,
+    DONUT: 8,
+    BAR: 9,
     PILLAR: 10,
+    MARBLE: 11,
+    HAZARD: 12,
+    SLIME_CUBE: 13,
 } as const
 
-// 상자(9)는 두께가 있어 일반 발판으로 쓰면 뭉툭해 보인다. 움직이는 발판 전용.
+// 가로로 긴 그림(약 3:1)만 일반 발판에 쓴다. 발판 줄 간격이 92px이라 세로가 긴 그림은 아랫줄과 겹쳐 보인다.
 const NORMAL_IMAGE_POOL = [
     PLATFORM_IMAGE.WOOD,
     PLATFORM_IMAGE.STONE,
     PLATFORM_IMAGE.GRASS,
     PLATFORM_IMAGE.MOSSY_BRICK,
 ]
-const NARROW_IMAGE_POOL = [PLATFORM_IMAGE.STONE_BLOCK, PLATFORM_IMAGE.MUSHROOM, PLATFORM_IMAGE.PILLAR]
+// 정사각형에 가까운 그림은 한 칸(45px) 발판 전용.
+const NARROW_IMAGE_POOL = [
+    PLATFORM_IMAGE.CRATE,
+    PLATFORM_IMAGE.DONUT,
+    PLATFORM_IMAGE.PILLAR,
+    PLATFORM_IMAGE.SLIME_CUBE,
+]
 
 /**
- * 발판 종류에 맞는 이미지를 고른다. 얼음은 얼음 그림, 사라지는 발판은 구름처럼
+ * 발판 종류에 맞는 이미지를 고른다. 얼음은 젤리, 사라지는 발판은 구름, 가시는 위험 줄무늬처럼
  * 그림만 봐도 성격이 읽히게 한다. seed는 같은 종류 안에서 그림을 섞는 용도.
  * 이미지는 발판 박스 크기를 바꾸지 않는다 (박스 폭에 맞춰 비율 유지로 그린다).
  */
@@ -119,11 +129,11 @@ export function pickPlatformImageId(type: Platform['type'], seed: number): numbe
     switch (type) {
         case 'ice': return PLATFORM_IMAGE.ICE
         case 'disappearing': return PLATFORM_IMAGE.CLOUD
-        case 'moving': return PLATFORM_IMAGE.CRATE
-        case 'spike': return PLATFORM_IMAGE.STONE
-        case 'checkpoint': return PLATFORM_IMAGE.MOSSY_BRICK
-        case 'start':
-        case 'peak': return PLATFORM_IMAGE.GRASS
+        case 'moving': return PLATFORM_IMAGE.BAR
+        case 'spike': return PLATFORM_IMAGE.HAZARD
+        case 'checkpoint':
+        case 'peak': return PLATFORM_IMAGE.MARBLE
+        case 'start': return PLATFORM_IMAGE.GRASS
         case 'narrow': return NARROW_IMAGE_POOL[Math.abs(seed) % NARROW_IMAGE_POOL.length]
         default: return NORMAL_IMAGE_POOL[Math.abs(seed) % NORMAL_IMAGE_POOL.length]
     }

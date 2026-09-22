@@ -304,11 +304,10 @@ function LibraryPageContent() {
             </h1>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3 xl:w-[520px]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:w-[340px]">
             {[
               { label: '전체', value: allQuestionSets.length.toLocaleString(), icon: Library },
               { label: '검색 결과', value: filteredSets.length.toLocaleString(), icon: Search },
-              { label: '총 문항', value: filteredSets.reduce((sum, set) => sum + set.question_count, 0).toLocaleString(), icon: FileQuestion },
             ].map((item) => (
               <div key={item.label} className="rounded-xl bg-slate-50 p-4">
                 <div className="flex items-center justify-between">

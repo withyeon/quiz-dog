@@ -9,9 +9,7 @@ import {
   ArrowRight,
   BookOpen,
   Search,
-  Users,
   Copy,
-  FileQuestion,
   Heart,
   Library,
   Pencil,
@@ -46,12 +44,11 @@ type LikedQuestionSet = QuestionSetIndexItem & {
 
 type SourceType = 'topic' | 'youtube' | 'text' | 'pdf'
 
-type SortKey = 'recent' | 'title' | 'questions'
+type SortKey = 'recent' | 'title'
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'recent', label: '최신순' },
   { key: 'title', label: '이름순' },
-  { key: 'questions', label: '문항 많은순' },
 ]
 
 function isGeneratedLibraryTitle(title: string, setId: string): boolean {
@@ -175,7 +172,6 @@ function TeacherPageContent() {
     .filter((set) => !normalizedQuery || set.title.toLowerCase().includes(normalizedQuery))
     .sort((a, b) => {
       if (sortKey === 'title') return a.title.localeCompare(b.title, 'ko')
-      if (sortKey === 'questions') return b.question_count - a.question_count
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
@@ -291,12 +287,10 @@ function TeacherPageContent() {
             </div>
           </section>
 
-          <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <section className="grid gap-4 md:grid-cols-2">
             {[
               { icon: BookOpen, label: '문제집', value: questionSets.length.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
-              { icon: FileQuestion, label: '총 문항', value: totalQuestions.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
               { icon: Play, label: '진행한 게임', value: gameStats.gameCount.toLocaleString(), tone: 'bg-emerald-50 text-emerald-600' },
-              { icon: Users, label: '참여 학생', value: gameStats.playerCount.toLocaleString(), tone: 'bg-rose-50 text-rose-600' },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -476,8 +470,8 @@ function TeacherPageContent() {
                   <Plus className="h-6 w-6" />
                 </span>
                 <span>
-                  <span className="block text-lg font-extrabold text-slate-900">새 문제집 만들기</span>
-                  <span className="mt-1 block text-sm font-medium text-slate-500">수업 전 빠르게</span>
+                  <span className="block text-lg font-extrabold text-slate-900">나만의 문제집 만들기</span>
+                  <span className="mt-1 block text-sm font-medium text-slate-500">AI로 30초 생성</span>
                 </span>
               </Link>
             </aside>

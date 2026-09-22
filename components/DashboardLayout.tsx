@@ -15,9 +15,11 @@ import {
   PlayCircle,
   Plus,
   ShieldCheck,
+  UserCircle,
   X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useMyDisplayName } from '@/hooks/useMyDisplayName'
 import { isAdminEmail } from '@/lib/admin/admins'
 
 interface DashboardLayoutProps {
@@ -31,6 +33,7 @@ const navItems = [
   { href: '/teacher/play', label: '게임 시작', icon: PlayCircle, id: 'play' },
   { href: '/teacher/library', label: '자료실', icon: Library, id: 'library' },
   { href: '/teacher/analytics', label: '게임 기록', icon: BarChart3, id: 'history' },
+  { href: '/teacher/settings', label: '내 정보', icon: UserCircle, id: 'settings' },
 ]
 
 // 현재 경로에 해당하는 내비 항목의 active 여부.
@@ -50,7 +53,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const userEmail = user?.email ?? ''
   const isAdmin = isAdminEmail(userEmail)
   const userInitial = userEmail ? userEmail[0].toUpperCase() : 'T'
-  const displayName = userEmail ? userEmail.split('@')[0] : '선생님'
+  // 프로필의 표시 이름 (없으면 가입 이름·이메일로 자동 채움)
+  const displayName = useMyDisplayName()
 
   const handleSignOut = async () => {
     await signOut()
@@ -144,7 +148,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         <div className="border-t border-slate-100 p-4">
           <div className="rounded-lg bg-slate-50 p-4">
-            <div className="flex items-center gap-3">
+            <Link href="/teacher/settings" className="flex items-center gap-3 rounded-lg transition hover:bg-slate-100" title="내 정보">
               <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-sky-500 text-sm font-black text-white">
                 {userInitial}
               </span>
@@ -152,7 +156,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <div className="truncate text-sm font-black text-black">{displayName}</div>
                 <div className="mt-0.5 truncate text-xs font-medium text-slate-500">{userEmail}</div>
               </div>
-            </div>
+            </Link>
             <div className="mt-3 flex gap-2">
               <Link
                 href="/pricing"

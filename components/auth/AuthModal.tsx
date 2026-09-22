@@ -71,6 +71,7 @@ export default function AuthModal({
       } else {
         if (password !== confirmPassword) throw new Error('비밀번호가 일치하지 않습니다.')
         if (password.length < 6) throw new Error('비밀번호는 6자 이상이어야 합니다.')
+        if (!displayName.trim()) throw new Error('표시 이름을 입력해 주세요.')
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -248,11 +249,12 @@ export default function AuthModal({
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value.slice(0, 20))}
                   placeholder="예: 위드현"
+                  required
                   maxLength={20}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-black placeholder-slate-400 outline-none transition focus:border-black focus:ring-2 focus:ring-black/5"
                 />
                 <p className="mt-1.5 text-xs font-medium text-slate-400">
-                  문제집을 공유할 때 &quot;원작: OO 선생님&quot;으로 표시돼요. 나중에 바꿀 수 있어요.
+                  문제집을 공유할 때 &quot;원작: OO 선생님&quot;으로 표시돼요. 내 정보에서 바꿀 수 있어요.
                 </p>
               </div>
             )}

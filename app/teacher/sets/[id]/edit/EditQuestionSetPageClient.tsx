@@ -369,6 +369,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                             />
                             <p className="mt-1 text-xs text-slate-500">
                               여러 정답을 인정하려면 줄바꿈으로 구분하세요. (하나만 맞아도 정답 처리)
+                              띄어쓰기·대소문자는 무시하고, 숫자 정답은 단위가 붙어도 인정돼요. (0 = 0개 = 영 개)
                             </p>
                           </>
                         ) : (
@@ -575,6 +576,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                   />
                   <p className="mt-1 text-xs text-slate-500">
                     여러 정답을 인정하려면 줄바꿈으로 구분하세요. (하나만 맞아도 정답 처리)
+                    띄어쓰기·대소문자는 무시하고, 숫자 정답은 단위가 붙어도 인정돼요. (0 = 0개 = 영 개)
                   </p>
                 </>
               ) : (
