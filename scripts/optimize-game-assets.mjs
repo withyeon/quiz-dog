@@ -36,7 +36,10 @@ const PRESETS = {
     { match: /./, size: 768 }, // 가장 크게 쓰는 곳이 선생님 게임 선택 화면 320px
   ],
   'gansik-run': [
-    { match: /./, size: 512 }, // 캔버스 스프라이트. 2x 태블릿에서 최대 약 250px로 그림
+    { match: /^bg\/sky\./, size: 1536 },     // 하늘: 화면 위쪽 전체를 덮음
+    { match: /^bg\/skyline\./, size: 1024 }, // 지평선 실루엣: 가로로 이어 붙임
+    { match: /^bg\//, size: 512 },            // 길가 나무: 2x에서 약 230px 폭으로 그림
+    { match: /./, size: 512 },                // 캔버스 스프라이트. 2x 태블릿에서 최대 약 250px로 그림
   ],
   fishing: [
     { match: /^machine\/case-bg\./, size: 1536 }, // 무대 배경: 데스크톱에서 최대 964px 폭

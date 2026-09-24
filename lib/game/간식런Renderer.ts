@@ -5,7 +5,7 @@
 // 예전에는 강아지 50px, 뼈다귀 10px처럼 절대 픽셀이라 크롬북(1280px)에서는
 // 차선이 400px인데 강아지가 40px로 보였다. 이제 화면이 커지면 같이 커진다.
 
-import { type SpriteSet, drawSpriteBottom } from '@/lib/game/간식런Sprites'
+import { type SpriteSet, drawSpriteBottom, dogRunFrame, dogRunFrames, catRunFrame, catRunFrames, treeSprites, propSprites } from '@/lib/game/간식런Sprites'
 import { WORLD_H } from '@/lib/game/간식런'
 
 export interface Particle {
@@ -54,8 +54,27 @@ export const SIZE = {
   obstacleHigh: 0.96,
   bone: 0.44,
   box: 0.58,
-  tree: 0.42,
+  tree: 0.34,
 } as const;
+
+/**
+ * 자석이 뼈다귀를 끌어오기 시작하는 거리 (게임 y px).
+ * 히트존에 닿기 전에 강아지 차선까지 다 와 있어야 "빨려 들어갔다"로 보인다.
+ */
+const MAGNET_PULL_RANGE = 260;
+
+/**
+ * 자석에 끌려오는 정도 0~1. 0이면 제자리, 1이면 강아지 차선에 완전히 붙는다.
+ * 처음엔 천천히 움직이다 가까워질수록 확 당겨지도록 제곱 가속을 쓴다.
+ */
+export function magnetPull(objY: number, playerY: number, hitZone: number): number {
+  const end = playerY - hitZone;              // 먹히기 직전 — 여기서 이미 1이어야 한다
+  const start = end - MAGNET_PULL_RANGE;
+  if (objY <= start) return 0;
+  if (objY >= end) return 1;
+  const t = (objY - start) / (end - start);
+  return t * t;
+}
 
 // 소실점 Y 좌표
 function vanishY(h: number) { return h * VANISH_RATIO; }
@@ -116,17 +135,49 @@ export function laneX(lane: number, t: number, w: number): number {
 }
 
 // ── 하늘 + 산 배경 ──
-export function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, elapsed: number) {
+export function drawSky(
+  ctx: CanvasRenderingContext2D, w: number, h: number, elapsed: number, sprites?: SpriteSet,
+) {
   const vy = vanishY(h);
-  const skyGrad = ctx.createLinearGradient(0, 0, 0, vy + 20);
+
+  // 하늘 바탕. bg/sky.webp가 있으면 하늘 칸에 맞춰 늘려 그린다.
+  // 세로 그라데이션이라 늘려도 망가지지 않고, 기기마다 하늘 칸 비율이
+  // 가로 6.5:1(데스크톱)에서 세로 1.8:1(폰 세로)까지 크게 달라서
+  // 비율을 지켜 덮으면 그라데이션의 위나 아래가 통째로 잘려 나간다.
+  const skyH = vy + 20;
+  if (sprites?.sky) {
+    ctx.drawImage(sprites.sky, 0, 0, w, skyH);
+  } else {
+    drawSkyGradient(ctx, w, skyH);
+  }
+
+  // 별은 그림으로 대체하지 않고 언제나 코드로 그린다 (깜빡이는 맛이 살아 있어야 해서).
+  drawStars(ctx, w, vy, elapsed);
+
+  // 지평선 실루엣. 가로로 이어 붙이면(타일링) 눈 덮인 봉우리 같은 특징이
+  // 한 화면에 네 번씩 나와서 반복이 그대로 보인다. 그래서 한 번만, 화면 폭에 맞춰 늘린다.
+  // 먼 산이라 가로로 늘어나도 어색하지 않고 반복은 아예 사라진다.
+  if (sprites?.skyline) {
+    const sh = h * 0.2;
+    ctx.drawImage(sprites.skyline, 0, vy + 10 - sh, w, sh);
+  } else {
+    drawVectorSkyline(ctx, w, vy);
+  }
+}
+
+// 이미지가 없을 때의 하늘 바탕 (그라데이션)
+function drawSkyGradient(ctx: CanvasRenderingContext2D, w: number, skyH: number) {
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, skyH);
   skyGrad.addColorStop(0, '#1a1a2e');
   skyGrad.addColorStop(0.4, '#16213e');
   skyGrad.addColorStop(0.7, '#0f3460');
   skyGrad.addColorStop(1, '#533483');
   ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, w, vy + 20);
+  ctx.fillRect(0, 0, w, skyH);
+}
 
-  // 별
+// 깜빡이는 별. 하늘 그림이 있든 없든 그 위에 그린다.
+function drawStars(ctx: CanvasRenderingContext2D, w: number, vy: number, elapsed: number) {
   const starSeed = 42;
   for (let i = 0; i < 30; i++) {
     const sx = ((starSeed * (i + 1) * 7) % 1000) / 1000 * w;
@@ -139,8 +190,10 @@ export function drawSky(ctx: CanvasRenderingContext2D, w: number, h: number, ela
     ctx.fill();
   }
   ctx.globalAlpha = 1;
+}
 
-  // 산 실루엣
+// 이미지가 없을 때의 지평선 산 실루엣
+function drawVectorSkyline(ctx: CanvasRenderingContext2D, w: number, vy: number) {
   ctx.fillStyle = '#1a1a3e';
   ctx.beginPath();
   ctx.moveTo(0, vy + 10);
@@ -215,11 +268,32 @@ export function drawRoad(ctx: CanvasRenderingContext2D, w: number, h: number, st
 }
 
 // ── 도로 양옆 나무 ──
-export function drawSideTrees(ctx: CanvasRenderingContext2D, w: number, h: number, offset: number) {
-  const treeSpacing = 120;
+/**
+ * 길가 한 자리에 세울 그림을 고른다. 다섯 자리에 한 번은 소품, 나머지는 나무.
+ * slot은 (줄 번호 * 2 + 좌우)라서 짝수가 왼쪽·홀수가 오른쪽이다.
+ * 주기를 4처럼 짝수로 잡으면 소품이 늘 같은 쪽에만 서므로 홀수(5)로 둔다.
+ */
+function pickRoadsideImage(
+  trees: HTMLImageElement[], props: HTMLImageElement[], slot: number,
+): HTMLImageElement | undefined {
+  if (trees.length === 0) return props[slot % props.length];
+  if (props.length === 0) return trees[slot % trees.length];
+  return slot % 5 === 3
+    ? props[Math.floor(slot / 5) % props.length]
+    : trees[slot % trees.length];
+}
 
-  for (let i = 0; i < 8; i++) {
-    const baseT = ((i * treeSpacing + offset) % (treeSpacing * 8)) / (treeSpacing * 8);
+export function drawSideTrees(
+  ctx: CanvasRenderingContext2D, w: number, h: number, offset: number, sprites?: SpriteSet,
+) {
+  // 한 화면에 세울 줄 수. 8줄(16그루)은 도로 양옆이 빽빽해서 시선을 뺏는다.
+  const TREE_ROWS = 6;
+  const treeSpacing = 120;
+  const trees = treeSprites(sprites);
+  const props = propSprites(sprites);
+
+  for (let i = 0; i < TREE_ROWS; i++) {
+    const baseT = ((i * treeSpacing + offset) % (treeSpacing * TREE_ROWS)) / (treeSpacing * TREE_ROWS);
     const t = Math.max(0.05, Math.min(0.95, baseT));
     const y = screenYOf(t, h);
     const rw = roadWidthAt(t, w);
@@ -230,7 +304,28 @@ export function drawSideTrees(ctx: CanvasRenderingContext2D, w: number, h: numbe
     const canopyR = u * 0.36;
 
     for (const side of [-1, 1]) {
-      const x = cx + side * (rw / 2 + u * 0.55);
+      // 도로 가장자리에서 떨어뜨리는 거리는 나무 크기가 아니라 차선 폭 기준으로 잡는다.
+      // (SIZE.tree를 줄였을 때 나무가 도로에 붙어버리지 않게)
+      const x = cx + side * (rw / 2 + unitAt(t, w, h) * 0.3);
+
+      // bg/tree*·prop*.webp가 있으면 그림으로. 좌우·순서마다 다른 종류가 서게 섞고,
+      // 소품(가로등·표지판)은 네 자리에 한 번만 끼운다.
+      const img = pickRoadsideImage(trees, props, i * 2 + (side > 0 ? 1 : 0));
+      if (img) {
+        // 가로등처럼 기둥에서 한쪽으로 튀어나온 그림은 "튀어나온 쪽이 왼쪽"으로 그려 둔다.
+        // 도로 왼편에 세울 때는 좌우를 뒤집어야 튀어나온 부분이 도로 쪽을 향한다.
+        ctx.save();
+        if (side < 0) {
+          ctx.translate(x, 0);
+          ctx.scale(-1, 1);
+          drawSpriteBottom(ctx, img, 0, y, u * 0.95, u * 2.15);
+        } else {
+          drawSpriteBottom(ctx, img, x, y, u * 0.95, u * 2.15);
+        }
+        ctx.restore();
+        continue;
+      }
+
       ctx.fillStyle = '#3d2914';
       ctx.fillRect(x - trunkW / 2, y - treeH, trunkW, treeH);
       ctx.fillStyle = '#1a5c2a';
@@ -294,14 +389,32 @@ export function drawDog(
     ctx.globalAlpha = 0.55 + Math.sin(frame * 0.3) * 0.3;
   }
 
-  const sprite = sliding ? (sprites?.dogSlide ?? sprites?.dog) : inAir ? (sprites?.dogJump ?? sprites?.dog) : sprites?.dog;
+  const running = !inAir && !sliding;
+  const sprite = sliding ? (sprites?.dogSlide ?? sprites?.dog)
+    : inAir ? (sprites?.dogJump ?? sprites?.dog)
+    : dogRunFrame(sprites, frame);
   if (sprite) {
     // 이미지: 발 기준으로 그린다. 전용 슬라이드 스프라이트가 없으면 납작하게.
     const usingFallbackSlide = sliding && !sprites?.dogSlide;
+
+    // 달리기 모션 — 타워디펜스 몬스터와 같은 방식(프레임 그림 + 코드 흔들림).
+    // dog-2~4 프레임이 깔려 있으면 그림이 이미 다리를 움직이므로 코드 흔들림은 확 줄인다.
+    const gallop = running ? (dogRunFrames(sprites).length > 1 ? 0.4 : 1) : 0;
+    const stride = frame * 0.25;                  // 한 걸음 ≈ 12.5틱(0.2초)
+    const lift = Math.abs(Math.sin(stride));      // 0 = 착지, 1 = 도약 정점
+    const bob = lift * dw * 0.05 * gallop;        // 위아래로 통통
+    const stretch = 1 + (lift - 0.5) * 0.08 * gallop;  // 착지에 눌리고 도약에 늘어남
+    const lean = Math.sin(stride * 0.5) * 0.05 * gallop; // 두 걸음에 한 번 좌우로 기울기
+
     ctx.save();
     if (usingFallbackSlide) ctx.scale(1.25, slideSquash);
-    const bob = inAir || sliding ? 0 : Math.abs(Math.sin(frame * 0.25)) * dw * 0.04;
-    drawSpriteBottom(ctx, sprite, 0, -bob, dw, dw * 1.6);
+    if (gallop > 0) {
+      ctx.rotate(lean);              // 발끝을 축으로 몸통을 흔든다
+      ctx.scale(1 / stretch, stretch);
+    }
+    // 세로 상한 1.95: 뒷모습 강아지 스프라이트가 세로로 긴 편(약 1.86)이라
+    // 1.6으로 자르면 폭이 줄어들어 점프 스프라이트(1.55)와 폭이 달라 보인다.
+    drawSpriteBottom(ctx, sprite, 0, -bob, dw, dw * 1.95);
     ctx.restore();
   } else {
     drawVectorDog(ctx, dw, frame, isBig, sliding ? slideSquash : 1);
@@ -720,8 +833,10 @@ export function drawChaser(
   }
 
   if (sprites?.cat) {
-    const bob = Math.abs(Math.sin(frame * 0.3)) * w * 0.05;
-    drawSpriteBottom(ctx, sprites.cat, cx, feetY - bob, w, unit * 1.4);
+    // 강아지와 같은 방식: cat-2~4가 깔려 있으면 프레임을 돌리고, 코드 흔들림은 줄인다.
+    const multiFrame = catRunFrames(sprites).length > 1;
+    const bob = Math.abs(Math.sin(frame * 0.3)) * w * 0.05 * (multiFrame ? 0.4 : 1);
+    drawSpriteBottom(ctx, catRunFrame(sprites, frame) ?? sprites.cat, cx, feetY - bob, w, unit * 1.4);
   } else {
     drawVectorCat(ctx, cx, feetY, w, frame, chaserDistance);
   }

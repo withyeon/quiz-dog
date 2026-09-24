@@ -20,6 +20,12 @@ export const PIXEL_ICON = {
   ticket: { src: '/icons/ticket.webp', emoji: '🎟️', label: '티켓' },
   shield: { src: '/icons/shield.webp', emoji: '🛡️', label: '방어' },
   flip: { src: '/icons/flip.webp', emoji: '🙃', label: '화면 뒤집기' },
+  dog: { src: '/icons/dog.webp', emoji: '🐕', label: '강아지' },
+  rocket: { src: '/icons/rocket.webp', emoji: '🚀', label: '로켓' },
+  magnet: { src: '/icons/magnet.webp', emoji: '🧲', label: '자석' },
+  steal: { src: '/icons/steal.webp', emoji: '🕶️', label: '점수 뺏기' },
+  drone: { src: '/icons/drone.webp', emoji: '🚁', label: '드론' },
+  crown: { src: '/icons/crown.webp', emoji: '👑', label: '왕관' },
 } as const
 
 export type PixelIconName = keyof typeof PIXEL_ICON

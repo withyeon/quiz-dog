@@ -124,11 +124,18 @@ function drawMountainsImage(
   }
 }
 
-/** 양옆 절벽 벽: 세로로 이어붙여 그린다. 오른쪽은 같은 그림을 좌우 반전. */
+/**
+ * 양옆 절벽 벽: 세로로 이어붙여 그린다. 오른쪽은 같은 그림을 좌우 반전.
+ *
+ * 가로(camX) 시차를 주지 않고 화면 양 끝에 고정한다. 이 벽은 실제 지형이 아니라 화면을 감싸는
+ * 액자이기 때문이다. 예전엔 camX * 0.08만큼 왼쪽으로 밀었는데, 맵 오른쪽 끝(camX 약 2334)에서
+ * 왼쪽 벽은 화면 밖으로 완전히 사라지고 오른쪽 벽은 화면 끝에서 약 110px 떨어져 잘린 단면이
+ * 드러났다. 그라데이션 폴백일 땐 흐릿해서 안 보였지만 불투명한 그림에선 그대로 보인다.
+ * 세로(camY) 시차는 그대로 두므로 올라가는 느낌은 유지된다.
+ */
 function drawCliffImage(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  camX: number,
   camY: number,
   view: ViewSize,
 ) {
@@ -138,7 +145,7 @@ function drawCliffImage(
   ctx.save()
   ctx.globalAlpha = 0.9
   for (const side of ['left', 'right'] as const) {
-    const wallX = side === 'left' ? -40 - camX * 0.08 : view.w - 150 - camX * 0.08
+    const wallX = side === 'left' ? -40 : view.w - 150
     ctx.save()
     if (side === 'right') {
       ctx.translate(wallX + w, 0)
@@ -218,7 +225,7 @@ export function drawBackdrop(
 
   const wallOffset = camY * 0.16
   if (isReady(layers.cliff)) {
-    drawCliffImage(ctx, layers.cliff, camX, camY, view)
+    drawCliffImage(ctx, layers.cliff, camY, view)
   } else for (const side of ['left', 'right'] as const) {
     const wallX = side === 'left'
       ? -40 - camX * 0.08

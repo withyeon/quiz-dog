@@ -11,7 +11,7 @@ import {
   getCurrentSpeed, formatTime, GAME, ITEM_DEFS, addFloatingText, WORLD_H,
 } from '@/lib/game/간식런'
 import {
-  type RenderState, createRenderState, project, laneX, playerRow, SIZE,
+  type RenderState, createRenderState, project, laneX, playerRow, SIZE, PLAYER_Y_RATIO, magnetPull,
   drawSky, drawRoad, drawSideTrees, drawDog,
   drawObstacle, drawObstacleLow, drawObstacleHigh, drawBone, drawBox,
   drawParticles, updateParticles, spawnParticles,
@@ -510,7 +510,7 @@ export default function GansikRunGame({
       }
 
       // ── 배경 ──
-      drawSky(ctx, w, h, state.frameCount)
+      drawSky(ctx, w, h, state.frameCount, sprites)
 
       const vy = h * 0.28
       const grassGrad = ctx.createLinearGradient(0, vy, 0, h)
@@ -520,7 +520,7 @@ export default function GansikRunGame({
       ctx.fillRect(0, vy, w, h - vy)
 
       drawRoad(ctx, w, h, r.stripeOffset)
-      drawSideTrees(ctx, w, h, r.treeOffset)
+      drawSideTrees(ctx, w, h, r.treeOffset, sprites)
       drawSpeedLines(ctx, w, h, state.speedMultiplier, state.frameCount)
 
       // ── 오브젝트 (멀리 있는 것부터) ──
@@ -538,10 +538,23 @@ export default function GansikRunGame({
           drawObstacleLow(ctx, ox, screenY, unit, state.frameCount, sprites)
         } else if (obj.type === 'obstacle_high') {
           drawObstacleHigh(ctx, ox, screenY, unit, state.frameCount, sprites)
-        } else if (obj.type === 'bone') {
-          drawBone(ctx, ox, screenY, unit, false, state.frameCount, sprites)
-        } else if (obj.type === 'golden_bone') {
-          drawBone(ctx, ox, screenY, unit, true, state.frameCount, sprites)
+        } else if (obj.type === 'bone' || obj.type === 'golden_bone') {
+          // 자석: 옆 차선 뼈다귀가 강아지 쪽으로 빨려 오는 걸 눈으로 보이게 한다.
+          // 먹는 판정은 건드리지 않고(간식런.ts) 그리는 위치만 당긴다.
+          let bx = ox
+          let by = screenY
+          if (state.isMagnetActive && Math.abs(obj.lane - state.targetLane) <= 1) {
+            const pull = magnetPull(obj.y, WORLD_H * PLAYER_Y_RATIO, GAME.HIT_ZONE)
+            if (pull > 0) {
+              // 차선을 소수로 보간하면 원근이 자동으로 맞는다
+              bx = laneX(obj.lane + (dogLaneF - obj.lane) * pull, t, w)
+              by = screenY - pull * unit * 0.35   // 강아지 몸통 높이로 살짝 떠오르며
+              if (pull > 0.2 && pull < 0.95 && state.frameCount % 5 === 0) {
+                r.particles = spawnParticles(r.particles, bx, by, 'sparkle', 1, unitScale)
+              }
+            }
+          }
+          drawBone(ctx, bx, by, unit, obj.type === 'golden_bone', state.frameCount, sprites)
         } else if (obj.type === 'box') {
           drawBox(ctx, ox, screenY, unit, state.frameCount, state.frameCount - (obj.spawnedAt ?? state.frameCount), sprites)
         }

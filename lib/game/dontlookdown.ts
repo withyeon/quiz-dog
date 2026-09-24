@@ -120,12 +120,21 @@ const NARROW_IMAGE_POOL = [
     PLATFORM_IMAGE.SLIME_CUBE,
 ]
 
+// 정사각형 그림을 써도 아래 줄을 침범하지 않는 최대 폭. 그림은 박스 폭에 비율을 맞춰 그리므로
+// (렌더러의 drawHeight = width × aspect) 폭이 곧 그림 높이다. 줄 간격이 92px이라 60을 넘기면
+// 정사각형 그림이 아랫줄 발판 위로 흘러내려 "발판이 겹쳐 보이는" 화면이 된다.
+const SQUARE_IMAGE_MAX_WIDTH = 60
+
 /**
- * 발판 종류에 맞는 이미지를 고른다. 얼음은 젤리, 사라지는 발판은 구름, 가시는 위험 줄무늬처럼
+ * 발판에 맞는 이미지를 고른다. 얼음은 젤리, 사라지는 발판은 구름, 가시는 위험 줄무늬처럼
  * 그림만 봐도 성격이 읽히게 한다. seed는 같은 종류 안에서 그림을 섞는 용도.
  * 이미지는 발판 박스 크기를 바꾸지 않는다 (박스 폭에 맞춰 비율 유지로 그린다).
+ *
+ * 그림 풀은 종류 이름이 아니라 **실제 폭**으로 고른다. 'narrow' 종류라도 폭이 90px인 경우가
+ * 있어서(빡빡한 메인 루트 발판), 종류로 고르면 정사각형 도넛·기둥이 90~112px 높이로 그려져
+ * 아랫줄을 덮어버렸다.
  */
-export function pickPlatformImageId(type: Platform['type'], seed: number): number {
+export function pickPlatformImageId(type: Platform['type'], seed: number, width?: number): number {
     switch (type) {
         case 'ice': return PLATFORM_IMAGE.ICE
         case 'disappearing': return PLATFORM_IMAGE.CLOUD
@@ -134,8 +143,12 @@ export function pickPlatformImageId(type: Platform['type'], seed: number): numbe
         case 'checkpoint':
         case 'peak': return PLATFORM_IMAGE.MARBLE
         case 'start': return PLATFORM_IMAGE.GRASS
-        case 'narrow': return NARROW_IMAGE_POOL[Math.abs(seed) % NARROW_IMAGE_POOL.length]
-        default: return NORMAL_IMAGE_POOL[Math.abs(seed) % NORMAL_IMAGE_POOL.length]
+        default: {
+            const pool = (width ?? 0) > 0 && width! <= SQUARE_IMAGE_MAX_WIDTH
+                ? NARROW_IMAGE_POOL
+                : NORMAL_IMAGE_POOL
+            return pool[Math.abs(seed) % pool.length]
+        }
     }
 }
 
@@ -205,7 +218,14 @@ export const ENERGY = {
     JUMP_COST: 90,             // 점프 에너지 소모
     DOUBLE_JUMP_COST: 150,     // 더블 점프 에너지 소모
     FALL_PENALTY: 120,         // 떨어졌을 때 페널티
-    SPIKE_DAMAGE: 90,          // 가시 데미지
+    SPIKE_DAMAGE: 90,          // 가시 발판에 "착지하는 순간" 한 번 깎이는 양
+    // 가시 위에 계속 서 있을 때의 지속 소모 (초당). 프레임당이 아니라 초당이다.
+    // 예전엔 SPIKE_DAMAGE가 착지 판정과 함께 매 프레임 적용돼(60fps면 초당 5400) 가시에 올라선
+    // 순간 에너지가 0이 되고, 0이면 이동도 점프도 막혀 영영 못 빠져나가는 상태가 됐다.
+    SPIKE_DRAIN_PER_SEC: 60,
+    // 에너지가 바닥나도 최소한의 이동은 남긴다 (정상 속도 대비 비율). 완전히 0으로 묶으면
+    // 퀴즈를 못 풀거나 가시 위에 갇혔을 때 게임이 끝날 때까지 아무것도 할 수 없다.
+    EXHAUSTED_MOVE_RATIO: 0.45,
 } as const
 
 export const PLAYER_SIZE = {
@@ -377,6 +397,19 @@ export function generatePlatformMap(
         routeRole: 'start',
     })
 
+    // 선택·회복 발판은 메인 루트와 달리 "있으면 좋은" 발판이라, 이미 놓인 발판과 겹치면
+    // 그냥 놓지 않는다. 서로 파고든 발판은 착지면이 두 겹이 되어 조작이 이상해지고,
+    // 그림끼리도 뒤엉켜 보인다. (메인 루트는 줄 간격이 고정이라 겹칠 일이 없다.)
+    const PLACEMENT_GAP_X = 8
+    const PLACEMENT_GAP_Y = 12
+    const overlapsExisting = (x: number, y: number, width: number, height: number) =>
+        platforms.some(other =>
+            x < other.x + other.width + PLACEMENT_GAP_X &&
+            x + width + PLACEMENT_GAP_X > other.x &&
+            y < other.y + other.height + PLACEMENT_GAP_Y &&
+            y + height + PLACEMENT_GAP_Y > other.y
+        )
+
     const targetPixelHeight = summitGoal / METERS_PER_PIXEL
     let currentY = 560
     let currentX = CLIMB_START_X
@@ -385,13 +418,21 @@ export function generatePlatformMap(
     // 수직 절벽 지그재그: 위로 오를수록 좌우 폭이 커지고 발판 간격이 빡빡해진다.
     const Y_STEP = 92
 
+    // 줄(row)의 y는 구역과 무관하게 이어진다. 예전엔 구역이 끝날 때 currentY를 구역 경계로
+    // 되돌려서, 이전 구역의 마지막 줄과 다음 구역의 첫 줄이 몇 px 차이로 붙어 발판이 서로
+    // 겹치는 자리가 구역마다 하나씩 생겼다.
+    let rowY = currentY
+    let globalRowIndex = 0
+
     // Gimkit 스타일: Summit마다 성격이 달라지는 등반 코스
     SUMMITS.forEach((summit, summitIndex) => {
-        const summitStartY = currentY
+        const summitStartY = rowY
         const summitHeight = (summit.endHeight - summit.startHeight) / METERS_PER_PIXEL
 
         let summitCurrentY = summitStartY
-        const summitEndY = summitStartY - summitHeight
+        // 구역 높이는 경계 자체가 아니라 "이 구역이 차지할 픽셀 높이"로 잡는다. 줄이 이어지므로
+        // 구역 시작점이 경계보다 조금 위일 수 있고, 그 차이가 누적되지 않게 한다.
+        const summitEndY = currentY - summitHeight
         let lastRouteX = currentX
 
         let checkpointAdded = false
@@ -403,7 +444,8 @@ export function generatePlatformMap(
 
         while (summitCurrentY > summitEndY) {
             const difficulty = maxSummitIndex <= 0 ? 0 : summitIndex / maxSummitIndex
-            const rowIndex = Math.floor((summitStartY - summitCurrentY) / Y_STEP)
+            // 지그재그(switchback)가 구역 경계에서 튀지 않도록 줄 번호도 이어서 센다.
+            const rowIndex = globalRowIndex
 
             // 우상향 루트: 높이가 올라갈수록 화면 오른쪽으로 전진한다.
             const climbMeters = summit.startHeight + ((summitStartY - summitCurrentY) * METERS_PER_PIXEL)
@@ -413,8 +455,16 @@ export function generatePlatformMap(
             const baseX = Math.max(220, Math.min(WORLD.WIDTH - 420, rightwardBase + wave + switchback))
             lastRouteX = baseX
 
+            // 체크포인트는 각 구역 중간쯤의 한 줄을 통째로 차지한다. 예전엔 메인 발판을 깔고
+            // 그 위(y-25)에 체크포인트를 덧놓아서, 25px 간격의 바닥 두 장이 항상 겹쳐 있었다.
+            const isCheckpointRow =
+                settings.checkpointsEnabled
+                && !checkpointAdded
+                && summitCurrentY < summitStartY - summitHeight * 0.35
+                && summitCurrentY > summitEndY + 80
+
             // === 메인 루트 플랫폼 (항상 올라갈 수 있는 안전 발판) ===
-            const mainIsTight = summit.id >= 4 && random() < 0.08 + difficulty * 0.22
+            const mainIsTight = !isCheckpointRow && summit.id >= 4 && random() < 0.08 + difficulty * 0.22
             const mainWidth = mainIsTight
                 ? PLATFORM.NORMAL_MIN
                 : PLATFORM.NORMAL_MIN + random() * (PLATFORM.NORMAL_MAX - PLATFORM.NORMAL_MIN)
@@ -422,12 +472,17 @@ export function generatePlatformMap(
             if (summit.id >= 5 && random() < 0.08 + difficulty * 0.08) mainType = 'ice'
             else if (summit.id >= 6 && random() < 0.05 + difficulty * 0.05) mainType = 'moving'
             else if (summit.id >= 7 && random() < 0.04 + difficulty * 0.04) mainType = 'disappearing'
+            // 체크포인트 줄은 안전해야 한다 (얼음·이동·소멸 발판이 되면 리스폰 지점이 흔들린다)
+            if (isCheckpointRow) {
+                checkpointAdded = true
+                mainType = 'checkpoint'
+            }
             const mainStyle = PLATFORM_STYLES[rowIndex % PLATFORM_STYLES.length]
-            const mainImgId = pickPlatformImageId(mainType, platformId)
+            const mainImgId = pickPlatformImageId(mainType, platformId, mainWidth)
             const moveRange = mainType === 'moving' ? 45 + random() * 45 : undefined
 
             platforms.push({
-                id: `platform_${platformId++}`,
+                id: isCheckpointRow ? `checkpoint_summit${summit.id}` : `platform_${platformId++}`,
                 x: baseX,
                 y: summitCurrentY,
                 width: mainWidth,
@@ -441,7 +496,7 @@ export function generatePlatformMap(
                 moveRange,
                 moveSpeed: mainType === 'moving' ? 0.45 + random() * 0.35 : undefined,
                 movePhase: mainType === 'moving' ? random() * Math.PI * 2 : undefined,
-                routeRole: 'main',
+                routeRole: isCheckpointRow ? 'checkpoint' : 'main',
             })
 
             // === 선택 루트 플랫폼: 더 빠르지만 위험하고 보상이 많은 루트 ===
@@ -455,13 +510,14 @@ export function generatePlatformMap(
                 else if (summit.id >= 5 && random() < 0.06 + hazardRatio * 0.08) type2 = 'spike'
                 else if (summit.id >= 7 && random() < 0.18) type2 = 'ice'
 
-                const imgId2 = pickPlatformImageId(type2, platformId)
+                const imgId2 = pickPlatformImageId(type2, platformId, width2)
                 const side = rowIndex % 2 === 0 ? 1 : -1
                 const x2 = Math.max(240, Math.min(WORLD.WIDTH - 360, baseX + side * (175 + random() * 85)))
-                platforms.push({
+                const y2 = summitCurrentY - 28 + random() * 18
+                if (!overlapsExisting(x2, y2, width2, 24)) platforms.push({
                     id: `platform_${platformId++}`,
                     x: x2,
-                    y: summitCurrentY - 28 + random() * 18,
+                    y: y2,
                     width: width2,
                     height: 24,
                     type: type2,
@@ -478,45 +534,34 @@ export function generatePlatformMap(
             }
 
             // 고지대에는 짧은 회복 발판을 가끔 배치해 실패 직전 구사일생 순간을 만든다.
-            if (summit.id >= 5 && rowIndex % 4 === 2 && random() < 0.45) {
+            const rescueX = Math.max(260, Math.min(WORLD.WIDTH - 380, baseX + (rowIndex % 2 === 0 ? -120 : 120)))
+            const rescueY = summitCurrentY + 48
+            if (
+                summit.id >= 5 && rowIndex % 4 === 2 && random() < 0.45
+                && !overlapsExisting(rescueX, rescueY, PLATFORM.NARROW_WIDTH, 22)
+            ) {
                 platforms.push({
                     id: `rescue_${platformId++}`,
-                    x: Math.max(260, Math.min(WORLD.WIDTH - 380, baseX + (rowIndex % 2 === 0 ? -120 : 120))),
-                    y: summitCurrentY + 48,
+                    x: rescueX,
+                    y: rescueY,
                     width: PLATFORM.NARROW_WIDTH,
                     height: 22,
                     type: 'narrow',
                     style: 'wood',
-                    imageId: pickPlatformImageId('narrow', platformId),
+                    imageId: pickPlatformImageId('narrow', platformId, PLATFORM.NARROW_WIDTH),
                     summit: summit.id,
                     isVisible: true,
                     routeRole: 'rescue',
                 })
             }
 
-            // 체크포인트 (각 Summit 중간쯤)
-            if (settings.checkpointsEnabled && !checkpointAdded && summitCurrentY < summitStartY - summitHeight * 0.35 && summitCurrentY > summitEndY + 80) {
-                checkpointAdded = true
-                platforms.push({
-                    id: `checkpoint_summit${summit.id}`,
-                    x: Math.max(280, Math.min(WORLD.WIDTH - 430, baseX + 35)),
-                    y: summitCurrentY - 25,
-                    width: 120,
-                    height: 28,
-                    type: 'checkpoint',
-                    style: 'stone',
-                    imageId: pickPlatformImageId('checkpoint', summit.id),
-                    summit: summit.id,
-                    isVisible: true,
-                    routeRole: 'checkpoint',
-                })
-            }
-
             summitCurrentY -= Y_STEP
+            globalRowIndex += 1
         }
 
-        // 구역 경계에 딱 맞춘다. summitCurrentY를 그대로 넘기면 구역마다 최대 Y_STEP만큼
-        // 넘친 값이 누적되어 정상이 summitGoal보다 한참 위에 생긴다.
+        // 다음 구역은 이 구역의 마지막 줄에서 정확히 Y_STEP 떨어진 곳부터 시작한다.
+        rowY = summitCurrentY
+        // 진행도(높이) 기준점은 구역 경계 그대로 둬야 정상이 summitGoal보다 위로 밀리지 않는다.
         currentY = summitEndY
         currentX = lastRouteX
     })
@@ -630,6 +675,9 @@ export function updatePlayerPhysics(
     dt: number = 1 / 60
 ): DLDPlayer {
     const updated = { ...player }
+    // 이번 프레임의 착지가 "공중에서 새로 내려앉은 것"인지 구분한다. 발판 위에 가만히 서 있어도
+    // 중력 때문에 매 프레임 착지 분기를 다시 타므로, 착지 1회짜리 효과는 이 값으로 걸러야 한다.
+    const wasOnGround = player.isOnGround
 
     // 가변 중력: 올라갈 땐 가볍게, 떨어질 땐 무겁게 (점프 느낌 강화)
     const rocketBoosting = updated.activePowerUps.has('rocket')
@@ -695,7 +743,12 @@ export function updatePlayerPhysics(
                 updated.vx *= Math.pow(0.99, dt * 60)
             }
             if (platform.type === 'spike' && !updated.hasShield) {
-                updated.energy = Math.max(0, updated.energy - ENERGY.SPIKE_DAMAGE)
+                // 착지 순간 한 번 크게, 버티고 서 있으면 초당 조금씩. 매 프레임 SPIKE_DAMAGE를
+                // 먹이면 0.2초 만에 에너지가 0이 되어 빠져나갈 수단이 사라진다.
+                const damage = wasOnGround
+                    ? ENERGY.SPIKE_DRAIN_PER_SEC * dt
+                    : ENERGY.SPIKE_DAMAGE
+                updated.energy = Math.max(0, updated.energy - damage)
             }
             if (platform.type === 'disappearing' && !platform.disappearTime) {
                 platform.disappearTime = Date.now() + 2000
@@ -821,16 +874,23 @@ export function movePlayer(
     isRunning: boolean = false,
     dt: number = 1 / 60
 ): DLDPlayer {
-    if (player.energy <= 0 || player.energy < ENERGY.MOVE_COST) {
-        return { ...player, vx: 0 }
-    }
+    // 에너지가 바닥난 상태: 멈춰 세우지 않고 "지친 걸음"으로 느리게 움직이게 둔다.
+    // (완전 정지로 두면 가시 발판 위나 퀴즈를 못 여는 상황에서 영구히 갇힌다. 올라가려면
+    //  여전히 점프 에너지가 필요하므로 퀴즈를 풀어야 한다는 설계는 그대로다.)
+    const exhausted = player.energy < ENERGY.MOVE_COST
 
-    const accel = isRunning ? PHYSICS.MOVE_ACCEL * 1.4 : PHYSICS.MOVE_ACCEL
-    const maxSpeed = isRunning ? PHYSICS.MOVE_SPEED * PHYSICS.RUN_MULTIPLIER : PHYSICS.MOVE_SPEED
+    const baseAccel = isRunning ? PHYSICS.MOVE_ACCEL * 1.4 : PHYSICS.MOVE_ACCEL
+    const baseMaxSpeed = isRunning ? PHYSICS.MOVE_SPEED * PHYSICS.RUN_MULTIPLIER : PHYSICS.MOVE_SPEED
+    const accel = exhausted ? baseAccel * ENERGY.EXHAUSTED_MOVE_RATIO : baseAccel
+    const maxSpeed = exhausted ? baseMaxSpeed * ENERGY.EXHAUSTED_MOVE_RATIO : baseMaxSpeed
     const costMultiplier = isRunning ? ENERGY.RUN_MULTIPLIER : 1
 
     let newVx = player.vx + (direction === 'left' ? -accel * dt : accel * dt)
     newVx = Math.max(-maxSpeed, Math.min(maxSpeed, newVx))
+
+    if (exhausted) {
+        return { ...player, vx: newVx, facingRight: direction === 'right', energy: 0 }
+    }
 
     // 에너지는 시간 비례 소모 (60fps 기준 프레임당 ENERGY.MOVE_COST)
     return {
