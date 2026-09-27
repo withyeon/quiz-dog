@@ -169,6 +169,10 @@ export default function MafiaView({
   const [investigationResult, setInvestigationResult] = useState<'CHEATER' | 'CLEAR' | null>(null)
   const [gameLog, setGameLog] = useState<GameLog[]>([])
   const [showCheatCaught, setShowCheatCaught] = useState(false)
+  // 내가 친구 조사에 발각됐을 때 내 화면에 띄우는 경고 (조사자 이름 + 환수 금액)
+  const [caughtNotice, setCaughtNotice] = useState<{ investigatorName: string; recovered: number } | null>(null)
+  const caughtNoticeAtRef = useRef(0)
+  const caughtNoticeTimerRef = useRef<number | null>(null)
   const logEndRef = useRef<HTMLDivElement>(null)
 
   const mafiaPlayers = useMemo(() => players.map(toMafiaPlayer), [players])
@@ -199,14 +203,68 @@ export default function MafiaView({
     addLog('게임이 시작되었습니다. 정답을 맞히고 금고를 열거나 친구를 조사하세요.', 'info')
   }, [addLog])
 
+  // 발각 경고 표시. 같은 발각이 broadcast(mafia:caught)와 player:patch 폴백으로 두 번 들어와도 한 번만 띄운다.
+  const showCaughtNotice = useCallback((investigatorName: string, recovered: number) => {
+    const now = Date.now()
+    if (now - caughtNoticeAtRef.current < 5000) {
+      // 이미 떠 있는 경고에 더 자세한 정보(조사자 이름·환수 금액)가 뒤늦게 오면 내용만 갱신한다.
+      setCaughtNotice((prev) => {
+        if (!prev) return prev
+        const richer = recovered > prev.recovered || (prev.investigatorName === '친구' && investigatorName !== '친구')
+        return richer ? { investigatorName, recovered: Math.max(recovered, prev.recovered) } : prev
+      })
+      return
+    }
+    caughtNoticeAtRef.current = now
+    setCaughtNotice({ investigatorName, recovered })
+    playSFX('incorrect')
+    if (caughtNoticeTimerRef.current) window.clearTimeout(caughtNoticeTimerRef.current)
+    caughtNoticeTimerRef.current = window.setTimeout(() => {
+      setCaughtNotice(null)
+      caughtNoticeTimerRef.current = null
+    }, 3200)
+  }, [playSFX])
+
+  useEffect(() => {
+    return () => {
+      if (caughtNoticeTimerRef.current) window.clearTimeout(caughtNoticeTimerRef.current)
+    }
+  }, [])
+
   useEffect(() => {
     return subscribeRoomRuntimeEvent((event) => {
-      if (event.roomCode !== roomCode || event.type !== 'game:effect') return
-      const payload = event.payload as { kind?: string; message?: string; logType?: GameLog['type'] } | undefined
-      if (payload?.kind !== 'mafia:log' || !payload.message) return
-      addLog(payload.message, payload.logType ?? 'info')
+      if (event.roomCode !== roomCode) return
+
+      if (event.type === 'game:effect') {
+        const payload = event.payload as {
+          kind?: string
+          message?: string
+          logType?: GameLog['type']
+          targetPlayerId?: string
+          investigatorName?: string
+          recovered?: number
+        } | undefined
+        if (!payload) return
+        if (payload.kind === 'mafia:log' && payload.message) {
+          addLog(payload.message, payload.logType ?? 'info')
+          return
+        }
+        // 내가 친구 조사에 발각됐을 때: 조사자가 보낸 대상 지정 이벤트
+        if (payload.kind === 'mafia:caught' && payload.targetPlayerId === playerId) {
+          showCaughtNotice(payload.investigatorName ?? '누군가', payload.recovered ?? 0)
+        }
+        return
+      }
+
+      // 폴백: mafia:caught broadcast를 놓쳐도 조사자가 내 플래그를 해제하는 patch(reason)로 발각을 감지한다.
+      if (event.type === 'player:patch') {
+        const payload = event.payload as { playerId?: string; reason?: string } | undefined
+        if (payload?.playerId === playerId && payload.reason === 'mafia_target_caught') {
+          showCaughtNotice('친구', 0)
+        }
+      }
     })
-  }, [addLog, roomCode])
+  }, [addLog, playerId, roomCode, showCaughtNotice])
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -310,6 +368,16 @@ export default function MafiaView({
       setInvestigationResult(result.result)
       // 친구 조사는 본인의 '다음 라운드 행동'이므로, 조사하는 순간 본인의 수상함은 해제된다.
       const clearedInvestigator = { ...result.newInvestigator, isCheating: false, cheatPendingVault: false }
+
+      // 발각 알림은 아래 patch/steal 커밋(각각 broadcast를 동반)보다 먼저 보내, 발각된 친구 화면에 이름·환수 금액이 바로 뜨게 한다.
+      if (result.success) {
+        void sendRoomEvent('game:effect', {
+          kind: 'mafia:caught',
+          targetPlayerId: target.id,
+          investigatorName: player.name,
+          recovered: result.recovered ?? 0,
+        })
+      }
 
       const ops: Array<Promise<unknown>> = [
         // 조사자 본인 수상함 해제 (플래그만)
@@ -553,6 +621,42 @@ export default function MafiaView({
           <motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }} className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-red-600/50" />
             <div className="relative text-8xl font-black text-white drop-shadow-2xl">🚨 발각!</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 내가 발각당했을 때 (조사당한 쪽 화면) */}
+      <AnimatePresence>
+        {caughtNotice && (
+          <motion.div
+            key="caught-by-friend"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-4"
+          >
+            <motion.div
+              className="absolute inset-0 bg-red-700/70"
+              animate={{ opacity: [0.9, 0.5, 0.9, 0.5, 0.9] }}
+              transition={{ duration: 1.2, repeat: Infinity }}
+            />
+            <motion.div
+              initial={{ scale: 0.5, rotate: -6 }}
+              animate={{ scale: [0.5, 1.15, 1], rotate: [-6, 3, 0] }}
+              transition={{ duration: 0.45 }}
+              className="relative flex max-w-2xl flex-col items-center gap-3 rounded-3xl border-4 border-red-300 bg-black/85 px-6 py-6 text-center shadow-2xl sm:px-10 sm:py-8"
+            >
+              <ShieldAlert className="h-14 w-14 text-red-400 sm:h-20 sm:w-20" />
+              <div className="text-5xl font-black leading-tight text-white drop-shadow-2xl sm:text-7xl">🚨 발각됐습니다!</div>
+              <p className="text-xl font-bold text-red-200 sm:text-3xl">
+                {caughtNotice.investigatorName}의 조사에 몰래보기가 들통났어요!
+              </p>
+              {caughtNotice.recovered > 0 && (
+                <p className="text-2xl font-black text-yellow-300 sm:text-4xl">
+                  -${caughtNotice.recovered.toLocaleString()} 환수당했습니다
+                </p>
+              )}
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

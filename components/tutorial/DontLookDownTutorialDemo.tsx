@@ -44,7 +44,7 @@ function ProgressBox({ height, summit }: { height: number; summit: number }) {
   const summitProgress = Math.round((summit / SUMMITS.length) * 100)
   const heightProgress = Math.min(100, (height / GOAL) * 100)
   return (
-    <div className="absolute left-3 top-3 z-10 w-[190px] rounded-xl bg-white/95 px-3 py-2 shadow-lg">
+    <div className="absolute left-3 top-3 z-10 w-[176px] rounded-xl bg-white/95 px-3 py-2 shadow-lg">
       <QuizSetName title={DEMO_SET_NAME} className="mb-1.5 max-w-full" />
       <div className="mb-1 flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-600">🏔️ 구역 {summit}/{SUMMITS.length}</span>
@@ -97,14 +97,37 @@ function EnergyBox({ energy, highlight }: { energy: number; highlight?: boolean 
 function Stage({ avatarIndex, energyEmpty, children }: { avatarIndex: number; energyEmpty?: boolean; children?: React.ReactNode }) {
   const p = PLATFORMS[avatarIndex]
   return (
-    <div className="relative h-[292px] w-full max-w-[460px] overflow-hidden rounded-2xl border-2 border-white/30 shadow-2xl">
-      <Image src="/dontlookdown/bg/mountains.webp" alt="" fill className="object-cover" sizes="460px" />
+    <div className="relative h-[292px] w-full max-w-[460px] overflow-hidden rounded-2xl border-2 border-white/30 bg-gradient-to-b from-[#bfe4ff] to-[#e6f3ff] shadow-2xl">
+      {/* 실제 캔버스 배경: 아래쪽 산 + 양옆 절벽 + 왼쪽 높이 눈금 */}
+      <div className="absolute inset-x-0 bottom-0 h-[38%]">
+        <Image src="/dontlookdown/bg/mountains.webp" alt="" fill className="object-cover object-bottom" sizes="460px" />
+      </div>
+      <div className="absolute -left-4 top-0 h-full w-[64px]">
+        <Image src="/dontlookdown/bg/cliff.webp" alt="" fill className="object-cover object-right" sizes="64px" />
+      </div>
+      <div className="absolute -right-4 top-0 h-full w-[64px] -scale-x-100">
+        <Image src="/dontlookdown/bg/cliff.webp" alt="" fill className="object-cover object-right" sizes="64px" />
+      </div>
+      {[10, 20, 30, 40].map((m, i) => (
+        <span key={m} className="absolute left-11 text-[10px] font-black text-slate-500" style={{ top: 236 - i * 52 }}>{m}m</span>
+      ))}
+      {/* 발판을 잇는 로프 (실제 맵의 이동 경로 표시) */}
+      <svg className="absolute inset-0 h-full w-full" viewBox="0 0 460 292" fill="none">
+        <polyline
+          points={PLATFORMS.map((pl) => `${pl.x + pl.w / 2},${pl.y}`).join(' ')}
+          stroke="#c9a15a"
+          strokeWidth="3"
+          strokeDasharray="6 4"
+          strokeLinejoin="round"
+        />
+      </svg>
+      <div className="absolute left-1/2 top-2 -translate-x-1/2 rounded-lg bg-black/60 px-3 py-0.5 text-sm font-bold tabular-nums text-white">4:43</div>
       {PLATFORMS.map((pl, i) => (
         <div key={i} className="absolute" style={{ left: pl.x, top: pl.y, width: pl.w }}>
           {pl.spikes && (
             <Image src="/dontlookdown/props/spikes.webp" alt="" width={pl.w} height={22} className="absolute -top-[18px] left-0 h-[20px] w-full object-cover object-bottom" />
           )}
-          <Image src={pl.img} alt="" width={pl.w} height={30} className="h-[30px] w-full object-cover object-top" />
+          <Image src={pl.img} alt="" width={pl.w} height={30} className="h-[30px] w-full object-contain object-top" />
         </div>
       ))}
       {/* 정상 깃발 */}
