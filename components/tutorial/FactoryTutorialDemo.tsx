@@ -413,8 +413,10 @@ function SynergyScene() {
 export default function FactoryTutorialDemo() {
   return (
     <TutorialDemoFrame
+      mode="factory"
       backgroundSrc="/background/factory.webp"
       metric={(phase) => ({
+        label: '매출',
         icon: PIXEL_ICON.gold.src,
         value: MONEY_BY_PHASE[phase]?.value ?? MONEY_AFTER_TICK,
         from: MONEY_BY_PHASE[phase]?.from,

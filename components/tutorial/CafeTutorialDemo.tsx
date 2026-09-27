@@ -370,8 +370,10 @@ function ShopScene() {
 export default function CafeTutorialDemo() {
   return (
     <TutorialDemoFrame
+      mode="cafe"
       backgroundSrc="/background/cafe.webp"
       metric={(phase) => ({
+        label: '매출',
         icon: PIXEL_ICON.gold.src,
         value: MONEY_BY_PHASE[phase]?.value ?? MONEY_AFTER_GOLDEN,
         from: MONEY_BY_PHASE[phase]?.from,

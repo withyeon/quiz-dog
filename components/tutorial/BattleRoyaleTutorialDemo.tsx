@@ -32,7 +32,7 @@ const ME_ID = 'me'
 const TARGET_ID = 'blue-0'
 const DEMO_CLASS = 'ice_fist' as const
 /** 실제 피해량은 장비·연속 정답으로 달라진다. 데모는 아이스 브레이커 한 방 기준 */
-const HIT_DAMAGE = Math.round(20 * PLAYER_CLASSES[DEMO_CLASS].attack)
+const HIT_DAMAGE = Math.round(20 * PLAYER_CLASSES[DEMO_CLASS].damageMultiplier)
 
 function buildPlayers(targetHealth: number): FieldPlayers {
   const base = [

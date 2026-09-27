@@ -24,7 +24,7 @@ import {
  */
 
 const FONT = { fontFamily: "'DNFBitBitv2', sans-serif" } as const
-const HIT = ZOMBIE.ZOMBIE_ATTACK_POWER ?? 35
+const HIT = ZOMBIE.ZOMBIE_BASE_ATTACK
 const HP_AFTER_HIT = 100 - HIT
 
 /** 실제 화면 상단 바 (ZombieView 의 헤더와 같은 클래스) */

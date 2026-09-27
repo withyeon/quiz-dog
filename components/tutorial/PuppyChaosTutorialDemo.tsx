@@ -1,5 +1,6 @@
 'use client'
 
+import QuizSetName from '@/components/game/QuizSetName'
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -28,6 +29,8 @@ import {
   StageCard,
   TapPointer,
   PLAYER_NAME,
+  CountUp,
+  DEMO_SET_NAME,
 } from '@/components/tutorial/TutorialDemoFrame'
 
 /**
@@ -684,16 +687,46 @@ function RankScene() {
   )
 }
 
+/** 장면별 콤보 표시 — 실제 헤더의 "N콤보" 칸 */
+const PUPPY_COMBO_BY_PHASE: Record<string, number> = { quiz: 1, box: 1, dodge: 1, hit: 1, guard: 2, combo: 3, attack: 3, golden: 4, rank: 4 }
+
+/** 실제 강아지 대소동 헤더 그대로 (app/puppy-chaos/page.tsx 의 <header>) */
+function PuppyHeader({ score, from, combo }: { score: number; from?: number; combo: number }) {
+  return (
+    <div className="px-3 pt-3 sm:px-4 sm:pt-4" style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}>
+      <header className="rounded-[22px] border-4 border-slate-900 bg-white p-3 text-slate-950 shadow-[5px_5px_0_#0f172a]">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="text-xs font-black text-sky-700">강아지 대소동</div>
+              <QuizSetName title={DEMO_SET_NAME} />
+            </div>
+            <div className="flex items-center gap-2 text-xl font-black">
+              <Image src={MASCOT} alt="" width={32} height={32} className="h-8 w-8 object-contain" />
+              <span className="truncate">{PLAYER_NAME}</span>
+            </div>
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-xs font-black text-slate-500">내 점수</div>
+            <div className="text-2xl font-black text-amber-600 tabular-nums">
+              {from !== undefined && from !== score ? <CountUp from={from} to={score} /> : score.toLocaleString()}
+            </div>
+          </div>
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2 text-center text-xs font-black">
+          <div className="rounded-2xl bg-sky-100 px-3 py-1.5">문제 시간 대기</div>
+          <div className="rounded-2xl bg-rose-100 px-3 py-1.5">{combo}콤보</div>
+        </div>
+      </header>
+    </div>
+  )
+}
+
 export default function PuppyChaosTutorialDemo() {
   return (
     <TutorialDemoFrame
       backgroundSrc="/background/puppy-chaos.webp"
-      metric={(phase) => ({
-        emoji: '⭐',
-        value: SCORE_BY_PHASE[phase]?.value ?? BASE_SCORE,
-        from: SCORE_BY_PHASE[phase]?.from,
-        suffix: '점',
-      })}
+      header={({ phase }) => <PuppyHeader score={SCORE_BY_PHASE[phase]?.value ?? BASE_SCORE} from={SCORE_BY_PHASE[phase]?.from} combo={PUPPY_COMBO_BY_PHASE[phase] ?? 1} />}
       /* 규칙 9장과 1:1 — lib/game/tutorials.ts 의 poop_dodge 슬라이드 순서와 같습니다 */
       phases={[
         { key: 'quiz', duration: 2800, step: 1, caption: `퀴즈를 맞히면 바로 +${CORRECT_ROUND_SCORE}점` },

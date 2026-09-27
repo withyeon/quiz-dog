@@ -34,6 +34,14 @@ import {
 } from '@/lib/game/fishing'
 import { SKILLS, type SkillId } from '@/lib/game/skills'
 import GoldQuestTutorialDemo from '@/components/GoldQuestTutorialDemo'
+import BattleRoyaleTutorialDemo from '@/components/tutorial/BattleRoyaleTutorialDemo'
+import MafiaTutorialDemo from '@/components/tutorial/MafiaTutorialDemo'
+import DontLookDownTutorialDemo from '@/components/tutorial/DontLookDownTutorialDemo'
+import ZombieTutorialDemo from '@/components/tutorial/ZombieTutorialDemo'
+import TreatRushTutorialDemo from '@/components/tutorial/TreatRushTutorialDemo'
+import TowerBattleHeader from '@/components/tower/TowerBattleHeader'
+import TowerPlacementPanel from '@/components/tower/TowerPlacementPanel'
+import SkillChoiceModal from '@/components/SkillChoiceModal'
 import FactoryTutorialDemo from '@/components/tutorial/FactoryTutorialDemo'
 import CafeTutorialDemo from '@/components/tutorial/CafeTutorialDemo'
 import PuppyChaosTutorialDemo from '@/components/tutorial/PuppyChaosTutorialDemo'
@@ -44,9 +52,12 @@ import {
   StageCard,
   TapPointer,
   PLAYER_NAME,
-  PLAYER_IMAGE,
+  PLAYER_AVATAR,
+  RIVALS,
+  DEMO_SET_NAME,
   type DemoPhase,
   type HudMetric,
+  type HudChip,
 } from '@/components/tutorial/TutorialDemoFrame'
 import PixelIcon, { PIXEL_ICON } from '@/components/ui/PixelIcon'
 import ItemGlyph from '@/components/ItemGlyph'
@@ -102,78 +113,7 @@ function ResultBadge({ show, text }: { show: boolean; text: string }) {
   )
 }
 
-/* ─────────────── 1. 눈싸움 대작전 ─────────────── */
-function BattleRoyaleDemo() {
-  return (
-    <TutorialDemoFrame
-      backgroundSrc="/background/battle-royale.webp"
-      metric={risingMetric({ emoji: '❄️', base: 0, gain: 1, suffix: '명중' })}
-      phases={buildPhases([
-        '퀴즈를 맞혀요',
-        '정답! 눈뭉치를 장전했어요',
-        '상대팀(청팀)을 조준해 던져요',
-        '명중! 상대팀 체온이 깎여요',
-      ])}
-    >
-      {({ phase }) =>
-        phase === 'quiz' || phase === 'correct' ? (
-          <GlassQuizStep
-            question="눈은 무슨 색일까요?"
-            options={['하얀색', '검은색', '파란색', '빨간색']}
-            correctIndex={0}
-            answered={isAnswered(phase)}
-          />
-        ) : (
-          <Scene>
-            <div className="rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit p-5">
-              {/* 팀 대결 헤더 */}
-              <div className="mb-4 flex items-center justify-center gap-2 text-xs font-black text-white/90">
-                <span className="rounded-full bg-rose-500/80 px-2.5 py-1">🐕 홍팀 2</span>
-                <span className="text-white/60">VS</span>
-                <span className="rounded-full bg-sky-500/80 px-2.5 py-1">🐺 청팀 2</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <Fighter name={PLAYER_NAME} img={PLAYER_IMAGE} hp={100} team="red" />
-                <motion.div
-                  className="text-4xl"
-                  initial={{ x: -40, opacity: 0 }}
-                  animate={isResult(phase) ? { x: 60, opacity: [1, 1, 0] } : { x: -40, opacity: 1 }}
-                  transition={{ duration: 0.7 }}
-                >
-                  ❄️
-                </motion.div>
-                <Fighter name="밥톨이" img="/assets/icons/mascot_sigol-64.png" hp={isResult(phase) ? 65 : 100} hit={isResult(phase)} team="blue" />
-              </div>
-            </div>
-            <ResultBadge show={isResult(phase)} text="명중! 청팀 -35 체온" />
-          </Scene>
-        )
-      }
-    </TutorialDemoFrame>
-  )
-}
-
-function Fighter({ name, img, hp, hit, team }: { name: string; img: string; hp: number; hit?: boolean; team?: 'red' | 'blue' }) {
-  const ring = team === 'red' ? 'ring-rose-400' : team === 'blue' ? 'ring-sky-400' : 'ring-white/70'
-  const teamEmoji = team === 'red' ? '🐕' : team === 'blue' ? '🐺' : null
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <motion.div
-        animate={hit ? { x: [0, -6, 6, -3, 0] } : {}}
-        transition={{ duration: 0.4 }}
-        className={`relative h-16 w-16 overflow-hidden rounded-full bg-white/80 ring-2 ${ring}`}
-      >
-        <Image src={img} alt={name} fill className="object-contain p-1" sizes="64px" />
-      </motion.div>
-      <span className="text-xs font-black text-white drop-shadow">
-        {teamEmoji && <span className="mr-0.5">{teamEmoji}</span>}{name}
-      </span>
-      <div className="h-2.5 w-20 overflow-hidden rounded-full bg-black/40">
-        <motion.div className="h-full rounded-full bg-emerald-400" animate={{ width: `${hp}%` }} transition={{ duration: 0.5 }} />
-      </div>
-    </div>
-  )
-}
+/* ─────────────── 1. 눈싸움 대작전 → components/tutorial/BattleRoyaleTutorialDemo.tsx ─────────────── */
 
 /* ─────────────── 2. 두근두근 인형뽑기 ─────────────── */
 /**
@@ -315,8 +255,14 @@ function ClawMachineScene({ mode }: { mode: 'aim' | 'perfect' | 'catch' }) {
           />
         </div>
 
-        {/* 기계 안 — 집게와 바닥 인형 */}
-        <div className="relative mt-2 h-48 overflow-hidden rounded-2xl border border-white/15 bg-white/10">
+        {/* 기계 안 — 실제 FishingMachine 과 같은 케이스 배경 위에 집게와 바닥 인형 */}
+        <div className="relative mt-2 h-48 overflow-hidden rounded-2xl border border-white/25">
+          <Image src="/fishing/machine/case-bg.webp" alt="" fill className="object-cover" sizes="640px" />
+          <div className="absolute inset-x-2 bottom-1 flex items-end justify-around opacity-90">
+            {['pink', 'purple', 'mint', 'gold', 'red', 'blue', 'shine'].map((tone, i) => (
+              <Image key={tone} src={`/fishing/machine/box-${tone}.webp`} alt="" width={40} height={40} className="h-10 w-10 object-contain" style={{ transform: `rotate(${(i % 3) * 4 - 4}deg)` }} />
+            ))}
+          </div>
           {/* 바닥 인형들 */}
           <div className="absolute inset-x-3 bottom-2 flex items-end justify-around">
             {FISHING_FLOOR_DOLLS.map((src, i) => {
@@ -349,19 +295,23 @@ function ClawMachineScene({ mode }: { mode: 'aim' | 'perfect' | 'catch' }) {
               y: isCatching ? CLAW_GRAB_TRANSITION : { duration: 0.2 },
             }}
           >
-            <div className="mx-auto h-7 w-0.5 rounded-b-full bg-white/70" />
-            <div className="relative mx-auto h-14 w-20">
-              <div className="absolute left-1/2 top-0 h-5 w-9 -translate-x-1/2 rounded-md border-4 border-slate-300 bg-slate-100 shadow-lg" />
+            <div className="mx-auto h-7 w-0.5 rounded-b-full bg-slate-400/80" />
+            <div className="relative mx-auto h-16 w-20">
+              {/* 실제 기계의 집게 그림 — 잡을 때 닫힌 집게로 바뀐다 */}
               <motion.div
-                className="absolute left-[10px] top-[14px] h-9 w-7 rounded-bl-[24px] border-b-[6px] border-l-[6px] border-slate-300"
-                animate={{ rotate: isCatching ? [-10, -10, 16, 16, 16] : -10 }}
-                transition={isCatching ? CLAW_GRAB_TRANSITION : { duration: 0.3 }}
-              />
+                className="absolute inset-x-0 top-0 h-14"
+                animate={{ opacity: isCatching ? [1, 1, 0, 0, 0] : 1 }}
+                transition={isCatching ? CLAW_GRAB_TRANSITION : { duration: 0.2 }}
+              >
+                <Image src="/fishing/machine/claw-open.webp" alt="" fill className="object-contain drop-shadow-lg" sizes="80px" />
+              </motion.div>
               <motion.div
-                className="absolute right-[10px] top-[14px] h-9 w-7 rounded-br-[24px] border-b-[6px] border-r-[6px] border-slate-300"
-                animate={{ rotate: isCatching ? [10, 10, -16, -16, -16] : 10 }}
-                transition={isCatching ? CLAW_GRAB_TRANSITION : { duration: 0.3 }}
-              />
+                className="absolute inset-x-0 top-0 h-14"
+                animate={{ opacity: isCatching ? [0, 0, 1, 1, 1] : 0 }}
+                transition={isCatching ? CLAW_GRAB_TRANSITION : { duration: 0.2 }}
+              >
+                <Image src="/fishing/machine/claw-closed.webp" alt="" fill className="object-contain drop-shadow-lg" sizes="80px" />
+              </motion.div>
               {/* 집게에 매달려 올라오는 인형 */}
               {isCatching && (
                 <motion.div
@@ -507,16 +457,24 @@ function FishingRankScene() {
   )
 }
 
+/** 실제 인형뽑기 헤더의 칩 4개 (기계 등급 · 점수 · 컬렉션 · 뽑기 전력) */
+function fishingChips(phase: string): HudChip[] {
+  const points = FISHING_POINTS_BY_PHASE[phase] ?? { value: FISHING_TOTAL_POINTS }
+  const caught = ['catch', 'combo', 'rank', 'score'].includes(phase)
+  return [
+    { label: '기계 등급', value: getMachineRankName(FISHING_DEMO_RANK), emoji: '⚙️' },
+    { label: '점수', value: points.value, from: points.from, suffix: '점', emoji: '🧸', tone: 'amber' },
+    { label: '컬렉션', value: caught ? '1개' : '0개', emoji: '🎁' },
+    { label: '뽑기 전력', value: phase === 'aim' || phase === 'perfect' ? '조준' : caught ? '완료' : '대기', emoji: '⚡', tone: phase === 'aim' || phase === 'perfect' ? 'sky' : 'default' },
+  ]
+}
+
 function FishingDemo() {
   return (
     <TutorialDemoFrame
+      mode="fishing"
       backgroundSrc="/background/fishing.webp"
-      metric={(phase) => ({
-        emoji: '🧸',
-        value: FISHING_POINTS_BY_PHASE[phase]?.value ?? FISHING_TOTAL_POINTS,
-        from: FISHING_POINTS_BY_PHASE[phase]?.from,
-        suffix: '점',
-      })}
+      chips={fishingChips}
       /* 규칙 8장과 1:1 — lib/game/tutorials.ts 의 fishing 슬라이드 순서와 같습니다 */
       phases={[
         { key: 'quiz', duration: 2400, step: 1, caption: '퀴즈를 맞혀야 뽑기 기회가 생겨요' },
@@ -573,103 +531,9 @@ function FishingDemo() {
 
 /* ─────────────── 4. 달콤 바삭 카페 → components/tutorial/CafeTutorialDemo.tsx ─────────────── */
 
-/* ─────────────── 5. 쉿! 마피아 ─────────────── */
-function MafiaDemo() {
-  return (
-    <TutorialDemoFrame
-      backgroundSrc="/background/mafia.webp"
-      metric={risingMetric({ emoji: '🔑', base: 60, gain: 50, suffix: '점' })}
-      phases={buildPhases([
-        '퀴즈를 맞혀요',
-        '정답! 행동 기회를 얻었어요',
-        '금고 털기와 조사 중 하나를 골라요',
-        '금고 성공! 골드를 챙겨요',
-      ])}
-    >
-      {({ phase }) =>
-        phase === 'quiz' || phase === 'correct' ? (
-          <GlassQuizStep
-            question="비밀을 지킬 때 내는 소리는?"
-            options={['쉿', '와', '쾅', '딩동']}
-            correctIndex={0}
-            answered={isAnswered(phase)}
-          />
-        ) : (
-          <Scene>
-            <div className="grid grid-cols-2 gap-3">
-              <motion.div
-                animate={isResult(phase) ? { scale: 1.05 } : {}}
-                className={`rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit relative flex flex-col items-center gap-2 p-5 ${
-                  isResult(phase) ? 'ring-2 ring-amber-300' : ''
-                }`}
-              >
-                {isResult(phase) ? <PixelIcon name="gold" size={40} alt="" /> : <span className="text-4xl">🔓</span>}
-                <span className="text-sm font-black text-white">금고 털기</span>
-                {phase === 'action' && <TapPointer />}
-              </motion.div>
-              <div className={`rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit flex flex-col items-center gap-2 p-5 ${isResult(phase) ? 'opacity-50' : ''}`}>
-                <PixelIcon name="scan" size={40} alt="" />
-                <span className="text-sm font-black text-white">조사하기</span>
-              </div>
-            </div>
-            <ResultBadge show={isResult(phase)} text="금고 성공! +50점" />
-          </Scene>
-        )
-      }
-    </TutorialDemoFrame>
-  )
-}
+/* ─────────────── 5. 쉿! 마피아 → components/tutorial/MafiaTutorialDemo.tsx ─────────────── */
 
-/* ─────────────── 6. 점프점프 ─────────────── */
-function DontLookDownDemo() {
-  return (
-    <TutorialDemoFrame
-      backgroundClassName="bg-gradient-to-b from-sky-300 via-sky-400 to-indigo-500"
-      metric={risingMetric({ emoji: '⛰️', base: 12, gain: 6, suffix: 'm' })}
-      phases={buildPhases([
-        '퀴즈를 맞혀요',
-        '정답! 점프할 힘을 얻었어요',
-        '다음 발판으로 점프해요',
-        '한 칸 더 위로! 높이 기록 UP',
-      ])}
-    >
-      {({ phase }) =>
-        phase === 'quiz' || phase === 'correct' ? (
-          <GlassQuizStep
-            question="위로 뛰어오르는 동작은?"
-            options={['점프', '수면', '식사', '독서']}
-            correctIndex={0}
-            answered={isAnswered(phase)}
-          />
-        ) : (
-          <Scene className="max-w-xs">
-            <div className="relative mx-auto h-64 w-48">
-              {/* 발판 (아래→위) */}
-              {[
-                { x: 20, y: 200 },
-                { x: 90, y: 130 },
-                { x: 30, y: 60 },
-              ].map((p, i) => (
-                <div key={i} className="absolute" style={{ left: p.x, top: p.y }}>
-                  <Image src={`/dontlookdown/platforms/${i + 2}.webp`} alt="" width={88} height={28} className="h-7 w-22 object-contain" />
-                </div>
-              ))}
-              {/* 캐릭터: action=중간발판, result=위발판 */}
-              <motion.div
-                className="absolute h-12 w-12 overflow-hidden rounded-full bg-white/85 ring-2 ring-white"
-                animate={isResult(phase) ? { left: 52, top: 22 } : { left: 36, top: 92 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 16 }}
-              >
-                <Image src={PLAYER_IMAGE} alt={PLAYER_NAME} fill className="object-contain p-1" sizes="48px" />
-              </motion.div>
-            </div>
-            <ResultBadge show={isResult(phase)} text="점프 성공! 18m 도달" />
-          </Scene>
-        )
-      }
-    </TutorialDemoFrame>
-  )
-}
+/* ─────────────── 6. 점프점프 → components/tutorial/DontLookDownTutorialDemo.tsx ─────────────── */
 
 /* ─────────────── 7. 타워 디펜스 ─────────────── */
 /**
@@ -751,7 +615,7 @@ function TowerRoadScene({ mode }: { mode: 'goal' | 'leak' | 'build' }) {
 
   return (
     <StageCard id="tower-road" className="w-full max-w-2xl">
-      <div className="font-bitbit relative h-60 overflow-hidden rounded-3xl border border-white/25 bg-slate-900/60 p-3 shadow-2xl backdrop-blur-md">
+      <div className="font-bitbit relative h-56 overflow-hidden rounded-lg border border-white/20 bg-slate-950/70 p-3 shadow-2xl backdrop-blur-md">
         {/* 실제 게임 화면 위쪽에 뜨는 표시와 같은 것 */}
         <div className="flex items-center justify-between">
           <span className="rounded-full bg-black/50 px-3 py-1 text-xs font-black text-white/85">
@@ -867,29 +731,62 @@ function TowerRoadScene({ mode }: { mode: 'goal' | 'leak' | 'build' }) {
       </div>
 
       {isBuild && (
-        <motion.div
-          initial={{ scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 360, damping: 16, delay: 1.9 }}
-          className="lg-banner-correct font-bitbit mx-auto mt-4 w-fit px-5 py-2 text-center text-base font-black text-white drop-shadow sm:text-lg"
-        >
-          막았어요! 출구까지 못 갔어요
-        </motion.div>
+        <>
+          <div className="mt-2" style={{ zoom: 0.8 }}>
+            <TowerPlacementPanel gold={TOWER_GOLD_AFTER_QUIZ - TOWER_BUILD_COST} selectedTowerType="BASIC" onSelectTowerType={() => {}} compact />
+          </div>
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 16, delay: 1.9 }}
+            className="lg-banner-correct font-bitbit mx-auto mt-3 w-fit px-5 py-2 text-center text-base font-black text-white drop-shadow sm:text-lg"
+          >
+            막았어요! 출구까지 못 갔어요
+          </motion.div>
+        </>
       )}
     </StageCard>
+  )
+}
+
+/** 실제 타워 디펜스 헤더 그대로 (components/tower/TowerBattleHeader.tsx) */
+function TowerHeader({ phase }: { phase: string }) {
+  const gold = TOWER_GOLD_BY_PHASE[phase]?.value ?? PLAYER_START_GOLD
+  const solved = phase === 'correct' || phase === 'item' || phase === 'build' ? TOWER_QUIZZES_PER_WAVE : phase === 'quiz' ? TOWER_QUIZZES_PER_WAVE - 1 : 0
+  return (
+    <div className="px-2 pt-2" style={{ zoom: 0.72 }}>
+      <TowerBattleHeader
+        roomCode="482913"
+        questionSetTitle={DEMO_SET_NAME}
+        selectedTowerType={phase === 'build' ? 'BASIC' : null}
+        hp={phase === 'leak' ? PLAYER_START_HP - TOWER_LEAK_DAMAGE : PLAYER_START_HP}
+        gold={gold}
+        totalGoldEarned={Math.max(0, gold - PLAYER_START_GOLD + (phase === 'build' ? TOWER_BUILD_COST : 0))}
+        currentWave={0}
+        isWaveActive={phase === 'goal' || phase === 'leak'}
+        waveEnemiesRemaining={phase === 'goal' ? 3 : phase === 'leak' ? 1 : 0}
+        waveProgress={phase === 'leak' ? 60 : 0}
+        occupiedSlotCount={phase === 'build' ? 1 : 0}
+        quizHudValue={`${solved}/${TOWER_QUIZZES_PER_WAVE}`}
+        quizHudDetail={`정답 ${solved}/${TOWER_QUIZZES_PER_WAVE}`}
+        quizButtonLabel={solved >= TOWER_QUIZZES_PER_WAVE ? '퀴즈 완료' : `퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제 먼저`}
+        consecutiveCorrect={phase === 'correct' || phase === 'item' ? TOWER_QUIZZES_PER_WAVE : 0}
+        isQuizAvailable={solved < TOWER_QUIZZES_PER_WAVE}
+        canStartWave={phase === 'build'}
+        startWaveButtonLabel="웨이브 시작"
+        onQuizClick={() => {}}
+        onStartWave={() => {}}
+      />
+    </div>
   )
 }
 
 function TowerDemo() {
   return (
     <TutorialDemoFrame
-      backgroundSrc="/background/tower-defense.webp"
-      metric={(phase) => ({
-        icon: PIXEL_ICON.gold.src,
-        value: TOWER_GOLD_BY_PHASE[phase]?.value ?? PLAYER_START_GOLD,
-        from: TOWER_GOLD_BY_PHASE[phase]?.from,
-        suffix: '골드',
-      })}
+      backgroundSrc="/tower/ui/background.webp"
+      dim
+      header={({ phase }) => <TowerHeader phase={phase} />}
       /* 규칙 6장과 1:1 — lib/game/tutorials.ts 의 tower 슬라이드 순서와 같습니다 */
       phases={[
         { key: 'goal', duration: 2800, step: 1, caption: `웨이브 ${WAVES.length}번을 다 막으면 이겨요` },
@@ -920,49 +817,22 @@ function TowerDemo() {
           )
         }
 
-        /* 5단계 — 세 문제를 모두 맞혔을 때만 아이템 3장이 나옵니다 */
+        /* 5단계 — 세 문제를 모두 맞혔을 때만 아이템 3장이 나옵니다 (실제 SkillChoiceModal 그대로) */
         if (phase === 'item') {
           return (
-            <StageCard id="tower-items" className="w-full max-w-xl">
-              <div className="font-bitbit rounded-3xl border border-white/25 bg-slate-900/60 p-5 shadow-2xl backdrop-blur-md">
-                <p className="mb-4 text-center text-base font-black text-amber-300">아이템 하나를 골라요</p>
-                <div className="grid grid-cols-3 gap-3">
-                  {TOWER_ITEM_IDS.map((id, i) => {
-                    const skill = SKILLS[id]
-                    const picked = i === TOWER_PICKED_ITEM_INDEX
-                    return (
-                      <motion.div
-                        key={id}
-                        initial={{ opacity: 0, y: 26 }}
-                        animate={picked ? { opacity: 1, y: [26, 0, 0, -10] } : { opacity: 1, y: 0 }}
-                        transition={
-                          picked
-                            ? { duration: 1.3, times: [0, 0.2, 0.62, 1] }
-                            : { delay: i * 0.12, type: 'spring', stiffness: 280, damping: 22 }
-                        }
-                        className={`relative flex flex-col items-center gap-2 rounded-2xl p-4 ${
-                          picked ? 'bg-white/90' : 'bg-white/20'
-                        }`}
-                      >
-                        <span className={`flex h-14 w-14 items-center justify-center rounded-xl ${skill.color} text-3xl shadow-lg`}>
-                          <ItemGlyph item={skill} size={30} />
-                        </span>
-                        <span className={`text-base font-black ${picked ? 'text-[#17262a]' : 'text-white'}`}>
-                          {skill.name}
-                        </span>
-                        {picked && (
-                          <motion.span
-                            className="pointer-events-none absolute inset-0 rounded-2xl ring-2 ring-amber-300"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.85 }}
-                          />
-                        )}
-                        {picked && <TapPointer />}
-                      </motion.div>
-                    )
-                  })}
-                </div>
+            <StageCard id="tower-items" className="w-full max-w-2xl">
+              <TowerRoadScene mode="goal" />
+              <div style={{ zoom: 0.72 }}>
+                <SkillChoiceModal
+                  skills={TOWER_ITEM_IDS.map((id) => SKILLS[id])}
+                  goldReward={TOWER_QUIZ_GOLD}
+                  isBonus
+                  comboCount={TOWER_QUIZZES_PER_WAVE}
+                  onSelect={() => {}}
+                />
+              </div>
+              <div className="pointer-events-none absolute left-1/2 top-[62%] z-[60]">
+                <TapPointer className="left-0 top-0" />
               </div>
             </StageCard>
           )
@@ -975,118 +845,21 @@ function TowerDemo() {
   )
 }
 
-/* ─────────────── 8. 좀비를 피해라! ─────────────── */
-function ZombieDemo() {
-  return (
-    <TutorialDemoFrame
-      backgroundSrc="/zombie/background.png"
-      metric={risingMetric({ icon: PIXEL_ICON.time.src, base: 40, gain: 10, suffix: '초' })}
-      phases={buildPhases([
-        '퀴즈를 맞혀요',
-        '정답! 방어 카드를 얻었어요',
-        '방패로 좀비의 공격을 막아요',
-        '감염 차단! 생존 시간 UP',
-      ])}
-    >
-      {({ phase }) =>
-        phase === 'quiz' || phase === 'correct' ? (
-          <GlassQuizStep
-            question="밤에 무덤에서 나온다는 것은?"
-            options={['좀비', '나비', '햇님', '무지개']}
-            correctIndex={0}
-            answered={isAnswered(phase)}
-          />
-        ) : (
-          <Scene>
-            <div className="rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit relative flex items-center justify-center gap-6 p-6">
-              <motion.span className="text-5xl" animate={isResult(phase) ? { x: -10, opacity: 0.4 } : { x: 0 }}>
-                🧟
-              </motion.span>
-              <motion.div
-                animate={phase === 'action' ? { scale: [0.6, 1.15, 1] } : {}}
-                transition={{ duration: 0.5 }}
-                className="relative flex h-24 w-24 items-center justify-center rounded-2xl bg-white/85"
-              >
-                <Image src="/zombie/shield.webp" alt="" width={72} height={72} className="h-18 w-18 object-contain" />
-                {phase === 'action' && <TapPointer />}
-              </motion.div>
-              <div className="relative h-14 w-14 overflow-hidden rounded-full bg-white/85 ring-2 ring-white">
-                <Image src={PLAYER_IMAGE} alt={PLAYER_NAME} fill className="object-contain p-1" sizes="56px" />
-              </div>
-            </div>
-            <ResultBadge show={isResult(phase)} text="감염 차단! 생존 +10초" />
-          </Scene>
-        )
-      }
-    </TutorialDemoFrame>
-  )
-}
+/* ─────────────── 8. 좀비를 피해라! → components/tutorial/ZombieTutorialDemo.tsx ─────────────── */
 
-/* ─────────────── 9. 간식런 ─────────────── */
-function TreatRushDemo() {
-  return (
-    <TutorialDemoFrame
-      backgroundClassName="bg-gradient-to-b from-orange-200 via-amber-300 to-yellow-200"
-      metric={risingMetric({ emoji: '🦴', base: 100, gain: 50, suffix: '점' })}
-      phases={buildPhases([
-        '퀴즈를 맞혀요',
-        '정답! 가속 부스터를 얻었어요',
-        '장애물을 점프로 피해요',
-        '간식 박스 획득! 점수 UP',
-      ])}
-    >
-      {({ phase }) =>
-        phase === 'quiz' || phase === 'correct' ? (
-          <GlassQuizStep
-            question="강아지가 좋아하는 간식은?"
-            options={['뼈다귀', '돌멩이', '지우개', '못']}
-            correctIndex={0}
-            answered={isAnswered(phase)}
-          />
-        ) : (
-          <Scene>
-            <div className="rounded-3xl border border-white/25 bg-slate-900/60 shadow-2xl backdrop-blur-md font-bitbit relative flex h-40 items-end justify-between p-5">
-              <div className="h-1.5 w-full self-end rounded-full bg-white/40" style={{ position: 'absolute', bottom: 24, left: 0 }} />
-              {/* 강아지 점프 */}
-              <motion.div
-                className="relative z-10 h-16 w-16 overflow-hidden rounded-full bg-white/85 ring-2 ring-white"
-                animate={phase === 'action' ? { y: [-0, -46, 0] } : { y: 0 }}
-                transition={{ duration: 0.9 }}
-              >
-                <Image src={PLAYER_IMAGE} alt={PLAYER_NAME} fill className="object-contain p-1" sizes="64px" />
-              </motion.div>
-              {/* 장애물 */}
-              <motion.div className="relative z-10 h-12 w-12" animate={isResult(phase) ? { x: -180 } : { x: 0 }} transition={{ duration: 0.6 }}>
-                <Image src="/mini-game/rock.webp" alt="" fill className="object-contain" sizes="48px" />
-              </motion.div>
-              {/* 간식 박스 */}
-              <motion.span
-                className="relative z-10 text-4xl"
-                animate={isResult(phase) ? { scale: [1, 1.3, 0], y: -10 } : { scale: 1 }}
-                transition={{ duration: 0.6 }}
-              >
-                🎁
-              </motion.span>
-            </div>
-            <ResultBadge show={isResult(phase)} text="간식 획득! +50점" />
-          </Scene>
-        )
-      }
-    </TutorialDemoFrame>
-  )
-}
+/* ─────────────── 9. 간식런 → components/tutorial/TreatRushTutorialDemo.tsx ─────────────── */
 
 /* 레지스트리 — 장면이 많은 모드는 파일을 따로 두었습니다 */
 export const GAME_DEMO_REGISTRY: Partial<Record<GameModeId, ComponentType>> = {
   gold_quest: GoldQuestTutorialDemo,
-  battle_royale: BattleRoyaleDemo,
+  battle_royale: BattleRoyaleTutorialDemo,
   fishing: FishingDemo,
   factory: FactoryTutorialDemo,
   cafe: CafeTutorialDemo,
-  mafia: MafiaDemo,
-  dontlookdown: DontLookDownDemo,
+  mafia: MafiaTutorialDemo,
+  dontlookdown: DontLookDownTutorialDemo,
   tower: TowerDemo,
-  zombie: ZombieDemo,
-  treat_rush: TreatRushDemo,
+  zombie: ZombieTutorialDemo,
+  treat_rush: TreatRushTutorialDemo,
   poop_dodge: PuppyChaosTutorialDemo,
 }
