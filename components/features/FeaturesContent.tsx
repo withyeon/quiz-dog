@@ -104,6 +104,46 @@ function Card({
   )
 }
 
+/**
+ * 실제 화면 캡처(16:10). public/main/features/ 아래 webp.
+ * 캡처 방법은 components/landing/featureIntroData.ts 상단 주석 참고 — 화면이 바뀌면 같은 구도로 다시 찍는다.
+ */
+function Shot({
+  src,
+  alt,
+  caption,
+  bleed = false,
+}: {
+  src: string
+  alt: string
+  caption?: string
+  /** 카드 상단에 여백 없이 붙일 때 (모서리 둥글기·테두리 없음) */
+  bleed?: boolean
+}) {
+  return (
+    <figure className="m-0">
+      <div
+        className={
+          bleed
+            ? 'relative aspect-[16/10] w-full overflow-hidden border-b border-slate-100 bg-slate-50'
+            : 'relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50'
+        }
+      >
+        <Image
+          src={src}
+          alt={alt}
+          fill
+          sizes="(min-width: 1280px) 600px, (min-width: 768px) 50vw, 100vw"
+          className="object-cover object-top"
+        />
+      </div>
+      {caption && (
+        <figcaption className="mt-2.5 text-center text-[13px] font-bold text-slate-400">{caption}</figcaption>
+      )}
+    </figure>
+  )
+}
+
 function CheckLine({ children, color = '#0EA5E9' }: { children: React.ReactNode; color?: string }) {
   return (
     <li className="flex items-start gap-2.5">
@@ -169,6 +209,8 @@ const STEPS = [
     title: '자료를 올려요',
     description: '수업 자료 파일, 유튜브 링크, 주제 입력이면 충분해요.',
     color: '#0EA5E9',
+    screenshot: '/main/features/step-upload.webp',
+    shotAlt: '문제 만들기 화면에서 수업 자료 파일을 올리는 모습',
   },
   {
     step: '02',
@@ -176,6 +218,8 @@ const STEPS = [
     title: 'AI가 문제를 만들어요',
     description: '다양한 유형으로 생성하고 수정도 바로 가능해요.',
     color: '#14B8A6',
+    screenshot: '/main/features/step-review.webp',
+    shotAlt: 'AI가 만든 문제를 저장 전에 검토하고 고치는 화면',
   },
   {
     step: '03',
@@ -183,6 +227,8 @@ const STEPS = [
     title: '게임 코드를 공유해요',
     description: '학생들은 6자리 숫자 코드를 입력해서 간편하게 들어와요.',
     color: '#F43F5E',
+    screenshot: '/main/features/step-code.webp',
+    shotAlt: '참가 코드와 QR이 크게 보이는 게임 시작 화면',
   },
 ]
 
@@ -359,6 +405,7 @@ export default function FeaturesContent() {
             {STEPS.map((step, i) => (
               <motion.div key={step.step} {...FADE_UP} transition={{ delay: i * 0.1 }}>
                 <Card accent={step.color}>
+                  <Shot src={step.screenshot} alt={step.shotAlt} bleed />
                   <div className="p-7">
                     <div className="mb-4 flex items-center gap-3">
                       <span className="text-4xl">{step.emoji}</span>
@@ -419,18 +466,23 @@ export default function FeaturesContent() {
                   <h3 className="mb-3 text-2xl font-black leading-snug text-[#0F172A]">
                     AI로 간편한 퀴즈 생성하기
                   </h3>
-                  <p className="text-[15px] font-bold leading-relaxed text-slate-500">
+                  <p className="mb-6 text-[15px] font-bold leading-relaxed text-slate-500">
                     AI가 만든 문제를 그대로 쓰지 않아도 돼요. 생성 결과를 검토 화면에서 확인하고,
                     문장이나 보기를 선생님이 원하는 대로 고친 다음 저장할 수 있어요.
                   </p>
+                  <ul className="space-y-3">
+                    {AI_DETAILS.map((detail) => (
+                      <CheckLine key={detail} color="#0EA5E9">
+                        {detail}
+                      </CheckLine>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="space-y-3">
-                  {AI_DETAILS.map((detail) => (
-                    <CheckLine key={detail} color="#0EA5E9">
-                      {detail}
-                    </CheckLine>
-                  ))}
-                </ul>
+                <Shot
+                  src="/main/features/ai-options.webp"
+                  alt="과목·학년·문항 유형별 개수와 추가 요청을 정하는 AI 생성 옵션 화면"
+                  caption="문항 구성과 추가 요청을 정하는 옵션 화면"
+                />
               </div>
             </Card>
           </motion.div>
@@ -469,6 +521,27 @@ export default function FeaturesContent() {
             subtitle="회원가입, 설치 등 복잡한 절차가 필요하지 않습니다."
           />
 
+          <motion.div {...FADE_UP} className="mb-8 grid gap-6 md:grid-cols-2">
+            <Card>
+              <div className="p-4 sm:p-5">
+                <Shot
+                  src="/main/features/lobby-code.webp"
+                  alt="학생이 6자리 게임 코드를 입력하는 입장 화면"
+                  caption="① 선생님이 알려준 6자리 코드를 입력해요"
+                />
+              </div>
+            </Card>
+            <Card>
+              <div className="p-4 sm:p-5">
+                <Shot
+                  src="/main/features/play.webp"
+                  alt="닉네임을 정하고 강아지 캐릭터를 고르는 대기실 화면"
+                  caption="② 강아지 캐릭터를 고르고 친구들과 대기실에서 기다려요"
+                />
+              </div>
+            </Card>
+          </motion.div>
+
           <div className="grid gap-6 sm:grid-cols-2">
             {STUDENT_POINTS.map((point, i) => (
               <motion.div key={point.title} {...FADE_UP} transition={{ delay: i * 0.08 }}>
@@ -505,9 +578,10 @@ export default function FeaturesContent() {
           />
 
           <div className="grid gap-6 md:grid-cols-2">
-            <motion.div {...FADE_UP} className="md:row-span-2">
+            <motion.div {...FADE_UP}>
               <Card accent="linear-gradient(90deg, #16A34A, #4ADE80)">
-                <div className="flex h-full flex-col justify-center p-8">
+                <Shot src="/main/features/report.webp" alt="참여 학생 수, 평균 정답률, 문항별 정답률이 보이는 게임 결과 리포트" bleed />
+                <div className="flex flex-col justify-center p-8">
                   <BarChart3 className="mb-4 h-10 w-10 text-emerald-500" strokeWidth={2.5} />
                   <h3 className="mb-3 text-2xl font-black leading-snug text-[#0F172A]">
                     한 판이 그대로
@@ -522,20 +596,43 @@ export default function FeaturesContent() {
               </Card>
             </motion.div>
 
-            {REPORT_POINTS.map((point, i) => (
-              <motion.div key={point.title} {...FADE_UP} transition={{ delay: i * 0.07 }}>
-                <Card>
-                  <div className="p-6">
-                    <h3 className="mb-1.5 flex items-center gap-2 text-lg font-black text-[#0F172A]">
-                      <Check className="h-5 w-5 text-emerald-500" strokeWidth={3} />
-                      {point.title}
-                    </h3>
-                    <p className="text-sm font-bold leading-relaxed text-slate-500">{point.description}</p>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
+            <div className="flex flex-col gap-6">
+              {REPORT_POINTS.map((point, i) => (
+                <motion.div key={point.title} {...FADE_UP} transition={{ delay: i * 0.07 }} className="flex-1">
+                  <Card>
+                    <div className="flex h-full flex-col justify-center p-6">
+                      <h3 className="mb-1.5 flex items-center gap-2 text-lg font-black text-[#0F172A]">
+                        <Check className="h-5 w-5 text-emerald-500" strokeWidth={3} />
+                        {point.title}
+                      </h3>
+                      <p className="text-sm font-bold leading-relaxed text-slate-500">{point.description}</p>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
           </div>
+
+          <motion.div {...FADE_UP} className="mt-6 grid gap-6 md:grid-cols-2">
+            <Card>
+              <div className="p-4 sm:p-5">
+                <Shot
+                  src="/main/features/report-matrix.webp"
+                  alt="학생별로 문항마다 맞고 틀린 답이 표로 정리된 문항별 분석 매트릭스"
+                  caption="문항별 분석 — 어떤 문제에서 막혔는지 한눈에"
+                />
+              </div>
+            </Card>
+            <Card>
+              <div className="p-4 sm:p-5">
+                <Shot
+                  src="/main/features/report-students.webp"
+                  alt="학생별 정답률, 점수, 평균 응답시간이 정리된 표"
+                  caption="학생별 분석 — 정답률·점수·응답 시간을 학생마다"
+                />
+              </div>
+            </Card>
+          </motion.div>
         </div>
       </section>
 
@@ -552,20 +649,26 @@ export default function FeaturesContent() {
 
           <motion.div {...FADE_UP}>
             <Card>
-              <div className="grid gap-8 p-8 md:grid-cols-[auto_1fr] md:items-center">
-                <span
-                  className="inline-flex h-20 w-20 items-center justify-center rounded-2xl"
-                  style={{ background: 'rgba(20,184,166,0.12)' }}
-                >
-                  <Library className="h-10 w-10 text-[#14B8A6]" strokeWidth={2.5} />
-                </span>
-                <ul className="space-y-3">
-                  {LIBRARY_POINTS.map((point) => (
-                    <CheckLine key={point} color="#14B8A6">
-                      {point}
-                    </CheckLine>
-                  ))}
-                </ul>
+              <div className="grid gap-8 p-6 sm:p-8 md:grid-cols-[1.15fr_1fr] md:items-center">
+                <Shot
+                  src="/main/features/library.webp"
+                  alt="다른 선생님이 공개한 문제집 목록과 선택한 문제집 정보가 보이는 자료실 화면"
+                />
+                <div>
+                  <span
+                    className="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-2xl"
+                    style={{ background: 'rgba(20,184,166,0.12)' }}
+                  >
+                    <Library className="h-8 w-8 text-[#14B8A6]" strokeWidth={2.5} />
+                  </span>
+                  <ul className="space-y-3">
+                    {LIBRARY_POINTS.map((point) => (
+                      <CheckLine key={point} color="#14B8A6">
+                        {point}
+                      </CheckLine>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </Card>
           </motion.div>

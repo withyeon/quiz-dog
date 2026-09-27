@@ -98,6 +98,18 @@
     background-attachment: fixed;
   }
 
+  /* 타워 디펜스: 맵과 같은 동굴 아트를 화면 배경으로 쓴다. 패널·헤더가 흰 카드(bg-white/78)라
+     어두운 원본 그대로면 글씨가 묻혀서, 밝은 베일을 덮어 질감만 남긴다 */
+  .tower-command-screen {
+    isolation: isolate;
+    background:
+      linear-gradient(180deg, rgba(241, 245, 249, 0.58) 0%, rgba(248, 250, 252, 0.5) 48%, rgba(238, 242, 255, 0.56) 100%),
+      url('/tower/ui/background.webp');
+    background-size: cover;
+    background-position: center center;
+    background-attachment: fixed;
+  }
+
   /* 터치 기기(갤럭시 태블릿/폰)에서는 background-attachment: fixed가 스크롤마다 전체 리페인트를 유발해 끊김이 생기므로 scroll로 대체 (데스크탑/크롬북은 고정 배경 유지) */
   @media (pointer: coarse) {
     .gold-quest-ambient,
@@ -105,6 +117,7 @@
     .fishing-ambient,
     .mafia-ambient,
     .cafe-ambient,
+    .tower-command-screen,
     .battle-shell {
       background-attachment: scroll;
     }

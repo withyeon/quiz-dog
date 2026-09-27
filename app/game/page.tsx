@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from '@/components/ui/Toaster'
+import { getPlayerById } from '@/lib/services/players'
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import Image from 'next/image'
@@ -44,14 +45,17 @@ type AttackResponsePayload = {
   targetPlayerId: string
   /** 피해자가 방어권으로 막았는지 */
   blocked: boolean
-  /** 피해자가 실제로 골드 이동(강탈/교환)을 서버에 확정했는지 */
-  applied: boolean
+}
+/** 공격이 확정된 뒤 피해자 화면에 결과를 알리는 이벤트 */
+type AttackNoticePayload = {
+  attackerPlayerId: string
+  targetPlayerId: string
+  message: string
 }
 
 /** 공격 요청에 대한 피해자의 최종 결과 (공격자 대기 resolver로 전달) */
 type AttackResult = {
   blocked: boolean
-  applied: boolean
 }
 
 // 골드 뺏기(엘프/마법사) 방어권: 피해자가 방어 여부를 결정할 수 있는 시간.
@@ -96,7 +100,8 @@ export default function GamePage() {
     commitPlayerDelta,
     commitPlayerSteal,
     commitPlayerSwap,
-      sessionStartedAt,
+    commitPlayerPatch,
+    sessionStartedAt,
   } = useGameBase({ expectedGameMode: 'gold_quest' })
 
   // 골드퀘스트 원자 변경 어댑터 — 동시 상자 개봉/강탈 시 골드 증발·복제 방지.
@@ -116,17 +121,13 @@ export default function GamePage() {
   const [shieldNotice, setShieldNotice] = useState<string | null>(null)
   const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
   const [playerSelectTimeLeft, setPlayerSelectTimeLeft] = useState<number>(0)
+  // 상대가 방어권을 쓸지 정하는 동안 공격자 화면에 보여줄 안내 (null이면 일반 '처리 중')
+  const [awaitingShieldText, setAwaitingShieldText] = useState<string | null>(null)
   // 방어권 사용 여부를 묻는 모달 (네이티브 confirm 대체 — 게임 루프를 막지 않는다)
   const [shieldAsk, setShieldAsk] = useState<{ message: string; expiresAt: number } | null>(null)
   const shieldResolverRef = useRef<((useShield: boolean) => void) | null>(null)
   const hasShieldRef = useRef(false)
   const attackResolversRef = useRef(new Map<string, (result: AttackResult) => void>())
-  // 피해자 측에서 공격을 확정할 때 최신 players/mutator가 필요하다. 구독 effect가
-  // players 변화마다 재구독하지 않도록(이벤트 유실 방지) ref로 최신값을 들고 있는다.
-  const playersRef = useRef(players)
-  const goldMutatorRef = useRef(goldMutator)
-  useEffect(() => { playersRef.current = players }, [players])
-  useEffect(() => { goldMutatorRef.current = goldMutator }, [goldMutator])
   // 정답 후 상자 화면 자동 전환 타이머 (수동 클릭과 중복 실행 방지)
   const correctTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 상자/플레이어 선택 후 다음 문제 자동 이동 타이머 (중복 점프 방지)
@@ -206,30 +207,35 @@ export default function GamePage() {
     hasShieldRef.current = hasShield
   }, [hasShield])
 
+  // 방어권은 players.has_umbrella에 같이 저장한다(다른 모드는 이 컬럼을 쓰지 않는다).
+  // 공격자가 "상대에게 방어권이 있는지"를 DB에서 확인해야 하고, 새로고침해도 방어권이
+  // 사라지지 않아야 하기 때문이다.
+  const hasRestoredShieldRef = useRef(false)
+  const persistedShield = (currentPlayer as { has_umbrella?: boolean | null } | null)?.has_umbrella
+  useEffect(() => {
+    if (!currentPlayer || hasRestoredShieldRef.current) return
+    hasRestoredShieldRef.current = true
+    if (persistedShield) setHasShield(true)
+  }, [currentPlayer, persistedShield])
+
+  const setShieldPersisted = useCallback((value: boolean) => {
+    setHasShield(value)
+    hasShieldRef.current = value
+    if (!playerId) return
+    commitPlayerPatch(playerId, { has_umbrella: value }, value ? 'gold_quest_shield_gain' : 'gold_quest_shield_use')
+      .catch((error) => console.error('방어권 저장 실패:', error))
+  }, [commitPlayerPatch, playerId])
+
   useEffect(() => {
     if (!shieldNotice) return
     const timer = window.setTimeout(() => setShieldNotice(null), 2200)
     return () => window.clearTimeout(timer)
   }, [shieldNotice])
 
-  // 피해자 측에서 들어온 공격(강탈/교환)을 서버에 원자적으로 확정한다.
-  // 방어권 판정의 진실 소스는 피해자이므로, 골드 이동도 피해자가 직접 확정해야
-  // 공격자 타임아웃 경쟁으로 방어가 무시되는 일이 없다. 확정 성공 시 true.
-  const commitIncomingAttack = useCallback(async (payload: AttackRequestPayload): Promise<boolean> => {
-    try {
-      const attacker = playersRef.current.find((p) => p.id === payload.attackerPlayerId) ?? null
-      const self = playersRef.current.find((p) => p.id === payload.targetPlayerId) ?? null
-      if (!attacker || !self) return false
-      // payload.event.targetPlayerId === 피해자(self). applyBoxEvent 내부의
-      // steal(victim=targetPlayerId, thief=attackerId) / swap(attackerId, victim)와 동일하게 동작.
-      await applyBoxEvent(payload.event, payload.attackerPlayerId, attacker, self, goldMutatorRef.current)
-      return true
-    } catch (error) {
-      console.error('Error applying incoming attack (victim side):', error)
-      return false
-    }
-  }, [])
-
+  // 골드 이동은 공격자가 서버 원자 연산으로 확정한다. 피해자 화면은
+  // (1) 방어권이 있을 때 사용 여부를 답하고, (2) 확정 결과를 알림으로 받는 역할만 한다.
+  // 예전에는 피해자가 골드 이동까지 확정했는데, 피해자 화면이 없거나(이탈·백그라운드)
+  // 이벤트가 유실되면 '골드 가져오기'가 조용히 실패했다.
   useEffect(() => {
     if (!playerId) return
 
@@ -240,7 +246,15 @@ export default function GamePage() {
         const resolve = attackResolversRef.current.get(payload.requestId)
         if (!resolve) return
         attackResolversRef.current.delete(payload.requestId)
-        resolve({ blocked: payload.blocked, applied: payload.applied })
+        resolve({ blocked: payload.blocked })
+        return
+      }
+
+      if (event.type === 'gold_quest:attack_notice') {
+        const payload = event.payload as AttackNoticePayload | undefined
+        if (!payload || payload.targetPlayerId !== playerId) return
+        toast.info(payload.message)
+        playSFX('incorrect')
         return
       }
 
@@ -250,8 +264,7 @@ export default function GamePage() {
 
       const attackName = payload.event.itemName || '공격'
 
-      // 피해자가 방어 여부를 결정하고, 막지 않았다면 '피해자가 직접' 골드 이동을
-      // 확정한 뒤 그 결과(blocked/applied)를 공격자에게 회신한다.
+      // 공격자는 DB에서 내 방어권을 확인한 뒤에만 물어온다. 그래도 로컬 상태가 다르면 '안 씀'으로 답한다.
       void (async () => {
         let blocked = false
 
@@ -262,43 +275,34 @@ export default function GamePage() {
           )
           if (useShield) {
             blocked = true
-            setHasShield(false)
+            setShieldPersisted(false)
             setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
             playSFX('item')
-          } else {
-            toast.info(`${payload.attackerNickname}님의 ${attackName} 효과를 맞았습니다.`)
           }
-        } else {
-          toast.info(`${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`)
         }
-
-        // 막지 않았으면 피해자가 골드 이동을 확정한다(성공해야 applied=true).
-        const applied = blocked ? false : await commitIncomingAttack(payload)
 
         void sendRoomEvent('gold_quest:attack_response', {
           requestId: payload.requestId,
           attackerPlayerId: payload.attackerPlayerId,
           targetPlayerId: playerId,
           blocked,
-          applied,
         } satisfies AttackResponsePayload)
       })()
     })
-  }, [askShield, commitIncomingAttack, playerId, playSFX, sendRoomEvent])
+  }, [askShield, playerId, playSFX, sendRoomEvent, setShieldPersisted])
 
   const waitForShieldResponse = async (event: BoxEvent, targetPlayer: Player): Promise<AttackResult> => {
-    if (!playerId || !currentPlayer) return { blocked: false, applied: false }
+    if (!playerId || !currentPlayer) return { blocked: false }
     const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
     return new Promise<AttackResult>((resolve) => {
-      // 골드 이동은 피해자가 확정하므로, 이 타임아웃은 correctness가 아니라
-      // 공격자 화면이 무한 대기하지 않도록 하는 UI 폴백이다. 응답 없이 만료되면
-      // {blocked:false, applied:false} — 아무 효과 없음(안전한 실패)으로 처리한다.
+      // 피해자가 제한 시간 안에 방어권을 쓰지 않으면(응답 없음 포함) 공격이 그대로 들어간다.
+      // 피해자 모달(5초)이 이 대기(8초)보다 짧아 정상적인 방어는 늦게 도착하지 않는다.
       const timer = window.setTimeout(() => {
         attackResolversRef.current.delete(requestId)
-        resolve({ blocked: false, applied: false })
+        resolve({ blocked: false })
       }, SHIELD_DECISION_MS + SHIELD_NETWORK_BUFFER_MS)
 
       attackResolversRef.current.set(requestId, (result) => {
@@ -390,7 +394,7 @@ export default function GamePage() {
       playSFX('correct')
       // 연속 정답 시 방어권 획득 (Gold Quest 전용, 적립 없음)
       if (consecutiveCorrect + 1 >= SHIELD_STREAK && !hasShield) {
-        setHasShield(true)
+        setShieldPersisted(true)
         setShieldNotice(`${SHIELD_STREAK}연속 정답 - 방어권 획득!`)
         playSFX('item')
       }
@@ -437,7 +441,7 @@ export default function GamePage() {
       if (hasShield && isNegativeEvent) {
         const useShield = await askShield(`${event.itemName} 효과가 나왔습니다.`, 5000)
         if (useShield) {
-          setHasShield(false)
+          setShieldPersisted(false)
           setShieldNotice('방어권으로 손실 효과를 막았습니다!')
           playSFX('item')
           const blockedEvent: BoxEvent = {
@@ -506,38 +510,67 @@ export default function GamePage() {
         targetPlayerId,
       }
 
+      // 상대의 최신 골드·방어권은 DB에서 다시 읽는다(화면의 players는 몇 초 늦을 수 있다).
+      const freshTarget = await getPlayerById(targetPlayerId).catch(() => null)
+      const targetGold = freshTarget?.gold ?? targetPlayer.gold ?? 0
+      const targetHasShield = Boolean((freshTarget as { has_umbrella?: boolean | null } | null)?.has_umbrella)
+
       // Elf와 Wizard의 경우 훔칠 골드 양 계산
-      if (pendingEvent.type === 'ELF' && targetPlayer.gold > 0) {
-        event.value = Math.floor(targetPlayer.gold * GOLD_STEAL_RATE.ELF)
+      if (pendingEvent.type === 'ELF' && targetGold > 0) {
+        event.value = Math.floor(targetGold * GOLD_STEAL_RATE.ELF)
         event.message = `${targetPlayer.nickname}님의 골드 ${toPercent(GOLD_STEAL_RATE.ELF)}%를 가져왔다. +${event.value} 골드`
-      } else if (pendingEvent.type === 'WIZARD' && targetPlayer.gold > 0) {
-        event.value = Math.floor(targetPlayer.gold * GOLD_STEAL_RATE.WIZARD)
+      } else if (pendingEvent.type === 'WIZARD' && targetGold > 0) {
+        event.value = Math.floor(targetGold * GOLD_STEAL_RATE.WIZARD)
         event.message = `${targetPlayer.nickname}님의 골드 ${toPercent(GOLD_STEAL_RATE.WIZARD)}%를 가져왔다. +${event.value} 골드`
       } else if (pendingEvent.type === 'KING') {
         event.message = `${targetPlayer.nickname}님과 골드를 교환했다.`
       }
 
-      // 골드 이동은 '피해자'가 확정한다(방어권 판정의 진실 소스이므로).
-      // 공격자는 그 결과만 받아 화면에 표시한다 — 타임아웃 경쟁으로 방어가
-      // 무시되던 문제를 없앤다.
-      const result = await waitForShieldResponse(event, targetPlayer)
+      // 상대에게 방어권이 있을 때만 사용 여부를 묻고 기다린다. 없으면 바로 확정한다.
+      let result: AttackResult = { blocked: false }
+      if (targetHasShield) {
+        setAwaitingShieldText(`${targetPlayer.nickname}님이 방어권을 쓸지 정하는 중이에요.`)
+        try {
+          result = await waitForShieldResponse(event, targetPlayer)
+        } finally {
+          setAwaitingShieldText(null)
+        }
+      }
 
-      const outcomeEvent: BoxEvent = result.blocked
-        ? {
+      let outcomeEvent: BoxEvent
+      if (result.blocked) {
+        // targetPlayerId가 있어야 playerSelect 화면의 결과 패널에 표시된다.
+        outcomeEvent = {
+          type: 'FAIRY',
+          targetPlayerId,
+          message: `${targetPlayer.nickname}님이 방어권으로 공격을 막았다.`,
+          itemName: '방어권',
+          icon: '🛡️',
+        }
+      } else {
+        // 골드 이동은 공격자가 서버 원자 연산으로 확정한다(피해자 화면이 없어도 동작).
+        try {
+          await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, goldMutator)
+          outcomeEvent = event
+          const noticeMessage = event.type === 'KING'
+            ? `${currentPlayer.nickname}님이 왕의 명령서로 나와 골드를 교환했어요.`
+            : `${currentPlayer.nickname}님이 ${event.itemName}로 내 골드 ${event.value ?? 0}을 가져갔어요.`
+          void sendRoomEvent('gold_quest:attack_notice', {
+            attackerPlayerId: playerId,
+            targetPlayerId,
+            message: noticeMessage,
+          } satisfies AttackNoticePayload)
+        } catch (error) {
+          console.error('Error applying attack:', error)
+          outcomeEvent = {
             type: 'FAIRY',
-            message: `${targetPlayer.nickname}님이 방어권으로 공격을 막았다.`,
-            itemName: '방어권',
-            icon: '🛡️',
+            targetPlayerId,
+            message: `${targetPlayer.nickname}님에게 효과가 닿지 않았다.`,
+            itemName: '실패',
+            icon: '💨',
           }
-        : result.applied
-          ? event
-          : {
-              // 피해자가 응답하지 않아(이탈/지연) 골드 이동이 확정되지 않음.
-              type: 'FAIRY',
-              message: `${targetPlayer.nickname}님에게 효과가 닿지 않았다.`,
-              itemName: '실패',
-              icon: '💨',
-            }
+        }
+      }
 
       setBoxEvent(outcomeEvent)
 
@@ -767,19 +800,29 @@ export default function GamePage() {
 
           {currentView === 'playerSelect' && pendingEvent && (
             <>
-              {/* 선택 완료 후 결과 메시지 (가져오기/교환 적용됨) */}
+              {/* 선택 완료 후 결과 메시지 (가져오기/교환 적용됨, 방어권으로 막힘, 실패) */}
               {boxEvent?.targetPlayerId ? (
                 <div className="gold-quest-panel p-8 max-w-3xl mx-auto text-center">
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-emerald-300/70 bg-emerald-50">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-700" />
-                  </div>
+                  {boxEvent.itemName === '방어권' ? (
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-sky-300/70 bg-sky-50">
+                      <Image src="/gold-quest/shield.webp" alt="방어권" width={36} height={36} className="h-9 w-9 object-contain" />
+                    </div>
+                  ) : boxEvent.itemName === '실패' ? (
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-slate-300/70 bg-slate-50 text-3xl">
+                      {boxEvent.icon}
+                    </div>
+                  ) : (
+                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-emerald-300/70 bg-emerald-50">
+                      <CheckCircle2 className="h-8 w-8 text-emerald-700" />
+                    </div>
+                  )}
                   <p className="text-xl font-black text-[#17262a] mb-2">{boxEvent.message}</p>
                   <p className="text-sm font-semibold text-slate-500">잠시 후 다음 문제로 넘어갑니다.</p>
                 </div>
               ) : isProcessingReward ? (
                 <div className="gold-quest-panel p-8 max-w-3xl mx-auto text-center">
                   <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
-                  <p className="text-xl font-black text-[#17262a]">처리 중</p>
+                  <p className="text-xl font-black text-[#17262a]">{awaitingShieldText ?? '처리 중'}</p>
                 </div>
               ) : (
                 <PlayerSelector

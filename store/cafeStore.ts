@@ -10,6 +10,8 @@ import {
   removeCustomer,
   spawnCustomer,
   restockMenu,
+  pickRestockMenu,
+  discardHalfStock,
   MENU_ITEMS,
   UPGRADES,
 } from '@/lib/game/cafe'
@@ -32,7 +34,8 @@ interface CafeStore extends CafeGameState {
   removeExpiredCustomer: (customerId: string) => void
   resetGame: () => void
   updateCustomers: (currentTime: number) => void
-  restockMenu: (menuId: string) => void // 퀴즈 정답 시 메뉴 재고충전
+  restockMenu: (menuId: string) => void // 특정 메뉴 재고충전 (비법 레시피 등)
+  restockForCorrectAnswer: () => string | null // 퀴즈 정답 시: 손님 주문에 맞춰 메뉴를 골라 충전, 충전한 메뉴 ID 반환
   activeBuffs: ActiveBuff[]
   applyBuff: (itemId: ItemId, duration?: number) => void
   removeBuff: (itemId: ItemId) => void
@@ -40,6 +43,8 @@ interface CafeStore extends CafeGameState {
   activateGoldenSpatula: () => void
   consumeGoldenSpatula: () => void
   removeHalfCustomers: () => void
+  clearCustomers: () => void // 악성 리뷰: 줄 선 손님이 모두 떠난다
+  discardHalfStock: () => void // 바퀴벌레 경보: 재고 절반 폐기
   purchaseMenuFree: (menuId: string) => void
 }
 
@@ -119,6 +124,13 @@ export const useCafeStore = create<CafeStore>((set, get) => ({
     set((state) => restockMenu(state, menuId))
   },
 
+  restockForCorrectAnswer: () => {
+    const menuId = pickRestockMenu(get())
+    if (!menuId) return null
+    set((state) => restockMenu(state, menuId))
+    return menuId
+  },
+
   removeExpiredCustomer: (customerId: string) => {
     set((state) => removeCustomer(state, customerId))
   },
@@ -189,6 +201,14 @@ export const useCafeStore = create<CafeStore>((set, get) => ({
       ...state,
       customers: state.customers.slice(Math.ceil(state.customers.length / 2)),
     }))
+  },
+
+  clearCustomers: () => {
+    set((state) => ({ ...state, customers: [] }))
+  },
+
+  discardHalfStock: () => {
+    set((state) => discardHalfStock(state))
   },
 
   purchaseMenuFree: (menuId: string) => {

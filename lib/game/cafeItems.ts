@@ -67,7 +67,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     name: '악성 리뷰',
     emoji: '⭐',
     image: '/cafe-items/bad-review.webp',
-    description: '상대 카페에 15초간 손님 발길 끊김',
+    description: '상대 카페 손님이 모두 떠나고 15초간 발길 끊김',
     type: 'debuff',
     duration: 15000,
     rarity: 'common',
@@ -77,7 +77,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     name: '카피캣',
     emoji: '🐱',
     image: '/cafe-items/copy-cat.webp',
-    description: '1등 플레이어 메뉴 1개 무료 잠금 해제!',
+    description: '1등이 연 가장 비싼 메뉴 1개를 무료로 해금!',
     type: 'buff',
     rarity: 'rare',
   },
@@ -86,7 +86,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     name: '바퀴벌레 경보',
     emoji: '🪳',
     image: '/cafe-items/roach-alert.webp',
-    description: '상대 카페 손님 절반이 도망감!',
+    description: '상대 카페 손님 절반이 도망가고 재고도 절반 버려짐!',
     type: 'debuff',
     rarity: 'rare',
   },
@@ -114,6 +114,13 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
 
 /** 정답 한 번에 고를 수 있는 아이템 후보 개수 */
 export const ITEM_CHOICE_COUNT = 3
+
+/**
+ * 아이템을 고를 수 있는 시간(초). 지나면 자동으로 버프 하나를 골라 준다.
+ * 예전에는 3초였는데, 방해 아이템은 "아이템 → 대상" 두 번 눌러야 해서
+ * 대상을 고르기 전에 타이머가 건너뛰기를 눌러 버렸다(방해 아이템이 안 먹히던 원인).
+ */
+export const ITEM_CHOICE_SECONDS = 10
 
 /** 이만큼 연속으로 맞히면 희귀 아이템이 후보에 들어온다 */
 export const RARE_ITEM_STREAK = 3

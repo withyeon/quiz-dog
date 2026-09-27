@@ -59,6 +59,9 @@ const REMOTE_POS_FLUSH_MS = 100
 /** 이 시간(ms) 안에 좌표 패킷이 없으면 높이 기반 근사 위치로 돌아간다 */
 const REMOTE_POS_STALE_MS = 3000
 
+/** 점프점프 점수/에너지 DB 반영 최소 간격. 좌표는 broadcast로 200ms마다 따로 나간다. */
+const SCORE_COMMIT_INTERVAL_MS = 2000
+
 export default function DontLookDownPage() {
     const {
         roomCode,
@@ -350,13 +353,57 @@ export default function DontLookDownPage() {
             energy: Math.floor(player.energy),
         } satisfies RemotePosition)
 
-        // 데이터베이스 업데이트
-        const updateData = {
+        // 데이터베이스 업데이트 — 좌표 broadcast(200ms)와 달리 점수/에너지는 2초에 한 번만 쓴다.
+        // 예전에는 200ms마다 DB UPDATE + player:patch broadcast까지 나가서, 학생 25명이면
+        // 초당 DB 쓰기 125건이 각각 25명에게 다시 뿌려져(postgres_changes) 실시간 메시지 한도를
+        // 넘겼고, 그 사이 다른 게임의 공격 이벤트까지 함께 유실될 수 있었다.
+        queueScoreCommit(player.id, {
             score: Math.floor(player.height),
             gold: Math.floor(player.energy),
-        }
-        await commitPlayerPatch(player.id, updateData, 'dontlookdown_score_sync')
+        })
     }
+
+    const scoreCommitRef = useRef<{
+        lastAt: number
+        timer: number | null
+        pending: { playerId: string; patch: { score: number; gold: number } } | null
+        lastSent: { score: number; gold: number } | null
+    }>({ lastAt: 0, timer: null, pending: null, lastSent: null })
+
+    const flushScoreCommit = useCallback(() => {
+        const state = scoreCommitRef.current
+        state.timer = null
+        const next = state.pending
+        if (!next) return
+        state.pending = null
+        if (state.lastSent && state.lastSent.score === next.patch.score && state.lastSent.gold === next.patch.gold) return
+        state.lastAt = Date.now()
+        state.lastSent = next.patch
+        void commitPlayerPatch(next.playerId, next.patch, 'dontlookdown_score_sync').catch(() => {
+            // 실패해도 다음 주기에 최신 값으로 다시 시도된다
+        })
+    }, [commitPlayerPatch])
+
+    // 최신 값만 기억해 두고 2초 간격으로 쓴다(마지막 값은 반드시 뒤따라 써진다).
+    const queueScoreCommit = (targetPlayerId: string, patch: { score: number; gold: number }) => {
+        const state = scoreCommitRef.current
+        state.pending = { playerId: targetPlayerId, patch }
+        const elapsed = Date.now() - state.lastAt
+        if (elapsed >= SCORE_COMMIT_INTERVAL_MS) {
+            flushScoreCommit()
+            return
+        }
+        if (state.timer === null) {
+            state.timer = window.setTimeout(flushScoreCommit, SCORE_COMMIT_INTERVAL_MS - elapsed)
+        }
+    }
+
+    // 화면을 떠날 때 남은 값을 바로 쓴다
+    useEffect(() => () => {
+        const state = scoreCommitRef.current
+        if (state.timer !== null) window.clearTimeout(state.timer)
+        flushScoreCommit()
+    }, [flushScoreCommit])
 
     // 파워업 수집
     const handleCollectPowerUp = (powerUpId: string) => {

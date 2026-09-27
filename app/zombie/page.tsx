@@ -378,8 +378,14 @@ export default function ZombiePage() {
                     ))}
                   </div>
                 </div>
-                <Button onClick={() => router.push('/teacher/play')} size="lg" variant="outline" className="w-full border-4 border-gray-600 py-6 text-xl font-bold text-gray-300">
-                  대시보드로
+                {/* 이 화면은 학생용이다. 교사 대시보드가 아니라 학생 결과 페이지(정답률·복습 문제)로 보낸다. */}
+                <Button
+                  onClick={() => router.replace(`/student/game/${roomCode}/result?playerId=${playerId}&reason=zombie_finished`)}
+                  size="lg"
+                  variant="outline"
+                  className="w-full border-4 border-gray-600 py-6 text-xl font-bold text-gray-300"
+                >
+                  결과 보기
                 </Button>
               </CardContent>
             </Card>

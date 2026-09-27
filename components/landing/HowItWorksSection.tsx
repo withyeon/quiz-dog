@@ -1,11 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { FileUp, Gamepad2, KeyRound, ArrowRight } from 'lucide-react'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import PixelIcon from '@/components/ui/PixelIcon'
 
+/**
+ * screenshot: 실제 교사 화면 캡처(16:10, public/main/steps). 기능 카드와 같은 방식으로 찍었다
+ * (헤드리스 Chrome 1280×800@2x, /dev/shot 임시 페이지, 사이드바 잘라냄). 화면이 바뀌면 같은 구도로 교체.
+ *   upload → 문제 만들기에서 '수업 자료 넣기' 선택   pick → 게임 시작의 게임 모드 선택   code → 참가코드·QR 대기실
+ */
 const STEPS = [
   {
     icon: FileUp,
@@ -13,6 +19,7 @@ const STEPS = [
     time: '약 1분',
     title: '자료 올리기',
     description: 'PDF·문서·유튜브 링크를 올리면 AI가 알아서 문제를 뽑아줘요.',
+    screenshot: '/main/steps/upload.webp',
   },
   {
     icon: Gamepad2,
@@ -20,6 +27,7 @@ const STEPS = [
     time: '30초',
     title: '게임 고르기',
     description: '오늘 수업 분위기에 맞는 게임을 고르면 그대로 퀴즈가 실립니다.',
+    screenshot: '/main/steps/pick.webp',
   },
   {
     icon: KeyRound,
@@ -27,6 +35,7 @@ const STEPS = [
     time: '바로',
     title: '코드 공유하기',
     description: '화면에 뜬 6자리 코드만 알려주면 아이들이 바로 들어와요.',
+    screenshot: '/main/steps/code.webp',
   },
 ]
 
@@ -66,39 +75,53 @@ export default function HowItWorksSection({ animationsReady }: { animationsReady
                 className="relative"
               >
                 <div
-                  className="flex h-full flex-col rounded-[22px] p-6 sm:p-7"
+                  className="flex h-full flex-col overflow-hidden rounded-[22px]"
                   style={{
                     backgroundColor: '#FFFFFF',
                     border: '1px solid rgba(226,232,240,0.9)',
                     boxShadow: '0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)',
                   }}
                 >
-                  <div className="mb-5 flex items-center justify-between">
-                    <span
-                      className="flex h-14 w-14 items-center justify-center rounded-2xl"
-                      style={{ background: 'linear-gradient(135deg, #E0F2FE, #BAE6FD)' }}
-                    >
-                      <Icon className="h-7 w-7" style={{ color: '#0284C7' }} strokeWidth={2.4} />
-                    </span>
-                    <span className="text-3xl font-black" style={{ color: '#BAE6FD' }}>
-                      {item.step}
-                    </span>
+                  {/* 단계별 실제 화면. 번호 배지를 사진 위에 얹으면 화면 제목을 가려서 글 영역에 둔다 */}
+                  <div
+                    className="relative aspect-[16/10] w-full overflow-hidden"
+                    style={{ backgroundColor: '#F0F9FF', borderBottom: '1px solid rgba(226,232,240,0.9)' }}
+                  >
+                    <Image
+                      src={item.screenshot}
+                      alt={`${item.title} 화면`}
+                      fill
+                      sizes="(min-width: 1280px) 400px, (min-width: 768px) 33vw, 100vw"
+                      className="object-cover object-top"
+                    />
                   </div>
 
-                  <div className="mb-2 flex items-center gap-2">
-                    <h3 className="text-xl font-black sm:text-2xl" style={{ color: '#0F172A' }}>
-                      {item.title}
-                    </h3>
-                    <span
-                      className="rounded-full px-2.5 py-0.5 text-xs font-black"
-                      style={{ backgroundColor: '#F0F9FF', color: '#0369A1', border: '1px solid #BAE6FD' }}
-                    >
-                      {item.time}
-                    </span>
+                  <div className="flex flex-1 flex-col p-5 sm:p-6">
+                    <div className="mb-1.5 flex items-center gap-2.5">
+                      <span
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black text-white"
+                        style={{
+                          background: 'linear-gradient(180deg, #38BDF8, #0284C7)',
+                          boxShadow: '0 2px 0 #0369A1',
+                        }}
+                      >
+                        {item.step}
+                      </span>
+                      <Icon className="h-5 w-5 shrink-0" style={{ color: '#0284C7' }} strokeWidth={2.4} />
+                      <h3 className="text-lg font-black sm:text-xl" style={{ color: '#0F172A' }}>
+                        {item.title}
+                      </h3>
+                      <span
+                        className="rounded-full px-2.5 py-0.5 text-xs font-black"
+                        style={{ backgroundColor: '#F0F9FF', color: '#0369A1', border: '1px solid #BAE6FD' }}
+                      >
+                        {item.time}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed sm:text-[15px]" style={{ color: '#64748B' }}>
+                      {item.description}
+                    </p>
                   </div>
-                  <p className="text-[15px] leading-relaxed" style={{ color: '#64748B' }}>
-                    {item.description}
-                  </p>
                 </div>
 
                 {/* 카드 사이 화살표 (데스크톱) */}

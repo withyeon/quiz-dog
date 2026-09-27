@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { ArrowRight, Check } from 'lucide-react'
 import type { FeatureIntroItem } from '@/components/landing/featureIntroData'
@@ -30,7 +31,7 @@ export default function FeatureMenuCard({
       {/* 카드 전체가 /features의 해당 섹션으로 가는 링크 */}
       <Link href={item.href} className="block h-full">
         <motion.div
-          className="flex h-full flex-col rounded-[22px] p-6 transition-colors duration-200 sm:p-7"
+          className="flex h-full flex-col overflow-hidden rounded-[22px] transition-colors duration-200"
           style={{
             backgroundColor: '#FFFFFF',
             border: '2px solid rgba(226,232,240,0.9)',
@@ -41,40 +42,59 @@ export default function FeatureMenuCard({
             boxShadow: `0 14px 34px ${item.accent}22, 0 4px 12px rgba(15,23,42,0.08)`,
           }}
         >
-          <span
-            className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110"
-            style={{ backgroundColor: `${item.accent}1A` }}
+          {/* 사진이 주인공: 카드 폭 전체를 쓰는 큰 캡처. 글은 아래에 짧게만 */}
+          <div
+            className="relative aspect-[16/10] w-full overflow-hidden"
+            style={{ backgroundColor: `${item.accent}14`, borderBottom: '2px solid rgba(226,232,240,0.9)' }}
           >
-            <Icon className="h-7 w-7" style={{ color: item.accent }} strokeWidth={2.4} />
-          </span>
+            <Image
+              src={item.screenshot}
+              alt={`${item.title} 화면`}
+              fill
+              sizes="(min-width: 1280px) 600px, (min-width: 640px) 50vw, 100vw"
+              className="object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+            />
+          </div>
 
-          <h3 className="text-xl font-black sm:text-[22px]" style={{ color: '#0F172A' }}>
-            {item.title}
-          </h3>
-          <p className="mt-1.5 text-[15px] leading-relaxed" style={{ color: '#64748B' }}>
-            {item.description}
-          </p>
-
-          <ul className="mb-5 mt-5 flex-1 space-y-2.5">
-            {item.features.map((feature) => (
-              <li
-                key={feature}
-                className="flex items-start gap-2 text-sm font-bold leading-snug"
-                style={{ color: '#334155' }}
+          <div className="flex flex-1 flex-col gap-3 p-5 sm:p-6">
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
+                style={{ backgroundColor: `${item.accent}1A` }}
               >
-                <Check className="mt-0.5 h-4 w-4 shrink-0" style={{ color: item.accent }} strokeWidth={3} />
-                {feature}
-              </li>
-            ))}
-          </ul>
+                <Icon className="h-[18px] w-[18px]" style={{ color: item.accent }} strokeWidth={2.4} />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-lg font-black leading-tight sm:text-xl" style={{ color: '#0F172A' }}>
+                  {item.title}
+                </h3>
+                <p className="mt-0.5 text-sm" style={{ color: '#64748B' }}>
+                  {item.description}
+                </p>
+              </div>
+              <span
+                className="ml-auto hidden shrink-0 items-center gap-1 text-sm font-black sm:inline-flex"
+                style={{ color: item.accent }}
+              >
+                자세히
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
+              </span>
+            </div>
 
-          <span
-            className="mt-auto inline-flex items-center gap-1.5 text-sm font-black"
-            style={{ color: item.accent }}
-          >
-            자세히 보기
-            <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" />
-          </span>
+            {/* 세부 항목은 한 줄 칩으로 — 사진 아래 글이 길어지면 사진이 다시 조연이 된다 */}
+            <ul className="flex flex-wrap gap-1.5">
+              {item.features.map((feature) => (
+                <li
+                  key={feature}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
+                  style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', color: '#334155' }}
+                >
+                  <Check className="h-3 w-3 shrink-0" style={{ color: item.accent }} strokeWidth={3} />
+                  {feature}
+                </li>
+              ))}
+            </ul>
+          </div>
         </motion.div>
       </Link>
     </motion.article>

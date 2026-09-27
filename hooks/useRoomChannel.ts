@@ -80,8 +80,8 @@ export function useRoomChannel({
     payload?: TPayload,
   ): Promise<SendEventResult> => {
     const channel = channelRef.current
-    if (!channel || statusRef.current !== 'subscribed') {
-      return { ok: false, reason: 'channel_not_subscribed' }
+    if (!channel) {
+      return { ok: false, reason: 'no_channel' }
     }
 
     seqRef.current += 1
@@ -96,13 +96,27 @@ export function useRoomChannel({
       payload,
     }
 
-    const result = await channel.send({
-      type: 'broadcast',
-      event: 'room_event',
-      payload: event,
-    })
+    // 1) 채널이 살아 있으면 웹소켓으로 보낸다(ack 대기).
+    //    예전에는 채널이 '구독됨'이 아니면 여기서 조용히 포기했다. 교실 와이파이가 흔들려
+    //    소켓이 재연결 중(1~10초)일 때 뽑은 공격 아이템이 그대로 증발하던 원인.
+    let wsResult: string | null = null
+    if (statusRef.current === 'subscribed') {
+      try {
+        wsResult = await channel.send({ type: 'broadcast', event: 'room_event', payload: event })
+      } catch (error) {
+        wsResult = String(error)
+      }
+      if (wsResult === 'ok') return { ok: true }
+    }
 
-    return { ok: result === 'ok', reason: result === 'ok' ? undefined : String(result) }
+    // 2) 소켓이 끊겼거나 push가 실패/타임아웃이면 REST 브로드캐스트로 한 번 더 보낸다.
+    //    서버가 같은 채널 구독자에게 뿌려 주므로 내 소켓 상태와 무관하게 전달된다.
+    try {
+      await channel.httpSend('room_event', event as unknown as Record<string, unknown>)
+      return { ok: true, reason: wsResult ? `rest_after_${wsResult}` : 'rest_fallback' }
+    } catch (error) {
+      return { ok: false, reason: wsResult ?? (error instanceof Error ? error.message : String(error)) }
+    }
   }, [clientId, roomCode])
 
   const requestResync = useCallback((reason: RoomResyncReason = 'manual') => {

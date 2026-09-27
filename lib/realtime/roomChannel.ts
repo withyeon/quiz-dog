@@ -25,6 +25,7 @@ export type RoomEventType =
   | 'tutorial:hide'
   | 'gold_quest:attack_request'
   | 'gold_quest:attack_response'
+  | 'gold_quest:attack_notice'
   | 'battle:attacked'
   | 'battle:blizzard'
   | 'cafe:item_attack'
@@ -64,7 +65,6 @@ export type HostCandidate = Pick<PlayerRow, 'id'> & {
   is_online?: boolean | null
 }
 
-const CLIENT_ID_PREFIX = 'quizdog_client_id'
 export const ROOM_RUNTIME_EVENT = 'quizdog:room-runtime-event'
 
 export function emitRoomRuntimeEvent(event: RoomChannelEvent): void {
@@ -87,20 +87,27 @@ export function subscribeRoomRuntimeEvent(
   }
 }
 
+const roomClientIds = new Map<string, string>()
+
+/**
+ * 이 탭(페이지 로드)의 채널 클라이언트 ID. 메모리에만 두고 sessionStorage에는 저장하지 않는다.
+ * sessionStorage에 두면 "탭 복제"·"닫은 탭 다시 열기"로 생긴 탭이 같은 ID를 물려받아,
+ * 두 탭이 서로의 브로드캐스트를 '내가 보낸 것'으로 오인해 버렸다(공격 아이템이 안 먹히는 것처럼 보임).
+ */
 export function getRoomClientId(roomCode: string): string {
   if (typeof window === 'undefined') {
     return `server-${roomCode || 'unknown'}`
   }
 
-  const storageKey = `${CLIENT_ID_PREFIX}:${roomCode || 'global'}`
-  const existing = window.sessionStorage.getItem(storageKey)
+  const key = roomCode || 'global'
+  const existing = roomClientIds.get(key)
   if (existing) return existing
 
   const randomId = typeof window.crypto?.randomUUID === 'function'
     ? window.crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-  window.sessionStorage.setItem(storageKey, randomId)
+  roomClientIds.set(key, randomId)
   return randomId
 }
 

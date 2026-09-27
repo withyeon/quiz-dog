@@ -342,7 +342,8 @@ export default function GansikRunGame({
       if (payload.effect !== 'screen_flip' && payload.effect !== 'screen_shrink') return
 
       const durationMs = payload.durationMs ?? 7000
-      const expiresAt = payload.expiresAt ?? Date.now() + durationMs
+      // 보낸 기기의 expiresAt 대신 내 시계 기준으로 만료를 잡는다(기기 간 시계 오차 방어)
+      const expiresAt = Date.now() + durationMs
       const attack: ActiveScreenAttack = {
         id: `${payload.effect}-${event.seq}-${Date.now()}`,
         type: payload.effect,

@@ -35,6 +35,7 @@ import { isTerminalRoomStatus, type RoomStatus } from '@/lib/game/roomStatus'
 import { subscribeRoomRuntimeEvent, type RoomPatchPayload } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
 import { updatePlayer } from '@/lib/services/players'
+import type { AnswerRecord } from '@/hooks/useGameBase'
 import {
   checkQuestionAnswer,
   listQuestionsForGame,
@@ -51,6 +52,16 @@ type Player = Database['public']['Tables']['players']['Row'] & {
 type FactoryView = 'lobby' | 'prestartQuiz' | 'countdown' | 'quiz' | 'wrong' | 'result' | 'selection'
 
 const PRE_START_QUIZ_TOTAL = 3
+
+/** 0..n-1 인덱스를 섞어서 돌려준다 (Fisher–Yates). */
+function shuffleIndexes(n: number): number[] {
+  const order = Array.from({ length: n }, (_, i) => i)
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  return order
+}
 
 export default function FactoryPage() {
   const router = useRouter()
@@ -78,10 +89,18 @@ export default function FactoryPage() {
   const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
   const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
+  const [preStartOrder, setPreStartOrder] = useState<number[]>([])
   const [isPreStartAnswerLocked, setIsPreStartAnswerLocked] = useState(false)
 
   const questionStartTime = useRef<number>(0)
   const moneyRef = useRef(0)
+  // 정답/오답 기록. 편의점은 useGameBase를 쓰지 않아 여기서 직접 players.answer_history에 동기화한다.
+  // 이게 없으면 학생 결과·선생님 리포트에 "0번 풀어서 0번 정답"으로 나온다.
+  const [answerHistory, setAnswerHistory] = useState<AnswerRecord[]>([])
+  const answerHistoryRef = useRef<AnswerRecord[]>([])
+  const syncedHistoryLengthRef = useRef(0)
+  const hasRestoredHistoryRef = useRef(false)
+  const canSyncAnswerHistoryRef = useRef(true)
 
   // URL에서 roomCode와 playerId 가져오기
   useEffect(() => {
@@ -118,6 +137,25 @@ export default function FactoryPage() {
     await updatePlayer(playerId, patch)
   }, [playerId, sendRoomEvent])
 
+  // ─── 정답 기록 DB 동기화 ───
+  // flushAnswerHistory: 지금까지 쌓인 기록을 바로 저장. 게임 종료 직전에 호출해 마지막 답이 누락되지 않게 한다.
+  const flushAnswerHistory = useCallback(async () => {
+    if (!playerId || !canSyncAnswerHistoryRef.current) return
+    const history = answerHistoryRef.current
+    if (history.length === 0 || history.length === syncedHistoryLengthRef.current) return
+    try {
+      await updatePlayer(playerId, { answer_history: history as unknown as Json[] })
+      syncedHistoryLengthRef.current = history.length
+    } catch (error) {
+      const message = formatServiceError(error)
+      console.error('정답 기록 동기화 실패:', message, error)
+      // 구형 스키마에는 answer_history 컬럼이 없을 수 있다 → 이후 시도 중단
+      if (message.includes('answer_history') || message.includes('42703') || message.includes('column')) {
+        canSyncAnswerHistoryRef.current = false
+      }
+    }
+  }, [playerId])
+
   // 게임 모드 확인 및 리다이렉트
   useEffect(() => {
     if (!room || roomLoading) return
@@ -142,9 +180,12 @@ export default function FactoryPage() {
     setCurrentView('result')
     setShowCountdown(false)
     if (roomCode && playerId) {
-      router.replace(`/student/game/${roomCode}/result?playerId=${playerId}&reason=${encodeURIComponent(reason)}`)
+      // 결과 페이지는 DB의 answer_history를 읽으므로, 이동 전에 아직 저장 안 된 기록을 먼저 밀어 넣는다.
+      void flushAnswerHistory().finally(() => {
+        router.replace(`/student/game/${roomCode}/result?playerId=${playerId}&reason=${encodeURIComponent(reason)}`)
+      })
     }
-  }, [playerId, roomCode, router])
+  }, [flushAnswerHistory, playerId, roomCode, router])
 
   useEffect(() => {
     if (!roomCode) return
@@ -176,8 +217,12 @@ export default function FactoryPage() {
       setQuestionsLoading(true)
       setQuestionsError(null)
       try {
-        const loadedQuestions = await listQuestionsForGame(setId, { shuffle: true })
+        // 섞지 않고 문제집 순서 그대로 둔다. answer_history의 questionIndex가 결과 화면(문제집 순서)과
+        // 같은 번호를 가리켜야 "복습할 문제"가 실제 틀린 문항을 보여준다. 본게임은 어차피 랜덤 출제.
+        const loadedQuestions = await listQuestionsForGame(setId)
         setQuestions(loadedQuestions)
+        // 시작 전 3문제만 학생마다 다른 순서로 나오도록 인덱스 순서를 따로 섞는다.
+        setPreStartOrder(shuffleIndexes(loadedQuestions.length))
       } catch (error) {
         const msg = formatServiceError(error)
         console.error('Error fetching questions:', msg, error)
@@ -214,7 +259,9 @@ export default function FactoryPage() {
 
   // 무한 반복: 인덱스는 나머지로 사용, 다음 문제는 랜덤 선택
   const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
-  const preStartQuizQuestion = questions.length > 0 ? questions[preStartQuestionIndex % questions.length] : null
+  const preStartQuizQuestion = questions.length > 0
+    ? questions[preStartOrder[preStartQuestionIndex % questions.length] ?? (preStartQuestionIndex % questions.length)]
+    : null
   const isPreStartQuizComplete = preStartSubmittedCount >= PRE_START_QUIZ_TOTAL
 
   // 저장된 데이터 불러오기
@@ -226,8 +273,32 @@ export default function FactoryPage() {
       if (currentPlayer.convenience_products) {
         setProducts(normalizeSavedProducts(currentPlayer.convenience_products as unknown as Product[]))
       }
+      // 새로고침 방어: DB에 남은 기록을 한 번만 복구 (이후엔 로컬 기록이 원본)
+      if (!hasRestoredHistoryRef.current) {
+        hasRestoredHistoryRef.current = true
+        const saved = currentPlayer.answer_history
+        if (Array.isArray(saved) && saved.length > 0) {
+          const restored = saved as unknown as AnswerRecord[]
+          answerHistoryRef.current = restored
+          syncedHistoryLengthRef.current = restored.length
+          setAnswerHistory(restored)
+        }
+      }
     }
   }, [currentPlayer])
+
+  // 연속 답변을 묶어 DB 쓰기 횟수를 줄인다 (2초 debounce).
+  useEffect(() => {
+    if (!playerId || answerHistory.length === 0) return
+    const timer = window.setTimeout(() => { void flushAnswerHistory() }, 2000)
+    return () => window.clearTimeout(timer)
+  }, [answerHistory, playerId, flushAnswerHistory])
+
+  const recordAnswer = useCallback((record: AnswerRecord & { responseTimeMs?: number }) => {
+    const next = [...answerHistoryRef.current, record]
+    answerHistoryRef.current = next
+    setAnswerHistory(next)
+  }, [])
 
   // 게임 시작 감지
   useEffect(() => {
@@ -332,13 +403,20 @@ export default function FactoryPage() {
   }
 
   // 다음 문제: 랜덤 인덱스로 무한 반복
-  const pickRandomQuestionIndex = () => Math.floor(Math.random() * Math.max(1, questions.length))
+  // 직전 문제와 같은 인덱스는 피한다. 같은 문제가 다시 뽑히면 question.id가 바뀌지 않아
+  // QuizView가 답 제출 상태(버튼 잠김)에서 초기화되지 않고 그대로 멈춘다.
+  const pickRandomQuestionIndex = (prev: number) => {
+    const total = Math.max(1, questions.length)
+    if (total <= 1) return 0
+    const next = Math.floor(Math.random() * (total - 1))
+    return next >= prev % total ? next + 1 : next
+  }
 
   // 정답 후 다음 문제로 (3의 배수 아닐 때 클릭 시 즉시 이동)
   const goToNextQuiz = () => {
     setIsQuizMode(true)
     setCurrentView('quiz')
-    setCurrentQuestionIndex(() => pickRandomQuestionIndex())
+    setCurrentQuestionIndex((prev) => pickRandomQuestionIndex(prev))
     setSelectedAnswer('')
     setIsCorrect(false)
     questionStartTime.current = Date.now()
@@ -360,11 +438,18 @@ export default function FactoryPage() {
 
     setIsCorrect(correct)
 
+    const answerTimeMs = Date.now() - questionStartTime.current
+    recordAnswer({
+      questionIndex: questions.length > 0 ? currentQuestionIndex % questions.length : 0,
+      isCorrect: correct,
+      selectedAnswer: String(answer).trim(),
+      responseTimeMs: answerTimeMs,
+    })
+
     if (correct) {
       playSFX('correct')
 
       // 정답 속도 계산
-      const answerTimeMs = Date.now() - questionStartTime.current
       const speed = getAnswerSpeed(answerTimeMs, QUIZ_TIME_LIMIT)
       setLastAnswerSpeed(speed)
 
@@ -407,7 +492,7 @@ export default function FactoryPage() {
       setTimeout(() => {
         setCurrentView('quiz')
         setIsQuizMode(true)
-        setCurrentQuestionIndex(() => pickRandomQuestionIndex())
+        setCurrentQuestionIndex((prev) => pickRandomQuestionIndex(prev))
         setSelectedAnswer('')
         setIsCorrect(false)
         clearRevealedAnswer()
@@ -422,7 +507,7 @@ export default function FactoryPage() {
     setShowOrderModal(false)
     setIsQuizMode(true)
     setCurrentView('quiz')
-    setCurrentQuestionIndex(() => pickRandomQuestionIndex())
+    setCurrentQuestionIndex((prev) => pickRandomQuestionIndex(prev))
     setSelectedAnswer('')
     setIsCorrect(false)
     questionStartTime.current = Date.now()

@@ -32,7 +32,7 @@ import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import AnswerReveal from '@/components/AnswerReveal'
 import PixelIcon from '@/components/ui/PixelIcon'
 
-type ScreenAttack = { type: 'screen_flip' | 'screen_shrink'; expiresAt: number }
+type ScreenAttack = { type: 'screen_flip' | 'screen_shrink'; expiresAt: number; sourceName: string }
 
 export default function FishingPage() {
   const gameBase = useGameBase({ expectedGameMode: 'fishing' })
@@ -91,29 +91,43 @@ export default function FishingPage() {
     return () => window.clearTimeout(timer)
   }, [currentView, pendingPull, showItemModal, fishingState, handleOpenClaw])
 
+  // 공격 아이템(화면 뒤집기·축소)은 뽑은 순간 다른 친구들에게 broadcast 한다.
+  // 채널이 잠깐 끊겨 있으면(재연결 중) 전송이 조용히 실패하므로 몇 번 다시 시도한다.
   useEffect(() => {
     if (!pendingItem || !ATTACK_ITEM_TYPES.has(pendingItem.type)) return
     const effect = pendingItem.type === 'SCREEN_FLIP' ? 'screen_flip' : 'screen_shrink'
-    void sendRoomEvent('game:effect', {
-      mode: 'fishing',
-      effect,
-      sourcePlayerId: playerId,
-      sourceName: currentPlayer?.nickname ?? '친구',
-      durationMs: 7000,
-      expiresAt: Date.now() + 7000,
-    })
+    const durationMs = 7000
+    let cancelled = false
+    const send = async (attempt: number) => {
+      const result = await sendRoomEvent('game:effect', {
+        mode: 'fishing',
+        effect,
+        sourcePlayerId: playerId,
+        sourceName: currentPlayer?.nickname ?? '친구',
+        durationMs,
+        expiresAt: Date.now() + durationMs,
+      })
+      if (result.ok || cancelled || attempt >= 3) return
+      window.setTimeout(() => { void send(attempt + 1) }, 800)
+    }
+    void send(0)
+    return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingItem])
 
   useEffect(() => {
     return subscribeRoomRuntimeEvent((event) => {
       if (event.type !== 'game:effect') return
-      const p = event.payload as { mode?: string; effect?: string; sourcePlayerId?: string; expiresAt?: number }
+      const p = event.payload as { mode?: string; effect?: string; sourcePlayerId?: string; sourceName?: string; durationMs?: number }
       if (p.mode !== 'fishing') return
       if (p.sourcePlayerId === playerId) return
-      const type = p.effect as ScreenAttack['type']
-      const expiresAt = p.expiresAt ?? Date.now() + 7000
-      setScreenAttacks((prev) => [...prev.filter((a) => a.type !== type), { type, expiresAt }])
+      if (p.effect !== 'screen_flip' && p.effect !== 'screen_shrink') return
+      const type = p.effect
+      // 만료 시각은 내 시계 기준으로 계산한다. 보낸 기기의 expiresAt을 그대로 쓰면
+      // 두 기기 시계가 7초 이상 어긋난 경우 효과가 바로 사라지거나 아예 안 보인다.
+      const expiresAt = Date.now() + (p.durationMs ?? 7000)
+      const sourceName = p.sourceName ?? '친구'
+      setScreenAttacks((prev) => [...prev.filter((a) => a.type !== type), { type, expiresAt, sourceName }])
       window.setTimeout(() => {
         setScreenAttacks((prev) => prev.filter((a) => a.expiresAt > Date.now()))
       }, Math.max(0, expiresAt - Date.now()))
@@ -136,7 +150,27 @@ export default function FishingPage() {
     )
   }
 
+  const screenAttackSource = screenAttacks[screenAttacks.length - 1]?.sourceName
+
   return (
+    <>
+    {/* 공격당했음을 알리는 배너 — 뒤집힌 main 밖에 두어 항상 바로 읽힌다.
+        위치는 일반 div가 맡고 motion은 안쪽에만(motion animate가 Tailwind translate를 덮어쓰는 함정) */}
+    <div className="pointer-events-none fixed inset-x-4 top-16 z-[60] flex justify-center">
+      <AnimatePresence>
+        {screenAttacks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className="max-w-full rounded-xl border border-amber-300/60 bg-slate-900/85 px-4 py-2 text-center text-sm font-bold text-white shadow-xl"
+          >
+            <PixelIcon name={isFlipped ? 'flip' : 'scan'} size={18} alt="" className="inline-block align-[-4px]" />{' '}
+            {screenAttackSource}가 {isFlipped && isShrunk ? '화면을 뒤집고 줄였어요' : isFlipped ? '화면을 뒤집었어요' : '화면을 줄였어요'}! (7초)
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
     <main
       className={`fishing-ambient relative min-h-dvh overflow-hidden font-bitbit text-slate-900 transition-colors duration-700 ${isFrenzyEvent ? 'bg-[#fffaf2]' : 'bg-[#f8fbff]'}`}
       style={{
@@ -587,5 +621,6 @@ export default function FishingPage() {
         </div>
       )}
     </main>
+    </>
   )
 }

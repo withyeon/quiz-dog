@@ -8,7 +8,7 @@ import AttackAlert from '@/components/cafe/AttackAlert'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Trophy, Coins, Users } from 'lucide-react'
-import { formatCafeMoney, formatTime, MENU_ITEMS } from '@/lib/game/cafe'
+import { formatCafeMoney, formatTime, MENU_ITEMS, type CafePlayerMeta } from '@/lib/game/cafe'
 import { useGameBase } from '@/hooks/useGameBase'
 import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
@@ -63,10 +63,13 @@ export default function CafePage() {
     totalCashEarned,
     customersServed,
     stats,
+    unlockedMenus,
     startGame,
     resetGame,
     applyBuff,
     removeHalfCustomers,
+    clearCustomers,
+    discardHalfStock,
   } = useCafeStore()
 
   // 선생님이 시작(room.status='playing')하면 카페 게임을 시작한다.
@@ -126,15 +129,32 @@ export default function CafePage() {
 
       switch (payload.itemId) {
         case 'BAD_REVIEW':
+          // 줄 선 손님이 모두 떠나고, 지속 시간 동안 새 손님이 안 온다.
+          // (예전에는 새 손님만 막았는데, 손님 줄이 15초 인내심으로 이미 차 있어 티가 안 났다)
+          applyBuff(payload.itemId, payload.duration ?? item.duration)
+          clearCustomers()
+          break
         case 'PRICE_CRASH':
           applyBuff(payload.itemId, payload.duration ?? item.duration)
           break
         case 'ROACH_ALERT':
+          // 손님 절반이 도망가고 재고도 절반 버려진다.
+          // (손님만 줄이면 2초 만에 줄이 다시 차서 아무 효과가 없었다)
           removeHalfCustomers()
+          discardHalfStock()
           break
       }
     })
-  }, [applyBuff, playerId, removeHalfCustomers])
+  }, [applyBuff, clearCustomers, discardHalfStock, playerId, removeHalfCustomers])
+
+  // 내가 연 메뉴를 플레이어 행(active_item)에 실어 둔다. 카피캣이 1등의 메뉴를 보려면 필요하다.
+  useEffect(() => {
+    if (!playerId || status !== 'playing') return
+    const meta: CafePlayerMeta = { unlockedMenus }
+    void commitPlayerPatch(playerId, { active_item: meta }, 'cafe_menus_update').catch(() => {
+      // 동기화 실패는 게임 진행에 영향 없음(카피캣만 최신 정보를 못 볼 뿐)
+    })
+  }, [commitPlayerPatch, playerId, status, unlockedMenus])
 
   const handleAnswer = useCallback(async (answer: string) => {
     return checkAnswer(answer)

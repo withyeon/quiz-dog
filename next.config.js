@@ -18,6 +18,15 @@ const nextConfig = {
         destination: 'https://quizdog.kr/:path*',
         permanent: true,
       },
+      // 예전 배포 주소(quiz-dog-two.vercel.app)로 들어온 요청도 대표 주소로 넘긴다.
+      // 로그인 세션(localStorage)은 주소별로 따로 저장되므로, 옛 주소와 새 주소를
+      // 오가며 접속하면 매번 다시 로그인해야 하는 것처럼 보인다. 한 주소로 모아 이를 막는다.
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'quiz-dog-two.vercel.app' }],
+        destination: 'https://quizdog.kr/:path*',
+        permanent: true,
+      },
       // 게임 시작 화면 주소를 /teacher/dashboard → /teacher/play 로 정리했다.
       // 예전 주소를 북마크해 둔 선생님이 있을 수 있어 리다이렉트로 살려둔다.
       {

@@ -820,14 +820,14 @@ export default function TeacherDashboard() {
               <p className="mb-6 text-lg font-medium text-slate-500">
                 {activeModeConfig.requiresQuestionSet && !selectedSetId
                   ? '자료실에서 문제집을 고르면 게임을 시작할 수 있어요'
-                  : '모드를 고르고 새 게임 만들기'}
+                  : '모드를 고르고 시작하기'}
               </p>
               <button
                 onClick={handleCreateGame}
                 disabled={activeModeConfig.requiresQuestionSet && !selectedSetId}
                 className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-bold text-white shadow-sm shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
               >
-                새 게임 만들기
+                시작하기
               </button>
             </div>
           </div>

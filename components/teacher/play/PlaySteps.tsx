@@ -26,7 +26,7 @@ export function getPlaySteps(state: PlayStepState): { steps: Step[]; currentInde
   }
 
   steps.push(
-    { label: '방 만들기', hint: '새 게임 만들기 누르기' },
+    { label: '방 만들기', hint: '시작하기 누르기' },
     { label: '학생 입장', hint: '코드·QR 공유' },
     { label: '게임 진행', hint: '시작 후 진행 상황 확인' },
   )

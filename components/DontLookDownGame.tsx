@@ -930,8 +930,17 @@ export default function DontLookDownGame({
                         })}
                     </div>
 
-                    {uiPlayer.activePowerUps.size > 0 && (
+                    {(uiPlayer.activePowerUps.size > 0 || uiPlayer.hasShield) && (
                         <div className="mt-3 space-y-1">
+                            {uiPlayer.hasShield && (
+                                <div className="text-xs bg-sky-100 px-2 py-1 rounded flex items-center justify-between gap-2">
+                                    <span className="flex items-center gap-1.5">
+                                        <PowerUpIcon type="shield" size={16} />
+                                        {POWERUP_EFFECTS.shield.name}
+                                    </span>
+                                    <span className="font-bold">보호 중</span>
+                                </div>
+                            )}
                             {Array.from(uiPlayer.activePowerUps.entries()).map(([type, time]) => (
                                 <div key={type} className="text-xs bg-sky-100 px-2 py-1 rounded flex items-center justify-between gap-2">
                                     <span className="flex items-center gap-1.5">

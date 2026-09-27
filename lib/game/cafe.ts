@@ -391,5 +391,82 @@ export function removeCustomer(state: CafeGameState, customerId: string): CafeGa
   }
 }
 
+/**
+ * 정답을 맞혔을 때 어느 메뉴의 재고를 채울지 고른다.
+ *
+ * 예전에는 해금 메뉴 중 무작위였다. 그래서 토스트 손님 3명이 줄을 섰는데
+ * 시리얼만 채워지고, 시리얼을 막 해금하면 시리얼은 영영 안 채워지는 식으로
+ * 손님 주문과 재고가 어긋났다.
+ *
+ * 1순위: 지금 줄 선 손님이 주문했는데 재고가 0인 메뉴 (오래 기다린 손님부터)
+ * 2순위: 해금 메뉴 중 재고가 가장 적은 메뉴 (같으면 비싼 메뉴) — 새로 연 메뉴가 여기서 채워진다
+ */
+export function pickRestockMenu(state: CafeGameState): string | null {
+  if (state.unlockedMenus.length === 0) return null
+
+  const waiting = [...state.customers].sort((a, b) => a.spawnTime - b.spawnTime)
+  const unmet = waiting.find(
+    (customer) => state.unlockedMenus.includes(customer.order) && !hasStock(state, customer.order),
+  )
+  if (unmet) return unmet.order
+
+  return [...state.unlockedMenus].sort((a, b) => {
+    const stockDiff = (state.menuStock[a] || 0) - (state.menuStock[b] || 0)
+    if (stockDiff !== 0) return stockDiff
+    const priceA = MENU_ITEMS.find((m) => m.id === a)?.sellPrice ?? 0
+    const priceB = MENU_ITEMS.find((m) => m.id === b)?.sellPrice ?? 0
+    return priceB - priceA
+  })[0] ?? null
+}
+
+/** 바퀴벌레 경보: 모든 메뉴 재고가 절반(내림)으로 줄어든다 */
+export function discardHalfStock(state: CafeGameState): CafeGameState {
+  const menuStock: Record<string, number> = {}
+  for (const [menuId, stock] of Object.entries(state.menuStock)) {
+    menuStock[menuId] = Math.floor((stock || 0) / 2)
+  }
+  return { ...state, menuStock }
+}
+
+/**
+ * 카페 진행 정보를 players.active_item(jsonb)에 실어 둔다.
+ * 카피캣이 "1등이 어떤 메뉴를 열었는지" 알아야 해서 필요하다. 카페 방에서는
+ * active_item을 다른 용도로 쓰지 않으므로(좀비·마피아 전용) 충돌하지 않는다.
+ */
+export type CafePlayerMeta = {
+  unlockedMenus: string[]
+}
+
+export function getCafePlayerMenus(player: { active_item?: unknown } | null | undefined): string[] {
+  const meta = player?.active_item as Partial<CafePlayerMeta> | null | undefined
+  if (!meta || !Array.isArray(meta.unlockedMenus)) return []
+  return meta.unlockedMenus.filter((id): id is string => typeof id === 'string')
+}
+
+/**
+ * 카피캣: 나를 제외한 1등(점수 최고) 플레이어가 연 메뉴 중,
+ * 내가 아직 안 연 것 가운데 가장 비싼 메뉴 하나. 없으면 null.
+ *
+ * 예전에는 1등이 누군지만 확인하고 정작 메뉴는 "내가 안 연 첫 메뉴"를 줬다.
+ * 1등이 시리얼만 열었어도 나는 시리얼→우유→와플…이 차례로 열리는 버그.
+ */
+export function pickCopyCatMenu(
+  players: Array<{ id: string; score?: number | null; is_kicked?: boolean | null; active_item?: unknown }>,
+  currentPlayerId: string | null,
+  myUnlockedMenus: string[],
+): { topPlayer: { id: string } | null; menuId: string | null } {
+  const topPlayer = players
+    .filter((player) => player.id !== currentPlayerId && !player.is_kicked)
+    .sort((a, b) => (b.score || 0) - (a.score || 0))[0] ?? null
+  if (!topPlayer) return { topPlayer: null, menuId: null }
+
+  const theirMenus = new Set(getCafePlayerMenus(topPlayer))
+  const candidate = [...MENU_ITEMS]
+    .filter((menu) => theirMenus.has(menu.id) && !myUnlockedMenus.includes(menu.id))
+    .sort((a, b) => b.cost - a.cost)[0]
+
+  return { topPlayer, menuId: candidate?.id ?? null }
+}
+
 // 시간 포맷팅 (공통 유틸 re-export)
 export { formatTime } from '@/lib/utils/formatTime'

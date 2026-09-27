@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
 import { formatCafeMoney } from '@/lib/game/cafe'
-import type { CafeItem, ItemId } from '@/lib/game/cafeItems'
+import { ITEM_CHOICE_SECONDS, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import PixelIcon from '@/components/ui/PixelIcon'
 import CafeImage from '@/components/cafe/CafeImage'
@@ -31,24 +31,50 @@ export default function ItemChoiceModal({
   onSkip,
 }: ItemChoiceModalProps) {
   const [selectedItem, setSelectedItem] = useState<CafeItem | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(ITEM_CHOICE_SECONDS)
 
+  // 콜백은 ref로 들고 있는다. onSelect가 players(점수 동기화마다 바뀜)에 의존해
+  // 매번 새 함수가 되는데, 그걸 effect 의존성에 넣으면 타이머가 계속 초기화된다.
+  const onSelectRef = useRef(onSelect)
+  const onSkipRef = useRef(onSkip)
+  useEffect(() => {
+    onSelectRef.current = onSelect
+    onSkipRef.current = onSkip
+  }, [onSelect, onSkip])
+
+  // 선택 제한 시간. 방해 아이템을 눌러 대상 고르기로 넘어가면 다시 처음부터 센다.
+  // 시간이 다 되면: 대상 고르는 중이면 건너뛰기, 아니면 버프 중 하나를 대신 골라 준다.
   useEffect(() => {
     if (items.length === 0) return
 
-    const timer = setTimeout(() => {
-      const item = items[Math.floor(Math.random() * items.length)]
-      if (item.type === 'buff') {
-        onSelect(item.id)
-      } else {
-        onSkip()
-      }
-    }, 3000)
+    const deadline = Date.now() + ITEM_CHOICE_SECONDS * 1000
+    setSecondsLeft(ITEM_CHOICE_SECONDS)
 
-    return () => clearTimeout(timer)
-  }, [items, onSelect, onSkip])
+    const tick = setInterval(() => {
+      setSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)))
+    }, 250)
+
+    const timer = setTimeout(() => {
+      if (selectedItem) {
+        onSkipRef.current()
+        return
+      }
+      const buffs = items.filter(item => item.type === 'buff')
+      if (buffs.length === 0) {
+        onSkipRef.current()
+        return
+      }
+      onSelectRef.current(buffs[Math.floor(Math.random() * buffs.length)].id)
+    }, ITEM_CHOICE_SECONDS * 1000)
+
+    return () => {
+      clearInterval(tick)
+      clearTimeout(timer)
+    }
+  }, [items, selectedItem])
 
   const targets = players
-    .filter(player => player.id !== currentPlayerId)
+    .filter(player => player.id !== currentPlayerId && !player.is_kicked)
     .sort((a, b) => (b.score || 0) - (a.score || 0))
 
   return (
@@ -73,6 +99,17 @@ export default function ItemChoiceModal({
             {consecutiveCorrect}연속 정답! 희귀 아이템이 더 잘 나와요
           </div>
         )}
+        <div className="mt-3 flex items-center justify-center gap-2 text-sm font-bold text-slate-500">
+          <span className={secondsLeft <= 3 ? 'text-rose-600' : ''}>
+            {selectedItem ? '대상 고르기' : '아이템 고르기'} {secondsLeft}초
+          </span>
+          <span className="h-1.5 w-32 overflow-hidden rounded-full bg-slate-200">
+            <span
+              className={`block h-full rounded-full transition-[width] duration-300 ${secondsLeft <= 3 ? 'bg-rose-500' : 'bg-amber-400'}`}
+              style={{ width: `${(secondsLeft / ITEM_CHOICE_SECONDS) * 100}%` }}
+            />
+          </span>
+        </div>
       </div>
 
       {!selectedItem && (
@@ -124,7 +161,17 @@ export default function ItemChoiceModal({
 
       {selectedItem && (
         <div className="mt-4">
-          <p className="mb-3 font-black text-slate-800">누구에게 사용할까요?</p>
+          <p className="mb-3 font-black text-slate-800">
+            <span className="mr-2 inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-xs text-rose-700">
+              {selectedItem.name}
+            </span>
+            누구에게 사용할까요?
+          </p>
+          {targets.length === 0 && (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm font-bold text-slate-500">
+              방해할 상대가 아직 없어요
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {targets.map(player => (
               <button

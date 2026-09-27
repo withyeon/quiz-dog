@@ -13,6 +13,7 @@ import {
   formatCafeMoney,
   formatCafeMoneyDelta,
   formatTime,
+  pickCopyCatMenu,
 } from '@/lib/game/cafe'
 import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
 import { CAFE_ITEMS, GOLDEN_SPATULA_MULTIPLIER, getRandomItemChoices, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
@@ -82,6 +83,7 @@ export default function CafeView({
     addCustomer,
     updateCustomers,
     restockMenu,
+    restockForCorrectAnswer,
     applyBuff,
     activateGoldenSpatula,
     consumeGoldenSpatula,
@@ -99,6 +101,8 @@ export default function CafeView({
   const [showItemModal, setShowItemModal] = useState(false)
   const [restockedMenuName, setRestockedMenuName] = useState('')
   const [showGoldenEffect, setShowGoldenEffect] = useState(false)
+  // 아이템 결과 안내 (카피캣으로 무엇을 가져왔는지 등). 2.5초 뒤 사라진다.
+  const [notice, setNotice] = useState<{ id: number; text: string; tone: 'good' | 'bad' } | null>(null)
   const [currentTime, setCurrentTime] = useState(Date.now())
   const customerUpdateInterval = useRef<NodeJS.Timeout | null>(null)
   const timerInterval = useRef<NodeJS.Timeout | null>(null)
@@ -106,6 +110,16 @@ export default function CafeView({
 
   const { playSFX } = useAudioContext()
   const effectiveStatus = paused ? 'paused' : status
+
+  const showNotice = useCallback((text: string, tone: 'good' | 'bad' = 'good') => {
+    setNotice({ id: Date.now(), text, tone })
+  }, [])
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(null), 2500)
+    return () => clearTimeout(timer)
+  }, [notice])
 
   // 타이머
   useEffect(() => {
@@ -213,12 +227,15 @@ export default function CafeView({
           })
           break
         case 'COPY_CAT': {
-          const topPlayer = players
-            .filter(player => player.id !== currentPlayerId)
-            .sort((a, b) => (b.score || 0) - (a.score || 0))[0]
-          if (topPlayer) {
-            const newMenu = MENU_ITEMS.find(menu => !unlockedMenus.includes(menu.id))
-            if (newMenu) purchaseMenuFree(newMenu.id)
+          // 1등(나 제외)이 연 메뉴 중 내가 없는 가장 비싼 것 하나만 가져온다.
+          const { topPlayer, menuId } = pickCopyCatMenu(players, currentPlayerId, unlockedMenus)
+          if (menuId) {
+            purchaseMenuFree(menuId)
+            const menuName = MENU_ITEMS.find(menu => menu.id === menuId)?.name ?? menuId
+            const topName = players.find(player => player.id === topPlayer?.id)?.nickname ?? '1등'
+            showNotice(`카피캣! ${topName}의 ${menuName} 메뉴를 가져왔어요`)
+          } else {
+            showNotice(topPlayer ? '1등도 내가 없는 메뉴가 없어요' : '따라 할 상대가 없어요', 'bad')
           }
           break
         }
@@ -244,6 +261,7 @@ export default function CafeView({
     players,
     purchaseMenuFree,
     restockMenu,
+    showNotice,
     unlockedMenus,
   ])
 
@@ -271,12 +289,10 @@ export default function CafeView({
     if (correct) {
       playSFX('correct')
 
-      // 정답 시 랜덤 메뉴 재고충전
-      const availableMenus = unlockedMenus
-      if (availableMenus.length > 0) {
-        const randomMenu = availableMenus[Math.floor(Math.random() * availableMenus.length)]
-        restockMenu(randomMenu)
-        setRestockedMenuName(MENU_ITEMS.find(menu => menu.id === randomMenu)?.name || randomMenu)
+      // 정답 시 재고충전: 줄 선 손님이 기다리는(재고 0) 메뉴부터, 없으면 재고가 가장 적은 메뉴
+      const restocked = restockForCorrectAnswer()
+      if (restocked) {
+        setRestockedMenuName(MENU_ITEMS.find(menu => menu.id === restocked)?.name || restocked)
       }
 
       setItemChoices(getRandomItemChoices(consecutiveCorrect + 1))
@@ -373,6 +389,16 @@ export default function CafeView({
   }
 
   const isUrgent = timeRemaining <= 10 && effectiveStatus === 'playing'
+  const priceCrashed = hasActiveBuff('PRICE_CRASH')
+  const badReviewActive = hasActiveBuff('BAD_REVIEW')
+  const badReviewSeconds = badReviewActive
+    ? Math.max(0, Math.ceil(((activeBuffs.find(buff => buff.itemId === 'BAD_REVIEW')?.expiresAt ?? 0) - currentTime) / 1000))
+    : 0
+  // 말풍선에 보여 줄 판매가: 업그레이드 배율 + 가격 폭락(반토막)까지 반영
+  const getDisplayPrice = (sellPrice: number) => {
+    const base = Math.floor(sellPrice * upgrades.sellPriceMultiplier)
+    return priceCrashed ? Math.floor(base * 0.5) : base
+  }
 
   // 카운터 앞 손님들 (최대 5명)
   const customersInLine = customers.slice(0, MAX_CUSTOMERS_IN_LINE)
@@ -465,6 +491,25 @@ export default function CafeView({
         </div>
       </div>
 
+      {/* 아이템 결과 안내 */}
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            key={notice.id}
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            className="pointer-events-none absolute left-1/2 top-20 z-30 -translate-x-1/2"
+          >
+            <div className={`rounded-xl border-4 px-5 py-2 text-center text-base font-black shadow-xl sm:text-lg ${
+              notice.tone === 'good' ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-white text-slate-700'
+            }`}>
+              {notice.text}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* 오답 화면 */}
       {showWrong && (
         <motion.div
@@ -489,7 +534,17 @@ export default function CafeView({
           {/* 폰: 손님 5명 말풍선이 화면보다 넓어 잘리던 것 → 가로 스크롤. 가로 폰(높이≤500)은 줄 높이를 줄여 HUD·매대와 겹치지 않게 */}
           <div className="absolute bottom-56 [@media(max-height:500px)]:bottom-32 left-0 right-0 z-10">
             <div className="max-w-5xl mx-auto px-2 sm:px-4 overflow-x-auto overscroll-x-contain">
-              <div className="flex items-end justify-center gap-2 sm:gap-3 h-56 [@media(max-height:500px)]:h-32 w-max min-w-full mx-auto">
+              <div className="relative flex items-end justify-center gap-2 sm:gap-3 h-56 [@media(max-height:500px)]:h-32 w-max min-w-full mx-auto">
+                {badReviewActive && customersInLine.length === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-6 flex flex-col items-center gap-1 rounded-2xl border-4 border-rose-400 bg-white/95 px-5 py-3 text-center shadow-xl"
+                  >
+                    <span className="text-lg font-black text-rose-600">악성 리뷰 때문에 손님이 안 와요</span>
+                    <span className="text-sm font-bold text-slate-600">{badReviewSeconds}초 뒤 다시 손님이 와요</span>
+                  </motion.div>
+                )}
                 <AnimatePresence>
                   {customersInLine.map((customer, index) => {
                     const menu = MENU_ITEMS.find((m) => m.id === customer.order)
@@ -558,8 +613,8 @@ export default function CafeView({
                               />
                             </div>
                             <div className="text-xs sm:text-sm font-bold text-gray-800 mb-0.5 sm:mb-1 whitespace-nowrap">{menu.name}</div>
-                            <div className="text-xs font-semibold text-green-600">
-                              {formatCafeMoneyDelta(Math.floor(menu.sellPrice * upgrades.sellPriceMultiplier))}
+                            <div className={`text-xs font-semibold ${priceCrashed ? 'text-rose-600' : 'text-green-600'}`}>
+                              {formatCafeMoneyDelta(getDisplayPrice(menu.sellPrice))}
                             </div>
                           </div>
                         </motion.div>

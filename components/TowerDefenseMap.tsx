@@ -708,7 +708,7 @@ export default function TowerDefenseMap({
                 onClick={handleCanvasClick}
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
-                className={`block aspect-[4/3] h-auto w-auto max-w-full max-h-[calc(100dvh-210px)] rounded-lg border-4 border-gray-800 bg-white shadow-2xl ${selectedTowerType ? 'cursor-crosshair' : 'cursor-pointer'}`}
+                className={`block aspect-[4/3] h-auto w-auto max-w-full max-h-[calc(100dvh-210px)] rounded-lg border-4 border-gray-800 bg-slate-900 shadow-2xl ${selectedTowerType ? 'cursor-crosshair' : 'cursor-pointer'}`}
             />
 
             <div className="absolute right-4 top-4 rounded-lg border border-slate-200 bg-white/90 px-3 py-2 shadow-lg">

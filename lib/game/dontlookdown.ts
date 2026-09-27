@@ -825,10 +825,9 @@ function checkObstacleCollision(player: DLDPlayer, obstacle: Obstacle): boolean 
 export function handlePlayerFall(player: DLDPlayer, platforms: Platform[]): DLDPlayer {
     const updated = { ...player }
 
-    // 실드가 있으면 보호하고 실드 제거
+    // 실드가 켜져 있으면 한 번 보호하고 꺼진다 (실드는 사용 즉시 슬롯에서 빠져 hasShield로만 남는다)
     if (updated.hasShield) {
         updated.hasShield = false
-        updated.powerUps = updated.powerUps.filter(p => p.type !== 'shield')
         return updated
     }
 
@@ -964,6 +963,8 @@ export function applyPowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer
 
     switch (powerUp.type) {
         case 'shield':
+            // 사용 즉시 보호 상태가 되고 슬롯은 비운다. 예전엔 위험에 닿기 전까지 슬롯을
+            // 차지해서, 실드 2개를 들면 새 아이템을 먹을 수 없었다. 이미 보호 중이면 그냥 소모된다.
             updated.hasShield = true
             break
         case 'rocket':
@@ -984,9 +985,8 @@ export function applyPowerUp(player: DLDPlayer, powerUpIndex: number): DLDPlayer
             break
     }
 
-    if (powerUp.type !== 'shield') {
-        updated.powerUps = updated.powerUps.filter((_, i) => i !== powerUpIndex)
-    }
+    // 모든 파워업은 사용하면 슬롯에서 빠진다 (2배 점수는 activePowerUps 만료 시 정리).
+    updated.powerUps = updated.powerUps.filter((_, i) => i !== powerUpIndex)
 
     return updated
 }
