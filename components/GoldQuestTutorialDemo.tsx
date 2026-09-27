@@ -3,14 +3,18 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
+import ChestView from '@/components/ChestView'
+import PlayerSelector from '@/components/PlayerSelector'
+import ShieldPromptModal from '@/components/ShieldPromptModal'
 import {
+  BOX_EVENT_IMAGE,
   CHEST_COUNT,
   GOLD_LOSS_RATE,
-  GOLD_MULTIPLIER,
   GOLD_STEAL_RATE,
   MAX_GOLD_STACK,
   SHIELD_STREAK,
   toPercent,
+  type BoxEvent,
 } from '@/lib/game/goldQuest'
 import {
   TutorialDemoFrame,
@@ -19,13 +23,16 @@ import {
   StageCard,
   TapPointer,
   PLAYER_NAME,
-  type HudMetric,
+  PLAYER_AVATAR,
+  RIVALS,
+  type HudChip,
 } from '@/components/tutorial/TutorialDemoFrame'
 
 /**
  * 해적왕의 보물찾기 — 자동 재생되는 "플레이 영상" 데모.
- * 실제 게임 흐름 그대로 재현합니다.
- *   (lib/game/goldQuest.ts · components/ChestView.tsx · app/game/page.tsx)
+ * 실제 게임 화면을 만드는 컴포넌트를 그대로 가져와 그린다:
+ *   ChestView(상자 고르기·보상 팝업) · PlayerSelector(상대 고르기) · ShieldPromptModal(방어권 질문)
+ *   (lib/game/goldQuest.ts · app/game/page.tsx)
  * 장면 7개는 튜토리얼 규칙 7장과 1:1로 맞춰 두었습니다.
  * 선생님이 규칙을 넘기면 같은 번호의 장면이 뜹니다.
  * 화면에 나오는 숫자는 전부 상수에서 계산하므로 밸런스가 바뀌면 데모도 따라 바뀝니다.
@@ -54,11 +61,32 @@ const GOLD_BY_PHASE: Record<string, { value: number; from?: number }> = {
   rank: { value: GOLD_AFTER_STEAL },
 }
 
-const CHEST_INDEXES = Array.from({ length: CHEST_COUNT }, (_, i) => i)
 /** 손가락은 늘 가운데 상자를 누릅니다. */
 const PICKED_CHEST_INDEX = Math.floor(CHEST_COUNT / 2)
 
-const RIVAL_AVATAR = '/assets/icons/mascot_sigol-64.png'
+/** 상자에서 나오는 결과 — 실제 generateBoxEvent 가 만드는 것과 같은 모양(문구도 같음) */
+const CROWN_EVENT: BoxEvent = {
+  type: 'GOLD_STACK',
+  value: CROWN_GOLD,
+  message: `전설의 황금 왕관을 발견했다! +${CROWN_GOLD} 골드`,
+  itemName: '황금 왕관',
+  icon: '💰',
+  image: '/gold-quest/golden-crown.webp',
+}
+const DRAGON_EVENT: BoxEvent = {
+  type: 'DRAGON',
+  value: DRAGON_LOSS,
+  message: `드래곤에게 습격당했다. -${DRAGON_LOSS} 골드`,
+  itemName: '드래곤',
+  icon: '🐉',
+}
+
+type SelectorPlayers = Parameters<typeof PlayerSelector>[0]['players']
+/** 상대 고르기 화면에 나오는 친구들 — 실제 players 행과 같은 필드만 채운다 */
+const RIVAL_PLAYERS = [
+  { id: 'rival-0', nickname: RIVALS[0].name, avatar: RIVALS[0].avatar, gold: RIVAL_GOLD, score: RIVAL_GOLD },
+  { id: 'rival-1', nickname: RIVALS[1].name, avatar: RIVALS[1].avatar, gold: 90, score: 90 },
+] as unknown as SelectorPlayers
 
 /**
  * 장면이 뜬 뒤 한 박자 늦게 켜지는 스위치.
@@ -71,31 +99,6 @@ function useDelayedFlag(delay = 1000): boolean {
     return () => clearTimeout(timer)
   }, [delay])
   return on
-}
-
-/** 게임 공통 유리 패널 */
-function Panel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <div
-      className={`font-bitbit rounded-3xl border border-white/25 bg-slate-900/60 p-5 shadow-2xl backdrop-blur-md ${className}`}
-    >
-      {children}
-    </div>
-  )
-}
-
-/** 큰 결과 뱃지 */
-function ResultBadge({ text }: { text: string }) {
-  return (
-    <motion.div
-      initial={{ scale: 0.6, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 360, damping: 16 }}
-      className="lg-banner-correct font-bitbit mx-auto mt-4 w-fit px-5 py-2 text-center text-base font-black text-white drop-shadow sm:text-lg"
-    >
-      {text}
-    </motion.div>
-  )
 }
 
 /** 규칙 1 — 정답을 골라야 상자가 열립니다 */
@@ -111,223 +114,121 @@ function QuizScene() {
   )
 }
 
-/** 규칙 2·3 — 상자를 고르고, 열어서 골드를 받는 무대 */
-function ChestScene({ opened }: { opened: boolean }) {
+/**
+ * 규칙 2·3·4 — 실제 ChestView 그대로.
+ * reward 를 주면 실제 게임처럼 상자가 열리고 보상 팝업이 뜬다(프레임 안에 갇힘).
+ */
+function ChestScene({ reward }: { reward: BoxEvent | null }) {
+  const picked = useDelayedFlag(900)
+  const selected = reward && picked ? PICKED_CHEST_INDEX : null
   return (
-    <StageCard id="gold-quest-chest" className="w-full max-w-2xl">
-      <Panel>
-        <p className="mb-4 text-center text-base font-black text-amber-300 sm:text-lg">
-          {opened ? '황금 왕관을 찾았어요!' : `상자 ${CHEST_COUNT}개 중 하나를 골라요`}
-        </p>
-        <div
-          className="grid gap-3 sm:gap-4"
-          style={{ gridTemplateColumns: `repeat(${CHEST_COUNT}, minmax(0, 1fr))` }}
-        >
-          {CHEST_INDEXES.map((index) => {
-            const isPicked = index === PICKED_CHEST_INDEX
-            const isOpen = opened && isPicked
-            return (
-              <motion.div
-                key={index}
-                animate={isOpen ? { y: [0, -12, 0] } : { y: 0 }}
-                transition={{ duration: 0.6 }}
-                className={`relative flex min-h-[150px] flex-col items-center justify-center rounded-2xl border-2 p-3 sm:min-h-[180px] ${
-                  isOpen
-                    ? 'border-amber-400 bg-amber-50/95'
-                    : opened
-                      ? 'border-white/25 bg-white/20 opacity-50'
-                      : 'border-amber-200/60 bg-white/85'
-                }`}
-              >
-                <Image
-                  src={isOpen ? '/gold-quest/golden-crown.webp' : '/gold-quest/quest.webp'}
-                  alt=""
-                  width={110}
-                  height={110}
-                  className="h-20 w-20 drop-shadow-lg sm:h-24 sm:w-24"
-                />
-                {isOpen ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-2 text-center"
-                  >
-                    <div className="text-sm font-black text-amber-700">황금 왕관</div>
-                    <div className="text-lg font-black text-emerald-600">+{CROWN_GOLD} G</div>
-                  </motion.div>
-                ) : (
-                  <div className="mt-2 text-sm font-black text-slate-500">{index + 1}번 상자</div>
-                )}
-                {!opened && isPicked && <TapPointer />}
-              </motion.div>
-            )
-          })}
+    <StageCard id={`gold-quest-chest-${reward?.type ?? 'pick'}`} className="relative w-full max-w-2xl">
+      {/* 데모 무대는 실제 화면보다 작으니 상자 패널을 zoom 으로 줄여 담는다 (transform 은 레이아웃 크기가 안 줄어 잘린다) */}
+      <div style={{ zoom: 0.7 }}>
+        <ChestView onChestSelect={() => {}} selectedChest={selected} reward={reward && picked ? reward : null} isProcessing={false} />
+      </div>
+      {!reward && (
+        <div className="pointer-events-none absolute left-1/2 top-[58%]">
+          <TapPointer className="left-0 top-0" />
         </div>
-      </Panel>
+      )}
+    </StageCard>
+  )
+}
 
-      {/* 상자에는 골드를 몇 배로 불려주는 아이템도 들어 있습니다 */}
-      {opened && (
+/** 규칙 5 — 마법사를 찾으면 친구 골드를 가져옵니다 (실제 PlayerSelector 그대로) */
+function StealScene() {
+  const picked = useDelayedFlag(1400)
+  return (
+    <StageCard id="gold-quest-steal" className="relative w-full max-w-2xl">
+      <div style={{ zoom: 0.85 }}>
+        <PlayerSelector
+          players={RIVAL_PLAYERS}
+          currentPlayerId="me"
+          onSelect={() => {}}
+          title="마법사의 계약서"
+          description={`골드 ${toPercent(GOLD_STEAL_RATE.WIZARD)}%를 가져올 상대를 선택하세요. (15초)`}
+          icon="🧙"
+          iconImage={BOX_EVENT_IMAGE.WIZARD}
+        />
+      </div>
+      {!picked && (
+        <div className="pointer-events-none absolute left-[30%] top-[62%]">
+          <TapPointer className="left-0 top-0" />
+        </div>
+      )}
+      {picked && (
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="font-bitbit mt-4 flex flex-wrap items-center justify-center gap-2"
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 16 }}
+          className="pointer-events-none absolute inset-x-0 bottom-3 mx-auto w-fit rounded-lg border border-emerald-300/80 bg-emerald-100/95 px-5 py-3 text-center text-base font-black text-emerald-900 shadow-lg"
         >
-          {[
-            { image: '/gold-quest/unicorn.webp', label: `유니콘 ${GOLD_MULTIPLIER.UNICORN}배` },
-            { image: '/gold-quest/jester.webp', label: `광대 ${GOLD_MULTIPLIER.JESTER}배` },
-          ].map((item) => (
-            <span
-              key={item.label}
-              className="flex items-center gap-2 rounded-full bg-black/50 px-3.5 py-1.5 text-sm font-black text-white backdrop-blur"
-            >
-              <Image src={item.image} alt="" width={24} height={24} className="h-6 w-6 object-contain" />
-              {item.label}
-            </span>
-          ))}
+          {RIVALS[0].name}님의 골드 {STEAL_GAIN}을 가져왔다!
         </motion.div>
       )}
     </StageCard>
   )
 }
 
-/** 규칙 4 — 드래곤 함정이 골드를 가져갑니다 */
-function TrapScene() {
-  return (
-    <StageCard id="gold-quest-trap" className="w-full max-w-xl">
-      <Panel className="flex flex-col items-center">
-        <motion.div
-          initial={{ scale: 0.5, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ type: 'spring', stiffness: 240, damping: 15 }}
-          className="relative h-32 w-32 sm:h-40 sm:w-40"
-        >
-          <Image src="/gold-quest/dragon.webp" alt="" fill className="object-contain drop-shadow-xl" sizes="160px" />
-        </motion.div>
-        <p className="mt-3 text-base font-black text-white sm:text-lg">드래곤에게 습격당했다</p>
-        <motion.span
-          animate={{ opacity: [0, 1, 1], y: [0, -12, -18] }}
-          transition={{ duration: 1.1, delay: 0.4, times: [0, 0.5, 1] }}
-          className="mt-2 rounded-full bg-rose-500 px-4 py-1.5 text-base font-black text-white shadow-lg"
-        >
-          -{DRAGON_LOSS} 골드 (가진 골드의 {toPercent(GOLD_LOSS_RATE.DRAGON)}%)
-        </motion.span>
-      </Panel>
-    </StageCard>
-  )
-}
-
-/** 규칙 5 — 마법사를 찾으면 친구 골드를 가져옵니다 */
-function StealScene() {
-  const taken = useDelayedFlag(1400)
-  const rivals = [
-    { name: '냥냥이', gold: RIVAL_GOLD, target: true },
-    { name: '뽀삐', gold: 90, target: false },
-  ]
-
-  return (
-    <StageCard id="gold-quest-steal" className="w-full max-w-xl">
-      <Panel>
-        <div className="mb-4 flex items-center justify-center gap-3">
-          <Image src="/gold-quest/wizard.webp" alt="" width={56} height={56} className="h-12 w-12 object-contain" />
-          <p className="text-base font-black text-amber-300 sm:text-lg">
-            골드 {toPercent(GOLD_STEAL_RATE.WIZARD)}%를 가져올 친구를 골라요
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {rivals.map((rival) => (
-            <motion.div
-              key={rival.name}
-              animate={taken && rival.target ? { scale: [1, 1.05, 1] } : {}}
-              transition={{ duration: 0.5 }}
-              className={`relative flex flex-col items-center gap-2 rounded-2xl p-4 ${
-                taken && rival.target
-                  ? 'bg-white/90 ring-2 ring-amber-300'
-                  : taken
-                    ? 'bg-white/20 opacity-50'
-                    : 'bg-white/85'
-              }`}
-            >
-              <div className="relative h-14 w-14 overflow-hidden rounded-full bg-amber-100">
-                <Image src={RIVAL_AVATAR} alt={rival.name} fill className="object-contain p-1" sizes="56px" />
-              </div>
-              <span className="text-base font-black text-[#17262a]">{rival.name}</span>
-              <span className="text-sm font-black tabular-nums text-amber-600">
-                {(taken && rival.target ? rival.gold - STEAL_GAIN : rival.gold).toLocaleString()} G
-              </span>
-              {!taken && rival.target && <TapPointer />}
-            </motion.div>
-          ))}
-        </div>
-      </Panel>
-      {taken && <ResultBadge text={`냥냥이 골드 ${STEAL_GAIN}을 가져왔어요`} />}
-    </StageCard>
-  )
-}
-
-/** 규칙 6 — 연속 정답으로 받은 방어권이 함정과 도둑을 막아줍니다 */
+/** 규칙 6 — 방어권이 있으면 함정·도둑을 막을지 물어봅니다 (실제 ShieldPromptModal 그대로) */
 function ShieldScene() {
-  const blocked = useDelayedFlag(1400)
-
+  const [expiresAt] = useState(() => Date.now() + 5000)
+  const [answered, setAnswered] = useState(false)
+  useEffect(() => {
+    const timer = setTimeout(() => setAnswered(true), 2400)
+    return () => clearTimeout(timer)
+  }, [])
   return (
-    <StageCard id="gold-quest-shield" className="w-full max-w-xl">
-      <Panel className="flex flex-col items-center">
-        {/* 실제 화면의 연속 정답 표시와 같은 뜻 */}
-        <div className="mb-4 flex items-center gap-2.5 rounded-full bg-black/50 px-4 py-2 backdrop-blur">
-          <span className="text-sm font-black text-white sm:text-base">연속 정답 {SHIELD_STREAK}</span>
-          <span className="flex items-center gap-1.5">
-            {Array.from({ length: SHIELD_STREAK }, (_, i) => (
-              <motion.span
-                key={i}
-                initial={{ scale: 0.7 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: i * 0.15, type: 'spring', stiffness: 400, damping: 18 }}
-                className="h-3 w-3 rounded-full bg-amber-400"
-              />
-            ))}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-center gap-4">
-          <motion.div
-            className="relative h-16 w-16"
-            animate={blocked ? { x: [0, 20, 10], opacity: [1, 1, 0.35] } : { x: 0, opacity: 1 }}
-            transition={{ duration: 0.8 }}
-          >
-            <Image src="/gold-quest/slime.webp" alt="" fill className="object-contain" sizes="64px" />
-          </motion.div>
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 260, damping: 16, delay: 0.5 }}
-            className="relative h-28 w-28 sm:h-32 sm:w-32"
-          >
-            <Image src="/gold-quest/shield.webp" alt="" fill className="object-contain drop-shadow-xl" sizes="128px" />
-          </motion.div>
-          <motion.div
-            className="relative h-16 w-16"
-            animate={blocked ? { x: [0, -20, -10], opacity: [1, 1, 0.35] } : { x: 0, opacity: 1 }}
-            transition={{ duration: 0.8 }}
-          >
-            <Image src="/gold-quest/elf.webp" alt="" fill className="object-contain" sizes="64px" />
-          </motion.div>
-        </div>
-      </Panel>
-      {blocked && <ResultBadge text="방어권으로 막았어요! 골드 그대로" />}
+    <StageCard id="gold-quest-shield" className="relative w-full max-w-2xl">
+      <div style={{ zoom: 0.7 }}>
+        <ChestView onChestSelect={() => {}} selectedChest={null} reward={null} isProcessing={false} />
+      </div>
+      {!answered ? (
+        <>
+          <ShieldPromptModal message={`${RIVALS[1].name}님이 엘프 효과를 사용했습니다.`} expiresAt={expiresAt} onAnswer={() => {}} />
+          <div className="pointer-events-none absolute left-[62%] top-[70%] z-[95]">
+            <TapPointer className="left-0 top-0" />
+          </div>
+        </>
+      ) : (
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 360, damping: 16 }}
+          className="pointer-events-none absolute inset-x-0 top-1/2 mx-auto flex w-fit -translate-y-1/2 items-center gap-3 rounded-lg border border-emerald-300/80 bg-emerald-100/95 px-5 py-4 text-center text-lg font-black text-emerald-900 shadow-lg"
+        >
+          <Image src="/gold-quest/shield.webp" alt="" width={40} height={40} className="h-10 w-10 object-contain" />
+          {RIVALS[1].name}님의 공격을 방어권으로 막았습니다!
+        </motion.div>
+      )}
     </StageCard>
   )
+}
+
+function chipsFor(phase: string): HudChip[] {
+  const gold = GOLD_BY_PHASE[phase] ?? { value: START_GOLD }
+  const hasShield = phase === 'shield' || phase === 'rank'
+  return [
+    { label: '골드', value: gold.value, from: gold.from, icon: '/gold-quest/gold-stack.webp', tone: 'default' },
+    { label: '방어권', value: hasShield ? '보유' : '없음', icon: '/gold-quest/shield.webp', tone: hasShield ? 'emerald' : 'default' },
+  ]
 }
 
 export default function GoldQuestTutorialDemo() {
   return (
     <TutorialDemoFrame
+      mode="gold_quest"
       backgroundSrc="/background/gold-quest.webp"
-      metric={(phase): HudMetric => ({
-        icon: '/gold-quest/gold-stack.webp',
-        value: GOLD_BY_PHASE[phase]?.value ?? START_GOLD,
-        from: GOLD_BY_PHASE[phase]?.from,
-        suffix: 'G',
-      })}
+      chips={chipsFor}
+      notice={(phase) =>
+        phase === 'shield' ? (
+          /* 실제 화면의 shieldNotice 띠와 같은 클래스 */
+          <div className="rounded-lg border border-emerald-300/80 bg-emerald-100/90 px-4 py-2 text-center text-sm font-black text-emerald-900 shadow-lg shadow-emerald-950/10 sm:text-base">
+            {SHIELD_STREAK}연속 정답 - 방어권 획득!
+          </div>
+        ) : null
+      }
       /* 규칙 7장과 1:1 — lib/game/tutorials.ts 의 gold_quest 슬라이드 순서와 같습니다 */
       phases={[
         { key: 'quiz', duration: 2800, step: 1, caption: '퀴즈를 맞혀야 상자를 열 수 있어요' },
@@ -340,20 +241,21 @@ export default function GoldQuestTutorialDemo() {
       ]}
     >
       {({ phase }) => {
-        if (phase === 'quiz') return <QuizScene />
-        if (phase === 'chest') return <ChestScene opened={false} />
-        if (phase === 'gold') return <ChestScene opened />
-        if (phase === 'trap') return <TrapScene />
-        if (phase === 'steal') return <StealScene />
-        if (phase === 'shield') return <ShieldScene />
-
+        if (phase === 'quiz') return <QuizScene key="quiz" />
+        if (phase === 'chest') return <ChestScene key="chest" reward={null} />
+        if (phase === 'gold') return <ChestScene key="gold" reward={CROWN_EVENT} />
+        if (phase === 'trap') return <ChestScene key="trap" reward={DRAGON_EVENT} />
+        if (phase === 'steal') return <StealScene key="steal" />
+        if (phase === 'shield') return <ShieldScene key="shield" />
         return (
           <MiniLeaderboard
-            suffix=" G"
+            key="rank"
+            title="골드 순위"
+            suffix="골드"
             rows={[
-              { name: PLAYER_NAME, value: GOLD_AFTER_STEAL, me: true },
-              { name: '냥냥이', value: RIVAL_GOLD - STEAL_GAIN },
-              { name: '뽀삐', value: 90 },
+              { name: PLAYER_NAME, value: GOLD_AFTER_STEAL, me: true, avatar: PLAYER_AVATAR },
+              { name: RIVALS[0].name, value: RIVAL_GOLD - STEAL_GAIN, avatar: RIVALS[0].avatar },
+              { name: RIVALS[1].name, value: 90, avatar: RIVALS[1].avatar },
             ]}
           />
         )

@@ -22,7 +22,11 @@ export type GameModeInfo = {
    * 사파리는 mp4를 받는다. 같은 화질에서 webm이 1/4 정도로 가볍다.
    */
   previewVideo?: { webm?: string; mp4: string }
-  /** 호버 시 보여줄 플레이 화면 이미지 */
+  /**
+   * 호버 시 보여줄 플레이 화면 이미지.
+   * 배경 아트가 있는 게임은 /background/*.webp, 캔버스 게임(점프점프·간식런·강아지대소동)은
+   * /dev로 방을 만들어 실제 플레이 화면을 1280×800(16:10)으로 찍은 public/main/games/*.webp
+   */
   previewImage?: string
 }
 
@@ -36,10 +40,10 @@ const GAME_MODE_CARDS: GameModeCardDef[] = [
   { modeId: 'cafe', name: '달콤 바삭 카페', titleImage: '/title/cafe.webp', emoji: '☕', color: '#F97316', bg: 'rgba(249,115,22,0.15)', previewImage: '/background/cafe.webp' },
   { modeId: 'mafia', name: '쉿! 마피아', titleImage: '/title/mafia.webp', emoji: '🕴️', color: '#6B7280', bg: 'rgba(107,114,128,0.15)', previewImage: '/background/mafia.webp' },
   { modeId: 'tower', name: '타워 디펜스', titleImage: '/title/tower-defense.webp', emoji: '🏰', color: '#6366F1', bg: 'rgba(99,102,241,0.15)', previewVideo: { webm: '/main/mp4/tower-defense.webm', mp4: '/main/mp4/tower-defense.mp4' }, previewImage: '/background/tower-defense.webp' },
-  { modeId: 'dontlookdown', name: '점프점프', titleImage: '/title/jump_jump.webp', emoji: '⛰️', color: '#14B8A6', bg: 'rgba(20,184,166,0.15)' },
+  { modeId: 'dontlookdown', name: '점프점프', titleImage: '/title/jump_jump.webp', emoji: '⛰️', color: '#14B8A6', bg: 'rgba(20,184,166,0.15)', previewImage: '/main/games/dontlookdown.webp' },
   { modeId: 'zombie', name: '좀비를 피해라', titleImage: '/title/zombie.webp', emoji: '🧟', color: '#22C55E', bg: 'rgba(34,197,94,0.14)', previewImage: '/zombie/background.png' },
-  { modeId: 'treat_rush', name: '간식런', titleImage: '/title/gansik-run.webp', emoji: '🍪', color: '#A855F7', bg: 'rgba(168,85,247,0.14)' },
-  { modeId: 'poop_dodge', name: '강아지대소동', titleImage: '/title/puppy-chaos.webp', emoji: '🐾', color: '#F43F5E', bg: 'rgba(244,63,94,0.14)' },
+  { modeId: 'treat_rush', name: '간식런', titleImage: '/title/gansik-run.webp', emoji: '🍪', color: '#A855F7', bg: 'rgba(168,85,247,0.14)', previewImage: '/main/games/gansik-run.webp' },
+  { modeId: 'poop_dodge', name: '강아지대소동', titleImage: '/title/puppy-chaos.webp', emoji: '🐾', color: '#F43F5E', bg: 'rgba(244,63,94,0.14)', previewImage: '/main/games/puppy-chaos.webp' },
 ]
 
 export const gameModesData: GameModeInfo[] = GAME_MODE_CARDS.map((game) => ({

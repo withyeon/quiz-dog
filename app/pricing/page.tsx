@@ -48,12 +48,12 @@ const PLANS = [
     originalPrice: null,
     price: '0원',
     period: '월',
-    description: '체험용 · 소규모 수업',
+    description: '우리 반 수업은 이걸로 충분',
     features: [
-      '월 AI 문제 생성 400회',
-      '기본 게임 모드',
-      '실시간 순위표',
-      '기본 리포트',
+      '게임당 30명까지 참여',
+      '모든 게임 모드 · 퀴즈 제작 무제한',
+      '게임 직후 순위·정답률 요약 리포트',
+      'AI 문제 생성 월 10회',
     ],
     cta: '무료로 시작',
     href: '/teacher',
@@ -71,14 +71,14 @@ const PLANS = [
     originalPrice: '4,900원',
     price: '0원',
     period: '월',
-    description: '고학년 · AI 심화 수업',
+    description: '학년 행사 · 깊이 있는 분석',
     features: [
-      'AI 문제 생성 무제한',
-      '학생 최대 100명 동시 접속',
-      '엑셀 리포트 다운로드',
-      '고급 통계 분석',
-      '우선 고객 지원',
-      '커스텀 브랜딩',
+      '참여 인원 무제한',
+      '문항별 정답률 · 오답 분석',
+      '학생별 누적 기록',
+      '엑셀 내보내기',
+      'AI 문제 생성 월 300회',
+      '가입 후 2주 무료 체험 · 카드 등록 없음',
     ],
     cta: '지금 무료로 사용',
     href: '/teacher',
@@ -96,14 +96,14 @@ const PLANS = [
     originalPrice: '49,000원',
     price: '0원',
     period: '1년',
-    description: '최고 가성비 · 연간 플랜',
+    description: '최고 가성비 · 2개월치 절약',
     features: [
-      'AI 문제 생성 무제한',
-      '학생 최대 100명 동시 접속',
-      '엑셀 리포트 다운로드',
-      '고급 통계 분석',
-      '우선 고객 지원',
-      '커스텀 브랜딩',
+      '참여 인원 무제한',
+      '문항별 정답률 · 오답 분석',
+      '학생별 누적 기록',
+      '엑셀 내보내기',
+      'AI 문제 생성 월 300회',
+      '가입 후 2주 무료 체험 · 카드 등록 없음',
     ],
     cta: '지금 무료로 사용 🎉',
     href: '/teacher',
@@ -117,6 +117,24 @@ const PLANS = [
   },
 ]
 
+const TRIAL_POINTS = [
+  {
+    emoji: '🚀',
+    title: '가입하면 바로 Pro',
+    body: '무제한 참여, 문항별·학생별 리포트, 엑셀 내보내기까지 2주 동안 그대로 열립니다.',
+  },
+  {
+    emoji: '🔔',
+    title: '끝나기 전에 미리 알려드려요',
+    body: '종료 3일 전과 당일에 이메일·앱 안에서 안내합니다. 그냥 두시면 자동으로 Free로 바뀌어요.',
+  },
+  {
+    emoji: '📂',
+    title: '만든 리포트는 그대로',
+    body: '체험 중 만든 Pro 리포트는 종료 뒤에도 열어볼 수 있습니다. 내 수업 기록이 사라지지 않아요.',
+  },
+]
+
 const FAQS = [
   {
     q: '베타 테스트 기간에는 정말 무료인가요?',
@@ -124,7 +142,15 @@ const FAQS = [
   },
   {
     q: '무료 플랜으로도 수업에 쓸 수 있나요?',
-    a: '물론입니다. 기본 게임 모드와 AI 문제 생성(월 400회)을 무료로 이용할 수 있어요. 더 많은 기능이 필요하면 Pro를 선택하세요.',
+    a: '물론입니다. 퀴즈 제작, 모든 게임 모드, 학생 참여는 전부 무료이고 게임당 30명까지 함께할 수 있어 한 학급 수업에는 충분해요. 게임이 끝나면 순위와 정답률 요약도 바로 볼 수 있습니다. AI 문제 생성은 월 10회까지 제공됩니다.',
+  },
+  {
+    q: 'Free와 Pro는 무엇이 다른가요?',
+    a: '차이는 세 가지예요. 참여 인원(30명 → 무제한), 결과 리포트(요약 → 문항별 분석·학생별 누적·엑셀 내보내기), AI 문제 생성 횟수(월 10회 → 월 300회). 학년 행사나 전교 퀴즈처럼 30명이 넘는 자리, 학생 성장을 누적해서 보고 싶을 때 Pro가 필요합니다.',
+  },
+  {
+    q: '2주 무료 체험은 어떻게 진행되나요?',
+    a: '가입하는 순간 카드 등록 없이 Pro 전체 기능이 2주 동안 열립니다. 종료 3일 전과 당일에 이메일과 앱 안에서 안내해 드리고, 아무것도 하지 않으면 자동으로 Free로 전환돼 계속 쓸 수 있어요. 체험 중 만든 Pro 리포트는 종료 뒤에도 열어볼 수 있고, AI 생성 횟수는 Free 기준 월 10회로 새로 시작합니다.',
   },
   {
     q: '학생들도 별도로 결제해야 하나요?',
@@ -356,6 +382,41 @@ export default function PricingPage() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ── 2주 무료 체험 안내 ── */}
+      <section className="px-4 pb-12">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mx-auto max-w-5xl rounded-3xl bg-white p-8 md:p-10"
+          style={{
+            boxShadow: '0 4px 6px rgba(0,0,0,0.04), 0 20px 60px rgba(59,130,246,0.12)',
+            fontFamily: "'DNFBitBitv2', sans-serif",
+          }}
+        >
+          <div className="mb-6 text-center">
+            <p className="mb-2 inline-block rounded-full px-3 py-1 text-xs font-black text-[#1A4F9C]" style={{ background: '#DBEAFE' }}>
+              ⏱ 가입 즉시 · 카드 등록 없음
+            </p>
+            <h2 className="text-3xl font-black leading-tight text-[#0F172A] md:text-4xl">
+              Pro 기능, <span style={{ color: '#2E7BD4' }}>2주 동안 전부</span> 써 보세요
+            </h2>
+            <p className="mt-2 text-sm font-black text-slate-500 md:text-base">
+              결제 정보 없이 시작하고, 2주가 지나면 자동으로 Free로 전환돼 계속 쓸 수 있어요.
+            </p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {TRIAL_POINTS.map((t) => (
+              <div key={t.title} className="rounded-2xl p-5" style={{ background: '#F5F9FF' }}>
+                <div className="mb-2 text-2xl">{t.emoji}</div>
+                <p className="mb-1 text-base font-black text-[#0F172A]">{t.title}</p>
+                <p className="text-sm font-black leading-relaxed text-slate-500">{t.body}</p>
+              </div>
+            ))}
+          </div>
+        </motion.div>
       </section>
 
       {/* ── 학교·단체 견적 ── */}

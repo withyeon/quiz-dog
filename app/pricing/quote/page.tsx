@@ -280,7 +280,7 @@ export default function PricingQuotePage() {
                       </div>
 
                       <ul className="mt-4 grid gap-1.5 sm:grid-cols-2">
-                        {['AI 문제 생성 무제한', '학생 최대 100명 동시 접속', '엑셀 리포트 다운로드', '고급 통계 분석'].map((f) => (
+                        {['참여 인원 무제한', '문항별 분석 · 학생별 누적 리포트', '엑셀 내보내기', 'AI 문제 생성 월 300회'].map((f) => (
                           <li key={f} className="flex items-center gap-2 text-sm font-black text-slate-700" style={{ fontFamily: FONT }}>
                             <Check className="h-4 w-4 shrink-0 text-[#2563EB]" strokeWidth={3} /> {f}
                           </li>
