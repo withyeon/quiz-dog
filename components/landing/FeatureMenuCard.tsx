@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { ArrowRight, Check } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import type { FeatureIntroItem } from '@/components/landing/featureIntroData'
 
 const CARD_SHADOW = '0 4px 20px rgba(15,23,42,0.06)'
@@ -17,8 +17,6 @@ export default function FeatureMenuCard({
   index: number
   animationsReady: boolean
 }) {
-  const Icon = item.icon
-
   return (
     <motion.article
       initial={animationsReady ? { opacity: 0, y: 24 } : false}
@@ -59,10 +57,10 @@ export default function FeatureMenuCard({
           <div className="flex flex-1 flex-col gap-3 p-5 sm:p-6">
             <div className="flex items-center gap-3">
               <span
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-110"
                 style={{ backgroundColor: `${item.accent}1A` }}
               >
-                <Icon className="h-[18px] w-[18px]" style={{ color: item.accent }} strokeWidth={2.4} />
+                <Image src={item.icon} alt="" width={30} height={30} unoptimized className="h-[30px] w-[30px] object-contain" />
               </span>
               <div className="min-w-0">
                 <h3 className="text-lg font-black leading-tight sm:text-xl" style={{ color: '#0F172A' }}>
@@ -85,12 +83,12 @@ export default function FeatureMenuCard({
             <ul className="flex flex-wrap gap-1.5">
               {item.features.map((feature) => (
                 <li
-                  key={feature}
-                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold"
+                  key={feature.text}
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold"
                   style={{ backgroundColor: '#F8FAFC', border: '1px solid #E2E8F0', color: '#334155' }}
                 >
-                  <Check className="h-3 w-3 shrink-0" style={{ color: item.accent }} strokeWidth={3} />
-                  {feature}
+                  <Image src={feature.icon} alt="" width={16} height={16} unoptimized className="h-4 w-4 shrink-0 object-contain" />
+                  {feature.text}
                 </li>
               ))}
             </ul>

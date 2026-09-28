@@ -15,18 +15,13 @@ import SelectedTowerPanel from '@/components/tower/SelectedTowerPanel'
 import TowerLobbyPanel from '@/components/tower/TowerLobbyPanel'
 import TowerPlacementPanel from '@/components/tower/TowerPlacementPanel'
 import TowerWavePanel from '@/components/tower/TowerWavePanel'
+import TowerItemBar from '@/components/tower/TowerItemBar'
 import { useGameBase } from '@/hooks/useGameBase'
 import { TOWER_QUIZZES_PER_WAVE, useTowerDefenseGame } from '@/hooks/useTowerDefenseGame'
 import {
-    ENEMY_TYPES,
-    PATH_POINTS,
-    PLAYER_START_HP,
     TOWER_QUIZ_TIME_LIMIT,
     calculateQuizGoldReward,
-    getDistance,
-    QUIZ_HP_PENALTY,
 } from '@/lib/game/tower'
-import { createHitParticles } from '@/lib/game/particles'
 import { getSkillChoices, SKILLS, type Skill, type SkillId } from '@/lib/game/skills'
 
 export default function TowerPage() {
@@ -86,23 +81,19 @@ export default function TowerPage() {
 
     const {
         hp,
-        setHp,
         gold,
         setGold,
+        score,
         currentWave,
         towers,
         enemies,
-        setEnemies,
         projectiles,
+        laserBeams,
         particles,
-        setParticles,
         shakeIntensity,
-        setShakeIntensity,
         waveClearToast,
         bossKillToast,
-        setOverclockUntil,
         setTotalGoldEarned,
-        setTotalEnemiesKilled,
         selectedTowerType,
         setSelectedTowerType,
         selectedTower,
@@ -120,11 +111,15 @@ export default function TowerPage() {
         handleUpgradeTower,
         handleSellTower,
         startWave,
+        applyQuizPenalty,
+        enrageLeadingEnemy,
+        itemEntries,
+        addItem,
+        consumeItem,
         selectedUpgradeCost,
         selectedSellValue,
         nextWaveRoster,
         waveProgress,
-        occupiedSlotCount,
         quizHudValue,
         quizHudDetail,
         quizButtonLabel,
@@ -191,22 +186,8 @@ export default function TowerPage() {
             }
         } else {
             playSFX('incorrect')
-            setHp(prev => Math.max(0, prev - QUIZ_HP_PENALTY))
-            setEnemies(prev => {
-                const sorted = [...prev].sort((a, b) => b.currentPathIndex - a.currentPathIndex)
-                if (sorted.length === 0) return prev
-
-                return prev.map(enemy => (
-                    enemy.id === sorted[0].id
-                        ? {
-                            ...enemy,
-                            buffedUntil: Date.now() + 5000,
-                            buffType: 'ENRAGE' as const,
-                            hp: Math.min(enemy.maxHp, enemy.hp + enemy.maxHp * 0.3),
-                        }
-                        : enemy
-                ))
-            })
+            applyQuizPenalty()
+            enrageLeadingEnemy()
             if (quizProgress.completed) {
                 setSkillToast('3문제 완료! 모두 정답이어야 아이템을 뽑을 수 있어요.')
                 window.setTimeout(() => setSkillToast(null), 1800)
@@ -216,115 +197,30 @@ export default function TowerPage() {
         return correct
     }
 
+    // 아이템은 뽑는 순간 쓰이지 않고 보관함(TowerItemBar)에 들어간다. 학생이 원할 때 쓴다.
     const handleSkillSelect = useCallback((skillId: SkillId) => {
         const selectedSkill = SKILLS[skillId]
         setShowSkillModal(false)
-        setSkillToast(`${selectedSkill.name} 발동!`)
-        window.setTimeout(() => setSkillToast(null), 1600)
+        addItem(skillId)
+        setSkillToast(`${selectedSkill.name} 아이템을 챙겼어요! 아이템 칸에서 원할 때 쓰세요.`)
+        window.setTimeout(() => setSkillToast(null), 2200)
         scheduleReturnToPlaying(300)
+    }, [addItem, scheduleReturnToPlaying])
 
-        switch (skillId) {
-            case 'THUNDER': {
-                setEnemies(prev => {
-                    const target = [...prev].sort((a, b) => b.hp - a.hp)[0]
-                    if (!target) return prev
-
-                    setParticles(particles => [
-                        ...particles,
-                        ...createHitParticles(target.x, target.y, 'BOSS_DIE'),
-                    ].slice(-240))
-                    setShakeIntensity(8)
-                    window.setTimeout(() => setShakeIntensity(0), 400)
-
-                    const goldReward = ENEMY_TYPES[target.type].goldReward
-                    setGold(current => current + goldReward)
-                    setTotalGoldEarned(current => current + goldReward)
-                    setTotalEnemiesKilled(current => current + 1)
-                    return prev.filter(enemy => enemy.id !== target.id)
-                })
-                break
-            }
-            case 'BLIZZARD': {
-                const until = Date.now() + 4000
-                setEnemies(prev => prev.map(enemy => ({
-                    ...enemy,
-                    frozenUntil: until,
-                    slowedUntil: until,
-                })))
-                setParticles(prev => [
-                    ...prev,
-                    ...Array.from({ length: 5 }, (_, index) => (
-                        createHitParticles(100 + index * 150, 150 + Math.random() * 300, 'SLOW')
-                    )).flat(),
-                ].slice(-240))
-                break
-            }
-            case 'OVERCLOCK': {
-                setOverclockUntil(Date.now() + 8000)
-                setParticles(prev => [
-                    ...prev,
-                    ...createHitParticles(400, 300, 'MAGIC'),
-                ].slice(-240))
-                break
-            }
-            case 'AIRSTRIKE': {
-                const midPoint = PATH_POINTS[Math.floor(PATH_POINTS.length / 2)]
-                setEnemies(prev => {
-                    const damaged = prev.map(enemy => (
-                        getDistance(enemy.x, enemy.y, midPoint.x, midPoint.y) <= 100
-                            ? { ...enemy, hp: enemy.hp - 150 }
-                            : enemy
-                    ))
-                    const deadEnemies = damaged.filter(enemy => enemy.hp <= 0)
-                    if (deadEnemies.length > 0) {
-                        const goldReward = deadEnemies.reduce((sum, enemy) => sum + ENEMY_TYPES[enemy.type].goldReward, 0)
-                        setGold(current => current + goldReward)
-                        setTotalGoldEarned(current => current + goldReward)
-                        setTotalEnemiesKilled(current => current + deadEnemies.length)
-                        setParticles(prevParticles => [
-                            ...prevParticles,
-                            ...deadEnemies.flatMap(enemy => createHitParticles(enemy.x, enemy.y, enemy.type === 'BOSS' ? 'BOSS_DIE' : 'ENEMY_DIE')),
-                        ].slice(-240))
-                    }
-                    return damaged.filter(enemy => enemy.hp > 0)
-                })
-                setParticles(prev => [
-                    ...prev,
-                    ...createHitParticles(midPoint.x, midPoint.y, 'BOMB'),
-                ].slice(-240))
-                setShakeIntensity(10)
-                window.setTimeout(() => setShakeIntensity(0), 500)
-                break
-            }
-            case 'HEAL': {
-                setHp(prev => Math.min(PLAYER_START_HP, prev + 20))
-                setParticles(prev => [
-                    ...prev,
-                    ...createHitParticles(400, 300, 'HEAL'),
-                ].slice(-240))
-                break
-            }
-            case 'GOLD_RUSH': {
-                setGold(prev => prev + 200)
-                setTotalGoldEarned(prev => prev + 200)
-                setParticles(prev => [
-                    ...prev,
-                    ...createHitParticles(400, 300, 'GOLD'),
-                ].slice(-240))
-                break
-            }
+    const handleUseItem = useCallback((index: number) => {
+        const entry = itemEntries[index]
+        if (!entry) return
+        if (entry.blockReason) {
+            setSkillToast(entry.blockReason)
+            window.setTimeout(() => setSkillToast(null), 1600)
+            playSFX('incorrect')
+            return
         }
-    }, [
-        scheduleReturnToPlaying,
-        setEnemies,
-        setGold,
-        setHp,
-        setOverclockUntil,
-        setParticles,
-        setShakeIntensity,
-        setTotalEnemiesKilled,
-        setTotalGoldEarned,
-    ])
+        if (consumeItem(index)) {
+            setSkillToast(`${entry.skill.name} 발동!`)
+            window.setTimeout(() => setSkillToast(null), 1600)
+        }
+    }, [itemEntries, playSFX, consumeItem])
 
     // 퀴즈 버튼 클릭
     const handleQuizClick = () => {
@@ -450,7 +346,7 @@ export default function TowerPage() {
                             isWaveActive={isWaveActive}
                             waveEnemiesRemaining={waveEnemiesRemaining}
                             waveProgress={waveProgress}
-                            occupiedSlotCount={occupiedSlotCount}
+                            score={score}
                             quizHudValue={quizHudValue}
                             quizHudDetail={quizHudDetail}
                             quizButtonLabel={quizButtonLabel}
@@ -476,6 +372,7 @@ export default function TowerPage() {
                                         }}
                                     />
                                 </div>
+                                <TowerItemBar items={itemEntries} onUseItem={handleUseItem} />
                                 <TowerWavePanel
                                     currentWave={currentWave}
                                     isWaveActive={isWaveActive}
@@ -522,6 +419,7 @@ export default function TowerPage() {
                                         towers={towers}
                                         enemies={enemies}
                                         projectiles={projectiles}
+                                        laserBeams={laserBeams}
                                         particles={particles}
                                         shakeIntensity={shakeIntensity}
                                         selectedTowerType={selectedTowerType}

@@ -11,13 +11,17 @@ import {
     QUIZ_HP_PENALTY,
     TOWER_QUIZZES_PER_WAVE,
     TOWER_QUIZ_TIME_LIMIT,
+    LASER_BEAM_DURATION_MS,
+    AIRSTRIKE_DAMAGE,
+    AIRSTRIKE_RADIUS,
     PATH_POINTS,
     calculateQuizGoldReward,
     canPlaceTowerAtPoint,
-    getEffectiveDamage,
+    getAirstrikePoint,
     getEnemyLeakDamage,
     getLaserPierceCount,
     getTowerDamage,
+    getTowerHitDamage,
     getTowerSellValue,
     getTowerRange,
     getTowerUpgradeCost,
@@ -28,6 +32,7 @@ import {
     type Tower,
     type Enemy,
     type Projectile,
+    type LaserBeam,
     type BuildSlot,
     type TowerTypeId,
     type EnemyTypeId,
@@ -37,6 +42,7 @@ import {
     updateParticles,
     type Particle,
 } from '@/lib/game/particles'
+import { SKILLS, type SkillId } from '@/lib/game/skills'
 import type { SFXType } from '@/hooks/useAudio'
 
 // 상수 정의는 lib/game/tower.ts 로 이동. 기존 import 경로 호환을 위해 재수출합니다.
@@ -47,6 +53,11 @@ type WaveQuizProgress = {
     correct: number
 }
 
+// 화면에 남는 파티클 상한 (오래된 것부터 버린다)
+const MAX_PARTICLES = 240
+// 탭이 백그라운드에 있다 돌아왔을 때 한 틱에 너무 큰 시간이 흐른 것으로 계산되지 않게 막는다 (초)
+const MAX_TICK_DELTA = 0.25
+
 interface UseTowerDefenseGameOptions {
     roomCode: string
     roomStatus?: string | null
@@ -56,6 +67,31 @@ interface UseTowerDefenseGameOptions {
     setCurrentQuestionIndex: (index: number) => void
     setShowCountdown: (show: boolean) => void
     playSFX: (sound: SFXType) => void
+}
+
+/**
+ * 발사체가 적에게 닿았을 때의 피해를 적 목록에 적용한다.
+ * 마법/폭탄은 맞은 지점 주변까지, 얼음은 둔화까지 건다.
+ */
+function applyProjectileHit(enemies: Enemy[], target: Enemy, projectile: Projectile, now: number): Enemy[] {
+    const towerType = TOWER_TYPES[projectile.towerType]
+    const splashRadius = towerType.special === 'splash'
+        ? 50
+        : towerType.special === 'explosion'
+            ? 70
+            : 0
+
+    return enemies.map(enemy => {
+        const isHit = splashRadius > 0
+            ? getDistance(target.x, target.y, enemy.x, enemy.y) <= splashRadius
+            : enemy.id === target.id
+        if (!isHit) return enemy
+
+        const hp = enemy.hp - getTowerHitDamage(projectile.towerType, enemy.type, projectile.damage)
+        return towerType.special === 'slow'
+            ? { ...enemy, hp, slowedUntil: now + 1600 }
+            : { ...enemy, hp }
+    })
 }
 
 export function useTowerDefenseGame({
@@ -74,6 +110,7 @@ export function useTowerDefenseGame({
     const [towers, setTowers] = useState<Tower[]>([])
     const [enemies, setEnemies] = useState<Enemy[]>([])
     const [projectiles, setProjectiles] = useState<Projectile[]>([])
+    const [laserBeams, setLaserBeams] = useState<LaserBeam[]>([])
     const [particles, setParticles] = useState<Particle[]>([])
     const [shakeIntensity, setShakeIntensity] = useState(0)
     const [waveClearToast, setWaveClearToast] = useState<number | null>(null)
@@ -87,11 +124,17 @@ export function useTowerDefenseGame({
     const [totalEnemiesKilled, setTotalEnemiesKilled] = useState(0)
     const [totalGoldEarned, setTotalGoldEarned] = useState(0)
     const [totalTowersPlaced, setTotalTowersPlaced] = useState(0)
+    // 퀴즈 3문제를 다 맞혀 받은 아이템. 뽑는 순간 쓰이지 않고 여기 보관됐다가 consumeItem 으로 쓴다.
+    const [items, setItems] = useState<SkillId[]>([])
 
     const gameLoopRef = useRef<NodeJS.Timeout>()
+    // 적·타워·발사체·빔은 ref 가 진실이다. 게임 루프와 아이템/판매/업그레이드가 전부 ref 를 고치고
+    // 그 값을 state 로 내보내므로, 예전처럼 setState 안에서 또 setState 를 부르다 StrictMode 에서
+    // 피해·보상이 두 번 들어가던 문제가 없다. (mutateEnemies / mutateTowers 로만 고칠 것)
     const enemiesRef = useRef<Enemy[]>([])
     const towersRef = useRef<Tower[]>([])
     const projectilesRef = useRef<Projectile[]>([])
+    const laserBeamsRef = useRef<LaserBeam[]>([])
     const isWaveActiveRef = useRef(false)
     const currentWaveRef = useRef(0)
     const enemySpawnQueueRef = useRef<{ type: EnemyTypeId; spawnTime: number }[]>([])
@@ -99,6 +142,7 @@ export function useTowerDefenseGame({
     const nextEnemyIdRef = useRef(0)
     const nextTowerIdRef = useRef(0)
     const nextProjectileIdRef = useRef(0)
+    const nextBeamIdRef = useRef(0)
     const overclockUntilRef = useRef(0)
     const quizProgressByWaveRef = useRef<Record<number, WaveQuizProgress>>({})
     const quizStorageKey = roomCode ? `tower_quiz_progress_${roomCode}` : null
@@ -120,6 +164,25 @@ export function useTowerDefenseGame({
         && isCurrentWaveQuizComplete
     )
 
+    const mutateEnemies = useCallback((update: (current: Enemy[]) => Enemy[]) => {
+        const next = update(enemiesRef.current)
+        enemiesRef.current = next
+        setEnemies(next)
+        return next
+    }, [])
+
+    const mutateTowers = useCallback((update: (current: Tower[]) => Tower[]) => {
+        const next = update(towersRef.current)
+        towersRef.current = next
+        setTowers(next)
+        return next
+    }, [])
+
+    const pushParticles = useCallback((created: Particle[]) => {
+        if (created.length === 0) return
+        setParticles(prev => [...prev, ...created].slice(-MAX_PARTICLES))
+    }, [])
+
     const applyEnemyRewards = useCallback((deadEnemies: Enemy[]) => {
         if (deadEnemies.length === 0) return
 
@@ -137,19 +200,25 @@ export function useTowerDefenseGame({
     const applyDeadEnemyEffects = useCallback((deadEnemies: Enemy[]) => {
         if (deadEnemies.length === 0) return
 
-        setParticles(prev => [
-            ...prev,
-            ...deadEnemies.flatMap(enemy => (
-                createHitParticles(enemy.x, enemy.y, enemy.type === 'BOSS' ? 'BOSS_DIE' : 'ENEMY_DIE')
-            )),
-        ])
+        pushParticles(deadEnemies.flatMap(enemy => (
+            createHitParticles(enemy.x, enemy.y, enemy.type === 'BOSS' ? 'BOSS_DIE' : 'ENEMY_DIE')
+        )))
 
         if (deadEnemies.some(enemy => enemy.type === 'BOSS')) {
             setBossKillToast(true)
             triggerShake(12, 600)
             window.setTimeout(() => setBossKillToast(false), 600)
         }
-    }, [triggerShake])
+    }, [pushParticles, triggerShake])
+
+    // 죽은 적을 목록에서 빼고 보상·연출까지 한 번에 처리한다.
+    const removeDeadEnemies = useCallback((current: Enemy[]) => {
+        const deadEnemies = current.filter(enemy => enemy.hp <= 0)
+        if (deadEnemies.length === 0) return current
+        applyEnemyRewards(deadEnemies)
+        applyDeadEnemyEffects(deadEnemies)
+        return current.filter(enemy => enemy.hp > 0)
+    }, [applyDeadEnemyEffects, applyEnemyRewards])
 
     useEffect(() => {
         if (!quizStorageKey || typeof window === 'undefined') return
@@ -203,18 +272,6 @@ export function useTowerDefenseGame({
     }, [overclockUntil])
 
     useEffect(() => {
-        enemiesRef.current = enemies
-    }, [enemies])
-
-    useEffect(() => {
-        towersRef.current = towers
-    }, [towers])
-
-    useEffect(() => {
-        projectilesRef.current = projectiles
-    }, [projectiles])
-
-    useEffect(() => {
         isWaveActiveRef.current = isWaveActive
     }, [isWaveActive])
 
@@ -254,6 +311,7 @@ export function useTowerDefenseGame({
         setTowers([])
         setEnemies([])
         setProjectiles([])
+        setLaserBeams([])
         setParticles([])
         setShakeIntensity(0)
         setWaveClearToast(null)
@@ -267,12 +325,20 @@ export function useTowerDefenseGame({
         setTotalEnemiesKilled(0)
         setTotalGoldEarned(0)
         setTotalTowersPlaced(0)
+        setItems([])
 
+        enemiesRef.current = []
+        towersRef.current = []
+        projectilesRef.current = []
+        laserBeamsRef.current = []
         enemySpawnQueueRef.current = []
+        isWaveActiveRef.current = false
+        currentWaveRef.current = 0
         lastUpdateRef.current = Date.now()
         nextEnemyIdRef.current = 0
         nextTowerIdRef.current = 0
         nextProjectileIdRef.current = 0
+        nextBeamIdRef.current = 0
         overclockUntilRef.current = 0
         quizProgressByWaveRef.current = {}
 
@@ -296,8 +362,7 @@ export function useTowerDefenseGame({
             return
         }
 
-        const latestTowers = towersRef.current
-        if (!canPlaceTowerAtPoint(slot.x, slot.y, latestTowers)) {
+        if (!canPlaceTowerAtPoint(slot.x, slot.y, towersRef.current)) {
             playSFX('incorrect')
             return
         }
@@ -312,14 +377,12 @@ export function useTowerDefenseGame({
             lastAttackTime: 0,
         }
 
-        towersRef.current = [...latestTowers, newTower]
-        setTowers(towersRef.current)
+        mutateTowers(current => [...current, newTower])
         setGold(prev => prev - towerType.cost)
         setTotalTowersPlaced(prev => prev + 1)
         setSelectedTowerType(null)
         playSFX('click')
-        // towersRef.current로 최신 값을 읽으므로 towers는 의존성에 불필요
-    }, [gold, playSFX, selectedTowerType])
+    }, [gold, mutateTowers, playSFX, selectedTowerType])
 
     const handleUpgradeTower = useCallback(() => {
         if (!selectedTower) return
@@ -336,23 +399,23 @@ export function useTowerDefenseGame({
         }
 
         setGold(prev => prev - upgradeCost)
-        setTowers(prev => prev.map(tower => (
+        mutateTowers(current => current.map(tower => (
             tower.id === selectedTower.id
                 ? { ...tower, level: tower.level + 1 }
                 : tower
         )))
         playSFX('click')
-    }, [gold, playSFX, selectedTower])
+    }, [gold, mutateTowers, playSFX, selectedTower])
 
     const handleSellTower = useCallback(() => {
         if (!selectedTower) return
 
         const refund = getTowerSellValue(selectedTower)
-        setTowers(prev => prev.filter(tower => tower.id !== selectedTower.id))
+        mutateTowers(current => current.filter(tower => tower.id !== selectedTower.id))
         setGold(prev => prev + refund)
         setSelectedTower(null)
         playSFX('click')
-    }, [playSFX, selectedTower])
+    }, [mutateTowers, playSFX, selectedTower])
 
     const startWave = useCallback(() => {
         if (currentWave >= WAVES.length) return
@@ -364,6 +427,7 @@ export function useTowerDefenseGame({
 
         const wave = WAVES[currentWave]
         setIsWaveActive(true)
+        isWaveActiveRef.current = true
         playSFX('click')
 
         const spawnQueue: { type: EnemyTypeId; spawnTime: number }[] = []
@@ -394,21 +458,151 @@ export function useTowerDefenseGame({
         setHp(prev => Math.max(0, prev - QUIZ_HP_PENALTY))
     }, [])
 
+    // 오답 페널티: 출구에 가장 가까운 적 하나가 5초 동안 격노(빠르고 체력 회복)한다.
+    const enrageLeadingEnemy = useCallback(() => {
+        mutateEnemies(current => {
+            const leading = [...current].sort((a, b) => b.currentPathIndex - a.currentPathIndex)[0]
+            if (!leading) return current
+
+            return current.map(enemy => (
+                enemy.id === leading.id
+                    ? {
+                        ...enemy,
+                        buffedUntil: Date.now() + 5000,
+                        buffType: 'ENRAGE' as const,
+                        hp: Math.min(enemy.maxHp, enemy.hp + enemy.maxHp * 0.3),
+                    }
+                    : enemy
+            ))
+        })
+    }, [mutateEnemies])
+
+    // ==================== 아이템 ====================
+
+    const addItem = useCallback((skillId: SkillId) => {
+        setItems(prev => [...prev, skillId])
+    }, [])
+
+    /** 지금 이 아이템을 쓸 수 없는 이유. 쓸 수 있으면 null. */
+    const getItemBlockReason = useCallback((skillId: SkillId): string | null => {
+        switch (skillId) {
+            case 'THUNDER':
+            case 'BLIZZARD':
+            case 'AIRSTRIKE':
+                return enemies.length === 0 ? '적이 있을 때 쓸 수 있어요' : null
+            case 'OVERCLOCK':
+                return isWaveActive ? null : '웨이브 중에 쓸 수 있어요'
+            case 'HEAL':
+                return hp >= PLAYER_START_HP ? '체력이 가득 찼어요' : null
+            case 'GOLD_RUSH':
+                return null
+        }
+    }, [enemies.length, hp, isWaveActive])
+
+    const activateSkill = useCallback((skillId: SkillId) => {
+        switch (skillId) {
+            case 'THUNDER': {
+                const target = [...enemiesRef.current].sort((a, b) => b.hp - a.hp)[0]
+                if (!target) return
+                pushParticles(createHitParticles(target.x, target.y, 'BOSS_DIE'))
+                triggerShake(8, 400)
+                mutateEnemies(current => removeDeadEnemies(current.map(enemy => (
+                    enemy.id === target.id ? { ...enemy, hp: 0 } : enemy
+                ))))
+                break
+            }
+            case 'BLIZZARD': {
+                const until = Date.now() + 4000
+                mutateEnemies(current => current.map(enemy => ({
+                    ...enemy,
+                    frozenUntil: until,
+                    slowedUntil: until,
+                })))
+                pushParticles(Array.from({ length: 5 }, (_, index) => (
+                    createHitParticles(100 + index * 150, 150 + Math.random() * 300, 'SLOW')
+                )).flat())
+                break
+            }
+            case 'OVERCLOCK': {
+                const until = Date.now() + 8000
+                overclockUntilRef.current = until
+                setOverclockUntil(until)
+                pushParticles(createHitParticles(400, 300, 'MAGIC'))
+                break
+            }
+            case 'AIRSTRIKE': {
+                const point = getAirstrikePoint(enemiesRef.current) ?? PATH_POINTS[Math.floor(PATH_POINTS.length / 2)]
+                mutateEnemies(current => removeDeadEnemies(current.map(enemy => (
+                    getDistance(enemy.x, enemy.y, point.x, point.y) <= AIRSTRIKE_RADIUS
+                        ? { ...enemy, hp: enemy.hp - AIRSTRIKE_DAMAGE }
+                        : enemy
+                ))))
+                pushParticles([
+                    ...createHitParticles(point.x, point.y, 'BOMB'),
+                    ...createHitParticles(point.x, point.y, 'BOSS_DIE'),
+                ])
+                triggerShake(10, 500)
+                break
+            }
+            case 'HEAL': {
+                setHp(prev => Math.min(PLAYER_START_HP, prev + 20))
+                pushParticles(createHitParticles(400, 300, 'HEAL'))
+                break
+            }
+            case 'GOLD_RUSH': {
+                setGold(prev => prev + 200)
+                setTotalGoldEarned(prev => prev + 200)
+                pushParticles(createHitParticles(400, 300, 'GOLD'))
+                break
+            }
+        }
+    }, [mutateEnemies, pushParticles, removeDeadEnemies, triggerShake])
+
+    /** 보관 중인 아이템을 쓴다. 지금 쓸 수 없으면 false. */
+    const consumeItem = useCallback((index: number): boolean => {
+        const skillId = items[index]
+        if (!skillId || getItemBlockReason(skillId)) {
+            playSFX('incorrect')
+            return false
+        }
+
+        setItems(prev => prev.filter((_, itemIndex) => itemIndex !== index))
+        activateSkill(skillId)
+        playSFX('item')
+        return true
+    }, [activateSkill, getItemBlockReason, items, playSFX])
+
+    // ==================== 게임 루프 ====================
+    // 한 틱을 ref 위에서 동기적으로 전부 계산한 뒤 state 로 한 번에 내보낸다.
     useEffect(() => {
         if (currentView !== 'playing') return
 
-        const gameLoop = setInterval(() => {
-            const now = Date.now()
-            const deltaTime = (now - lastUpdateRef.current) / 1000
-            lastUpdateRef.current = now
-            setParticles(prev => updateParticles(prev, deltaTime).slice(-240))
+        lastUpdateRef.current = Date.now()
 
+        const tick = () => {
+            const now = Date.now()
+            const deltaTime = Math.min(MAX_TICK_DELTA, Math.max(0, (now - lastUpdateRef.current) / 1000))
+            lastUpdateRef.current = now
+
+            let enemies = enemiesRef.current
+            let towers = towersRef.current
+            let projectiles = projectilesRef.current
+            const newParticles: Particle[] = []
+            const newBeams: LaserBeam[] = []
+            const shake = { intensity: 0, durationMs: 0 }
+            const requestShake = (intensity: number, durationMs: number) => {
+                if (intensity > shake.intensity) {
+                    shake.intensity = intensity
+                    shake.durationMs = durationMs
+                }
+            }
+
+            // 1. 스폰
             if (isWaveActiveRef.current && enemySpawnQueueRef.current.length > 0) {
                 const toSpawn = enemySpawnQueueRef.current.filter(enemy => enemy.spawnTime <= now)
                 if (toSpawn.length > 0) {
-                    setEnemies(prev => {
-                        const next = [
-                        ...prev,
+                    enemies = [
+                        ...enemies,
                         ...toSpawn.map(enemy => {
                             const enemyType = ENEMY_TYPES[enemy.type]
                             return {
@@ -421,18 +615,16 @@ export function useTowerDefenseGame({
                                 x: PATH_POINTS[0].x,
                                 y: PATH_POINTS[0].y,
                             }
-                        })
-                        ]
-                        enemiesRef.current = next
-                        return next
-                    })
+                        }),
+                    ]
                     enemySpawnQueueRef.current = enemySpawnQueueRef.current.filter(enemy => enemy.spawnTime > now)
                     setWaveEnemiesRemaining(enemySpawnQueueRef.current.length)
                 }
             }
 
-            setEnemies(prev => {
-                const updated = prev.map(enemy => {
+            // 2. 이동 + 출구 도달
+            if (enemies.length > 0) {
+                const moved = enemies.map(enemy => {
                     const isEnraged = enemy.buffType === 'ENRAGE' && (enemy.buffedUntil ?? 0) > now
                     const effectiveEnemy = isEnraged
                         ? { ...enemy, speed: enemy.speed * 1.5 }
@@ -448,192 +640,144 @@ export function useTowerDefenseGame({
                     }
                 })
 
-                const arrived = updated.filter(enemy => hasReachedEnd(enemy))
+                const arrived = moved.filter(enemy => hasReachedEnd(enemy))
                 if (arrived.length > 0) {
                     const leakDamage = arrived.reduce((sum, enemy) => sum + getEnemyLeakDamage(enemy.type), 0)
                     setHp(current => Math.max(0, current - leakDamage))
-                    triggerShake(6, 300)
+                    requestShake(6, 300)
                 }
 
-                const nextEnemies = updated.filter(enemy => !hasReachedEnd(enemy))
-                enemiesRef.current = nextEnemies
-                return nextEnemies
-            })
+                enemies = moved.filter(enemy => !hasReachedEnd(enemy))
+            }
 
-            setTowers(prevTowers => {
-                return prevTowers.map(tower => {
+            // 3. 타워 공격 (레이저는 즉시 피해 + 빔, 나머지는 발사체)
+            if (towers.length > 0 && enemies.length > 0) {
+                const isOverclocked = overclockUntilRef.current > now
+                const pendingDamage = new Map<string, number>()
+                let towersChanged = false
+
+                towers = towers.map(tower => {
                     const towerType = TOWER_TYPES[tower.type]
-                    const attackInterval = (1000 / towerType.attackSpeed) / (overclockUntilRef.current > now ? 2 : 1)
+                    const attackInterval = (1000 / towerType.attackSpeed) / (isOverclocked ? 2 : 1)
+                    if (now - tower.lastAttackTime < attackInterval) return tower
 
-                    if (now - tower.lastAttackTime >= attackInterval) {
-                        const range = getTowerRange(tower.type, tower.level)
-                        const damage = getTowerDamage(tower.type, tower.level)
+                    const range = getTowerRange(tower.type, tower.level)
+                    const damage = getTowerDamage(tower.type, tower.level)
+                    const enemiesInRange = enemies
+                        .filter(enemy => (
+                            enemy.hp - (pendingDamage.get(enemy.id) ?? 0) > 0
+                            && getDistance(tower.x, tower.y, enemy.x, enemy.y) <= range
+                        ))
+                        .sort((a, b) => b.currentPathIndex - a.currentPathIndex)
+                    if (enemiesInRange.length === 0) return tower
 
-                        const enemiesInRange = enemiesRef.current
-                            .filter(enemy => getDistance(tower.x, tower.y, enemy.x, enemy.y) <= range)
-                            .sort((a, b) => b.currentPathIndex - a.currentPathIndex)
+                    towersChanged = true
 
-                        if (enemiesInRange.length > 0) {
-                            const target = enemiesInRange[0]
-
-                            if (tower.type === 'LASER') {
-                                const laserTargetIds = new Set(
-                                    enemiesInRange
-                                        .slice(0, getLaserPierceCount(tower.level))
-                                        .map(enemy => enemy.id)
-                                )
-
-                                setEnemies(prev => {
-                                    const updated = prev.map(enemy => {
-                                        if (laserTargetIds.has(enemy.id)) {
-                                            return { ...enemy, hp: enemy.hp - getEffectiveDamage(enemy.type, damage) }
-                                        }
-                                        return enemy
-                                    })
-
-                                    const deadEnemies = updated.filter(enemy => enemy.hp <= 0)
-                                    applyEnemyRewards(deadEnemies)
-                                    applyDeadEnemyEffects(deadEnemies)
-
-                                    const nextEnemies = updated.filter(enemy => enemy.hp > 0)
-                                    enemiesRef.current = nextEnemies
-                                    return nextEnemies
-                                })
-                            } else {
-                                const projectile: Projectile = {
-                                    id: `projectile-${nextProjectileIdRef.current++}`,
-                                    towerId: tower.id,
-                                    towerType: tower.type,
-                                    x: tower.x,
-                                    y: tower.y,
-                                    targetX: target.x,
-                                    targetY: target.y,
-                                    targetEnemyId: target.id,
-                                    speed: 400,
-                                    damage,
-                                }
-                                setProjectiles(prev => {
-                                    const nextProjectiles = [...prev, projectile]
-                                    projectilesRef.current = nextProjectiles
-                                    return nextProjectiles
-                                })
-                            }
-
-                            return { ...tower, lastAttackTime: now }
-                        }
+                    if (tower.type === 'LASER') {
+                        const targets = enemiesInRange.slice(0, getLaserPierceCount(tower.level))
+                        targets.forEach(target => {
+                            pendingDamage.set(
+                                target.id,
+                                (pendingDamage.get(target.id) ?? 0) + getTowerHitDamage('LASER', target.type, damage),
+                            )
+                            newParticles.push(...createHitParticles(target.x, target.y, 'LASER'))
+                        })
+                        newBeams.push({
+                            id: `beam-${nextBeamIdRef.current++}`,
+                            towerId: tower.id,
+                            fromX: tower.x,
+                            fromY: tower.y,
+                            targets: targets.map(target => ({ x: target.x, y: target.y })),
+                            createdAt: now,
+                            expiresAt: now + LASER_BEAM_DURATION_MS,
+                        })
+                    } else {
+                        const target = enemiesInRange[0]
+                        projectiles = [
+                            ...projectiles,
+                            {
+                                id: `projectile-${nextProjectileIdRef.current++}`,
+                                towerId: tower.id,
+                                towerType: tower.type,
+                                x: tower.x,
+                                y: tower.y,
+                                targetX: target.x,
+                                targetY: target.y,
+                                targetEnemyId: target.id,
+                                speed: 400,
+                                damage,
+                            },
+                        ]
                     }
-                    return tower
+
+                    return { ...tower, lastAttackTime: now }
                 })
-            })
 
-            setProjectiles(prevProjectiles => {
-                const currentEnemies = enemiesRef.current
-                const updatedProjectiles: Projectile[] = []
-                const projectilesToRemove: string[] = []
+                if (!towersChanged) towers = towersRef.current
+                if (pendingDamage.size > 0) {
+                    enemies = enemies.map(enemy => {
+                        const taken = pendingDamage.get(enemy.id)
+                        return taken ? { ...enemy, hp: enemy.hp - taken } : enemy
+                    })
+                }
+            }
 
-                prevProjectiles.forEach(projectile => {
-                    const targetEnemy = currentEnemies.find(enemy => enemy.id === projectile.targetEnemyId)
+            // 4. 발사체 이동 + 명중
+            if (projectiles.length > 0) {
+                const survivors: Projectile[] = []
 
-                    if (!targetEnemy) {
-                        projectilesToRemove.push(projectile.id)
+                projectiles.forEach(projectile => {
+                    const target = enemies.find(enemy => enemy.id === projectile.targetEnemyId)
+                    if (!target || target.hp <= 0) return
+
+                    const tracking = { ...projectile, targetX: target.x, targetY: target.y }
+                    const newPos = moveProjectile(tracking, deltaTime)
+
+                    if (getDistance(newPos.x, newPos.y, target.x, target.y) < 15) {
+                        newParticles.push(...createHitParticles(target.x, target.y, projectile.towerType))
+                        if (projectile.towerType === 'BOMB') requestShake(4, 200)
+                        enemies = applyProjectileHit(enemies, target, projectile, now)
                         return
                     }
 
-                    const updatedProjectile = {
-                        ...projectile,
-                        targetX: targetEnemy.x,
-                        targetY: targetEnemy.y,
-                    }
-
-                    const newPos = moveProjectile(updatedProjectile, deltaTime)
-                    const distanceToTarget = getDistance(newPos.x, newPos.y, targetEnemy.x, targetEnemy.y)
-
-                    if (distanceToTarget < 15) {
-                        setParticles(prev => [
-                            ...prev,
-                            ...createHitParticles(targetEnemy.x, targetEnemy.y, projectile.towerType),
-                        ].slice(-240))
-
-                        if (projectile.towerType === 'BOMB') {
-                            triggerShake(4, 200)
-                        }
-
-                        setEnemies(prev => {
-                            let updated = [...prev]
-                            const target = updated.find(enemy => enemy.id === projectile.targetEnemyId)
-
-                            if (target) {
-                                const towerType = TOWER_TYPES[projectile.towerType]
-
-                                if (towerType.special === 'splash') {
-                                    updated = updated.map(enemy => {
-                                        if (getDistance(target.x, target.y, enemy.x, enemy.y) <= 50) {
-                                            return { ...enemy, hp: enemy.hp - getEffectiveDamage(enemy.type, projectile.damage) }
-                                        }
-                                        return enemy
-                                    })
-                                } else if (towerType.special === 'explosion') {
-                                    updated = updated.map(enemy => {
-                                        if (getDistance(target.x, target.y, enemy.x, enemy.y) <= 70) {
-                                            return { ...enemy, hp: enemy.hp - getEffectiveDamage(enemy.type, projectile.damage) }
-                                        }
-                                        return enemy
-                                    })
-                                } else if (towerType.special === 'slow') {
-                                    updated = updated.map(enemy => {
-                                        if (enemy.id === target.id) {
-                                            return {
-                                                ...enemy,
-                                                hp: enemy.hp - getEffectiveDamage(enemy.type, projectile.damage),
-                                                slowedUntil: now + 1600,
-                                            }
-                                        }
-                                        return enemy
-                                    })
-                                } else {
-                                    updated = updated.map(enemy => {
-                                        if (enemy.id === target.id) {
-                                            return { ...enemy, hp: enemy.hp - getEffectiveDamage(enemy.type, projectile.damage) }
-                                        }
-                                        return enemy
-                                    })
-                                }
-                            }
-
-                            const deadEnemies = updated.filter(enemy => enemy.hp <= 0)
-                            applyEnemyRewards(deadEnemies)
-                            applyDeadEnemyEffects(deadEnemies)
-
-                            const nextEnemies = updated.filter(enemy => enemy.hp > 0)
-                            enemiesRef.current = nextEnemies
-                            return nextEnemies
-                        })
-
-                        projectilesToRemove.push(projectile.id)
-                    } else {
-                        updatedProjectiles.push({
-                            ...updatedProjectile,
-                            x: newPos.x,
-                            y: newPos.y,
-                        })
-                    }
+                    survivors.push({ ...tracking, x: newPos.x, y: newPos.y })
                 })
 
-                const nextProjectiles = updatedProjectiles.filter(projectile => !projectilesToRemove.includes(projectile.id))
-                projectilesRef.current = nextProjectiles
-                return nextProjectiles
-            })
+                projectiles = survivors
+            }
 
-            if (isWaveActiveRef.current && enemySpawnQueueRef.current.length === 0 && enemiesRef.current.length === 0) {
+            // 5. 죽은 적 정리 (보상·연출은 여기서만 한 번)
+            enemies = removeDeadEnemies(enemies)
+
+            // 6. 커밋
+            enemiesRef.current = enemies
+            setEnemies(enemies)
+            if (towers !== towersRef.current) {
+                towersRef.current = towers
+                setTowers(towers)
+            }
+            if (projectiles !== projectilesRef.current) {
+                projectilesRef.current = projectiles
+                setProjectiles(projectiles)
+            }
+            if (newBeams.length > 0 || laserBeamsRef.current.length > 0) {
+                const beams = [...laserBeamsRef.current.filter(beam => beam.expiresAt > now), ...newBeams]
+                laserBeamsRef.current = beams
+                setLaserBeams(beams)
+            }
+            setParticles(prev => [...updateParticles(prev, deltaTime), ...newParticles].slice(-MAX_PARTICLES))
+            if (shake.intensity > 0) {
+                triggerShake(shake.intensity, shake.durationMs)
+            }
+
+            // 7. 웨이브 종료
+            if (isWaveActiveRef.current && enemySpawnQueueRef.current.length === 0 && enemies.length === 0) {
                 const clearedWaveNumber = currentWaveRef.current + 1
                 setIsWaveActive(false)
                 isWaveActiveRef.current = false
                 setWaveEnemiesRemaining(0)
-                setCurrentWave(prev => {
-                    const nextWave = prev + 1
-                    currentWaveRef.current = nextWave
-                    return nextWave
-                })
+                currentWaveRef.current = clearedWaveNumber
+                setCurrentWave(clearedWaveNumber)
                 setWaveClearToast(clearedWaveNumber)
                 playSFX('correct')
                 window.setTimeout(() => setWaveClearToast(null), 2500)
@@ -642,8 +786,9 @@ export function useTowerDefenseGame({
                     setCurrentView('result')
                 }
             }
-        }, 50)
+        }
 
+        const gameLoop = setInterval(tick, 50)
         gameLoopRef.current = gameLoop
 
         return () => {
@@ -651,7 +796,7 @@ export function useTowerDefenseGame({
                 clearInterval(gameLoopRef.current)
             }
         }
-    }, [applyDeadEnemyEffects, applyEnemyRewards, currentView, playSFX, setCurrentView, triggerShake])
+    }, [currentView, playSFX, removeDeadEnemies, setCurrentView, triggerShake])
 
     useEffect(() => {
         if (hp <= 0 && currentView === 'playing') {
@@ -677,6 +822,8 @@ export function useTowerDefenseGame({
     const waveProgress = Math.min(100, Math.round((currentWave / WAVES.length) * 100))
     const occupiedSlotCount = towers.length
     const remainingSlots = 999
+    // 선생님 화면과 결과 순위에 올라가는 점수. 누적 획득 골드와 같다 (app/tower/page.tsx 의 동기화 효과 참고).
+    const score = Math.max(0, Math.floor(totalGoldEarned))
     const quizHudValue = isWaveActive
         ? '전투중'
         : currentWave >= WAVES.length
@@ -697,17 +844,24 @@ export function useTowerDefenseGame({
     const startWaveButtonLabel = !isCurrentWaveQuizComplete
         ? `퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제 먼저`
         : `웨이브 ${currentWave + 1}`
+    const itemEntries = items.map((skillId, index) => ({
+        index,
+        skill: SKILLS[skillId],
+        blockReason: getItemBlockReason(skillId),
+    }))
 
     return {
         hp,
         setHp,
         gold,
         setGold,
+        score,
         currentWave,
         towers,
         enemies,
-        setEnemies,
+        mutateEnemies,
         projectiles,
+        laserBeams,
         particles,
         setParticles,
         shakeIntensity,
@@ -737,6 +891,12 @@ export function useTowerDefenseGame({
         startWave,
         grantQuizGold,
         applyQuizPenalty,
+        enrageLeadingEnemy,
+        items,
+        itemEntries,
+        addItem,
+        consumeItem,
+        getItemBlockReason,
         selectedUpgradeCost,
         selectedSellValue,
         nextWaveRoster,

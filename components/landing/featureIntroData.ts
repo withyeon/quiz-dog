@@ -1,5 +1,3 @@
-import { Sparkles, KeyRound, BarChart3, Library, type LucideIcon } from 'lucide-react'
-
 /**
  * 랜딩 '기능 소개' 섹션 카드.
  * 카드는 /features 페이지의 같은 주제 섹션으로 연결된다(앵커가 어긋나지 않게 주의).
@@ -19,11 +17,13 @@ import { Sparkles, KeyRound, BarChart3, Library, type LucideIcon } from 'lucide-
 export type FeatureIntroItem = {
   title: string
   description: string
-  features: string[]
+  /** icon 은 칩 앞에 붙는 public 픽셀 이미지 */
+  features: { text: string; icon: string }[]
   /** 카드가 이동할 기능 소개 페이지 위치 */
   href: string
-  icon: LucideIcon
-  /** 아이콘 타일·체크·호버 테두리에 쓰는 강조색 */
+  /** 제목 옆 타일에 들어가는 public 픽셀 이미지 */
+  icon: string
+  /** 아이콘 타일·호버 테두리에 쓰는 강조색 */
   accent: string
   /** 실제 화면 캡처(16:10). public/main/features/ 아래, 캡처 방법은 파일 상단 주석 참고 */
   screenshot: string
@@ -32,38 +32,54 @@ export type FeatureIntroItem = {
 export const FEATURE_INTRO_ITEMS: FeatureIntroItem[] = [
   {
     title: 'AI 문제 생성',
-    description: '자료만 올리면 문제집이 됩니다',
-    features: ['유튜브 영상에서', '학습지·PDF에서', '시험지 스캔에서'],
+    description: '수업자료를 올리기만 하면 됩니다',
+    features: [
+      { text: '유튜브 영상에서', icon: '/icons/flip.webp' },
+      { text: '학습지·PDF에서', icon: '/zombie/log.webp' },
+      { text: '시험지 스캔에서', icon: '/icons/scan.webp' },
+    ],
     href: '/features#ai',
     screenshot: '/main/features/ai.webp',
-    icon: Sparkles,
+    icon: '/icons/rare.webp',
     accent: '#0EA5E9',
   },
   {
     title: '학생 참여',
     description: '코드 하나로 전원 입장',
-    features: ['가입도 설치도 없이', '닉네임 + 강아지 캐릭터', '비속어 자동 차단'],
+    features: [
+      { text: '가입도 설치도 없이', icon: '/icons/rocket.webp' },
+      { text: '닉네임 + 강아지 캐릭터', icon: '/assets/icons/mascot-pome-64.png' },
+      { text: '비속어 자동 차단', icon: '/icons/shield.webp' },
+    ],
     href: '/features#play',
     screenshot: '/main/features/play.webp',
-    icon: KeyRound,
+    icon: '/icons/ticket.webp',
     accent: '#F43F5E',
   },
   {
     title: '결과 리포트',
-    description: '게임 한 판이 형성평가로',
-    features: ['문항별 정답률', '학생별 상세 기록', '지난 게임 기록 보관'],
+    description: '수업과 평가를 한 번에',
+    features: [
+      { text: '문항별 정답률', icon: '/icons/correct.webp' },
+      { text: '학생별 상세 기록', icon: '/icons/people.webp' },
+      { text: '지난 게임 기록 보관', icon: '/zombie/timer.webp' },
+    ],
     href: '/features#report',
     screenshot: '/main/features/report.webp',
-    icon: BarChart3,
+    icon: '/trophy.webp',
     accent: '#10B981',
   },
   {
     title: '자료실',
-    description: '다른 선생님 문제집을 그대로',
-    features: ['공개 문제집 가져오기', '우리 반에 맞게 수정', '처음부터 안 만들어도 돼요'],
+    description: '다양한 학년별, 과목별 문제',
+    features: [
+      { text: '다양한 문제', icon: '/gold-quest/treasure-chest.webp' },
+      { text: '수정도 가능', icon: '/icons/lucky.webp' },
+      { text: '간단한 수업준비', icon: '/icons/waiting.webp' },
+    ],
     href: '/features#library',
     screenshot: '/main/features/library.webp',
-    icon: Library,
+    icon: '/zombie/quiz.webp',
     accent: '#14B8A6',
   },
 ]

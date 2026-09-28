@@ -1,7 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { BookOpen, Library } from 'lucide-react'
+import Image from 'next/image'
+import { Library } from 'lucide-react'
 import type { QuestionSetSummary } from '@/lib/services/questionSets'
 
 /**
@@ -59,7 +60,7 @@ export default function SelectedQuestionSet({
     <div className="mx-auto mb-8 flex max-w-xl flex-col gap-3 rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-left sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-600">
-          <BookOpen className="h-5 w-5" />
+          <Image src="/zombie/quiz.webp" alt="" width={28} height={28} unoptimized className="h-7 w-7 object-contain" />
         </span>
         <div className="min-w-0">
           <p className="text-xs font-black text-slate-400">이 문제집으로 게임을 만들어요</p>

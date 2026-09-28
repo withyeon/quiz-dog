@@ -122,7 +122,7 @@ export default function GameCard({
         {/* 설명 */}
         <div className="flex flex-1 flex-col gap-1 border-t px-4 py-3.5" style={{ borderColor: 'rgba(226,232,240,0.9)' }}>
           <p className="flex items-center gap-1.5 text-sm font-black sm:text-[15px]" style={{ color: '#0F172A' }}>
-            <span aria-hidden>{game.emoji}</span>
+            <Image src={game.icon} alt="" width={20} height={20} unoptimized className="h-5 w-5 shrink-0 object-contain" />
             {game.name}
           </p>
           <p className="text-xs leading-relaxed sm:text-[13px]" style={{ color: '#64748B' }}>

@@ -766,7 +766,7 @@ function TowerHeader({ phase }: { phase: string }) {
         isWaveActive={phase === 'goal' || phase === 'leak'}
         waveEnemiesRemaining={phase === 'goal' ? 3 : phase === 'leak' ? 1 : 0}
         waveProgress={phase === 'leak' ? 60 : 0}
-        occupiedSlotCount={phase === 'build' ? 1 : 0}
+        score={Math.max(0, gold - PLAYER_START_GOLD + (phase === 'build' ? TOWER_BUILD_COST : 0))}
         quizHudValue={`${solved}/${TOWER_QUIZZES_PER_WAVE}`}
         quizHudDetail={`정답 ${solved}/${TOWER_QUIZZES_PER_WAVE}`}
         quizButtonLabel={solved >= TOWER_QUIZZES_PER_WAVE ? '퀴즈 완료' : `퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제 먼저`}

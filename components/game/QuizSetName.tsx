@@ -1,4 +1,4 @@
-import { BookOpen } from 'lucide-react'
+import Image from 'next/image'
 
 type QuizSetNameProps = {
   /** useGameBase의 questionSetTitle. 없으면 아무것도 그리지 않는다 */
@@ -25,7 +25,7 @@ export default function QuizSetName({ title, tone = 'light', className = '' }: Q
       title={title}
       className={`flex min-w-0 max-w-[220px] items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold sm:max-w-[280px] sm:text-xs ${toneClass} ${className}`}
     >
-      <BookOpen className="h-3 w-3 shrink-0 opacity-70" />
+      <Image src="/zombie/quiz.webp" alt="" width={14} height={14} unoptimized className="h-3.5 w-3.5 shrink-0 object-contain" />
       <span className="truncate">{title}</span>
     </div>
   )

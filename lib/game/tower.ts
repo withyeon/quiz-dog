@@ -52,7 +52,7 @@ export const TOWER_TYPES: Record<TowerTypeId, TowerType> = {
         id: 'LASER',
         name: '레이저 타워',
         emoji: '⚡',
-        description: '빠른 연사로 라인을 관통 공격',
+        description: '빠른 연사로 여러 적을 관통, 방어력 무시',
         cost: 350,
         damage: 5,
         range: 120,
@@ -147,6 +147,11 @@ export const TOWER_QUIZZES_PER_WAVE = 3
 export const TOWER_QUIZ_TIME_LIMIT = 30
 export const TOWER_COLLISION_RADIUS = 42
 export const PATH_BUILD_BLOCK_RADIUS = 46
+// 레이저는 발사체가 없고 즉시 맞으므로, 맞은 순간을 빔으로 잠깐 보여준다 (ms).
+export const LASER_BEAM_DURATION_MS = 180
+// 공습 아이템의 폭발 반경과 피해량
+export const AIRSTRIKE_RADIUS = 100
+export const AIRSTRIKE_DAMAGE = 150
 
 // 적이 이동할 경로 (시작점 -> 끝점)
 export const PATH_POINTS: { x: number; y: number }[] = [
@@ -305,6 +310,17 @@ export interface Projectile {
     damage: number
 }
 
+// 레이저 타워가 한 번 쏠 때 생기는 빔. 타워에서 맞은 적들까지 잠깐 그려진다.
+export interface LaserBeam {
+    id: string
+    towerId: string
+    fromX: number
+    fromY: number
+    targets: { x: number; y: number }[]
+    createdAt: number
+    expiresAt: number
+}
+
 // ==================== 게임 로직 함수 ====================
 
 /**
@@ -461,6 +477,36 @@ export function getEffectiveDamage(enemyType: EnemyTypeId, rawDamage: number): n
 
 export function getEnemyLeakDamage(enemyType: EnemyTypeId): number {
     return ENEMY_TYPES[enemyType].leakDamage
+}
+
+/**
+ * 타워 종류까지 고려한 실제 피해량. 레이저는 관통 공격이라 방어력을 무시한다.
+ * (기본 피해 5의 레이저가 방어력 4인 보스에게 1씩만 들어가 "안 맞는 느낌"이 나던 문제)
+ */
+export function getTowerHitDamage(towerType: TowerTypeId, enemyType: EnemyTypeId, rawDamage: number): number {
+    if (towerType === 'LASER') return Math.max(1, rawDamage)
+    return getEffectiveDamage(enemyType, rawDamage)
+}
+
+/**
+ * 공습이 떨어질 지점: 반경 안에 적이 가장 많이 들어오는 적의 위치.
+ * 같으면 출구에 더 가까운(위험한) 적을 고른다. 적이 없으면 null.
+ */
+export function getAirstrikePoint(enemies: Enemy[], radius = AIRSTRIKE_RADIUS): { x: number; y: number } | null {
+    let best: { x: number; y: number } | null = null
+    let bestCount = 0
+    let bestPathIndex = -1
+
+    enemies.forEach(candidate => {
+        const count = enemies.filter(enemy => getDistance(candidate.x, candidate.y, enemy.x, enemy.y) <= radius).length
+        if (count > bestCount || (count === bestCount && candidate.currentPathIndex > bestPathIndex)) {
+            best = { x: candidate.x, y: candidate.y }
+            bestCount = count
+            bestPathIndex = candidate.currentPathIndex
+        }
+    })
+
+    return best
 }
 
 export function getLaserPierceCount(level: number): number {

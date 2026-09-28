@@ -5,19 +5,12 @@ import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   ArrowRight,
-  BookOpen,
-  CheckCircle2,
   Copy,
-  FileQuestion,
-  GraduationCap,
   Heart,
-  Library,
   Play,
   Plus,
-  Search,
   SlidersHorizontal,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { formatServiceError } from '@/lib/services/errors'
 import {
   copyQuestionSetFromQuestionsOnly,
@@ -306,13 +299,13 @@ function LibraryPageContent() {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:w-[340px]">
             {[
-              { label: '전체', value: allQuestionSets.length.toLocaleString(), icon: Library },
-              { label: '검색 결과', value: filteredSets.length.toLocaleString(), icon: Search },
+              { label: '전체', value: allQuestionSets.length.toLocaleString(), icon: '/zombie/quiz.webp' },
+              { label: '검색 결과', value: filteredSets.length.toLocaleString(), icon: '/icons/scan.webp' },
             ].map((item) => (
               <div key={item.label} className="rounded-xl bg-slate-50 p-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-500">{item.label}</span>
-                  <item.icon className="h-4 w-4 text-slate-400" />
+                  <Image src={item.icon} alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
                 </div>
                 <div className="mt-3 text-2xl font-black tracking-tight text-slate-900">{item.value}</div>
               </div>
@@ -417,7 +410,7 @@ function LibraryPageContent() {
             <LoadingState label="자료실을 불러오는 중" />
           ) : filteredSets.length === 0 ? (
             <EmptyState
-              icon={Search}
+              image="/icons/scan.webp"
               title="맞는 문제집이 없어요"
               description="검색어나 필터를 넓혀 보세요"
               action={
@@ -442,7 +435,7 @@ function LibraryPageContent() {
               >
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
-                    <BookOpen className="h-6 w-6" />
+                    <Image src="/zombie/quiz.webp" alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-wrap gap-2">
@@ -492,17 +485,17 @@ function LibraryPageContent() {
               <>
                 <div className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-sky-100 text-sky-600">
-                    <CheckCircle2 className="h-6 w-6" />
+                    <Image src="/icons/correct.webp" alt="" width={28} height={28} unoptimized className="h-7 w-7 object-contain" />
                   </div>
                   <div className="text-sm font-bold text-slate-500">선택한 문제집</div>
                 </div>
 
                 <h2 className="mt-5 text-xl font-extrabold leading-snug text-slate-900">{selectedSet.name}</h2>
                 <div className="mt-4 grid grid-cols-2 gap-3">
-                  <InfoTile label="문항 수" value={`${selectedSet.question_count}개`} icon={FileQuestion} />
-                  <InfoTile label="좋아요" value={`${selectedSet.like_count.toLocaleString()}개`} icon={Heart} />
-                  <InfoTile label="대상" value={getGradeLabel(selectedSet.grade)} icon={GraduationCap} />
-                  <InfoTile label="과목" value={getSubjectName(selectedSet.subject)} icon={BookOpen} />
+                  <InfoTile label="문항 수" value={`${selectedSet.question_count}개`} icon="/zombie/log.webp" />
+                  <InfoTile label="좋아요" value={`${selectedSet.like_count.toLocaleString()}개`} icon="/icons/streak.webp" />
+                  <InfoTile label="대상" value={getGradeLabel(selectedSet.grade)} icon="/icons/people.webp" />
+                  <InfoTile label="과목" value={getSubjectName(selectedSet.subject)} icon="/zombie/quiz.webp" />
                 </div>
 
                 <div className="mt-5 space-y-2">
@@ -534,7 +527,7 @@ function LibraryPageContent() {
               </>
             ) : (
               <div className="py-10 text-center">
-                <BookOpen className="mx-auto h-10 w-10 text-slate-300" />
+                <Image src="/zombie/quiz.webp" alt="" width={48} height={48} unoptimized className="mx-auto h-12 w-12 object-contain opacity-60 grayscale" />
                 <p className="mt-3 text-sm font-medium text-slate-500">문제집을 선택해 보세요</p>
               </div>
             )}
@@ -635,15 +628,16 @@ function FilterRow({
 function InfoTile({
   label,
   value,
-  icon: Icon,
+  icon,
 }: {
   label: string
   value: string
-  icon: LucideIcon
+  /** public 픽셀 이미지 경로 */
+  icon: string
 }) {
   return (
     <div className="rounded-xl bg-slate-50 p-3">
-      <Icon className="h-4 w-4 text-slate-400" />
+      <Image src={icon} alt="" width={20} height={20} unoptimized className="h-5 w-5 object-contain" />
       <div className="mt-2 text-xs font-semibold text-slate-400">{label}</div>
       <div className="mt-1 truncate text-sm font-bold text-slate-900">{value}</div>
     </div>

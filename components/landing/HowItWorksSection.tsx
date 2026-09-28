@@ -5,8 +5,7 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { FileUp, Gamepad2, KeyRound, ArrowRight } from 'lucide-react'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
-import PixelIcon from '@/components/ui/PixelIcon'
-
+import HeadingIcon from '@/components/landing/HeadingIcon'
 /**
  * screenshot: 실제 교사 화면 캡처(16:10, public/main/steps). 기능 카드와 같은 방식으로 찍었다
  * (헤드리스 Chrome 1280×800@2x, /dev/shot 임시 페이지, 사이드바 잘라냄). 화면이 바뀌면 같은 구도로 교체.
@@ -16,30 +15,32 @@ const STEPS = [
   {
     icon: FileUp,
     step: '01',
-    time: '약 1분',
     title: '자료 올리기',
-    description: 'PDF·문서·유튜브 링크를 올리면 AI가 알아서 문제를 뽑아줘요.',
+    description: '수업 자료를 올리면 AI가 문제를 생성해요.',
     screenshot: '/main/steps/upload.webp',
   },
   {
     icon: Gamepad2,
     step: '02',
-    time: '30초',
     title: '게임 고르기',
-    description: '오늘 수업 분위기에 맞는 게임을 고르면 그대로 퀴즈가 실립니다.',
+    description: '초등학생 눈높이에 맞는 즐거운 게임',
     screenshot: '/main/steps/pick.webp',
   },
   {
     icon: KeyRound,
     step: '03',
-    time: '바로',
     title: '코드 공유하기',
-    description: '화면에 뜬 6자리 코드만 알려주면 아이들이 바로 들어와요.',
+    description: 'QR 스캔 또는 6자리 코드 입력하기',
     screenshot: '/main/steps/code.webp',
   },
 ]
 
-const PERKS = ['준비 3분', '🔓 학생 가입 없음', '💻 설치 없이 브라우저', '📊 결과 리포트 자동']
+const PERKS = [
+  { icon: '/icons/time.webp', text: '준비 3분' },
+  { icon: '/icons/people.webp', text: '학생 가입 없음' },
+  { icon: '/icons/rocket.webp', text: '설치 없음' },
+  { icon: '/trophy.webp', text: '결과 리포트 제공' },
+]
 
 export default function HowItWorksSection({ animationsReady }: { animationsReady: boolean }) {
   return (
@@ -54,11 +55,9 @@ export default function HowItWorksSection({ animationsReady }: { animationsReady
           <h2 className="text-4xl sm:text-5xl">
             <PixelHeading>
               수업 준비, <PixelAccent>3단계</PixelAccent>면 끝
+              <HeadingIcon src="/icons/time.webp" />
             </PixelHeading>
           </h2>
-          <p className="-mt-1 text-base sm:text-lg" style={{ color: '#475569' }}>
-            자료를 올린 순간부터 아이들이 게임에 들어오기까지
-          </p>
         </motion.div>
 
         <div className="grid gap-5 md:grid-cols-3 md:gap-6">
@@ -111,12 +110,6 @@ export default function HowItWorksSection({ animationsReady }: { animationsReady
                       <h3 className="text-lg font-black sm:text-xl" style={{ color: '#0F172A' }}>
                         {item.title}
                       </h3>
-                      <span
-                        className="rounded-full px-2.5 py-0.5 text-xs font-black"
-                        style={{ backgroundColor: '#F0F9FF', color: '#0369A1', border: '1px solid #BAE6FD' }}
-                      >
-                        {item.time}
-                      </span>
                     </div>
                     <p className="text-sm leading-relaxed sm:text-[15px]" style={{ color: '#64748B' }}>
                       {item.description}
@@ -149,16 +142,16 @@ export default function HowItWorksSection({ animationsReady }: { animationsReady
         >
           {PERKS.map((perk) => (
             <span
-              key={perk}
-              className="rounded-full px-4 py-2 text-sm font-black sm:text-base"
+              key={perk.text}
+              className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-black sm:text-base"
               style={{
                 backgroundColor: 'rgba(255,255,255,0.85)',
                 border: '2px solid rgba(186,230,253,0.9)',
                 color: '#1E3A8A',
               }}
             >
-              {perk === '준비 3분' && <PixelIcon name="time" size={18} alt="" className="mr-1 inline-block align-[-3px]" />}
-              {perk}
+              <Image src={perk.icon} alt="" width={20} height={20} unoptimized className="h-5 w-5 shrink-0 object-contain" />
+              {perk.text}
             </span>
           ))}
         </motion.div>

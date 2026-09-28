@@ -5,17 +5,10 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  BarChart3,
-  BookOpen,
   ChevronRight,
-  Home,
-  Library,
   LogOut,
   Menu,
-  PlayCircle,
   Plus,
-  ShieldCheck,
-  UserCircle,
   X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
@@ -28,12 +21,12 @@ interface DashboardLayoutProps {
 
 const navItems = [
   // '홈으로'는 교사 영역을 벗어나 서비스 메인으로 나가는 출구 링크 (active 표시 없음)
-  { href: '/', label: '홈으로', icon: Home, id: 'landing' },
-  { href: '/teacher', label: '내 문제집', icon: BookOpen, id: 'sets' },
-  { href: '/teacher/play', label: '게임 시작', icon: PlayCircle, id: 'play' },
-  { href: '/teacher/library', label: '자료실', icon: Library, id: 'library' },
-  { href: '/teacher/analytics', label: '게임 기록', icon: BarChart3, id: 'history' },
-  { href: '/teacher/settings', label: '내 정보', icon: UserCircle, id: 'settings' },
+  { href: '/', label: '홈으로', icon: '/assets/icons/mascot-pome-64.png', id: 'landing' },
+  { href: '/teacher', label: '내 문제집', icon: '/zombie/quiz.webp', id: 'sets' },
+  { href: '/teacher/play', label: '게임 시작', icon: '/assets/icons/joystick-64.png', id: 'play' },
+  { href: '/teacher/library', label: '자료실', icon: '/gold-quest/treasure-chest.webp', id: 'library' },
+  { href: '/teacher/analytics', label: '게임 기록', icon: '/trophy.webp', id: 'history' },
+  { href: '/teacher/settings', label: '내 정보', icon: '/icons/people.webp', id: 'settings' },
 ]
 
 // 현재 경로에 해당하는 내비 항목의 active 여부.
@@ -125,7 +118,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     aria-hidden
                   />
                 )}
-                <item.icon className="h-5 w-5" />
+                <Image src={item.icon} alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
                 <span className="flex-1">{item.label}</span>
                 {active && <ChevronRight className="h-4 w-4 text-sky-400" />}
               </Link>
@@ -140,7 +133,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                   : 'text-slate-500 hover:bg-slate-50 hover:text-black'
               }`}
             >
-              <ShieldCheck className="h-5 w-5" />
+              <Image src="/icons/shield.webp" alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
               <span className="flex-1">관리자</span>
             </Link>
           )}
@@ -234,7 +227,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                         : 'text-slate-500 hover:bg-slate-50 hover:text-black'
                     }`}
                   >
-                    <item.icon className="h-5 w-5" />
+                    <Image src={item.icon} alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
                     <span className="flex-1">{item.label}</span>
                     {active && <ChevronRight className="h-4 w-4 text-slate-400" />}
                   </Link>

@@ -396,7 +396,7 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
       {
         title: `${TOWER_QUIZZES_PER_WAVE}문제 다 맞히면 아이템`,
-        body: '하나만 틀려도 못 받아요',
+        body: '챙겨 뒀다가 원할 때 써요',
       },
       {
         title: '골드로 타워를 세워요',

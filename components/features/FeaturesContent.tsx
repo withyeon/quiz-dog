@@ -5,10 +5,6 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
   Sparkles,
-  FileText,
-  Youtube,
-  ScanLine,
-  PenLine,
   Check,
   KeyRound,
   Smartphone,
@@ -46,7 +42,7 @@ function SectionBadge({ children, color = '#0369A1', bg = '#E0F2FE', border = '#
 }) {
   return (
     <span
-      className="inline-block rounded-full px-4 py-1.5 text-sm font-black"
+      className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-black"
       style={{ color, background: bg, border: `2px solid ${border}` }}
     >
       {children}
@@ -56,6 +52,7 @@ function SectionBadge({ children, color = '#0369A1', bg = '#E0F2FE', border = '#
 
 function SectionHeading({
   badge,
+  badgeIcon,
   badgeColor,
   badgeBg,
   badgeBorder,
@@ -63,6 +60,7 @@ function SectionHeading({
   subtitle,
 }: {
   badge: string
+  badgeIcon?: string
   badgeColor?: string
   badgeBg?: string
   badgeBorder?: string
@@ -72,6 +70,7 @@ function SectionHeading({
   return (
     <motion.div {...FADE_UP} className="mb-12 text-center">
       <SectionBadge color={badgeColor} bg={badgeBg} border={badgeBorder}>
+        {badgeIcon && <Image src={badgeIcon} alt="" width={20} height={20} unoptimized className="h-5 w-5 object-contain" />}
         {badge}
       </SectionBadge>
       <h2 className="mt-5 text-4xl sm:text-5xl">
@@ -144,10 +143,23 @@ function Shot({
   )
 }
 
-function CheckLine({ children, color = '#0EA5E9' }: { children: React.ReactNode; color?: string }) {
+function CheckLine({
+  children,
+  color = '#0EA5E9',
+  icon,
+}: {
+  children: React.ReactNode
+  color?: string
+  /** 체크 표시 대신 띄울 public 픽셀 이미지 */
+  icon?: string
+}) {
   return (
     <li className="flex items-start gap-2.5">
-      <Check className="mt-0.5 h-5 w-5 flex-shrink-0" style={{ color }} strokeWidth={3} />
+      {icon ? (
+        <Image src={icon} alt="" width={24} height={24} unoptimized className="h-6 w-6 flex-shrink-0 object-contain" />
+      ) : (
+        <Check className="mt-0.5 h-5 w-5 flex-shrink-0" style={{ color }} strokeWidth={3} />
+      )}
       <span className="text-[15px] font-bold leading-relaxed text-slate-700">{children}</span>
     </li>
   )
@@ -205,7 +217,7 @@ const HERO_POINTS = [
 const STEPS = [
   {
     step: '01',
-    emoji: '📎',
+    icon: '/zombie/log.webp',
     title: '자료를 올려요',
     description: '수업 자료 파일, 유튜브 링크, 주제 입력이면 충분해요.',
     color: '#0EA5E9',
@@ -214,7 +226,7 @@ const STEPS = [
   },
   {
     step: '02',
-    emoji: '🤖',
+    icon: '/icons/rare.webp',
     title: 'AI가 문제를 만들어요',
     description: '다양한 유형으로 생성하고 수정도 바로 가능해요.',
     color: '#14B8A6',
@@ -223,7 +235,7 @@ const STEPS = [
   },
   {
     step: '03',
-    emoji: '🎮',
+    icon: '/assets/icons/joystick-128.png',
     title: '게임 코드를 공유해요',
     description: '학생들은 6자리 숫자 코드를 입력해서 간편하게 들어와요.',
     color: '#F43F5E',
@@ -234,28 +246,28 @@ const STEPS = [
 
 const AI_SOURCES = [
   {
-    icon: PenLine,
+    icon: '/icons/rare.webp',
     title: '주제 한 줄로',
     description: '단원이나 활동명을 적으면 바로 퀴즈 초안을 잡아줘요.',
     helper: '예: 4학년 1학기 분수의 덧셈',
     color: '#0EA5E9',
   },
   {
-    icon: FileText,
+    icon: '/zombie/log.webp',
     title: '수업 자료에서',
     description: '학습지, 안내문, 발표 자료에서 낼 만한 문제를 골라요.',
     helper: 'PDF · DOCX · PPTX · PPT · TXT · CSV',
     color: '#14B8A6',
   },
   {
-    icon: Youtube,
+    icon: '/icons/flip.webp',
     title: '유튜브 영상에서',
     description: '영상 속 설명을 바탕으로 확인 문제를 구성해요.',
     helper: '영상 링크만 붙여넣기',
     color: '#EF4444',
   },
   {
-    icon: ScanLine,
+    icon: '/icons/scan.webp',
     title: '시험지 스캔에서',
     description: '스캔한 활동지나 사진 속 문제를 편집 가능한 형태로 옮겨요.',
     helper: 'PDF · JPG · PNG · WEBP',
@@ -264,11 +276,11 @@ const AI_SOURCES = [
 ]
 
 const AI_DETAILS = [
-  '객관식 · OX · 주관식을 유형별 개수로 지정 (최대 20문항)',
-  '“쉽게 내주세요” 같은 추가 요청사항을 AI에게 전달',
-  '과목과 대상 학년을 골라 눈높이에 맞춘 문제로',
-  '생성 결과를 문항별로 검토하고 그 자리에서 수정',
-  'AI 없이 직접 문제를 입력하는 수동 작성도 지원',
+  { icon: '/icons/correct.webp', text: '객관식 · OX · 주관식을 유형별 개수로 지정 (최대 20문항)' },
+  { icon: '/assets/icons/mascot-pome-64.png', text: '“쉽게 내주세요” 같은 추가 요청사항을 AI에게 전달' },
+  { icon: '/icons/people.webp', text: '과목과 대상 학년을 골라 눈높이에 맞춘 문제로' },
+  { icon: '/icons/lucky.webp', text: '생성 결과를 문항별로 검토하고 그 자리에서 수정' },
+  { icon: '/zombie/quiz.webp', text: 'AI 없이 직접 문제를 입력하는 수동 작성도 지원' },
 ]
 
 const STUDENT_POINTS = [
@@ -408,7 +420,7 @@ export default function FeaturesContent() {
                   <Shot src={step.screenshot} alt={step.shotAlt} bleed />
                   <div className="p-7">
                     <div className="mb-4 flex items-center gap-3">
-                      <span className="text-4xl">{step.emoji}</span>
+                      <Image src={step.icon} alt="" width={44} height={44} unoptimized className="h-11 w-11 object-contain" />
                       <span className="text-2xl font-black" style={{ color: step.color }}>
                         {step.step}
                       </span>
@@ -427,7 +439,8 @@ export default function FeaturesContent() {
       <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="ai">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
-            badge="🤖 AI 문제 생성"
+            badge="AI 문제 생성"
+            badgeIcon="/icons/rare.webp"
             title={<>어떤 자료도 <PixelAccent>퀴즈</PixelAccent>가 됩니다!</>}
           />
 
@@ -440,7 +453,7 @@ export default function FeaturesContent() {
                       className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl"
                       style={{ background: `${source.color}1A` }}
                     >
-                      <source.icon className="h-6 w-6" style={{ color: source.color }} strokeWidth={2.5} />
+                      <Image src={source.icon} alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
                     </span>
                     <h3 className="mb-2 text-lg font-black text-[#0F172A]">{source.title}</h3>
                     <p className="mb-4 flex-1 text-sm font-bold leading-relaxed text-slate-500">
@@ -472,8 +485,8 @@ export default function FeaturesContent() {
                   </p>
                   <ul className="space-y-3">
                     {AI_DETAILS.map((detail) => (
-                      <CheckLine key={detail} color="#0EA5E9">
-                        {detail}
+                      <CheckLine key={detail.text} icon={detail.icon}>
+                        {detail.text}
                       </CheckLine>
                     ))}
                   </ul>
@@ -493,10 +506,13 @@ export default function FeaturesContent() {
       <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="games">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
-            badge="🎮 게임 모드"
+            badge="게임 모드"
+            badgeIcon="/assets/icons/joystick-64.png"
             title={
               <>
-                초등교사 출신 개발자가 만든 <PixelAccent>초등학생 눈높이 게임</PixelAccent>!
+                초등교사 출신 개발자가 만든
+                <br />
+                <PixelAccent>초등학생 눈높이 게임</PixelAccent>!
               </>
             }
           />
@@ -513,7 +529,8 @@ export default function FeaturesContent() {
       <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="play">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
-            badge="🐾 학생 참여"
+            badge="학생 참여"
+            badgeIcon="/assets/icons/mascot-pome-64.png"
             badgeColor="#0369A1"
             badgeBg="#E0F2FE"
             badgeBorder="#7DD3FC"
@@ -569,12 +586,12 @@ export default function FeaturesContent() {
       <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="report">
         <div className="mx-auto max-w-6xl">
           <SectionHeading
-            badge="📊 결과 리포트"
+            badge="결과 리포트"
+            badgeIcon="/trophy.webp"
             badgeColor="#15803D"
             badgeBg="#DCFCE7"
             badgeBorder="#86EFAC"
-            title={<>게임이 끝나면 <PixelAccent>기록</PixelAccent>이 남아요</>}
-            subtitle="재미있게 놀고 끝나는 게 아니라, 무엇을 더 가르쳐야 할지가 보입니다."
+            title={<>수업과 <PixelAccent>평가</PixelAccent>를 한 번에</>}
           />
 
           <div className="grid gap-6 md:grid-cols-2">
@@ -640,7 +657,8 @@ export default function FeaturesContent() {
       <section className="relative z-[2] scroll-mt-32 px-4 py-16" id="library">
         <div className="mx-auto max-w-5xl">
           <SectionHeading
-            badge="📚 자료실"
+            badge="자료실"
+            badgeIcon="/zombie/quiz.webp"
             badgeColor="#0F766E"
             badgeBg="#CCFBF1"
             badgeBorder="#5EEAD4"
@@ -693,11 +711,35 @@ export default function FeaturesContent() {
               className="rounded-3xl bg-white p-10 text-center sm:p-14"
               style={{ boxShadow: '0 8px 48px rgba(14,165,233,0.14), 0 2px 8px rgba(0,0,0,0.05)' }}
             >
+              <motion.div
+                className="mb-6 flex justify-center gap-4"
+                animate={{ y: [0, -8, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Image
+                  src={gameAssets['mascot-pome'].tight}
+                  alt="포메 마스코트"
+                  width={90}
+                  height={90}
+                  unoptimized
+                  className="pixelated h-[90px] w-[90px] object-contain"
+                />
+                <Image
+                  src={gameAssets.mascot_sigol.tight}
+                  alt="시골 마스코트"
+                  width={90}
+                  height={90}
+                  unoptimized
+                  className="pixelated h-[90px] w-[90px] object-contain"
+                />
+              </motion.div>
+
               <span
                 className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-black text-white"
                 style={{ background: 'linear-gradient(90deg, #0ea5e9, #38bdf8)' }}
               >
-                🎉 베타 테스트 기간 전 기능 무료
+                <Image src="/icons/ticket.webp" alt="" width={20} height={20} unoptimized className="h-5 w-5 object-contain" />
+                가입 후 2주 Pro 기능 무료 체험
               </span>
 
               <h2 className="mt-5 text-4xl sm:text-5xl">

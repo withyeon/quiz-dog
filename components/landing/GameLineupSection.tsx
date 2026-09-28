@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import GameModeCard from '@/components/landing/GameModeCard'
+import HeadingIcon from '@/components/landing/HeadingIcon'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import { visibleGameModes } from '@/components/landing/gameModesData'
 
@@ -18,7 +19,10 @@ export default function GameLineupSection({ animationsReady }: { animationsReady
         >
           <h2 className="text-4xl sm:text-5xl">
             <PixelHeading>
-              초등교사 출신 개발자가 만든 <PixelAccent>초등학생 눈높이 게임</PixelAccent>!
+              초등교사 출신 개발자가 만든
+              <br />
+              <PixelAccent>초등학생 눈높이 게임</PixelAccent>!
+              <HeadingIcon src="/assets/icons/joystick-128.png" />
             </PixelHeading>
           </h2>
           <p className="-mt-1 text-base sm:text-lg" style={{ color: '#475569' }}>

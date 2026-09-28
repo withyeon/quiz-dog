@@ -17,6 +17,9 @@ export interface Skill {
     color: string
 }
 
+// 타워 디펜스 아이템은 뽑는 순간 쓰이지 않고 보관했다가 원할 때 쓴다.
+// 언제 쓸 수 있는지는 hooks/useTowerDefenseGame 의 getItemBlockReason 이 정한다.
+
 export const SKILLS: Record<SkillId, Skill> = {
     THUNDER: {
         id: 'THUNDER',
@@ -42,7 +45,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     AIRSTRIKE: {
         id: 'AIRSTRIKE',
         name: '공습',
-        description: '경로 중앙에 강력한 광역 폭발을 호출합니다.',
+        description: '적이 가장 많이 모인 곳에 강력한 광역 폭발을 떨어뜨립니다.',
         emoji: '🚀',
         color: 'bg-rose-500',
     },
@@ -56,7 +59,7 @@ export const SKILLS: Record<SkillId, Skill> = {
     GOLD_RUSH: {
         id: 'GOLD_RUSH',
         name: '골드러시',
-        description: '즉시 200G를 획득합니다.',
+        description: '200G를 얻습니다.',
         emoji: '💰',
         icon: 'gold',
         color: 'bg-amber-500',

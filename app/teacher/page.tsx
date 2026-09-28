@@ -7,16 +7,13 @@ import Link from 'next/link'
 import Image from 'next/image'
 import {
   ArrowRight,
-  BookOpen,
   Search,
   Copy,
   Heart,
-  Library,
   Pencil,
   Play,
   Plus,
   Trash2,
-  Wand2,
   Share2,
 } from 'lucide-react'
 import {
@@ -206,7 +203,7 @@ function TeacherPageContent() {
                     href="/teacher/library"
                     className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
-                    <Library className="h-5 w-5" />
+                    <Image src="/gold-quest/treasure-chest.webp" alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
                     자료실
                   </Link>
                 </div>
@@ -228,9 +225,9 @@ function TeacherPageContent() {
                   </div>
                   <div className="mt-5 space-y-2">
                     {[
-                      { icon: Wand2, label: 'AI로 만들기', href: '/teacher/create' },
-                      { icon: Pencil, label: '직접 작성', href: '/teacher/create' },
-                      { icon: Library, label: '자료실에서 가져오기', href: '/teacher/library' },
+                      { icon: '/icons/rare.webp', label: 'AI로 만들기', href: '/teacher/create' },
+                      { icon: '/zombie/log.webp', label: '직접 작성', href: '/teacher/create' },
+                      { icon: '/gold-quest/treasure-chest.webp', label: '자료실에서 가져오기', href: '/teacher/library' },
                     ].map((item) => (
                       <Link
                         key={item.label}
@@ -239,7 +236,7 @@ function TeacherPageContent() {
                       >
                         <span className="flex items-center gap-3 font-bold">
                           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                            <item.icon className="h-5 w-5" />
+                            <Image src={item.icon} alt="" width={24} height={24} unoptimized className="h-6 w-6 object-contain" />
                           </span>
                           {item.label}
                         </span>
@@ -280,7 +277,7 @@ function TeacherPageContent() {
                   href="/teacher/library"
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                 >
-                  <Library className="h-5 w-5" />
+                  <Image src="/gold-quest/treasure-chest.webp" alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
                   자료실
                 </Link>
               </div>
@@ -289,14 +286,14 @@ function TeacherPageContent() {
 
           <section className="grid gap-4 md:grid-cols-2">
             {[
-              { icon: BookOpen, label: '문제집', value: questionSets.length.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
-              { icon: Play, label: '진행한 게임', value: gameStats.gameCount.toLocaleString(), tone: 'bg-emerald-50 text-emerald-600' },
+              { icon: '/zombie/quiz.webp', label: '문제집', value: questionSets.length.toLocaleString(), tone: 'bg-sky-100 text-sky-600' },
+              { icon: '/assets/icons/joystick-64.png', label: '진행한 게임', value: gameStats.gameCount.toLocaleString(), tone: 'bg-emerald-50 text-emerald-600' },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-slate-500">{item.label}</span>
                   <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${item.tone}`}>
-                    <item.icon className="h-5 w-5" />
+                    <Image src={item.icon} alt="" width={26} height={26} unoptimized className="h-[26px] w-[26px] object-contain" />
                   </span>
                 </div>
                 <div className="mt-5 text-3xl font-black tracking-tight text-slate-900">{item.value}</div>
@@ -377,7 +374,7 @@ function TeacherPageContent() {
                   <div key={set.id} className="flex flex-col gap-4 p-5 transition hover:bg-slate-50 md:flex-row md:items-center">
                       <div className="flex min-w-0 flex-1 items-center gap-4">
                       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                        <BookOpen className="h-6 w-6" />
+                        <Image src="/zombie/quiz.webp" alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
                       </div>
                       <div className="min-w-0">
                         <h3 className="truncate text-base font-bold text-slate-900">{set.title}</h3>

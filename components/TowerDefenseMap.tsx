@@ -5,6 +5,7 @@ import {
     Tower,
     Enemy,
     Projectile,
+    LaserBeam,
     BuildSlot,
     MAP_WIDTH,
     MAP_HEIGHT,
@@ -24,6 +25,8 @@ interface TowerDefenseMapProps {
     towers: Tower[]
     enemies: Enemy[]
     projectiles: Projectile[]
+    /** 레이저 타워가 방금 쏜 빔. 없으면 생략 가능 (튜토리얼 데모) */
+    laserBeams?: LaserBeam[]
     particles: Particle[]
     shakeIntensity: number
     selectedTowerType: TowerTypeId | null
@@ -184,6 +187,7 @@ export default function TowerDefenseMap({
     towers,
     enemies,
     projectiles,
+    laserBeams = [],
     particles,
     shakeIntensity,
     selectedTowerType,
@@ -204,12 +208,12 @@ export default function TowerDefenseMap({
     // 캔버스를 통째로 다시 그린다(rAF 60회 + 상태변경 20회 = 초당 80회 전체 리드로우).
     // 값은 ref로 넘기고 루프는 마운트 시 한 번만 돌게 한다.
     const drawStateRef = useRef({
-        towers, enemies, projectiles, particles,
+        towers, enemies, projectiles, laserBeams, particles,
         shakeIntensity, selectedTowerType, selectedTower,
         hoveredPosition,
     })
     drawStateRef.current = {
-        towers, enemies, projectiles, particles,
+        towers, enemies, projectiles, laserBeams, particles,
         shakeIntensity, selectedTowerType, selectedTower,
         hoveredPosition,
     }
@@ -360,7 +364,7 @@ export default function TowerDefenseMap({
         const animate = () => {
             const now = Date.now()
             const {
-                towers, enemies, projectiles, particles,
+                towers, enemies, projectiles, laserBeams, particles,
                 shakeIntensity, selectedTowerType, selectedTower,
                 hoveredPosition,
             } = drawStateRef.current
@@ -573,22 +577,46 @@ export default function TowerDefenseMap({
                 ctx.fillRect(enemy.x - hpBarWidth / 2, enemy.y - 35, hpBarWidth * hpRatio, hpBarHeight)
             })
 
+            // 레이저 빔: 타워에서 맞은 적들까지, 남은 시간에 따라 옅어지는 빛줄기 + 맞은 자리 섬광
+            laserBeams.forEach((beam) => {
+                const lifetime = Math.max(1, beam.expiresAt - beam.createdAt)
+                const alpha = Math.max(0, Math.min(1, (beam.expiresAt - now) / lifetime))
+                if (alpha <= 0) return
+
+                ctx.save()
+                ctx.lineCap = 'round'
+                beam.targets.forEach((target) => {
+                    ctx.globalAlpha = alpha * 0.4
+                    ctx.strokeStyle = '#38bdf8'
+                    ctx.lineWidth = 11
+                    ctx.shadowBlur = 18
+                    ctx.shadowColor = '#38bdf8'
+                    ctx.beginPath()
+                    ctx.moveTo(beam.fromX, beam.fromY)
+                    ctx.lineTo(target.x, target.y)
+                    ctx.stroke()
+
+                    ctx.globalAlpha = alpha
+                    ctx.strokeStyle = '#f0f9ff'
+                    ctx.lineWidth = 3
+                    ctx.shadowBlur = 0
+                    ctx.beginPath()
+                    ctx.moveTo(beam.fromX, beam.fromY)
+                    ctx.lineTo(target.x, target.y)
+                    ctx.stroke()
+
+                    ctx.globalAlpha = alpha * 0.85
+                    ctx.fillStyle = '#bae6fd'
+                    ctx.beginPath()
+                    ctx.arc(target.x, target.y, 7 + (1 - alpha) * 9, 0, Math.PI * 2)
+                    ctx.fill()
+                })
+                ctx.restore()
+            })
+
             projectiles.forEach((projectile) => {
                 const projectileImage = projectileImagesRef.current[projectile.towerType]
                 const size = 20
-
-                if (projectile.towerType === 'LASER') {
-                    const tower = towers.find((item) => item.id === projectile.towerId)
-                    if (!tower) return
-
-                    ctx.strokeStyle = '#3b82f6'
-                    ctx.lineWidth = 3
-                    ctx.beginPath()
-                    ctx.moveTo(tower.x, tower.y)
-                    ctx.lineTo(projectile.x, projectile.y)
-                    ctx.stroke()
-                    return
-                }
 
                 if (projectileImage) {
                     const dx = projectile.targetX - projectile.x

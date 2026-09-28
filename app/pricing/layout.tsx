@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 export const metadata: Metadata = {
   title: '요금제',
   description:
-    '퀴즈독 요금제 안내. 학생은 언제나 무료이고, 선생님은 무료 플랜으로 바로 시작할 수 있습니다. 베타 기간에는 전 기능을 무료로 이용하세요.',
+    '퀴즈독 요금제 안내. 학생은 언제나 무료이고, 선생님은 무료 플랜으로 바로 시작하고, Pro 기능은 가입 후 2주 동안 무료로 체험할 수 있습니다.',
   alternates: { canonical: '/pricing' },
   openGraph: {
     title: '요금제 | 퀴즈독',

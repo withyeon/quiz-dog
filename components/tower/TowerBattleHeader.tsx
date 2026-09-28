@@ -9,6 +9,7 @@ import {
     Play,
     ShieldCheck,
     Target,
+    Trophy,
 } from 'lucide-react'
 import HudMetric from '@/components/game/HudMetric'
 import {
@@ -29,7 +30,8 @@ interface TowerBattleHeaderProps {
     isWaveActive: boolean
     waveEnemiesRemaining: number
     waveProgress: number
-    occupiedSlotCount: number
+    /** 선생님 화면 순위에 올라가는 점수 (누적 획득 골드) */
+    score: number
     quizHudValue: string
     quizHudDetail: string
     quizButtonLabel: string
@@ -51,7 +53,7 @@ export default function TowerBattleHeader({
     isWaveActive,
     waveEnemiesRemaining,
     waveProgress,
-    occupiedSlotCount,
+    score,
     quizHudValue,
     quizHudDetail,
     questionSetTitle,
@@ -101,8 +103,9 @@ export default function TowerBattleHeader({
                 <div className="grid grid-cols-5 gap-1.5 sm:gap-2 xl:flex">
                     <HudMetric icon={HeartPulse} label="코어" value={hp} detail="체력" tone="text-red-500" />
                     <HudMetric icon={Coins} label="골드" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
+                    {/* 선생님 화면·결과 순위와 같은 숫자. 예전엔 학생 화면 어디에도 점수가 없었다 */}
+                    <HudMetric icon={Trophy} label="점수" value={score.toLocaleString()} detail="선생님 화면 순위" tone="text-emerald-500" />
                     <HudMetric icon={Target} label="웨이브" value={`${Math.min(currentWave + 1, WAVES.length)}/${WAVES.length}`} detail={isWaveActive ? `${waveEnemiesRemaining}마리 남음` : `${waveProgress}% 클리어`} tone="text-indigo-500" />
-                    <HudMetric icon={Crosshair} label="배치" value="자유" detail={`${occupiedSlotCount}개 설치`} tone="text-emerald-500" />
                     <HudMetric icon={BrainCircuit} label="퀴즈" value={quizHudValue} detail={quizHudDetail} tone="text-sky-500" />
                 </div>
 

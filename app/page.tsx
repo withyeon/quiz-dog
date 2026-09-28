@@ -32,7 +32,7 @@ export default function LandingPage() {
   }, [])
 
   return (
-    <div className="min-h-dvh relative overflow-hidden font-bitbit bg-[#d9eef5]">
+    <div className="min-h-dvh relative overflow-hidden break-keep font-bitbit bg-[#d9eef5]">
       <PawBackgroundDecor />
 
       {/* 분필 먼지 (Hero 섹션 안에서만 보임 — 아래 섹션에 영향 없게 absolute) */}
@@ -105,7 +105,7 @@ export default function LandingPage() {
 
                 <h2 className="text-3xl sm:text-4xl md:text-5xl">
                   <PixelHeading>
-                    다음 수업은 <PixelAccent>게임</PixelAccent>으로
+                    <PixelAccent>퀴즈독</PixelAccent>과 함께 즐거운 수업시간
                   </PixelHeading>
                 </h2>
                 <p className="-mt-1 mb-8 text-base sm:text-lg" style={{ color: '#475569' }}>

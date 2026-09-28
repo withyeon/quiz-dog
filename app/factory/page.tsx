@@ -94,6 +94,9 @@ export default function FactoryPage() {
 
   const questionStartTime = useRef<number>(0)
   const moneyRef = useRef(0)
+  // 정답 후 1초 자동 이동 / 오답 후 3초 복귀 타이머. "다음" 버튼을 눌러 먼저 넘어가면
+  // 이 타이머를 반드시 지워야 한다 — 안 지우면 새 문제가 뜨고 곧바로 또 다른 문제로 바뀐다.
+  const nextQuestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // 정답/오답 기록. 편의점은 useGameBase를 쓰지 않아 여기서 직접 players.answer_history에 동기화한다.
   // 이게 없으면 학생 결과·선생님 리포트에 "0번 풀어서 0번 정답"으로 나온다.
   const [answerHistory, setAnswerHistory] = useState<AnswerRecord[]>([])
@@ -412,8 +415,19 @@ export default function FactoryPage() {
     return next >= prev % total ? next + 1 : next
   }
 
+  const clearNextQuestionTimer = () => {
+    if (nextQuestionTimerRef.current) {
+      clearTimeout(nextQuestionTimerRef.current)
+      nextQuestionTimerRef.current = null
+    }
+  }
+
+  // 언마운트 시 대기 중인 문제 전환 타이머 정리
+  useEffect(() => clearNextQuestionTimer, [])
+
   // 정답 후 다음 문제로 (3의 배수 아닐 때 클릭 시 즉시 이동)
   const goToNextQuiz = () => {
+    clearNextQuestionTimer()
     setIsQuizMode(true)
     setCurrentView('quiz')
     setCurrentQuestionIndex((prev) => pickRandomQuestionIndex(prev))
@@ -472,8 +486,9 @@ export default function FactoryPage() {
         playSFX('item')
         setShowOrderModal(true) // 발주 모달 열기
       } else {
-        // 3의 배수가 아니면 1초 후 자동 또는 정답 클릭 시 즉시
-        setTimeout(goToNextQuiz, 1000)
+        // 3의 배수가 아니면 1초 후 자동 또는 정답 클릭 시 즉시 (둘 중 먼저 실행된 쪽만 이동)
+        clearNextQuestionTimer()
+        nextQuestionTimerRef.current = setTimeout(goToNextQuiz, 1000)
       }
     } else {
       playSFX('incorrect')
@@ -489,7 +504,9 @@ export default function FactoryPage() {
       setIsQuizMode(false)
       setCurrentView('wrong')
       revealAnswer(currentQuestion?.id)
-      setTimeout(() => {
+      clearNextQuestionTimer()
+      nextQuestionTimerRef.current = setTimeout(() => {
+        nextQuestionTimerRef.current = null
         setCurrentView('quiz')
         setIsQuizMode(true)
         setCurrentQuestionIndex((prev) => pickRandomQuestionIndex(prev))
@@ -504,6 +521,7 @@ export default function FactoryPage() {
 
   // 상품 선택(발주) 완료 후 모달 닫고 다음 문제로 (랜덤)
   const handleProductSelected = () => {
+    clearNextQuestionTimer()
     setShowOrderModal(false)
     setIsQuizMode(true)
     setCurrentView('quiz')

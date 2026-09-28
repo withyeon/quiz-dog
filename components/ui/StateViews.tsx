@@ -35,6 +35,7 @@ export function LoadingState({
 
 export function EmptyState({
   icon: Icon,
+  image,
   mascot = false,
   title,
   description,
@@ -42,6 +43,8 @@ export function EmptyState({
   card = true,
 }: {
   icon?: LucideIcon
+  /** 선 아이콘 대신 띄울 public 픽셀 이미지 */
+  image?: string
   /** 마스코트를 띄울지 — 처음 들어온 화면처럼 환영이 필요한 곳에만 */
   mascot?: boolean
   title: string
@@ -63,6 +66,10 @@ export function EmptyState({
           height={72}
           className="mx-auto mb-4 h-16 w-16 object-contain"
         />
+      ) : image ? (
+        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50">
+          <Image src={image} alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
+        </span>
       ) : (
         Icon && (
           <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-50">

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { toPng } from 'html-to-image'
 import download from 'downloadjs'
@@ -229,14 +230,6 @@ export default function PricingQuotePage() {
                 </p>
               </motion.div>
 
-              {/* 베타 안내 */}
-              <div
-                className="mx-auto mb-8 max-w-3xl rounded-2xl px-5 py-4 text-center text-sm font-black text-[#1E40AF]"
-                style={{ background: 'linear-gradient(135deg, #EFF6FF, #E0F2FE)', border: '2px solid #BFDBFE', fontFamily: FONT }}
-              >
-                베타 기간에는 전 기능이 무료입니다.
-              </div>
-
               <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
                 <div className="min-w-0 space-y-6">
                   {/* 플랜 */}
@@ -247,7 +240,10 @@ export default function PricingQuotePage() {
                     >
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <p className="text-2xl font-black text-[#2563EB]" style={{ fontFamily: FONT }}>⚡ Pro</p>
+                          <p className="flex items-center gap-2 text-2xl font-black text-[#2563EB]" style={{ fontFamily: FONT }}>
+                            <Image src="/dontlookdown/powerup/energy.webp" alt="" width={30} height={30} unoptimized className="h-[30px] w-[30px] object-contain" />
+                            Pro
+                          </p>
                           <p className="mt-1 text-sm font-black text-slate-600" style={{ fontFamily: FONT }}>
                             선생님 1명당 월 <span className="text-lg text-[#1E3A8A]">{formatKrw(PRO_MONTHLY_LIST_PRICE)}</span>
                           </p>
@@ -472,8 +468,9 @@ function ResultView({
   return (
     <div>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mb-6 text-center print:hidden">
-        <p className="inline-block rounded-full px-5 py-1.5 text-sm font-black text-[#166534]" style={{ background: '#DCFCE7', border: '2px solid #86EFAC', fontFamily: FONT }}>
-          ✅ 견적서가 발행됐어요
+        <p className="inline-flex items-center gap-1.5 rounded-full px-5 py-1.5 text-sm font-black text-[#166534]" style={{ background: '#DCFCE7', border: '2px solid #86EFAC', fontFamily: FONT }}>
+          <Image src="/icons/correct.webp" alt="" width={18} height={18} unoptimized className="h-[18px] w-[18px] object-contain" />
+          견적서가 발행됐어요
         </p>
         <h1 className="mt-4 text-3xl font-black text-[#0F172A] md:text-4xl" style={{ fontFamily: FONT }}>
           견적번호 <span style={{ color: '#2E7BD4' }}>{data.quoteNumber}</span>

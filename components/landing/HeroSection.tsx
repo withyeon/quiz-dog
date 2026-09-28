@@ -170,7 +170,9 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
 
           <h1 className="mt-6 text-4xl leading-tight sm:text-5xl lg:text-6xl">
             <PixelHeading>
-              수업을 <PixelAccent>게임</PixelAccent>처럼
+              <PixelAccent>퀴즈독</PixelAccent>과 함께
+              <br />
+              즐거운 수업시간
             </PixelHeading>
           </h1>
 

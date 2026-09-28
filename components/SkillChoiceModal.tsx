@@ -48,6 +48,10 @@ export default function SkillChoiceModal({
                     )}
                 </motion.div>
 
+                <p className="mb-4 text-center text-sm font-bold text-slate-600">
+                    아이템 하나를 골라 챙겨요. 바로 쓰이지 않고 아이템 칸에 보관되니, 원할 때 눌러서 쓰세요.
+                </p>
+
                 <div className="grid gap-3 md:grid-cols-3">
                     {skills.map((skill) => (
                         <motion.button

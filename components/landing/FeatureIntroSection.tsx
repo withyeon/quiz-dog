@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import FeatureMenuCard from '@/components/landing/FeatureMenuCard'
+import HeadingIcon from '@/components/landing/HeadingIcon'
 import { FEATURE_INTRO_ITEMS } from '@/components/landing/featureIntroData'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 
@@ -24,6 +25,7 @@ export default function FeatureIntroSection({
           <h2 className="text-4xl sm:text-5xl">
             <PixelHeading>
               <PixelAccent>퀴즈독</PixelAccent> 기능 한눈에
+              <HeadingIcon src="/icons/scan.webp" />
             </PixelHeading>
           </h2>
         </motion.div>
