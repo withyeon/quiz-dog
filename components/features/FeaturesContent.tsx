@@ -4,7 +4,6 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
-  Sparkles,
   Check,
   KeyRound,
   Smartphone,
@@ -393,7 +392,15 @@ export default function FeaturesContent() {
 
             <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
               <CtaButton href="/teacher">
-                <Sparkles className="h-5 w-5" />
+                <Image
+                  src="/assets/icons/joystick-64.png"
+                  alt=""
+                  aria-hidden
+                  width={64}
+                  height={64}
+                  unoptimized
+                  className="h-6 w-6 object-contain"
+                />
                 무료로 시작하기
               </CtaButton>
               <CtaButton href="/lobby" variant="ghost">
@@ -750,7 +757,15 @@ export default function FeaturesContent() {
 
               <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
                 <CtaButton href="/teacher">
-                  <Sparkles className="h-5 w-5" />
+                  <Image
+                    src="/assets/icons/joystick-64.png"
+                    alt=""
+                    aria-hidden
+                    width={64}
+                    height={64}
+                    unoptimized
+                    className="h-6 w-6 object-contain"
+                  />
                   무료로 시작하기
                 </CtaButton>
                 <CtaButton href="/pricing" variant="ghost">

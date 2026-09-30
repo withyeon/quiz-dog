@@ -108,7 +108,9 @@ export function getScoreDisplay(player: ScorePlayer, gameMode: string | null | u
 export function getScoreDisplayLabel(gameMode: string | null | undefined): string {
   const mode = getGameModeConfig(gameMode).id
   if (mode === 'gold_quest') return '골드'
-  if (mode === 'factory' || mode === 'cafe') return '수익'
+  if (mode === 'factory') return '수익'
+  // 카페 순위는 끝났을 때 가진 돈 (메뉴를 사거나 세금을 내면 줄어든다)
+  if (mode === 'cafe') return '돈'
   if (mode === 'battle_royale') return '체력'
   if (mode === 'dontlookdown') return '높이'
   if (mode === 'zombie') return '생존 점수'

@@ -80,7 +80,7 @@ export default function CafeDashboard({
             <header className="mb-5 flex flex-col gap-3 rounded-lg bg-amber-900 px-5 py-4 text-white md:flex-row md:items-center md:justify-between">
                 <div>
                     <h2 className="text-2xl font-black">☕ 달콤 바삭 카페 LIVE</h2>
-                    <p className="text-sm font-bold text-amber-100">실시간 수익 랭킹 중계판</p>
+                    <p className="text-sm font-bold text-amber-100">실시간 가진 돈 순위 중계판</p>
                 </div>
                 <div className="rounded-full bg-white/15 px-4 py-2 text-lg font-black">
                     남은 시간 {formatClock(remaining)}

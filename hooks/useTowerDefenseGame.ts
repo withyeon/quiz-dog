@@ -15,6 +15,9 @@ import {
     AIRSTRIKE_DAMAGE,
     AIRSTRIKE_RADIUS,
     PATH_POINTS,
+    PROJECTILE_HIT_RADIUS,
+    PROJECTILE_SPEED,
+    applyProjectileHit,
     calculateQuizGoldReward,
     canPlaceTowerAtPoint,
     getAirstrikePoint,
@@ -22,9 +25,11 @@ import {
     getLaserPierceCount,
     getTowerDamage,
     getTowerHitDamage,
+    getTowerQuizStatus,
     getTowerSellValue,
     getTowerRange,
     getTowerUpgradeCost,
+    getTowerWaveOutlook,
     getDistance,
     getNextPosition,
     hasReachedEnd,
@@ -42,7 +47,7 @@ import {
     updateParticles,
     type Particle,
 } from '@/lib/game/particles'
-import { SKILLS, type SkillId } from '@/lib/game/skills'
+import { SKILLS, getItemBlockReason as getSkillBlockReason, type SkillId } from '@/lib/game/skills'
 import type { SFXType } from '@/hooks/useAudio'
 
 // 상수 정의는 lib/game/tower.ts 로 이동. 기존 import 경로 호환을 위해 재수출합니다.
@@ -67,31 +72,6 @@ interface UseTowerDefenseGameOptions {
     setCurrentQuestionIndex: (index: number) => void
     setShowCountdown: (show: boolean) => void
     playSFX: (sound: SFXType) => void
-}
-
-/**
- * 발사체가 적에게 닿았을 때의 피해를 적 목록에 적용한다.
- * 마법/폭탄은 맞은 지점 주변까지, 얼음은 둔화까지 건다.
- */
-function applyProjectileHit(enemies: Enemy[], target: Enemy, projectile: Projectile, now: number): Enemy[] {
-    const towerType = TOWER_TYPES[projectile.towerType]
-    const splashRadius = towerType.special === 'splash'
-        ? 50
-        : towerType.special === 'explosion'
-            ? 70
-            : 0
-
-    return enemies.map(enemy => {
-        const isHit = splashRadius > 0
-            ? getDistance(target.x, target.y, enemy.x, enemy.y) <= splashRadius
-            : enemy.id === target.id
-        if (!isHit) return enemy
-
-        const hp = enemy.hp - getTowerHitDamage(projectile.towerType, enemy.type, projectile.damage)
-        return towerType.special === 'slow'
-            ? { ...enemy, hp, slowedUntil: now + 1600 }
-            : { ...enemy, hp }
-    })
 }
 
 export function useTowerDefenseGame({
@@ -147,22 +127,23 @@ export function useTowerDefenseGame({
     const quizProgressByWaveRef = useRef<Record<number, WaveQuizProgress>>({})
     const quizStorageKey = roomCode ? `tower_quiz_progress_${roomCode}` : null
     const currentWaveQuizProgress = quizProgressByWave[currentWave] ?? { answered: 0, correct: 0 }
-    const isCurrentWaveQuizComplete = currentWaveQuizProgress.answered >= TOWER_QUIZZES_PER_WAVE
-    const isCurrentWaveQuizPerfect = (
-        isCurrentWaveQuizComplete
-        && currentWaveQuizProgress.correct >= TOWER_QUIZZES_PER_WAVE
-    )
-    const isQuizAvailable = Boolean(
-        currentQuestionAvailable
-        && !isWaveActive
-        && currentWave < WAVES.length
-        && !isCurrentWaveQuizComplete
-    )
-    const canStartWave = Boolean(
-        !isWaveActive
-        && currentWave < WAVES.length
-        && isCurrentWaveQuizComplete
-    )
+    // 헤더 퀴즈 칸·버튼 문구까지 한 곳(lib/game/tower)에서 정한다. 튜토리얼 데모도 같은 함수를 쓴다.
+    const {
+        isComplete: isCurrentWaveQuizComplete,
+        isPerfect: isCurrentWaveQuizPerfect,
+        isQuizAvailable,
+        canStartWave,
+        quizHudValue,
+        quizHudDetail,
+        quizButtonLabel,
+        startWaveButtonLabel,
+    } = getTowerQuizStatus({
+        progress: currentWaveQuizProgress,
+        currentWave,
+        isWaveActive,
+        waveEnemiesRemaining,
+        currentQuestionAvailable,
+    })
 
     const mutateEnemies = useCallback((update: (current: Enemy[]) => Enemy[]) => {
         const next = update(enemiesRef.current)
@@ -484,20 +465,9 @@ export function useTowerDefenseGame({
     }, [])
 
     /** 지금 이 아이템을 쓸 수 없는 이유. 쓸 수 있으면 null. */
-    const getItemBlockReason = useCallback((skillId: SkillId): string | null => {
-        switch (skillId) {
-            case 'THUNDER':
-            case 'BLIZZARD':
-            case 'AIRSTRIKE':
-                return enemies.length === 0 ? '적이 있을 때 쓸 수 있어요' : null
-            case 'OVERCLOCK':
-                return isWaveActive ? null : '웨이브 중에 쓸 수 있어요'
-            case 'HEAL':
-                return hp >= PLAYER_START_HP ? '체력이 가득 찼어요' : null
-            case 'GOLD_RUSH':
-                return null
-        }
-    }, [enemies.length, hp, isWaveActive])
+    const getItemBlockReason = useCallback((skillId: SkillId): string | null => (
+        getSkillBlockReason(skillId, { enemyCount: enemies.length, isWaveActive, hp })
+    ), [enemies.length, hp, isWaveActive])
 
     const activateSkill = useCallback((skillId: SkillId) => {
         switch (skillId) {
@@ -704,7 +674,7 @@ export function useTowerDefenseGame({
                                 targetX: target.x,
                                 targetY: target.y,
                                 targetEnemyId: target.id,
-                                speed: 400,
+                                speed: PROJECTILE_SPEED,
                                 damage,
                             },
                         ]
@@ -733,7 +703,7 @@ export function useTowerDefenseGame({
                     const tracking = { ...projectile, targetX: target.x, targetY: target.y }
                     const newPos = moveProjectile(tracking, deltaTime)
 
-                    if (getDistance(newPos.x, newPos.y, target.x, target.y) < 15) {
+                    if (getDistance(newPos.x, newPos.y, target.x, target.y) < PROJECTILE_HIT_RADIUS) {
                         newParticles.push(...createHitParticles(target.x, target.y, projectile.towerType))
                         if (projectile.towerType === 'BOMB') requestShake(4, 200)
                         enemies = applyProjectileHit(enemies, target, projectile, now)
@@ -815,35 +785,11 @@ export function useTowerDefenseGame({
         ? getTowerUpgradeCost(selectedTower.type, selectedTower.level)
         : null
     const selectedSellValue = selectedTower ? getTowerSellValue(selectedTower) : 0
-    const nextWave = currentWave < WAVES.length ? WAVES[currentWave] : null
-    const nextWaveRoster = nextWave
-        ? nextWave.enemies.map(enemy => `${ENEMY_TYPES[enemy.type].name} ${enemy.count}`).join(' · ')
-        : '모든 웨이브 완료'
-    const waveProgress = Math.min(100, Math.round((currentWave / WAVES.length) * 100))
+    const { nextWaveRoster, waveProgress } = getTowerWaveOutlook(currentWave)
     const occupiedSlotCount = towers.length
     const remainingSlots = 999
     // 선생님 화면과 결과 순위에 올라가는 점수. 누적 획득 골드와 같다 (app/tower/page.tsx 의 동기화 효과 참고).
     const score = Math.max(0, Math.floor(totalGoldEarned))
-    const quizHudValue = isWaveActive
-        ? '전투중'
-        : currentWave >= WAVES.length
-            ? '완료'
-            : `${currentWaveQuizProgress.answered}/${TOWER_QUIZZES_PER_WAVE}`
-    const quizHudDetail = isWaveActive
-        ? `${waveEnemiesRemaining}마리 남음`
-        : currentWave >= WAVES.length
-            ? '모든 웨이브 완료'
-            : `정답 ${currentWaveQuizProgress.correct}/${TOWER_QUIZZES_PER_WAVE}`
-    const quizButtonLabel = !currentQuestionAvailable
-        ? '문항 없음'
-        : isWaveActive
-            ? '전투 중'
-            : isCurrentWaveQuizComplete
-                ? isCurrentWaveQuizPerfect ? '아이템 획득 완료' : '퀴즈 완료'
-                : `퀴즈 ${currentWaveQuizProgress.answered + 1}/${TOWER_QUIZZES_PER_WAVE}`
-    const startWaveButtonLabel = !isCurrentWaveQuizComplete
-        ? `퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제 먼저`
-        : `웨이브 ${currentWave + 1}`
     const itemEntries = items.map((skillId, index) => ({
         index,
         skill: SKILLS[skillId],

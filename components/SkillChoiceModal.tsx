@@ -31,7 +31,7 @@ export default function SkillChoiceModal({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 16 }}
                 transition={{ type: 'spring', damping: 20 }}
-                className="w-full max-w-4xl rounded-lg border border-white/30 bg-white/94 p-5 shadow-2xl shadow-slate-950/30"
+                className="w-full max-w-4xl rounded-lg border border-white/30 bg-white/[0.94] p-5 shadow-2xl shadow-slate-950/30"
             >
                 <motion.div
                     initial={{ y: -36, opacity: 0 }}

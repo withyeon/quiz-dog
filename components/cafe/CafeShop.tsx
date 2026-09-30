@@ -5,7 +5,7 @@ import PixelIcon from '@/components/ui/PixelIcon'
 import { TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { MENU_ITEMS, UPGRADES, canBuyMenu, canBuyUpgrade, formatCafeMoney } from '@/lib/game/cafe'
+import { MENU_ITEMS, UPGRADES, canBuyMenu, canBuyUpgrade, formatCafeMoney, formatCafeMoneyDelta } from '@/lib/game/cafe'
 import { useCafeStore } from '@/store/cafeStore'
 
 export default function CafeShop() {
@@ -44,6 +44,8 @@ export default function CafeShop() {
                 <CardContent>
                   <div className="text-center space-y-2">
                     <div className="text-base sm:text-xl font-bold text-amber-600 whitespace-nowrap">{formatCafeMoney(menu.cost)}</div>
+                    {/* 왜 사야 하는지 바로 보이게 — 이 메뉴 하나를 팔면 얼마 버는지 */}
+                    <div className="text-xs font-bold text-green-600 whitespace-nowrap">팔면 {formatCafeMoneyDelta(menu.sellPrice)}</div>
                     <Button
                       onClick={() => purchaseMenu(menu.id)}
                       disabled={!canBuy}

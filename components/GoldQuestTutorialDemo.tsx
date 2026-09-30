@@ -231,10 +231,10 @@ export default function GoldQuestTutorialDemo() {
       }
       /* 규칙 7장과 1:1 — lib/game/tutorials.ts 의 gold_quest 슬라이드 순서와 같습니다 */
       phases={[
-        { key: 'quiz', duration: 2800, step: 1, caption: '퀴즈를 맞혀야 상자를 열 수 있어요' },
+        { key: 'quiz', duration: 2800, step: 1, caption: '퀴즈를 맞히고 보물 상자를 열어요' },
         { key: 'chest', duration: 2400, step: 2, caption: `상자 ${CHEST_COUNT}개 중 하나를 골라요` },
         { key: 'gold', duration: 3000, step: 3, caption: `황금 왕관을 찾았어요! +${CROWN_GOLD}골드` },
-        { key: 'trap', duration: 2800, step: 4, caption: `드래곤은 골드를 ${toPercent(GOLD_LOSS_RATE.DRAGON)}% 가져가요` },
+        { key: 'trap', duration: 2800, step: 4, caption: '드래곤을 만나면 골드가 절반 줄어요' },
         { key: 'steal', duration: 3200, step: 5, caption: `마법사로 친구 골드 ${toPercent(GOLD_STEAL_RATE.WIZARD)}%를 가져와요` },
         { key: 'shield', duration: 3200, step: 6, caption: `${SHIELD_STREAK}연속 정답이면 방어권으로 막아요` },
         { key: 'rank', duration: 3000, step: 7, caption: '골드가 가장 많으면 1등!' },

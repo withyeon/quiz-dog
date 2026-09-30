@@ -17,7 +17,6 @@ interface Teacher {
 const PROVIDER_LABEL: Record<string, string> = {
   email: '이메일',
   google: '구글',
-  kakao: '카카오',
 }
 
 function formatDate(iso: string | null): string {

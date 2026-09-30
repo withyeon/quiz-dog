@@ -197,7 +197,16 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
                   textShadow: '0 1px 0 rgba(0,0,0,0.18)',
                 }}
               >
-                무료로 시작하기
+                <Image
+                  src="/assets/icons/joystick-64.png"
+                  alt=""
+                  aria-hidden
+                  width={64}
+                  height={64}
+                  unoptimized
+                  className="h-6 w-6 object-contain"
+                />
+                시작하기
                 <ArrowRight className="h-5 w-5" />
               </motion.span>
             </Link>

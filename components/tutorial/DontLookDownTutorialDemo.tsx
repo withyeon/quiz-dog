@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import QuizSetName from '@/components/game/QuizSetName'
+import { resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 import { DEFAULT_SETTINGS, ENERGY, SUMMITS } from '@/lib/game/dontlookdown'
 import {
   TutorialDemoFrame,
@@ -34,10 +35,13 @@ const PLATFORMS: Platform[] = [
   { x: 26, y: 246, w: 120, img: '/dontlookdown/platforms/5.webp' },
   { x: 190, y: 196, w: 96, img: '/dontlookdown/platforms/3.webp' },
   { x: 330, y: 150, w: 90, img: '/dontlookdown/platforms/12.webp', spikes: true },
-  { x: 118, y: 120, w: 100, img: '/dontlookdown/platforms/4.webp' },
+  /* 구름 발판은 두 HUD 상자 사이 빈 공간에 둬야 그 위의 아바타가 상자에 가려지지 않는다 */
+  { x: 196, y: 130, w: 96, img: '/dontlookdown/platforms/4.webp' },
   { x: 270, y: 66, w: 110, img: '/dontlookdown/platforms/11.webp' },
 ]
 const AVATAR = 44
+/** 로비 아바타 경로(.svg)는 실제 게임처럼 webp 주소로 바꿔서 그린다 */
+const AVATAR_SRC = resolveAvatarSrc(PLAYER_AVATAR)
 
 /** 실제 화면 왼쪽 위 HUD 상자 */
 function ProgressBox({ height, summit }: { height: number; summit: number }) {
@@ -97,7 +101,9 @@ function EnergyBox({ energy, highlight }: { energy: number; highlight?: boolean 
 function Stage({ avatarIndex, energyEmpty, children }: { avatarIndex: number; energyEmpty?: boolean; children?: React.ReactNode }) {
   const p = PLATFORMS[avatarIndex]
   return (
-    <div className="relative h-[292px] w-full max-w-[460px] overflow-hidden rounded-2xl border-2 border-white/30 bg-gradient-to-b from-[#bfe4ff] to-[#e6f3ff] shadow-2xl">
+    <div className="relative w-full max-w-[460px] overflow-hidden rounded-2xl border-2 border-white/30 bg-gradient-to-b from-[#bfe4ff] to-[#e6f3ff] shadow-2xl">
+      {/* 무대는 460×292 좌표로 그리고, 폰에서는 통째로 줄여 HUD·발판·아바타 배치를 그대로 유지한다 */}
+      <div className="relative h-[292px] w-[460px] [zoom:0.7] sm:[zoom:1]">
       {/* 실제 캔버스 배경: 아래쪽 산 + 양옆 절벽 + 왼쪽 높이 눈금 */}
       <div className="absolute inset-x-0 bottom-0 h-[38%]">
         <Image src="/dontlookdown/bg/mountains.webp" alt="" fill className="object-cover object-bottom" sizes="460px" />
@@ -133,7 +139,7 @@ function Stage({ avatarIndex, energyEmpty, children }: { avatarIndex: number; en
       {/* 정상 깃발 */}
       <span className="absolute text-2xl" style={{ left: PLATFORMS[4].x + PLATFORMS[4].w - 22, top: PLATFORMS[4].y - 30 }}>🚩</span>
       {/* 에너지 파워업 */}
-      <motion.div className="absolute" style={{ left: PLATFORMS[3].x + 34, top: PLATFORMS[3].y - 40 }} animate={{ y: [0, -6, 0] }} transition={{ duration: 1.6, repeat: Infinity }}>
+      <motion.div className="absolute" style={{ left: PLATFORMS[1].x + 8, top: PLATFORMS[1].y - 44 }} animate={{ y: [0, -6, 0] }} transition={{ duration: 1.6, repeat: Infinity }}>
         <Image src="/dontlookdown/powerup/energy.webp" alt="" width={28} height={28} className="h-7 w-7 object-contain drop-shadow" />
       </motion.div>
       {/* 아바타 — 실제 캔버스는 로비 아바타 그림을 그대로 그린다 */}
@@ -143,11 +149,12 @@ function Stage({ avatarIndex, energyEmpty, children }: { avatarIndex: number; en
         transition={{ type: 'spring', stiffness: 220, damping: 16 }}
       >
         <motion.div animate={energyEmpty ? { rotate: [0, -6, 6, 0] } : { y: [0, -3, 0] }} transition={{ duration: energyEmpty ? 0.5 : 0.9, repeat: Infinity }}>
-          <Image src={PLAYER_AVATAR} alt={PLAYER_NAME} width={AVATAR} height={AVATAR} className="drop-shadow-lg" />
+          <Image src={AVATAR_SRC} alt={PLAYER_NAME} width={AVATAR} height={AVATAR} className="h-[44px] w-[44px] object-contain drop-shadow-lg" />
         </motion.div>
         <div className="mt-0.5 rounded-full bg-black/60 px-1.5 text-center text-[10px] font-black text-white">{PLAYER_NAME}</div>
       </motion.div>
       {children}
+      </div>
     </div>
   )
 }

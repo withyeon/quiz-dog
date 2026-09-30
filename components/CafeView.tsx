@@ -47,7 +47,6 @@ interface CafeViewProps {
   currentPlayerId: string | null
   consecutiveCorrect: number
   onSendEvent: (type: 'cafe:item_attack', payload: unknown) => Promise<unknown> | void
-  onScoreChange?: (totalCash: number) => void
   questionSetTitle?: string | null
   paused?: boolean
 }
@@ -61,7 +60,6 @@ export default function CafeView({
   currentPlayerId,
   consecutiveCorrect,
   onSendEvent,
-  onScoreChange,
   paused = false,
   questionSetTitle,
 }: CafeViewProps) {
@@ -69,7 +67,6 @@ export default function CafeView({
     status,
     timeRemaining,
     cash,
-    totalCashEarned,
     customersServed,
     unlockedMenus,
     menuStock,
@@ -243,6 +240,11 @@ export default function CafeView({
     }
 
     if (item.type === 'debuff' && targetPlayerId) {
+      // 보낸 쪽에도 확인이 뜬다 (예전엔 모달만 닫혀서 눌렀는지 알 수 없었다)
+      const targetName = players.find(player => player.id === targetPlayerId)?.nickname ?? '친구'
+      showNotice(itemId === 'TAX'
+        ? `${targetName}에게 세금을 걷었어요!`
+        : `${targetName}의 카페에 ${item.name}!`)
       await onSendEvent('cafe:item_attack', {
         attackerId: currentPlayerId,
         targetId: targetPlayerId,
@@ -357,8 +359,6 @@ export default function CafeView({
       if (adjustment !== 0) {
         earnCash(adjustment)
       }
-
-      onScoreChange?.(totalCashEarned + finalEarned)
 
       // 돈 애니메이션 추가
       const rect = event.currentTarget.getBoundingClientRect()
@@ -491,24 +491,25 @@ export default function CafeView({
         </div>
       </div>
 
-      {/* 아이템 결과 안내 */}
-      <AnimatePresence>
-        {notice && (
-          <motion.div
-            key={notice.id}
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            className="pointer-events-none absolute left-1/2 top-20 z-30 -translate-x-1/2"
-          >
-            <div className={`rounded-xl border-4 px-5 py-2 text-center text-base font-black shadow-xl sm:text-lg ${
-              notice.tone === 'good' ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-white text-slate-700'
-            }`}>
-              {notice.text}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* 아이템 결과 안내 — 가운데 정렬은 바깥 div (motion의 y 애니메이션이 -translate-x-1/2를 덮어써서 오른쪽으로 밀렸다) */}
+      <div className="pointer-events-none absolute inset-x-0 top-20 z-30 flex justify-center px-4">
+        <AnimatePresence>
+          {notice && (
+            <motion.div
+              key={notice.id}
+              initial={{ opacity: 0, y: -16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+            >
+              <div className={`rounded-xl border-4 px-5 py-2 text-center text-base font-black shadow-xl sm:text-lg ${
+                notice.tone === 'good' ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-slate-300 bg-white text-slate-700'
+              }`}>
+                {notice.text}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* 오답 화면 */}
       {showWrong && (

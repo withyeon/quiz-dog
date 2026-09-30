@@ -441,9 +441,9 @@ export default function FactoryTutorialDemo() {
           key: 'shelf',
           duration: 3400,
           step: 4,
-          caption: `진열해 두면 알아서 벌어요 — 초당 ${formatMoney(START_SHELF_CPS)}`,
+          caption: '상품을 진열하면 돈이 들어와요',
         },
-        { key: 'tier', duration: 3800, step: 5, caption: '등급이 높을수록 수익도 확률도 커져요' },
+        { key: 'tier', duration: 3800, step: 5, caption: '보물>특별>인기>기본 순으로 좋은 상품이에요' },
         { key: 'replace', duration: 3400, step: 6, caption: `${GRID_SIZE}칸이 꽉 차면 적게 버는 칸을 교체해요` },
         {
           key: 'synergy',

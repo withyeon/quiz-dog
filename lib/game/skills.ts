@@ -1,4 +1,5 @@
 import type { PixelIconName } from '@/components/ui/PixelIcon'
+import { PLAYER_START_HP } from '@/lib/game/tower'
 
 export type SkillId =
     | 'THUNDER'
@@ -18,7 +19,7 @@ export interface Skill {
 }
 
 // 타워 디펜스 아이템은 뽑는 순간 쓰이지 않고 보관했다가 원할 때 쓴다.
-// 언제 쓸 수 있는지는 hooks/useTowerDefenseGame 의 getItemBlockReason 이 정한다.
+// 언제 쓸 수 있는지는 아래 getItemBlockReason 이 정한다.
 
 export const SKILLS: Record<SkillId, Skill> = {
     THUNDER: {
@@ -71,6 +72,25 @@ const RARE_SKILLS: SkillId[] = ['THUNDER', 'AIRSTRIKE']
 
 function shuffle<T>(items: T[]): T[] {
     return [...items].sort(() => Math.random() - 0.5)
+}
+
+/** 보관 중인 아이템을 지금 쓸 수 없는 이유. 쓸 수 있으면 null. (게임과 튜토리얼 데모가 같이 쓴다) */
+export function getItemBlockReason(
+    skillId: SkillId,
+    { enemyCount, isWaveActive, hp }: { enemyCount: number; isWaveActive: boolean; hp: number },
+): string | null {
+    switch (skillId) {
+        case 'THUNDER':
+        case 'BLIZZARD':
+        case 'AIRSTRIKE':
+            return enemyCount === 0 ? '적이 있을 때 쓸 수 있어요' : null
+        case 'OVERCLOCK':
+            return isWaveActive ? null : '웨이브 중에 쓸 수 있어요'
+        case 'HEAL':
+            return hp >= PLAYER_START_HP ? '체력이 가득 찼어요' : null
+        case 'GOLD_RUSH':
+            return null
+    }
 }
 
 export function getSkillChoices(consecutiveCorrect: number): Skill[] {

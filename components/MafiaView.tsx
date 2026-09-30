@@ -15,6 +15,7 @@ import {
   attemptInvestigate,
   calculateLaunderedCash,
   calculateTotalMultiplier,
+  DIAMOND_CASH_VALUE,
   formatTime,
   generateSafeVaults,
   openSafeVault,
@@ -25,8 +26,10 @@ import {
 import { subscribeRoomRuntimeEvent, type RoomEventType } from '@/lib/realtime/roomChannel'
 import type { Database, Json } from '@/types/database.types'
 import type { Question } from '@/hooks/useGameBase'
-import PixelIcon, { type PixelIconName } from '@/components/ui/PixelIcon'
+import PixelIcon from '@/components/ui/PixelIcon'
+import VaultIcon, { getVaultDisplay, VaultReveal } from '@/components/mafia/VaultIcon'
 import QuizSetName from '@/components/game/QuizSetName'
+import { getPlayerById } from '@/lib/services/players'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type PlayerPatch = Partial<PlayerRow> & Record<string, unknown>
@@ -124,25 +127,9 @@ function mafiaNumericDelta(
     deltas.gold = cashDelta
   }
   if (diamondsDelta !== 0) deltas.mafia_diamonds = diamondsDelta
-  const scoreDelta = cashDelta + diamondsDelta * 100
+  const scoreDelta = cashDelta + diamondsDelta * DIAMOND_CASH_VALUE
   if (scoreDelta !== 0) deltas.score = scoreDelta
   return deltas
-}
-
-// 금고 속 내용물 아이콘. 돈 금고만 픽셀 아이콘이고 나머지는 이모지를 그대로 쓴다.
-function VaultIcon({
-  display,
-  size,
-  className = '',
-}: {
-  display: { icon: string; pixel?: PixelIconName }
-  size: number
-  className?: string
-}) {
-  if (display.pixel) {
-    return <PixelIcon name={display.pixel} size={size} alt="" className={`inline-block ${className}`} />
-  }
-  return <span className={`inline-block leading-none ${className}`}>{display.icon}</span>
 }
 
 export default function MafiaView({
@@ -363,8 +350,14 @@ export default function MafiaView({
 
     setInvestigatingPlayer(targetId)
     setInvestigationResult(null)
+    // 상대의 잔액·수상함은 내 화면 복제본이 아니라 DB 최신값으로 판정한다.
+    // 실시간 갱신이 늦어 내 화면의 상대 자금이 낡았어도 환수액이 어긋나지 않는다. (읽기 실패 시에만 복제본 사용)
+    const freshTargetPromise = getPlayerById(target.id)
+      .then((row) => (row ? toMafiaPlayer(row) : target))
+      .catch(() => target)
     window.setTimeout(async () => {
-      const result = attemptInvestigate(player, target, Date.now())
+      const freshTarget = await freshTargetPromise
+      const result = attemptInvestigate(player, freshTarget, Date.now())
       setInvestigationResult(result.result)
       // 친구 조사는 본인의 '다음 라운드 행동'이므로, 조사하는 순간 본인의 수상함은 해제된다.
       const clearedInvestigator = { ...result.newInvestigator, isCheating: false, cheatPendingVault: false }
@@ -384,13 +377,31 @@ export default function MafiaView({
         commitPlayerPatch(player.id, createFlagPatch(clearedInvestigator), 'mafia_investigator_clear'),
       ]
 
+      if (result.success) {
+        // 발각된 친구의 수상함 해제 (플래그만) — 환수액이 0이어도 반드시 해제한다
+        ops.push(commitPlayerPatch(target.id, createFlagPatch(result.newTarget), 'mafia_target_caught'))
+      }
+
       if (result.success && (result.recovered ?? 0) > 0) {
         // 자금 환수는 원자적 이동으로 — 동시 조사/획득 시 lost update 방지, 총량 보존.
-        // (score=cash+diamonds*100, gold=cash 이므로 같은 금액을 함께 이동)
+        // 기준은 화면에 보이는 자금(현금 + 다이아몬드)이라, 현금이 모자라면 상대 다이아몬드를 먼저 현금으로 바꾼 뒤 옮긴다.
+        // (score = cash + diamonds × DIAMOND_CASH_VALUE, gold = cash → 바꿀 때는 score 그대로, 옮길 때는 세 컬럼이 같이 움직인다)
+        const diamondsToConvert = result.diamondsConverted ?? 0
         ops.push(
-          commitPlayerSteal(target.id, player.id, result.recovered!, ['mafia_cash', 'score', 'gold'], 'mafia_investigate_recover'),
-          // 발각된 타겟의 치팅 플래그 해제 (플래그만)
-          commitPlayerPatch(target.id, createFlagPatch(result.newTarget), 'mafia_target_caught'),
+          (async () => {
+            if (diamondsToConvert > 0) {
+              await commitPlayerDelta(
+                target.id,
+                {
+                  mafia_diamonds: -diamondsToConvert,
+                  mafia_cash: diamondsToConvert * DIAMOND_CASH_VALUE,
+                  gold: diamondsToConvert * DIAMOND_CASH_VALUE,
+                },
+                { reason: 'mafia_diamonds_to_cash' },
+              )
+            }
+            await commitPlayerSteal(target.id, player.id, result.recovered!, ['mafia_cash', 'score', 'gold'], 'mafia_investigate_recover')
+          })(),
         )
       }
 
@@ -404,16 +415,6 @@ export default function MafiaView({
       }
       window.setTimeout(goToQuiz, 1800)
     }, 1400)
-  }
-
-  // pixel이 있으면 이모지 대신 픽셀 아이콘을 그린다 (VaultIcon).
-  const getVaultDisplay = (vault: SafeVault, isRevealed: boolean): { icon: string; text: string; pixel?: PixelIconName } => {
-    if (!isRevealed) return { icon: '🔒', text: '???' }
-    if (vault.reward === 'cash') return { icon: '💰', pixel: 'gold', text: `$${vault.amount}` }
-    if (vault.reward === 'diamond') return { icon: '💎', text: `${vault.amount}개` }
-    if (vault.reward === 'multiplier_1.5') return { icon: '⚡', text: 'x1.5' }
-    if (vault.reward === 'multiplier_2') return { icon: '⚡⚡', text: 'x2' }
-    return { icon: '❌', text: '빈 금고' }
   }
 
   const isUrgent = timeRemaining <= 30
@@ -472,10 +473,10 @@ export default function MafiaView({
                   <h2 className="mb-4 text-2xl font-bold text-yellow-400 sm:mb-6 sm:text-4xl">정답입니다. 다음 행동을 고르세요.</h2>
                   <div className="grid grid-cols-2 gap-3 sm:gap-5">
                     <Button onClick={handleOpenVaultChoice} className="h-28 bg-yellow-500 text-xl font-black text-black hover:bg-yellow-400 sm:h-32 sm:text-2xl">
-                      <span className="flex flex-col items-center gap-2"><span className="text-4xl sm:text-5xl">🔐</span>금고 열기</span>
+                      <span className="flex flex-col items-center gap-2"><PixelIcon name="vaultOpen" size={48} alt="" className="h-10 w-10 sm:h-12 sm:w-12" />금고 열기</span>
                     </Button>
                     <Button onClick={handleInvestigate} className="h-28 bg-blue-600 text-xl font-black text-white hover:bg-blue-500 sm:h-32 sm:text-2xl" disabled={otherPlayers.length === 0}>
-                      <span className="flex flex-col items-center gap-2"><Eye className="h-8 w-8 sm:h-9 sm:w-9" />친구 조사</span>
+                      <span className="flex flex-col items-center gap-2"><PixelIcon name="scan" size={48} alt="" className="h-10 w-10 sm:h-12 sm:w-12" />친구 조사</span>
                     </Button>
                   </div>
                 </CardContent>
@@ -499,11 +500,12 @@ export default function MafiaView({
                           onClick={() => void handleVaultSelect(vault.id)}
                           className={`aspect-square rounded-xl border-4 p-2 transition hover:scale-105 sm:p-5 ${revealed ? 'border-cyan-400 bg-cyan-900' : 'border-yellow-600 bg-yellow-900'}`}
                         >
+                          {/* 안 연 금고는 글자가 없으니 그림을 크게 */}
                           <div className="text-4xl sm:text-7xl">
-                            <VaultIcon display={display} size={40} className="sm:hidden" />
-                            <VaultIcon display={display} size={72} className="hidden sm:inline-block" />
+                            <VaultIcon display={display} size={display.text ? 40 : 64} className="sm:hidden" />
+                            <VaultIcon display={display} size={display.text ? 72 : 128} className="hidden sm:inline-block" />
                           </div>
-                          <div className="mt-1.5 text-base font-black text-white sm:mt-3 sm:text-2xl">{display.text}</div>
+                          {display.text && <div className="mt-1.5 text-base font-black text-white sm:mt-3 sm:text-2xl">{display.text}</div>}
                         </button>
                       )
                     })}
@@ -525,7 +527,9 @@ export default function MafiaView({
                     <div className="py-12 text-center">
                       {investigationResult ? (
                         <>
-                          <div className="mb-4 text-7xl">{investigationResult === 'CHEATER' ? '🚨' : '✅'}</div>
+                          <div className="mb-4 flex justify-center">
+                            <PixelIcon name={investigationResult === 'CHEATER' ? 'siren' : 'correct'} size={112} alt="" />
+                          </div>
                           <p className={`text-4xl font-black ${investigationResult === 'CHEATER' ? 'text-red-400' : 'text-green-400'}`}>
                             {investigationResult}
                           </p>
@@ -559,10 +563,8 @@ export default function MafiaView({
 
           {currentView === 'vaultResult' && selectedVaultResult && (
             <motion.div key="vaultResult" initial={{ opacity: 0, scale: 0.88 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="text-center">
-              <div className="mb-4 text-8xl">
-                <VaultIcon display={getVaultDisplay(selectedVaultResult.vault, true)} size={96} />
-              </div>
-              <div className="max-w-2xl rounded-xl border-4 border-yellow-600 bg-black/90 p-8 text-3xl font-black text-yellow-300">
+              <VaultReveal vault={selectedVaultResult.vault} className="mx-auto mb-4 w-40 sm:w-52" />
+              <div className="max-w-2xl break-keep rounded-xl border-4 border-yellow-600 bg-black/90 p-8 text-3xl font-black text-yellow-300">
                 {selectedVaultResult.log}
               </div>
             </motion.div>
@@ -620,7 +622,10 @@ export default function MafiaView({
         {showCheatCaught && (
           <motion.div initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.7 }} className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
             <div className="absolute inset-0 bg-red-600/50" />
-            <div className="relative text-8xl font-black text-white drop-shadow-2xl">🚨 발각!</div>
+            <div className="relative flex flex-col items-center gap-2">
+              <PixelIcon name="siren" size={160} alt="" className="h-28 w-28 drop-shadow-2xl sm:h-40 sm:w-40" />
+              <div className="text-8xl font-black text-white drop-shadow-2xl">발각!</div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -646,8 +651,8 @@ export default function MafiaView({
               transition={{ duration: 0.45 }}
               className="relative flex max-w-2xl flex-col items-center gap-3 rounded-3xl border-4 border-red-300 bg-black/85 px-6 py-6 text-center shadow-2xl sm:px-10 sm:py-8"
             >
-              <ShieldAlert className="h-14 w-14 text-red-400 sm:h-20 sm:w-20" />
-              <div className="text-5xl font-black leading-tight text-white drop-shadow-2xl sm:text-7xl">🚨 발각됐습니다!</div>
+              <PixelIcon name="siren" size={96} alt="" className="h-16 w-16 sm:h-24 sm:w-24" />
+              <div className="text-5xl font-black leading-tight text-white drop-shadow-2xl sm:text-7xl">발각됐습니다!</div>
               <p className="text-xl font-bold text-red-200 sm:text-3xl">
                 {caughtNotice.investigatorName}의 조사에 몰래보기가 들통났어요!
               </p>

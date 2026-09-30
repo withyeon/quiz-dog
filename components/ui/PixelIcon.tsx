@@ -26,6 +26,13 @@ export const PIXEL_ICON = {
   steal: { src: '/icons/steal.webp', emoji: '🕶️', label: '점수 뺏기' },
   drone: { src: '/icons/drone.webp', emoji: '🚁', label: '드론' },
   crown: { src: '/icons/crown.webp', emoji: '👑', label: '왕관' },
+  vaultLocked: { src: '/icons/vault-locked.webp', emoji: '🔒', label: '잠긴 금고' },
+  vaultOpen: { src: '/icons/vault-open.webp', emoji: '🔐', label: '금고 열기' },
+  vaultEmpty: { src: '/icons/vault-empty.webp', emoji: '❌', label: '빈 금고' },
+  diamond: { src: '/icons/diamond.webp', emoji: '💎', label: '다이아몬드' },
+  boost: { src: '/icons/boost.webp', emoji: '⚡', label: '1.5배' },
+  boost2x: { src: '/icons/boost-2x.webp', emoji: '⚡⚡', label: '2배' },
+  siren: { src: '/icons/siren.webp', emoji: '🚨', label: '발각' },
 } as const
 
 export type PixelIconName = keyof typeof PIXEL_ICON

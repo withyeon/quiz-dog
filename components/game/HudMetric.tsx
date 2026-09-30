@@ -16,7 +16,7 @@ export default function HudMetric({
   tone,
 }: HudMetricProps) {
   return (
-    <div className="min-w-0 rounded-lg border border-white/70 bg-white/72 px-1.5 py-1 shadow-sm backdrop-blur sm:min-w-[108px] sm:px-3 sm:py-2">
+    <div className="min-w-0 rounded-lg border border-white/70 bg-white/[0.72] px-1.5 py-1 shadow-sm backdrop-blur sm:min-w-[108px] sm:px-3 sm:py-2">
       <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-bold tracking-normal text-slate-500 sm:mb-1 sm:text-[11px] sm:tracking-[0.08em]">
         <Icon className={`hidden h-3 w-3 shrink-0 ${tone} sm:block sm:h-3.5 sm:w-3.5`} />
         <span className="truncate">{label}</span>

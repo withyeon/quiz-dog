@@ -140,7 +140,7 @@ function SettingsContent() {
           {email || '이메일 없음'}
           {providers.length > 0 && (
             <span className="ml-2 text-xs font-medium text-slate-400">
-              ({providers.map((p) => (p === 'email' ? '이메일' : p === 'google' ? 'Google' : p === 'kakao' ? '카카오' : p)).join(' · ')})
+              ({providers.map((p) => (p === 'email' ? '이메일' : p === 'google' ? 'Google' : p)).join(' · ')})
             </span>
           )}
         </div>

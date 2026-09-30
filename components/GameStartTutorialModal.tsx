@@ -137,9 +137,11 @@ export default function GameStartTutorialModal({
                 <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-400 text-xl font-black text-[#17262a]">
                   {safeStepIndex + 1}
                 </span>
-                <h3 className="mt-1 text-2xl font-black leading-tight text-white sm:text-3xl">{slide.title}</h3>
+                <h3 className="mt-1 break-keep text-2xl font-black leading-tight text-white sm:text-3xl">{slide.title}</h3>
               </div>
-              <p className="mt-4 text-lg font-bold leading-8 text-white/75 sm:text-xl">{slide.body}</p>
+              {slide.body && (
+                <p className="mt-4 break-keep text-lg font-bold leading-8 text-white/75 sm:text-xl">{slide.body}</p>
+              )}
             </div>
 
             {!isLast && (
@@ -276,8 +278,8 @@ export default function GameStartTutorialModal({
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-white p-5">
-              <h3 className="text-2xl font-black tracking-normal text-black">{slide.title}</h3>
-              <p className="mt-3 text-base font-bold leading-7 text-slate-600">{slide.body}</p>
+              <h3 className="break-keep text-2xl font-black tracking-normal text-black">{slide.title}</h3>
+              {slide.body && <p className="mt-3 break-keep text-base font-bold leading-7 text-slate-600">{slide.body}</p>}
               {slide.points && slide.points.length > 0 && (
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   {slide.points.map((point, index) => (

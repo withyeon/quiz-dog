@@ -6,7 +6,6 @@ import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
   BONE_PICKUP_REWARD,
-  BONUS_ROUND_SECONDS,
   CARD_CHOICE_COUNT,
   CARD_DEFS,
   CARD_PICK_SECONDS,
@@ -15,7 +14,6 @@ import {
   CORRECT_ROUND_BASE_REWARD,
   CORRECT_ROUND_SCORE,
   CORRECT_ROUND_SECONDS,
-  GOLDEN_DOG_CHANCE,
   GOLDEN_DOG_SCORE,
   POOP_BOMB_SCORE,
   POOP_HIT_PENALTY,
@@ -659,7 +657,7 @@ function LegendScene() {
         </div>
 
         <p className="mt-4 text-center text-sm font-black text-white/70">
-          {CARD_CHOICE_COUNT}개 중 아주 가끔({Math.round(GOLDEN_DOG_CHANCE * 100)}%) 나오는 전설 카드예요
+          {CARD_CHOICE_COUNT}개 중 아주 가끔 나오는 전설 카드예요
         </p>
       </PuppyPanel>
     </StageCard>
@@ -670,11 +668,6 @@ function LegendScene() {
 function RankScene() {
   return (
     <StageCard id="puppy-rank" className="w-full max-w-sm">
-      <div className="mb-3 flex justify-center">
-        <span className="font-bitbit rounded-full bg-sky-400 px-4 py-2 text-sm font-black text-[#17262a] shadow-lg">
-          시간이 끝나면 보너스 대소동 {BONUS_ROUND_SECONDS}초!
-        </span>
-      </div>
       <MiniLeaderboard
         rows={[
           { name: PLAYER_NAME, value: AFTER_LEGEND, me: true },
@@ -750,7 +743,7 @@ export default function PuppyChaosTutorialDemo() {
           step: 6,
           caption: `${COMBO_SMALL.streak}연속 ${COMBO_SMALL.multiplier}배, ${COMBO_BIG.streak}연속 ${COMBO_BIG.multiplier}배`,
         },
-        { key: 'attack', duration: 3400, step: 7, caption: '공격 카드로 친구를 방해할 수 있어요' },
+        { key: 'attack', duration: 3400, step: 7, caption: '공격 아이템으로 친구를 방해할 수 있어요' },
         {
           key: 'legend',
           duration: 3400,

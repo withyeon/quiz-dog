@@ -9,30 +9,20 @@ import {
 import { DEFAULT_SETTINGS as DLD_SETTINGS, ENERGY as DLD_ENERGY } from '@/lib/game/dontlookdown'
 import {
   CHEST_COUNT,
-  GOLD_LOSS_RATE,
-  GOLD_MULTIPLIER,
-  GOLD_STEAL_RATE,
-  MAX_GOLD_STACK,
   SHIELD_STREAK,
   toPercent,
 } from '@/lib/game/goldQuest'
 import { TOWER_QUIZZES_PER_WAVE, WAVES, getQuizGoldRange } from '@/lib/game/tower'
 import {
-  ANSWER_SPEED_THRESHOLDS,
-  DOLL_TYPES,
   MACHINE_RANK_THRESHOLDS,
   MAX_COMBO_STREAK,
   MAX_MACHINE_RANK,
-  getAimGradeLabel,
-  getAimTierFloor,
   getAnswerSpeedLabel,
   getComboState,
   getMachineRankName,
 } from '@/lib/game/fishing'
 import {
-  GACHA_TIER_CHANCE,
   GRID_SIZE,
-  PRODUCT_OPTION_COUNT,
   QUIZZES_PER_PRODUCT,
   SPEED_BONUS_PER_SECOND,
   WRONG_PENALTY_RATE,
@@ -40,25 +30,17 @@ import {
 } from '@/lib/game/convenienceStore'
 import {
   CUSTOMER_PATIENCE_SECONDS,
-  MENU_ITEMS,
-  RESTOCK_PER_CORRECT,
 } from '@/lib/game/cafe'
 import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
 import {
-  CAFE_ITEMS,
-  GOLDEN_SPATULA_MULTIPLIER,
-  ITEM_CHOICE_COUNT,
   RARE_ITEM_STREAK,
 } from '@/lib/game/cafeItems'
+import { DIAMOND_CASH_VALUE, INVESTIGATE_RECOVER_RATE, VAULT_COUNT } from '@/lib/game/mafia'
 import {
   BONE_PICKUP_REWARD,
-  BONUS_ROUND_SECONDS,
   CARD_DEFS,
-  CARD_PICK_SECONDS,
-  CLEANER_DELAY_SECONDS,
   COMBO_STEPS,
   CORRECT_ROUND_SCORE,
-  CORRECT_ROUND_SECONDS,
   GOLDEN_DOG_SCORE,
   POOP_HIT_PENALTY,
   SCORE_THIEF_AMOUNT,
@@ -66,19 +48,12 @@ import {
 } from '@/lib/game/강아지대소동'
 import { withJosa } from '@/lib/utils/korean'
 
-/** 조준을 가장 잘 맞혔을 때 보장되는 최소 인형 등급 */
-const AIM_PERFECT_TIER = getAimTierFloor('perfect') ?? '특별'
-/** 보물 인형이 줄 수 있는 최고 점수 */
-const LEGEND_MAX_SCORE = Math.max(...DOLL_TYPES.filter((doll) => doll.tier === '보물').map((doll) => doll.maxScore))
-
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
-/** 빨리 맞혔을 때 보물 확률이 평소의 몇 배가 되는지 */
-const FAST_LEGEND_ODDS_RATIO = Math.round(GACHA_TIER_CHANCE.fast.보물 / GACHA_TIER_CHANCE.normal.보물)
 /** 진열대를 한 종류로 채웠을 때 나오는 최대 시너지 배율 */
 const MAX_SYNERGY = getMaxReachableSynergy()
-
-const CAFE_BEST_SELL = MENU_ITEMS.reduce((best, menu) => (menu.sellPrice > best.sellPrice ? menu : best))
+/** 마피아: 친구 조사로 몰래보기를 잡았을 때 가져오는 비율(%) */
+const MAFIA_RECOVER_PERCENT = toPercent(INVESTIGATE_RECOVER_RATE)
 
 /** 강아지 대소동 콤보 단계 — 낮은 연속수부터 순서대로 (3연속 1.5배 → 5연속 2배) */
 const PUPPY_COMBO_STEPS = [...COMBO_STEPS].sort((a, b) => a.streak - b.streak)
@@ -87,7 +62,7 @@ const PUPPY_COMBO_BIG = PUPPY_COMBO_STEPS[PUPPY_COMBO_STEPS.length - 1]
 
 export type GameTutorialSlide = {
   title: string
-  body: string
+  body?: string
   /** 데모 영상이 없는 모드에서만 쓰이는 보조 요약. 타워 디펜스처럼 문장만 쓰는 모드는 생략합니다. */
   points?: string[]
 }
@@ -108,32 +83,27 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
     subtitle: '퀴즈를 맞히고 보물 상자를 열어 골드를 모아요.',
     slides: [
       {
-        title: '퀴즈를 맞혀야 상자를 열어요',
-        body: '틀리면 이번 상자는 없어요',
+        title: '퀴즈를 맞히고 보물 상자를 열어요',
       },
       {
         title: `상자 ${CHEST_COUNT}개 중 하나를 골라요`,
-        body: '열어봐야 무엇이 들었는지 알아요',
       },
       {
         title: '보물을 찾으면 골드를 받아요',
-        body: `황금 왕관은 ${MAX_GOLD_STACK}골드, 유니콘은 ${GOLD_MULTIPLIER.UNICORN}배!`,
       },
       {
         title: '함정을 밟으면 골드가 줄어요',
-        body: `드래곤은 골드를 ${toPercent(GOLD_LOSS_RATE.DRAGON)}%나 가져가요`,
+        body: '드래곤을 만나면 골드가 절반 줄어요',
       },
       {
         title: '친구 골드를 빼앗기도 해요',
-        body: `마법사를 찾으면 ${toPercent(GOLD_STEAL_RATE.WIZARD)}%까지 가져와요`,
       },
       {
         title: `${SHIELD_STREAK}연속 정답이면 방어권`,
         body: '함정도 도둑도 한 번 막아줘요',
       },
       {
-        title: '골드가 가장 많으면 1등',
-        body: '순위는 끝날 때까지 바뀌어요',
+        title: '골드가 많은 사람이 승리',
       },
     ],
   },
@@ -172,8 +142,8 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
         ],
       },
       {
-        title: '승리 기준',
-        body: '상대 팀이 전원 눈사람이 되면 우리 팀 승리입니다.',
+        title: '상대 팀을 모두 눈사람으로 만들면 승리!',
+        body: '퀴즈를 열심히 풀어서 상대 팀의 체온을 떨어뜨리기',
         points: [
           '시간이 끝나면 남은 체온으로 순위를 매깁니다',
           '혼자 앞서기보다 팀의 생존자 수가 중요합니다',
@@ -190,24 +160,21 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
     subtitle: '퀴즈를 맞히고 집게를 조준해 좋은 인형을 뽑아요.',
     slides: [
       {
-        title: '퀴즈를 맞혀야 뽑아요',
-        body: '틀리면 이번 뽑기는 없어요',
+        title: '퀴즈를 맞히고 뽑기 기회를 얻어요',
       },
       {
         title: '빨리 맞히면 점수 UP',
-        body: `${ANSWER_SPEED_THRESHOLDS.perfect}초 안에 맞히면 ${getAnswerSpeedLabel('perfect')}!`,
+        body: `5초 안에 맞히면 ${getAnswerSpeedLabel('perfect')}!`,
       },
       {
         title: '집게는 좌우로 움직여요',
-        body: '내리기를 눌러 멈춰요',
+        body: '내리기 버튼이나 스페이스바를 눌러요',
       },
       {
-        title: '노란 칸에 멈추면 대박',
-        body: `조준이 ${getAimGradeLabel('perfect')}이면 ${AIM_PERFECT_TIER} 인형 이상`,
+        title: '노란색 칸에서 멈추면 점수가 높은 인형이 나와요!',
       },
       {
         title: '인형마다 점수가 달라요',
-        body: `보물 인형은 한 마리에 ${LEGEND_MAX_SCORE.toLocaleString()}점 넘게!`,
       },
       {
         title: `연속 정답이면 점수 ${getComboState(MAX_COMBO_STREAK).multiplier}배`,
@@ -231,7 +198,7 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
     subtitle: '퀴즈를 맞혀 상품을 받고, 매대를 채워 돈을 벌어요.',
     slides: [
       {
-        title: '퀴즈를 맞혀야 벌어요',
+        title: '퀴즈를 맞혀요',
         body: `틀리면 가진 돈의 ${WRONG_PENALTY_PERCENT}%를 잃어요`,
       },
       {
@@ -239,16 +206,14 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
         body: `남은 1초마다 ${SPEED_BONUS_PER_SECOND}원씩!`,
       },
       {
-        title: `${QUIZZES_PER_PRODUCT}문제 맞히면 상품 하나`,
-        body: `${PRODUCT_OPTION_COUNT}개 중에서 하나만 골라요`,
+        title: `${QUIZZES_PER_PRODUCT}문제를 맞히면 상품을 진열할 수 있어요`,
       },
       {
-        title: '진열하면 돈이 들어와요',
-        body: '상품마다 버는 시간이 달라요',
+        title: '상품을 진열하면 돈이 들어와요',
+        body: '상품마다 버는 돈이 달라요',
       },
       {
-        title: '등급이 높을수록 좋아요',
-        body: `빨리 맞히면 보물 확률 ${FAST_LEGEND_ODDS_RATIO}배`,
+        title: '퀴즈를 빨리 맞히면 좋은 상품이 나올 확률이 높아져요',
       },
       {
         title: `${GRID_SIZE}칸이 꽉 차면 교체해요`,
@@ -273,57 +238,61 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
     slides: [
       {
         title: '음식 채우기를 눌러요',
-        body: '퀴즈를 풀어야 음식을 만들어요',
+        body: '퀴즈를 풀어요',
       },
       {
-        title: '맞히면 재고가 생겨요',
-        body: `해금된 메뉴 재고가 ${RESTOCK_PER_CORRECT}개 늘어요`,
+        title: '퀴즈를 맞히면 음식이 생겨요',
       },
       {
         title: '아이템을 하나 골라요',
-        body: `정답이면 ${ITEM_CHOICE_COUNT}개 중에서 골라요`,
+        body: '정답이면 아이템을 고를 수 있어요',
       },
       {
         title: '손님을 눌러 서빙해요',
         body: '주문한 메뉴 재고가 있어야 해요',
       },
       {
-        title: `손님은 ${CUSTOMER_PATIENCE_SECONDS}초만 기다려요`,
-        body: `${MAX_CUSTOMERS_IN_LINE}명까지 줄을 서요`,
+        title: `손님은 ${CUSTOMER_PATIENCE_SECONDS}초까지 기다리니 문제를 빨리 풀고 음식을 서빙해요`,
+        body: `손님은 최대 ${MAX_CUSTOMERS_IN_LINE}명까지 줄을 서요`,
       },
       {
-        title: `${RARE_ITEM_STREAK}연속이면 희귀 아이템`,
-        body: `${CAFE_ITEMS.GOLDEN_SPATULA.name}은 다음 서빙 ${GOLDEN_SPATULA_MULTIPLIER}배!`,
+        title: `${RARE_ITEM_STREAK}연속 정답이면 희귀 아이템`,
       },
       {
-        title: '돈으로 메뉴를 열어요',
-        body: `${CAFE_BEST_SELL.name}는 한 개에 ${CAFE_BEST_SELL.sellPrice.toLocaleString()}원!`,
+        title: '상점에서 새로운 메뉴도 살 수 있어요',
       },
       {
-        title: '돈이 가장 많으면 1등',
-        body: '끝날 때 가진 돈으로 정해요',
+        // 순위는 끝났을 때 가진 돈(cash) — 메뉴·업그레이드를 사거나 세금을 내면 줄어든다 (app/cafe/page.tsx 점수 동기화)
+        title: '끝났을 때 돈이 가장 많은 사람이 승리!',
+        body: '메뉴·업그레이드를 사면 가진 돈이 줄어요',
       },
     ],
   },
+  // 숫자는 모두 lib/game/mafia.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(금고 열기 · 친구 조사 · 금고 몰래보기 · 자금 · CLEAR)만 씁니다.
   mafia: {
     gameMode: 'mafia',
     title: '쉿! 마피아',
-    subtitle: '퀴즈와 선택으로 금고, 조사, 심리전을 오가는 게임입니다.',
+    subtitle: '퀴즈를 맞히고 금고를 열거나 친구를 조사해 자금을 가장 많이 모아요.',
     slides: [
       {
-        title: '목표',
-        body: '역할과 상황을 활용해 가장 유리한 결과를 만듭니다.',
-        points: ['정답으로 행동 기회 확보', '상대 움직임 관찰', '중요한 순간에 선택'],
+        title: '퀴즈를 맞히면 금고 열기 또는 친구 조사를 골라요',
       },
       {
-        title: '플레이 방식',
-        body: '퀴즈를 풀며 조사와 행동의 기회를 얻습니다.',
-        points: ['정보 확인', '대상 선택', '심리전 활용'],
+        title: `금고 ${VAULT_COUNT}개 중 하나를 열어요`,
+        body: '현금, 다이아몬드, 배수(x2)가 들어 있어요',
       },
       {
-        title: '승리 기준',
-        body: '점수와 역할 수행 결과가 순위에 영향을 줍니다.',
-        points: ['정답률 확보', '선택 실수 줄이기', '상황 변화 읽기'],
+        title: '금고 몰래보기 버튼을 누르면 금고에 있는 물건을 볼 수 있어요.',
+        body: '대신 친구가 조사하면 들켜요',
+      },
+      {
+        title: '친구 조사 버튼을 눌러서 금고를 몰래본 친구를 잡아요',
+        body: `성공하면 그 친구 돈의 ${MAFIA_RECOVER_PERCENT}%가 내꺼! 친구가 결백하면 아무 일도 일어나지 않아요`,
+      },
+      {
+        title: '시간이 끝났을 때 돈이 가장 많은 사람이 승리!',
+        body: `다이아몬드는 1개당 $${DIAMOND_CASH_VALUE}`,
       },
     ],
   },
@@ -454,17 +423,17 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
     slides: [
       {
         title: '목표',
-        body: '끝까지 달리며 간식과 점수를 최대한 모읍니다.',
+        body: '뼈다귀를 먹고 장애물을 피해요. 방향키를 이용합니다.',
         points: ['장애물 피하기', '퀴즈로 보상 획득', '속도감 있게 플레이'],
       },
       {
         title: '플레이 방식',
-        body: '달리기 조작과 퀴즈 풀이가 번갈아 등장합니다.',
+        body: '퀴즈를 맞히면 아이템이 나와요',
         points: ['점프와 슬라이드', '퀴즈 정답 선택', '아이템 박스 활용'],
       },
       {
-        title: '승리 기준',
-        body: '주행 점수와 퀴즈 보상을 합쳐 순위가 정해집니다.',
+        title: '승리',
+        body: '뼈다귀를 많이 모으고 퀴즈를 맞히고 점수를 얻어요. 점수가 많을수록 승리!',
         points: ['오래 달리기', '정답 많이 맞히기', '아이템 놓치지 않기'],
       },
     ],
@@ -482,35 +451,32 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
       {
         title: `랜덤박스 ${PUPPY_CARD_CHOICE_COUNT}개 중 하나를 골라요`,
-        body: `${CARD_PICK_SECONDS}초가 지나면 저절로 열려요`,
       },
       {
         title: '좌우로 움직여 똥을 피해요',
-        body: `${CORRECT_ROUND_SECONDS}초만 버티면 끝!`,
+        body: '방향키를 이용합니다. 폰이나 태블릿은 화면 터치와 드래그로 이동합니다.',
       },
       {
         title: `똥에 맞으면 -${POOP_HIT_PENALTY}점`,
         body: `뼈다귀를 먹으면 +${BONE_PICKUP_REWARD}점`,
       },
       {
-        title: '우산과 청소기가 지켜줘요',
-        body: `우산은 한 번 막고, 청소기는 ${CLEANER_DELAY_SECONDS}초 뒤 싹!`,
+        title: '퀴즈를 맞혀서 좋은 아이템을 얻으세요',
       },
       {
         title: `${PUPPY_COMBO_SMALL.streak}연속이면 ${PUPPY_COMBO_SMALL.multiplier}배`,
         body: `${PUPPY_COMBO_BIG.streak}연속으로 맞히면 ${PUPPY_COMBO_BIG.multiplier}배!`,
       },
       {
-        title: '친구를 방해하는 카드도 있어요',
+        title: '친구를 방해하는 아이템도 있어요',
         body: `${withJosa(CARD_DEFS.poop_bomb.label, '은/는')} 1등에게, ${withJosa(CARD_DEFS.score_thief.label, '은/는')} 친구 점수 ${SCORE_THIEF_AMOUNT}을 가져와요`,
       },
       {
-        title: `${withJosa(CARD_DEFS.golden_dog.label, '이/가')} 나오면 대박`,
+        title: `${CARD_DEFS.golden_dog.label} 아이템이 제일 좋은거예요`,
         body: `+${GOLDEN_DOG_SCORE}점에 무적까지!`,
       },
       {
         title: '점수가 가장 많으면 1등',
-        body: `시간이 끝나면 보너스 대소동 ${BONUS_ROUND_SECONDS}초를 더 해요`,
       },
     ],
   },

@@ -62,13 +62,13 @@ export default function TowerLobbyPanel({ roomCode }: TowerLobbyPanelProps) {
                     <div className="absolute right-[-45px] top-[210px] h-16 w-[70%] -rotate-[13deg] rounded-full bg-[#c8b08b] shadow-2xl" />
                     <div className="absolute left-1/2 top-1/2 grid w-[74%] -translate-x-1/2 -translate-y-1/2 grid-cols-3 gap-4">
                         {Object.values(TOWER_TYPES).slice(0, 3).map(tower => (
-                            <div key={tower.id} className="rounded-lg border border-white/12 bg-white/10 p-4 shadow-2xl backdrop-blur">
+                            <div key={tower.id} className="rounded-lg border border-white/[0.12] bg-white/10 p-4 shadow-2xl backdrop-blur">
                                 <div className="text-xs font-bold text-white/55">{tower.cost}G</div>
                                 <div className="mt-1 text-sm font-black text-white">{tower.name}</div>
                             </div>
                         ))}
                     </div>
-                    <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-lg border border-white/12 bg-black/24 px-4 py-3 text-xs font-bold text-white/70 backdrop-blur">
+                    <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-lg border border-white/[0.12] bg-black/[0.24] px-4 py-3 text-xs font-bold text-white/70 backdrop-blur">
                         <span>방 {roomCode}</span>
                         <span>코어 작동 중</span>
                     </div>

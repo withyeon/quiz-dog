@@ -152,6 +152,9 @@ export const LASER_BEAM_DURATION_MS = 180
 // 공습 아이템의 폭발 반경과 피해량
 export const AIRSTRIKE_RADIUS = 100
 export const AIRSTRIKE_DAMAGE = 150
+// 화살·마법·폭탄·얼음 타워 발사체의 속도(px/초)와, 적에게 닿았다고 보는 거리(px)
+export const PROJECTILE_SPEED = 400
+export const PROJECTILE_HIT_RADIUS = 15
 
 // 적이 이동할 경로 (시작점 -> 끝점)
 export const PATH_POINTS: { x: number; y: number }[] = [
@@ -511,6 +514,94 @@ export function getAirstrikePoint(enemies: Enemy[], radius = AIRSTRIKE_RADIUS): 
 
 export function getLaserPierceCount(level: number): number {
     return Math.max(2, level + 1)
+}
+
+/**
+ * 발사체가 적에게 닿았을 때의 피해를 적 목록에 적용한다.
+ * 마법/폭탄은 맞은 지점 주변까지, 얼음은 둔화까지 건다.
+ */
+export function applyProjectileHit(enemies: Enemy[], target: Enemy, projectile: Projectile, now: number): Enemy[] {
+    const towerType = TOWER_TYPES[projectile.towerType]
+    const splashRadius = towerType.special === 'splash'
+        ? 50
+        : towerType.special === 'explosion'
+            ? 70
+            : 0
+
+    return enemies.map(enemy => {
+        const isHit = splashRadius > 0
+            ? getDistance(target.x, target.y, enemy.x, enemy.y) <= splashRadius
+            : enemy.id === target.id
+        if (!isHit) return enemy
+
+        const hp = enemy.hp - getTowerHitDamage(projectile.towerType, enemy.type, projectile.damage)
+        return towerType.special === 'slow'
+            ? { ...enemy, hp, slowedUntil: now + 1600 }
+            : { ...enemy, hp }
+    })
+}
+
+export type TowerQuizProgress = { answered: number; correct: number }
+
+/**
+ * 헤더의 퀴즈 칸·퀴즈 버튼·웨이브 시작 버튼 상태.
+ * 게임(hooks/useTowerDefenseGame)과 튜토리얼 데모가 같이 써서 문구가 어긋나지 않습니다.
+ */
+export function getTowerQuizStatus({
+    progress,
+    currentWave,
+    isWaveActive,
+    waveEnemiesRemaining,
+    currentQuestionAvailable = true,
+}: {
+    /** 이번 웨이브에서 푼 퀴즈 */
+    progress: TowerQuizProgress
+    currentWave: number
+    isWaveActive: boolean
+    waveEnemiesRemaining: number
+    currentQuestionAvailable?: boolean
+}) {
+    const isComplete = progress.answered >= TOWER_QUIZZES_PER_WAVE
+    const isPerfect = isComplete && progress.correct >= TOWER_QUIZZES_PER_WAVE
+    const isFinished = currentWave >= WAVES.length
+
+    return {
+        isComplete,
+        isPerfect,
+        isQuizAvailable: currentQuestionAvailable && !isWaveActive && !isFinished && !isComplete,
+        canStartWave: !isWaveActive && !isFinished && isComplete,
+        quizHudValue: isWaveActive
+            ? '전투중'
+            : isFinished
+                ? '완료'
+                : `${progress.answered}/${TOWER_QUIZZES_PER_WAVE}`,
+        quizHudDetail: isWaveActive
+            ? `${waveEnemiesRemaining}마리 남음`
+            : isFinished
+                ? '모든 웨이브 완료'
+                : `정답 ${progress.correct}/${TOWER_QUIZZES_PER_WAVE}`,
+        quizButtonLabel: !currentQuestionAvailable
+            ? '문항 없음'
+            : isWaveActive
+                ? '전투 중'
+                : isComplete
+                    ? isPerfect ? '아이템 획득 완료' : '퀴즈 완료'
+                    : `퀴즈 ${progress.answered + 1}/${TOWER_QUIZZES_PER_WAVE}`,
+        startWaveButtonLabel: !isComplete
+            ? `퀴즈 ${TOWER_QUIZZES_PER_WAVE}문제 먼저`
+            : `웨이브 ${currentWave + 1}`,
+    }
+}
+
+/** 웨이브 패널에 뜨는 다음 웨이브 구성과 전체 진행률(%) */
+export function getTowerWaveOutlook(currentWave: number) {
+    const nextWave = currentWave < WAVES.length ? WAVES[currentWave] : null
+    return {
+        nextWaveRoster: nextWave
+            ? nextWave.enemies.map(enemy => `${ENEMY_TYPES[enemy.type].name} ${enemy.count}`).join(' · ')
+            : '모든 웨이브 완료',
+        waveProgress: Math.min(100, Math.round((currentWave / WAVES.length) * 100)),
+    }
 }
 
 /**

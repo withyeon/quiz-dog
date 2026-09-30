@@ -103,14 +103,11 @@ export default function LandingPage() {
                   />
                 </motion.div>
 
-                <h2 className="text-3xl sm:text-4xl md:text-5xl">
+                <h2 className="mb-8 text-3xl sm:text-4xl md:text-5xl">
                   <PixelHeading>
                     <PixelAccent>퀴즈독</PixelAccent>과 함께 즐거운 수업시간
                   </PixelHeading>
                 </h2>
-                <p className="-mt-1 mb-8 text-base sm:text-lg" style={{ color: '#475569' }}>
-                  가입도 결제도 없이, 지금 바로 문제 하나 만들어보세요
-                </p>
 
                 <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <Link href="/teacher" className="w-full sm:w-auto">
@@ -125,23 +122,17 @@ export default function LandingPage() {
                         textShadow: '0 1px 0 rgba(0,0,0,0.18)',
                       }}
                     >
+                      <Image
+                        src="/assets/icons/joystick-64.png"
+                        alt=""
+                        aria-hidden
+                        width={64}
+                        height={64}
+                        unoptimized
+                        className="h-6 w-6 object-contain"
+                      />
                       무료로 시작하기
                       <ArrowRight className="h-5 w-5" />
-                    </motion.span>
-                  </Link>
-                  <Link href="/lobby" className="w-full sm:w-auto">
-                    <motion.span
-                      whileHover={{ y: -3 }}
-                      whileTap={{ y: 0 }}
-                      className="flex w-full items-center justify-center rounded-full px-8 py-4 text-lg font-black sm:w-auto"
-                      style={{
-                        backgroundColor: '#FFFFFF',
-                        border: '2px solid #BAE6FD',
-                        color: '#0369A1',
-                        boxShadow: '0 5px 0 rgba(186,230,253,0.9), 0 10px 20px rgba(14,165,233,0.14)',
-                      }}
-                    >
-                      학생 코드로 입장
                     </motion.span>
                   </Link>
                 </div>

@@ -67,7 +67,7 @@ export default function TowerBattleHeader({
 }: TowerBattleHeaderProps) {
     // 폰에서 헤더가 320px(화면 절반)을 차지하던 문제: 제목 축소, HUD 5개를 항상 한 줄
     return (
-        <header className="mb-3 rounded-lg border border-white/70 bg-white/78 p-2.5 shadow-xl shadow-slate-200/70 backdrop-blur-xl sm:mb-4 sm:p-3">
+        <header className="mb-3 rounded-lg border border-white/70 bg-white/[0.78] p-2.5 shadow-xl shadow-slate-200/70 backdrop-blur-xl sm:mb-4 sm:p-3">
             <div className="flex flex-col gap-2 sm:gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-lg sm:h-12 sm:w-12">

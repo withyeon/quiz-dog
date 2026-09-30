@@ -24,7 +24,7 @@ function LoginPageContent() {
   const [displayName, setDisplayName] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [socialLoading, setSocialLoading] = useState<'google' | 'kakao' | null>(null)
+  const [socialLoading, setSocialLoading] = useState<'google' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [rememberLogin, setRememberLoginState] = useState(true)
@@ -119,7 +119,7 @@ function LoginPageContent() {
     }
   }
 
-  const handleOAuth = async (provider: 'google' | 'kakao') => {
+  const handleOAuth = async (provider: 'google') => {
     setError(null)
     setSocialLoading(provider)
     applyRememberLogin(rememberLogin)
@@ -314,19 +314,6 @@ function LoginPageContent() {
               )}
               Google로 계속하기
             </button>
-            <button
-              type="button"
-              onClick={() => handleOAuth('kakao')}
-              disabled={!!socialLoading}
-              className="flex w-full items-center gap-3 rounded-lg bg-[#FEE500] px-4 py-2.5 text-sm font-black text-[#191919] transition hover:bg-[#FCDC00] disabled:opacity-50"
-            >
-              {socialLoading === 'kakao' ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <KakaoIcon />
-              )}
-              카카오로 계속하기
-            </button>
           </div>
         </div>
       </div>
@@ -383,19 +370,6 @@ function GoogleIcon() {
       <path
         d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"
         fill="#EA4335"
-      />
-    </svg>
-  )
-}
-
-function KakaoIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M9 1C4.582 1 1 3.925 1 7.5c0 2.326 1.511 4.373 3.797 5.534L3.9 16.45c-.065.244.22.436.426.294L8.64 13.97c.118.01.238.015.36.015 4.418 0 8-2.925 8-6.485C17 3.925 13.418 1 9 1z"
-        fill="#191919"
       />
     </svg>
   )

@@ -429,12 +429,24 @@ export function discardHalfStock(state: CafeGameState): CafeGameState {
 }
 
 /**
+ * 세금: 지금 가진 돈(cash)에서 rate 만큼 뺀다. 총 수익(totalCashEarned)은 그대로 둔다.
+ * 순위는 가진 돈이라 세금이 곧 순위에 반영된다.
+ */
+export function payTax(state: CafeGameState, rate: number): { newState: CafeGameState; paid: number } {
+  const paid = Math.floor(state.cash * rate)
+  if (paid <= 0) return { newState: state, paid: 0 }
+  return { newState: { ...state, cash: state.cash - paid }, paid }
+}
+
+/**
  * 카페 진행 정보를 players.active_item(jsonb)에 실어 둔다.
  * 카피캣이 "1등이 어떤 메뉴를 열었는지" 알아야 해서 필요하다. 카페 방에서는
  * active_item을 다른 용도로 쓰지 않으므로(좀비·마피아 전용) 충돌하지 않는다.
+ * taxFreeUntil(ms)은 세금 면제가 끝나는 시각 — 세금을 고를 때 면제 중인 친구를 가려내는 데 쓴다.
  */
 export type CafePlayerMeta = {
   unlockedMenus: string[]
+  taxFreeUntil?: number
 }
 
 export function getCafePlayerMenus(player: { active_item?: unknown } | null | undefined): string[] {
@@ -443,8 +455,13 @@ export function getCafePlayerMenus(player: { active_item?: unknown } | null | un
   return meta.unlockedMenus.filter((id): id is string => typeof id === 'string')
 }
 
+export function getCafeTaxFreeUntil(player: { active_item?: unknown } | null | undefined): number {
+  const meta = player?.active_item as Partial<CafePlayerMeta> | null | undefined
+  return typeof meta?.taxFreeUntil === 'number' && Number.isFinite(meta.taxFreeUntil) ? meta.taxFreeUntil : 0
+}
+
 /**
- * 카피캣: 나를 제외한 1등(점수 최고) 플레이어가 연 메뉴 중,
+ * 카피캣: 나를 제외한 1등(점수 = 가진 돈 최고) 플레이어가 연 메뉴 중,
  * 내가 아직 안 연 것 가운데 가장 비싼 메뉴 하나. 없으면 null.
  *
  * 예전에는 1등이 누군지만 확인하고 정작 메뉴는 "내가 안 연 첫 메뉴"를 줬다.

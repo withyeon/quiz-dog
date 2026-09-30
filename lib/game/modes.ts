@@ -97,7 +97,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: 'Flowerbed Fields',
       src: '/audio/bgm/cafe.mp3',
     },
-    description: '퀴즈를 맞히고 음식을 만들어 손님에게 서빙해요. 돈을 많이 번 사람이 승리!',
+    description: '퀴즈를 맞히고 음식을 만들어 손님에게 서빙해요. 끝났을 때 돈이 가장 많은 사람이 승리!',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
   },

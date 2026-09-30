@@ -6,45 +6,24 @@ import { VISIBLE_GAME_MODES, type GameModeId } from '@/lib/game/modes'
 interface GameModeSelectorProps {
   selectedMode: GameModeId
   onSelectMode: (mode: GameModeId) => void
+  /** 보여줄 모드만 추린다 (과제로 내기는 혼자 할 수 있는 모드만). 순서는 VISIBLE_GAME_MODES 를 따른다. */
+  allowedModes?: readonly GameModeId[]
+  /** 카드 아래 안내 문구 */
+  footnote?: string
 }
 
-export default function GameModeSelector({ selectedMode, onSelectMode }: GameModeSelectorProps) {
-  // 공부 모드는 게임이 아니라 문제만 차근차근 푸는 화면이다. 게임 카드와 섞이지 않게 따로 둔다.
-  const studyMode = VISIBLE_GAME_MODES.find((mode) => mode.id === 'study')
-  const gameModes = VISIBLE_GAME_MODES.filter((mode) => mode.id !== 'study')
-  const selectedDescription = selectedMode === 'study'
-    ? undefined
-    : gameModes.find((mode) => mode.id === selectedMode)?.description
+export default function GameModeSelector({ selectedMode, onSelectMode, allowedModes, footnote }: GameModeSelectorProps) {
+  const modes = allowedModes
+    ? VISIBLE_GAME_MODES.filter((mode) => allowedModes.includes(mode.id))
+    : VISIBLE_GAME_MODES
+  const selectedDescription = modes.find((mode) => mode.id === selectedMode)?.description
 
   return (
     <div className="mb-6">
       <label className="block text-sm font-semibold text-gray-900 mb-4">게임 모드 선택</label>
-      {studyMode && (
-        <button
-          type="button"
-          onClick={() => onSelectMode('study')}
-          aria-pressed={selectedMode === 'study'}
-          className={`mb-3 flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
-            selectedMode === 'study'
-              ? 'border-blue-500 bg-blue-50 shadow-md'
-              : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
-          }`}
-        >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-3xl">{studyMode.emoji}</span>
-          <span className="min-w-0">
-            <span
-              className="block text-base font-bold text-gray-900"
-              style={{ fontFamily: studyMode.fontFamily ?? "'DNFBitBitv2', sans-serif" }}
-            >
-              {studyMode.label}
-            </span>
-            <span className="block text-sm font-medium text-slate-500">{studyMode.description}</span>
-          </span>
-        </button>
-      )}
-      {/* 게임 수(6개)가 딱 나뉘는 열 수만 쓴다 — auto-fill 로 두면 5+1 처럼 어정쩡하게 끊긴다 */}
+      {/* 실시간(12개)이 딱 나뉘는 열 수 — auto-fill 로 두면 5+1 처럼 어정쩡하게 끊긴다. 과제(9개)는 6+3 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {gameModes.map((mode) => {
+        {modes.map((mode) => {
           const isSelected = selectedMode === mode.id
           return (
             <button
@@ -86,6 +65,7 @@ export default function GameModeSelector({ selectedMode, onSelectMode }: GameMod
           {selectedDescription}
         </p>
       )}
+      {footnote && <p className="mt-2 text-xs font-semibold text-slate-400">{footnote}</p>}
     </div>
   )
 }

@@ -63,7 +63,6 @@ export default function SelectedQuestionSet({
           <Image src="/zombie/quiz.webp" alt="" width={28} height={28} unoptimized className="h-7 w-7 object-contain" />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-black text-slate-400">이 문제집으로 게임을 만들어요</p>
           <p className="truncate text-base font-black text-slate-900">{set.title}</p>
           <p className="text-sm font-semibold text-slate-500">{set.question_count}문제</p>
         </div>

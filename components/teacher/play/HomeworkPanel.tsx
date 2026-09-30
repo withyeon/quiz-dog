@@ -9,8 +9,9 @@ import { toast } from '@/components/ui/Toaster'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
 import SelectedQuestionSet from '@/components/teacher/play/SelectedQuestionSet'
 import GameDurationPicker from '@/components/teacher/play/GameDurationPicker'
+import GameModeSelector from '@/components/dashboards/GameModeSelector'
 import StudyOptionsFields from '@/components/teacher/play/StudyOptionsFields'
-import { HOMEWORK_PLAY_MODES, getGameModeConfig, type GameModeId } from '@/lib/game/modes'
+import { HOMEWORK_GAME_MODES, getGameModeConfig, type GameModeId } from '@/lib/game/modes'
 import {
   DEFAULT_STUDY_SETTINGS,
   buildRoomSettings,
@@ -36,7 +37,7 @@ export type HostMode = 'live' | 'homework'
 /** 실시간 수업 ↔ 과제로 내기 전환 탭 */
 export function HostModeToggle({ value, onChange }: { value: HostMode; onChange: (mode: HostMode) => void }) {
   const items: Array<{ id: HostMode; label: string; hint: string; icon: React.ReactNode }> = [
-    { id: 'live', label: '실시간 수업', hint: '지금 교실에서 같이 해요', icon: <Radio className="h-5 w-5" /> },
+    { id: 'live', label: '실시간 수업', hint: '교실에서 다같이 풀어요', icon: <Radio className="h-5 w-5" /> },
     { id: 'homework', label: '과제로 내기', hint: '학생이 기한 안에 혼자 풀어요', icon: <BookOpenCheck className="h-5 w-5" /> },
   ]
   return (
@@ -187,81 +188,20 @@ export default function HomeworkPanel({
         <div className="mb-5">
           <div className="text-sm font-semibold text-slate-500">과제로 내기</div>
           <h2 className="mt-1 text-2xl font-black tracking-tight text-slate-900">학생이 기한 안에 혼자 풀어요</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">
-            코드만 나눠주면 돼요. 공부 모드는 시간 제한 없이 마감까지 풀고, 게임은 들어온 순간부터 정한 시간만큼 플레이해요. 결과는 게임 기록에 모여요.
-          </p>
         </div>
 
-        {/* 형식 고르기 — 공부 모드가 첫 번째, 게임은 혼자서도 성립하는 모드만 */}
-        <div className="mb-5">
-          <label className="mb-2 block text-sm font-semibold text-slate-600">형식</label>
-          <div className="mb-3 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setGameMode('study')}
-              aria-pressed={isStudy}
-              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                isStudy ? 'border-sky-400 bg-sky-50' : 'border-slate-200 bg-white hover:border-slate-300'
-              }`}
-            >
-              <span className="text-2xl">📖</span>
-              <span className="min-w-0">
-                <span className={`block font-black ${isStudy ? 'text-sky-800' : 'text-slate-700'}`}>공부 모드</span>
-                <span className="block text-xs font-semibold text-slate-400">문제만 차근차근 · 바로 정답 확인 · 틀린 문제 다시</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => { if (isStudy) setGameMode(HOMEWORK_PLAY_MODES[0]) }}
-              aria-pressed={!isStudy}
-              className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${
-                !isStudy ? 'border-sky-400 bg-sky-50' : 'border-slate-200 bg-white hover:border-slate-300'
-              }`}
-            >
-              <span className="text-2xl">🎮</span>
-              <span className="min-w-0">
-                <span className={`block font-black ${!isStudy ? 'text-sky-800' : 'text-slate-700'}`}>게임</span>
-                <span className="block text-xs font-semibold text-slate-400">재미있게 · 정한 시간 동안 플레이</span>
-              </span>
-            </button>
-          </div>
-          {isStudy && (
+        {/* 실시간 수업과 같은 카드 선택 — 혼자서도 성립하는 모드만 */}
+        <GameModeSelector
+          selectedMode={gameMode}
+          onSelectMode={setGameMode}
+          allowedModes={HOMEWORK_GAME_MODES}
+          footnote="눈싸움·마피아·좀비처럼 여럿이 있어야 하는 게임은 과제로 낼 수 없어요."
+        />
+        {isStudy && (
+          <div className="mb-6">
             <StudyOptionsFields value={studySettings} onChange={setStudySettings} context="homework" />
-          )}
-          <div className={`grid grid-cols-2 gap-2 sm:grid-cols-4 ${isStudy ? 'hidden' : ''}`}>
-            {HOMEWORK_PLAY_MODES.map((id) => {
-              const mode = getGameModeConfig(id)
-              const active = id === gameMode
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setGameMode(id)}
-                  aria-pressed={active}
-                  className={`flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-center text-xs font-black leading-snug transition sm:text-sm ${
-                    active ? 'border-sky-400 bg-sky-50 text-sky-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                  }`}
-                >
-                  {mode.image ? (
-                    <Image
-                      src={mode.image}
-                      alt={mode.label}
-                      width={72}
-                      height={72}
-                      className="h-12 w-12 object-contain"
-                    />
-                  ) : (
-                    <span className="flex h-12 w-12 items-center justify-center text-2xl">{mode.emoji}</span>
-                  )}
-                  <span className="font-bitbit w-full">{mode.label}</span>
-                </button>
-              )
-            })}
           </div>
-          {!isStudy && (
-            <p className="mt-2 text-xs font-semibold text-slate-400">눈싸움·마피아·좀비처럼 여럿이 있어야 하는 게임은 과제로 낼 수 없어요.</p>
-          )}
-        </div>
+        )}
 
         {/* 문제집은 자료실에서 고르고 ?set= 으로 넘어온다. 여기서는 확인만 한다. */}
         <div className="mb-5">

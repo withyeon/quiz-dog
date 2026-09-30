@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import type { Database } from '@/types/database.types'
-import { formatCafeMoney } from '@/lib/game/cafe'
+import { formatCafeMoney, getCafeTaxFreeUntil } from '@/lib/game/cafe'
 import { ITEM_CHOICE_SECONDS, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import PixelIcon from '@/components/ui/PixelIcon'
@@ -173,24 +173,40 @@ export default function ItemChoiceModal({
             </p>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {targets.map(player => (
-              <button
-                key={player.id}
-                type="button"
-                onClick={() => onSelect(selectedItem.id, player.id)}
-                className="flex min-h-20 flex-col items-center gap-1 rounded-lg border-2 border-rose-300 bg-rose-50 p-3 font-bold hover:bg-rose-100"
-              >
-                <PlayerAvatarDisplay
-                  avatar={player.avatar}
-                  nickname={player.nickname}
-                  fallback="🐕"
-                  className="relative h-9 w-9 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-rose-200"
-                  sizes="36px"
-                />
-                <span className="w-full truncate text-center text-xs text-slate-700">{player.nickname}</span>
-                <span className="text-xs font-black text-green-600">{formatCafeMoney(player.score || 0)}</span>
-              </button>
-            ))}
+            {targets.map(player => {
+              // 세금은 한 번 내면 잠시 면제된다 — 면제 중인 친구는 고를 수 없게 막는다
+              const taxFreeSeconds = selectedItem.id === 'TAX'
+                ? Math.max(0, Math.ceil((getCafeTaxFreeUntil(player) - Date.now()) / 1000))
+                : 0
+              const taxFree = taxFreeSeconds > 0
+              return (
+                <button
+                  key={player.id}
+                  type="button"
+                  disabled={taxFree}
+                  onClick={() => onSelect(selectedItem.id, player.id)}
+                  className={`flex min-h-20 flex-col items-center gap-1 rounded-lg border-2 p-3 font-bold ${
+                    taxFree
+                      ? 'cursor-not-allowed border-slate-200 bg-slate-50 opacity-60'
+                      : 'border-rose-300 bg-rose-50 hover:bg-rose-100'
+                  }`}
+                >
+                  <PlayerAvatarDisplay
+                    avatar={player.avatar}
+                    nickname={player.nickname}
+                    fallback="🐕"
+                    className="relative h-9 w-9 overflow-hidden rounded-lg bg-white text-2xl ring-1 ring-rose-200"
+                    sizes="36px"
+                  />
+                  <span className="w-full truncate text-center text-xs text-slate-700">{player.nickname}</span>
+                  {taxFree ? (
+                    <span className="text-xs font-black text-slate-500">세금 면제 {taxFreeSeconds}초</span>
+                  ) : (
+                    <span className="text-xs font-black text-green-600">{formatCafeMoney(player.score || 0)}</span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}

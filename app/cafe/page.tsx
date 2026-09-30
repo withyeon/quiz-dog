@@ -50,26 +50,44 @@ export default function CafePage() {
   // 게임 시간은 선생님이 정한다(room.duration_seconds). 학생은 선택하지 않는다.
   const gameDuration = room?.duration_seconds ?? 420
   const [incomingAttack, setIncomingAttack] = useState<{
+    id: number
     attackerNickname: string
     itemName: string
     itemEmoji: string
     itemImage: string
+    detail?: string
   } | null>(null)
+  // 배너를 지우는 타이머. 3초 안에 또 공격받으면 앞 타이머가 새 배너를 일찍 지우지 않게 바꿔 단다.
+  const attackBannerTimerRef = useRef<NodeJS.Timeout | null>(null)
   const isPaused = room?.status === 'paused'
   const scoreSyncTimerRef = useRef<NodeJS.Timeout | null>(null)
+  // 0.5초 모으는 동안 아직 안 보낸 점수. 화면을 떠날 때 버리지 않고 바로 보낸다.
+  const pendingScoreRef = useRef<{ playerId: string; cash: number } | null>(null)
+  const commitPlayerPatchRef = useRef(commitPlayerPatch)
+  useEffect(() => {
+    commitPlayerPatchRef.current = commitPlayerPatch
+  }, [commitPlayerPatch])
+  // 선생님이 게임을 끝낸 뒤 늦게 도착한 공격(특히 세금)이 최종 금액을 바꾸지 않게 한다
+  const roomStatusRef = useRef(room?.status)
+  useEffect(() => {
+    roomStatusRef.current = room?.status
+  }, [room?.status])
 
   const {
     status,
+    cash,
     totalCashEarned,
     customersServed,
     stats,
     unlockedMenus,
+    taxFreeUntil,
     startGame,
     resetGame,
     applyBuff,
     removeHalfCustomers,
     clearCustomers,
     discardHalfStock,
+    receiveTax,
   } = useCafeStore()
 
   // 선생님이 시작(room.status='playing')하면 카페 게임을 시작한다.
@@ -99,9 +117,20 @@ export default function CafePage() {
     }
   }, [status, currentView, setCurrentView])
 
+  // 시간이 끝나면 useGameBase가 곧바로 결과 페이지로 보내 이 화면이 사라진다.
+  // 그때 모으던 점수를 버리면 마지막 0.5초 동안의 서빙·구매·세금이 순위에 안 들어가므로 바로 보낸다.
   useEffect(() => {
     return () => {
+      if (attackBannerTimerRef.current) clearTimeout(attackBannerTimerRef.current)
       if (scoreSyncTimerRef.current) clearTimeout(scoreSyncTimerRef.current)
+      const pending = pendingScoreRef.current
+      pendingScoreRef.current = null
+      if (pending) {
+        void commitPlayerPatchRef.current(pending.playerId, {
+          score: pending.cash,
+          cafe_cash: pending.cash,
+        }, 'cafe_score_update')
+      }
     }
   }, [])
 
@@ -117,15 +146,11 @@ export default function CafePage() {
       } | undefined
 
       if (!payload?.itemId || payload.targetId !== playerId) return
+      if (roomStatusRef.current === 'finished') return
 
       const item = CAFE_ITEMS[payload.itemId]
-      setIncomingAttack({
-        attackerNickname: payload.attackerNickname || '상대',
-        itemName: item.name,
-        itemEmoji: item.emoji,
-        itemImage: item.image,
-      })
-      setTimeout(() => setIncomingAttack(null), 3000)
+      if (!item) return
+      let detail: string | undefined = item.victimText
 
       switch (payload.itemId) {
         case 'BAD_REVIEW':
@@ -143,18 +168,40 @@ export default function CafePage() {
           removeHalfCustomers()
           discardHalfStock()
           break
+        case 'TAX': {
+          // 가진 돈의 일부가 사라진다. 방금 세금을 냈으면(면제 중) 이번 세금은 걷히지 않는다.
+          const result = receiveTax()
+          detail = !result
+            ? '세금 면제 중이라 안 냈어요'
+            : result.paid > 0
+              ? `세금 ${formatCafeMoney(result.paid)}을 냈어요`
+              : '낼 돈이 없어서 세금을 안 냈어요'
+          break
+        }
       }
-    })
-  }, [applyBuff, clearCustomers, discardHalfStock, playerId, removeHalfCustomers])
 
-  // 내가 연 메뉴를 플레이어 행(active_item)에 실어 둔다. 카피캣이 1등의 메뉴를 보려면 필요하다.
+      setIncomingAttack({
+        id: Date.now(),
+        attackerNickname: payload.attackerNickname || '상대',
+        itemName: item.name,
+        itemEmoji: item.emoji,
+        itemImage: item.image,
+        detail,
+      })
+      if (attackBannerTimerRef.current) clearTimeout(attackBannerTimerRef.current)
+      attackBannerTimerRef.current = setTimeout(() => setIncomingAttack(null), 3000)
+    })
+  }, [applyBuff, clearCustomers, discardHalfStock, playerId, receiveTax, removeHalfCustomers])
+
+  // 내가 연 메뉴와 세금 면제 시각을 플레이어 행(active_item)에 실어 둔다.
+  // 카피캣은 1등의 메뉴를, 세금은 면제 중인 친구를 알아야 한다.
   useEffect(() => {
     if (!playerId || status !== 'playing') return
-    const meta: CafePlayerMeta = { unlockedMenus }
+    const meta: CafePlayerMeta = { unlockedMenus, taxFreeUntil }
     void commitPlayerPatch(playerId, { active_item: meta }, 'cafe_menus_update').catch(() => {
-      // 동기화 실패는 게임 진행에 영향 없음(카피캣만 최신 정보를 못 볼 뿐)
+      // 동기화 실패는 게임 진행에 영향 없음(카피캣·세금 대상 표시만 최신 정보를 못 볼 뿐)
     })
-  }, [commitPlayerPatch, playerId, status, unlockedMenus])
+  }, [commitPlayerPatch, playerId, status, taxFreeUntil, unlockedMenus])
 
   const handleAnswer = useCallback(async (answer: string) => {
     return checkAnswer(answer)
@@ -177,20 +224,28 @@ export default function CafePage() {
     })
   }, [currentPlayer?.nickname, sendRoomEvent])
 
-  const syncScore = useCallback((totalCash: number) => {
+  // 순위는 "끝났을 때 가진 돈"이다. 벌 때뿐 아니라 메뉴·업그레이드를 사거나 세금을 낼 때도
+  // 가진 돈이 바뀌므로, 서빙 시점이 아니라 cash가 바뀔 때마다 보낸다(0.5초 모아서).
+  useEffect(() => {
     if (!playerId) return
+    if (status !== 'playing' && status !== 'ended') return
+    // 막 시작해 아직 번 돈이 없는 상태는 보내지 않는다 (새로고침 직후 점수를 0으로 덮지 않게)
+    if (cash === 0 && totalCashEarned === 0) return
 
     if (scoreSyncTimerRef.current) {
       clearTimeout(scoreSyncTimerRef.current)
     }
 
+    // commitPlayerPatch는 채널이 다시 붙을 때마다 새 함수가 되므로 ref로 부른다 (의존성에 넣으면 타이머가 계속 밀린다)
+    pendingScoreRef.current = { playerId, cash }
     scoreSyncTimerRef.current = setTimeout(() => {
-      void commitPlayerPatch(playerId, {
-        score: totalCash,
-        cafe_cash: totalCash,
+      pendingScoreRef.current = null
+      void commitPlayerPatchRef.current(playerId, {
+        score: cash,
+        cafe_cash: cash,
       }, 'cafe_score_update')
     }, 500)
-  }, [commitPlayerPatch, playerId])
+  }, [cash, playerId, status, totalCashEarned])
 
   // 가장 많이 판 메뉴 찾기
   const topMenuEntry = Object.entries(stats.menuSales).sort((a, b) => b[1] - a[1])[0]
@@ -256,7 +311,7 @@ export default function CafePage() {
                   <ul className="space-y-1 text-sm text-gray-700">
                     <li>• 손님이 주문한 메뉴를 클릭해서 서빙하세요</li>
                     <li>• 돈을 모아 새로운 메뉴 잠금을 해제하고 업그레이드를 구매하세요</li>
-                    <li>• 시간 내에 가장 많은 돈을 벌어보세요!</li>
+                    <li>• 끝났을 때 돈을 가장 많이 가진 사람이 1등이에요!</li>
                   </ul>
                 </div>
 
@@ -290,7 +345,6 @@ export default function CafePage() {
               currentPlayerId={playerId}
               consecutiveCorrect={consecutiveCorrect}
               onSendEvent={handleSendCafeEvent}
-              onScoreChange={syncScore}
               paused={isPaused}
             />
           </motion.div>
@@ -311,28 +365,33 @@ export default function CafePage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* 통계 */}
+                {/* 통계 — 첫 칸(가진 돈)이 순위 기준, 총 번 돈은 참고용 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-gradient-to-br from-green-100 to-green-200 rounded-xl p-4 border-4 border-green-300 text-center">
                     <Coins className="h-8 w-8 mx-auto mb-2 text-green-700" />
                     <div className="text-2xl font-bold text-green-900">
+                      {formatCafeMoney(cash)}
+                    </div>
+                    <div className="text-sm text-green-700 mt-1">가진 돈 (순위 기준)</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-amber-100 to-amber-200 rounded-xl p-4 border-4 border-amber-300 text-center">
+                    <PixelIcon name="gold" size={32} alt="" className="mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-amber-900">
                       {formatCafeMoney(totalCashEarned)}
                     </div>
-                    <div className="text-sm text-green-700 mt-1">총 수익</div>
+                    <div className="text-sm text-amber-700 mt-1">총 번 돈</div>
                   </div>
                   <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-4 border-4 border-blue-300 text-center">
                     <Users className="h-8 w-8 mx-auto mb-2 text-blue-700" />
                     <div className="text-2xl font-bold text-blue-900">{customersServed}</div>
                     <div className="text-sm text-blue-700 mt-1">서빙한 손님</div>
                   </div>
-                  <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl p-4 border-4 border-purple-300 text-center">
-                    <Trophy className="h-8 w-8 mx-auto mb-2 text-purple-700" />
-                    <div className="text-2xl font-bold text-purple-900">{topMenuName}</div>
-                    <div className="text-sm text-purple-700 mt-1">인기 메뉴</div>
-                  </div>
                   <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl p-4 border-4 border-orange-300 text-center">
-                    <div className="text-2xl font-bold text-orange-900">{topMenuCount}회</div>
-                    <div className="text-sm text-orange-700 mt-1">판매 횟수</div>
+                    <Trophy className="h-8 w-8 mx-auto mb-2 text-orange-700" />
+                    <div className="text-2xl font-bold text-orange-900">{topMenuName}</div>
+                    <div className="text-sm text-orange-700 mt-1">
+                      인기 메뉴{topMenuCount > 0 ? ` · ${topMenuCount}회` : ''}
+                    </div>
                   </div>
                 </div>
 

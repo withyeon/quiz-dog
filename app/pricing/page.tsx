@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { Check } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import KakaoChannelButton from '@/components/KakaoChannelButton'
 
 /* ─── 버튼 ─── */
 function PlanButton({
@@ -74,7 +75,6 @@ const PLANS = [
     features: [
       '참여 인원 무제한',
       '문항별 정답률 · 오답 분석',
-      '학생별 누적 기록',
       '엑셀 내보내기',
       'AI 문제 생성 월 300회',
       '가입 후 2주 무료 체험 · 카드 등록 없음',
@@ -98,7 +98,6 @@ const PLANS = [
     features: [
       '참여 인원 무제한',
       '문항별 정답률 · 오답 분석',
-      '학생별 누적 기록',
       '엑셀 내보내기',
       'AI 문제 생성 월 300회',
       '가입 후 2주 무료 체험 · 카드 등록 없음',
@@ -119,7 +118,7 @@ const TRIAL_POINTS = [
   {
     icon: '/icons/rocket.webp',
     title: '가입하면 바로 Pro',
-    body: '무제한 참여, 문항별·학생별 리포트, 엑셀 내보내기까지 2주 동안 그대로 열립니다.',
+    body: '무제한 참여, 문항별 정답률·오답 분석, 엑셀 내보내기까지 2주 동안 그대로 열립니다.',
   },
   {
     icon: '/icons/time.webp',
@@ -140,7 +139,7 @@ const FAQS = [
   },
   {
     q: 'Free와 Pro는 무엇이 다른가요?',
-    a: '차이는 세 가지예요. 참여 인원(30명 → 무제한), 결과 리포트(요약 → 문항별 분석·학생별 누적·엑셀 내보내기), AI 문제 생성 횟수(월 10회 → 월 300회). 학년 행사나 전교 퀴즈처럼 30명이 넘는 자리, 학생 성장을 누적해서 보고 싶을 때 Pro가 필요합니다.',
+    a: '차이는 세 가지예요. 참여 인원(30명 → 무제한), 결과 리포트(요약 → 문항별 정답률·오답 분석·엑셀 내보내기), AI 문제 생성 횟수(월 10회 → 월 300회). 학년 행사나 전교 퀴즈처럼 30명이 넘는 자리, 어느 문항에서 막혔는지 자세히 보고 싶을 때 Pro가 필요합니다.',
   },
   {
     q: '2주 무료 체험은 어떻게 진행되나요?',
@@ -169,15 +168,15 @@ export default function PricingPage() {
       <Navbar />
 
       {/* ── 히어로 ── */}
-      <section className="pt-32 pb-10 px-4">
+      <section className="pt-32 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <p
-              className="inline-block text-base font-black text-[#1A4F9C] mb-4 px-5 py-1.5 rounded-full"
+            <h1
+              className="inline-block text-base font-black text-[#1A4F9C] px-5 py-1.5 rounded-full"
               style={{
                 background: '#DBEAFE',
                 border: '2px solid #93C5FD',
@@ -185,21 +184,7 @@ export default function PricingPage() {
               }}
             >
               퀴즈독 요금제
-            </p>
-            <h1
-              className="text-5xl md:text-6xl font-black text-[#0F172A] leading-tight mb-4"
-              style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
-            >
-              심플하고 투명한
-              <br />
-              <span style={{ color: '#2E7BD4' }}>요금제</span>
             </h1>
-            <p
-              className="text-lg text-slate-600 mb-8"
-              style={{ fontFamily: "'DNFBitBitv2', sans-serif" }}
-            >
-              필요에 맞는 플랜을 선택하세요.
-            </p>
           </motion.div>
         </div>
       </section>
@@ -266,9 +251,9 @@ export default function PricingPage() {
                         </span>
                       </div>
                     )}
-                    <div className="flex items-baseline gap-2">
+                    <div className="flex items-baseline gap-2 whitespace-nowrap">
                       <span
-                        className="text-5xl font-black"
+                        className="text-5xl font-black md:text-4xl xl:text-5xl"
                         style={{
                           color: plan.originalPrice ? '#16A34A' : '#0F172A',
                           textShadow: plan.originalPrice ? '0 2px 0 #14532D40' : 'none',
@@ -421,6 +406,7 @@ export default function PricingPage() {
       </section>
 
       <Footer />
+      <KakaoChannelButton />
     </div>
   )
 }

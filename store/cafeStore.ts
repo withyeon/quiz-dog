@@ -12,10 +12,11 @@ import {
   restockMenu,
   pickRestockMenu,
   discardHalfStock,
+  payTax,
   MENU_ITEMS,
   UPGRADES,
 } from '@/lib/game/cafe'
-import type { ItemId } from '@/lib/game/cafeItems'
+import { TAX_IMMUNITY_SECONDS, TAX_RATE, type ItemId } from '@/lib/game/cafeItems'
 
 export interface ActiveBuff {
   itemId: ItemId
@@ -46,12 +47,17 @@ interface CafeStore extends CafeGameState {
   clearCustomers: () => void // 악성 리뷰: 줄 선 손님이 모두 떠난다
   discardHalfStock: () => void // 바퀴벌레 경보: 재고 절반 폐기
   purchaseMenuFree: (menuId: string) => void
+  /** 세금 면제가 끝나는 시각(ms). 세금을 낸 뒤 TAX_IMMUNITY_SECONDS 동안 또 걷히지 않는다 */
+  taxFreeUntil: number
+  /** 세금을 받았을 때: 낸 금액을 돌려준다. 면제 중이거나 게임 중이 아니면 null (돈은 그대로) */
+  receiveTax: () => { paid: number } | null
 }
 
 export const useCafeStore = create<CafeStore>((set, get) => ({
   ...getInitialState(),
   activeBuffs: [],
   goldenSpatulaActive: false,
+  taxFreeUntil: 0,
 
   startGame: (duration: number) => {
     set({
@@ -60,6 +66,7 @@ export const useCafeStore = create<CafeStore>((set, get) => ({
       timeRemaining: duration,
       activeBuffs: [],
       goldenSpatulaActive: false,
+      taxFreeUntil: 0,
     })
   },
 
@@ -140,6 +147,7 @@ export const useCafeStore = create<CafeStore>((set, get) => ({
       ...getInitialState(),
       activeBuffs: [],
       goldenSpatulaActive: false,
+      taxFreeUntil: 0,
     })
   },
 
@@ -209,6 +217,17 @@ export const useCafeStore = create<CafeStore>((set, get) => ({
 
   discardHalfStock: () => {
     set((state) => discardHalfStock(state))
+  },
+
+  receiveTax: () => {
+    const state = get()
+    const now = Date.now()
+    // 끝난 뒤 늦게 도착한 세금이 최종 금액을 깎지 않게 한다
+    if (state.status !== 'playing') return null
+    if (state.taxFreeUntil > now) return null
+    const { newState, paid } = payTax(state, TAX_RATE)
+    set({ ...newState, taxFreeUntil: now + TAX_IMMUNITY_SECONDS * 1000 })
+    return { paid }
   },
 
   purchaseMenuFree: (menuId: string) => {

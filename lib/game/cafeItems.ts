@@ -8,6 +8,7 @@ export type ItemId =
   | 'ROACH_ALERT'
   | 'PRICE_CRASH'
   | 'SUPER_AD'
+  | 'TAX'
 
 export interface CafeItem {
   id: ItemId
@@ -18,10 +19,22 @@ export interface CafeItem {
   type: 'buff' | 'debuff'
   duration?: number
   rarity: 'common' | 'rare'
+  /** 방해 아이템: 공격받은 친구 배너에 보여 줄 "나에게 무슨 일이 생겼는지" (description 은 공격자 시점) */
+  victimText?: string
 }
 
 /** 황금 주걱을 쓰면 다음 서빙 수익이 몇 배가 되는지 */
 export const GOLDEN_SPATULA_MULTIPLIER = 3
+
+/** 세금: 상대가 지금 가진 돈에서 이 비율만큼 사라진다 (블루킷 카페의 TAXES!!! 와 같은 25%) */
+export const TAX_RATE = 0.25
+
+/**
+ * 세금을 한 번 내면 이 시간(초) 동안은 또 걷히지 않는다.
+ * 순위가 "끝났을 때 가진 돈"이라 1등에게 세금이 몰리는데, 아이템은 정답마다 공짜로 나오니
+ * 막아 두지 않으면 여러 명이 연달아 걷어 1등 돈이 0에 가까워진다.
+ */
+export const TAX_IMMUNITY_SECONDS = 30
 
 export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
   GOLDEN_SPATULA: {
@@ -68,6 +81,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     emoji: '⭐',
     image: '/cafe-items/bad-review.webp',
     description: '상대 카페 손님이 모두 떠나고 15초간 발길 끊김',
+    victimText: '손님이 모두 떠났어요 · 15초간 새 손님이 안 와요',
     type: 'debuff',
     duration: 15000,
     rarity: 'common',
@@ -87,6 +101,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     emoji: '🪳',
     image: '/cafe-items/roach-alert.webp',
     description: '상대 카페 손님 절반이 도망가고 재고도 절반 버려짐!',
+    victimText: '손님 절반이 도망가고 재고도 절반 버려졌어요',
     type: 'debuff',
     rarity: 'rare',
   },
@@ -96,6 +111,7 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     emoji: '📉',
     image: '/cafe-items/price-crash.webp',
     description: '상대 판매가 20초간 반토막',
+    victimText: '20초간 판매가가 반토막이에요',
     type: 'debuff',
     duration: 20000,
     rarity: 'common',
@@ -109,6 +125,15 @@ export const CAFE_ITEMS: Record<ItemId, CafeItem> = {
     type: 'buff',
     duration: 30000,
     rarity: 'common',
+  },
+  TAX: {
+    id: 'TAX',
+    name: '세금',
+    emoji: '💸',
+    image: '/cafe-items/tax.webp',
+    description: `상대가 가진 돈의 ${Math.round(TAX_RATE * 100)}%가 세금으로 사라짐!`,
+    type: 'debuff',
+    rarity: 'rare',
   },
 }
 

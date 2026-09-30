@@ -36,6 +36,12 @@ export const AI_NAMES = ['Tony', 'Vinnie', 'Sonny', 'Frankie', 'Joey']
 // 금고 개수 (Deceptive Dinos 스타일: 3개)
 export const VAULT_COUNT = 3
 
+// 다이아몬드 1개를 자금으로 칠 때의 값 — 순위·조사 화면에 보이는 '세탁된 자금'에 쓴다
+export const DIAMOND_CASH_VALUE = 100
+
+// 친구 조사로 몰래보기를 잡았을 때 상대 자금에서 가져오는 비율
+export const INVESTIGATE_RECOVER_RATE = 0.3
+
 // 시간 포맷팅 (공통 유틸 re-export)
 export { formatTime } from '@/lib/utils/formatTime'
 
@@ -286,9 +292,27 @@ export function detectCheating(
   }
 }
 
-// 세탁된 자금 계산 (현금 + 다이아몬드 * 100)
+// 세탁된 자금 계산 (현금 + 다이아몬드 × DIAMOND_CASH_VALUE)
 export function calculateLaunderedCash(player: Player): number {
-  return player.cash + player.diamonds * 100
+  return player.cash + player.diamonds * DIAMOND_CASH_VALUE
+}
+
+/**
+ * 친구 조사에 성공했을 때 옮길 자금 계획.
+ * 기준은 화면 어디에나 '자금'으로 보이는 세탁된 자금(현금 + 다이아몬드 × DIAMOND_CASH_VALUE)이다.
+ * 옮기는 것은 현금이고, 현금이 모자라면 상대의 다이아몬드를 먼저 현금으로 바꿔(1개 = $DIAMOND_CASH_VALUE) 채운다.
+ * 그래서 상대 자금은 정확히 recovered 만큼 줄고, 조사자는 같은 금액을 현금으로 받는다.
+ */
+export function planInvestigateRecovery(
+  target: Pick<Player, 'cash' | 'diamonds'>,
+  rate: number = INVESTIGATE_RECOVER_RATE,
+): { recovered: number; diamondsToConvert: number } {
+  const total = target.cash + target.diamonds * DIAMOND_CASH_VALUE
+  const recovered = Math.max(0, Math.floor(total * rate))
+  const shortfall = Math.max(0, recovered - target.cash)
+  // recovered ≤ total 이므로 shortfall ≤ diamonds × DIAMOND_CASH_VALUE → 바꿀 개수는 항상 보유량 안이다
+  const diamondsToConvert = Math.min(target.diamonds, Math.ceil(shortfall / DIAMOND_CASH_VALUE))
+  return { recovered, diamondsToConvert }
 }
 
 // 조사 시도 (Deceptive Dinos 스타일)
@@ -302,7 +326,10 @@ export function attemptInvestigate(
   newTarget: Player
   log: string
   result: 'CHEATER' | 'CLEAR'
+  /** 조사자에게 옮겨진 금액($) */
   recovered?: number
+  /** 현금이 모자라 상대가 현금으로 바꾼 다이아몬드 개수 */
+  diamondsConverted?: number
 } {
   if (target.status !== 'active') {
     return {
@@ -316,15 +343,16 @@ export function attemptInvestigate(
 
   // 수상함(몰래보기) 상태면 발각 성공 — 라운드 기반이라 시간 만료 없이 유지된다.
   if (target.isCheating) {
-    // 발각된 플레이어의 자금 일부 환수 (30%)
-    const recovered = Math.floor(target.cash * 0.3)
+    // 발각된 플레이어의 자금 일부 환수 — 화면에 보이는 자금(현금 + 다이아몬드) 기준
+    const { recovered, diamondsToConvert } = planInvestigateRecovery(target)
     const newInvestigator = {
       ...investigator,
       cash: investigator.cash + recovered,
     }
     const newTarget = {
       ...target,
-      cash: Math.max(0, target.cash - recovered),
+      cash: Math.max(0, target.cash + diamondsToConvert * DIAMOND_CASH_VALUE - recovered),
+      diamonds: target.diamonds - diamondsToConvert,
       isCheating: false,
       cheatPendingVault: false,
       cheatEndTime: undefined,
@@ -334,9 +362,13 @@ export function attemptInvestigate(
       success: true,
       newInvestigator,
       newTarget,
-      log: `🚨 CHEATER! ${withJosa(target.name, '이/가')} 금고를 몰래봤습니다! ${withJosa(investigator.name, '이/가')} $${numberWithJosa(recovered, '을/를')} 환수했습니다.`,
+      log:
+        recovered > 0
+          ? `🚨 CHEATER! ${withJosa(target.name, '이/가')} 금고를 몰래봤습니다! ${withJosa(investigator.name, '이/가')} $${numberWithJosa(recovered, '을/를')} 환수했습니다.`
+          : `🚨 CHEATER! ${withJosa(target.name, '이/가')} 금고를 몰래봤습니다! (가져올 자금이 없었습니다)`,
       result: 'CHEATER',
       recovered,
+      diamondsConverted: diamondsToConvert,
     }
   }
 

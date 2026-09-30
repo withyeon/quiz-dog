@@ -16,8 +16,11 @@ import TowerLobbyPanel from '@/components/tower/TowerLobbyPanel'
 import TowerPlacementPanel from '@/components/tower/TowerPlacementPanel'
 import TowerWavePanel from '@/components/tower/TowerWavePanel'
 import TowerItemBar from '@/components/tower/TowerItemBar'
+import TowerQuizOverlay from '@/components/tower/TowerQuizOverlay'
+import TowerToast from '@/components/tower/TowerToast'
+import TowerWaveClearToast from '@/components/tower/TowerWaveClearToast'
 import { useGameBase } from '@/hooks/useGameBase'
-import { TOWER_QUIZZES_PER_WAVE, useTowerDefenseGame } from '@/hooks/useTowerDefenseGame'
+import { useTowerDefenseGame } from '@/hooks/useTowerDefenseGame'
 import {
     TOWER_QUIZ_TIME_LIMIT,
     calculateQuizGoldReward,
@@ -385,18 +388,7 @@ export default function TowerPage() {
                                 }`}>
                                     <AnimatePresence>
                                         {waveClearToast && (
-                                            <motion.div
-                                                key={waveClearToast}
-                                                initial={{ opacity: 0, scale: 0.7, y: -30 }}
-                                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                                exit={{ opacity: 0, y: -40, scale: 0.9 }}
-                                                className="pointer-events-none absolute inset-x-0 top-8 z-20 flex justify-center"
-                                            >
-                                                <div className="flex items-center gap-3 rounded-full bg-emerald-500 px-8 py-4 shadow-2xl shadow-emerald-300">
-                                                    <span className="text-3xl">⚔️</span>
-                                                    <span className="text-xl font-black text-white">웨이브 {waveClearToast} 클리어!</span>
-                                                </div>
-                                            </motion.div>
+                                            <TowerWaveClearToast key={waveClearToast} wave={waveClearToast} />
                                         )}
                                     </AnimatePresence>
                                     <AnimatePresence>
@@ -459,40 +451,21 @@ export default function TowerPage() {
 
                 <AnimatePresence>
                     {currentView === 'quiz' && currentQuestion && !showCountdown && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.92, y: 30 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 1.05 }}
-                            transition={{ type: 'spring', damping: 20 }}
-                            className="fixed inset-0 z-40 flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 pt-16 backdrop-blur-md sm:p-6 sm:pt-20"
+                        <TowerQuizOverlay
+                            key="tower-quiz"
+                            answered={currentWaveQuizAnswered}
+                            correct={currentWaveQuizCorrect}
+                            consecutiveCorrect={consecutiveCorrect}
                         >
-                            <motion.div
-                                initial={{ y: -20, opacity: 0 }}
-                                animate={{ y: 0, opacity: 1 }}
-                                className="absolute left-1/2 top-8 flex -translate-x-1/2 items-center gap-2 rounded-full bg-slate-950 px-5 py-2 text-base font-black text-white shadow-xl"
-                            >
-                                웨이브 퀴즈 {Math.min(currentWaveQuizAnswered + 1, TOWER_QUIZZES_PER_WAVE)}/{TOWER_QUIZZES_PER_WAVE} · 정답 {currentWaveQuizCorrect}/{TOWER_QUIZZES_PER_WAVE}
-                            </motion.div>
-                            {consecutiveCorrect >= 2 && (
-                                <motion.div
-                                    initial={{ y: -20, opacity: 0 }}
-                                    animate={{ y: 0, opacity: 1 }}
-                                    className="absolute left-1/2 top-20 flex -translate-x-1/2 items-center gap-2 rounded-full bg-orange-500 px-5 py-2 text-base font-black text-white shadow-xl"
-                                >
-                                    🔥 {consecutiveCorrect}연속 정답! 스킬 보너스 대기 중
-                                </motion.div>
-                            )}
-                            <div className="my-auto w-full">
-                                <QuizView
-                                    question={currentQuestion}
-                                    onAnswer={handleAnswer}
-                                    onCorrectClick={returnToPlaying}
-                                    timeLimit={TOWER_QUIZ_TIME_LIMIT}
-                                    paused={isPaused}
-                                    variant="glass"
-                                />
-                            </div>
-                        </motion.div>
+                            <QuizView
+                                question={currentQuestion}
+                                onAnswer={handleAnswer}
+                                onCorrectClick={returnToPlaying}
+                                timeLimit={TOWER_QUIZ_TIME_LIMIT}
+                                paused={isPaused}
+                                variant="glass"
+                            />
+                        </TowerQuizOverlay>
                     )}
                 </AnimatePresence>
 
@@ -509,16 +482,7 @@ export default function TowerPage() {
                 </AnimatePresence>
 
                 <AnimatePresence>
-                    {skillToast && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -18, scale: 0.96 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -18, scale: 0.96 }}
-                            className="fixed left-1/2 top-6 z-[60] -translate-x-1/2 rounded-full bg-slate-950 px-5 py-3 text-sm font-black text-white shadow-2xl"
-                        >
-                            {skillToast}
-                        </motion.div>
-                    )}
+                    {skillToast && <TowerToast key="tower-toast" message={skillToast} />}
                 </AnimatePresence>
 
                 {currentView === 'result' && (

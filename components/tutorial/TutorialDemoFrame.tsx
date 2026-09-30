@@ -255,7 +255,7 @@ export function TutorialDemoFrame({ backgroundSrc, backgroundClassName, mode, ch
 
   return (
     // translateZ: 실제 게임 컴포넌트가 띄우는 fixed 팝업(상자 보상·방어권 질문)이 화면 전체가 아니라 이 프레임 안에 갇히게 한다.
-    <div className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl" style={{ transform: 'translateZ(0)' }}>
+    <div data-tutorial-frame className="relative flex h-full w-full flex-col overflow-hidden rounded-2xl" style={{ transform: 'translateZ(0)' }}>
       {/* 배경 */}
       {backgroundSrc ? (
         <Image
@@ -369,12 +369,15 @@ export function GlassQuizStep({
   correctIndex,
   answered,
   type = 'CHOICE',
+  zoom = 0.8,
 }: {
   question: string
   options: string[]
   correctIndex: number
   answered: boolean
   type?: 'CHOICE' | 'OX'
+  /** 무대가 낮은 게임(하단 로그 바가 있는 마피아 등)은 더 줄인다 */
+  zoom?: number
 }) {
   const boxRef = useRef<HTMLDivElement>(null)
   const [epoch, setEpoch] = useState(0)
@@ -398,7 +401,9 @@ export function GlassQuizStep({
       button.click()
       const boxRect = box.getBoundingClientRect()
       const rect = button.getBoundingClientRect()
-      setPointer({ left: rect.right - boxRect.left - 44, top: rect.bottom - boxRect.top - 22 })
+      // 조상에 zoom 이 걸려 있으면 화면 px 과 이 상자의 px 이 다르다 — 비율로 되돌려야 포인터가 제자리에 온다
+      const scale = box.offsetWidth > 0 ? boxRect.width / box.offsetWidth : 1
+      setPointer({ left: (rect.right - boxRect.left) / scale - 44, top: (rect.bottom - boxRect.top) / scale - 22 })
     }, 250)
     return () => clearTimeout(timer)
   }, [answered, epoch, options, correctIndex])
@@ -419,7 +424,7 @@ export function GlassQuizStep({
       className="relative w-full max-w-2xl"
     >
       {/* 실제 화면보다 무대가 작으니 zoom 으로 줄인다 (transform 과 달리 레이아웃도 같이 줄어 잘리지 않는다) */}
-      <div style={{ zoom: 0.8 }}>
+      <div style={{ zoom }}>
         <QuizView key={demoQuestion.id} question={demoQuestion} onAnswer={() => true} timeLimit={30} variant="glass" />
       </div>
       {pointer && (

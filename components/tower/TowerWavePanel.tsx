@@ -19,7 +19,7 @@ export default function TowerWavePanel({
     const hasNextWave = currentWave < WAVES.length
 
     return (
-        <div className="mb-3 flex flex-col gap-2 rounded-lg border border-white/70 bg-white/68 px-4 py-3 shadow-lg shadow-slate-200/60 backdrop-blur lg:flex-row lg:items-center lg:justify-between">
+        <div className="mb-3 flex flex-col gap-2 rounded-lg border border-white/70 bg-white/[0.68] px-4 py-3 shadow-lg shadow-slate-200/60 backdrop-blur lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <div className="flex items-center gap-2 text-sm font-black text-slate-950">
                     <Swords className="h-4 w-4 text-rose-500" />

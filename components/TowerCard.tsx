@@ -113,7 +113,7 @@ export default function TowerCard({ tower, isSelected, canAfford, disabledLabel 
                     </div>
                 )}
                 {!canAfford && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-white/68">
+                    <div className="absolute inset-0 flex items-center justify-center bg-white/[0.68]">
                         <Lock className="h-4 w-4 text-slate-700" />
                     </div>
                 )}
@@ -209,7 +209,7 @@ export default function TowerCard({ tower, isSelected, canAfford, disabledLabel 
             </div>
 
             {!canAfford && (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/68 backdrop-blur-[1px]">
+                <div className="absolute inset-0 flex items-center justify-center bg-white/[0.68] backdrop-blur-[1px]">
                     <div className="inline-flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-xs font-black text-white shadow-lg">
                         <Lock className="h-3.5 w-3.5" />
                         {disabledLabel}
