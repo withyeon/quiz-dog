@@ -3,6 +3,8 @@
 import { toast } from '@/components/ui/Toaster'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import { gameAssets } from '@/assets/game-assets'
 import TeacherEndSequence from '@/components/results/TeacherEndSequence'
 import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import { getFinishedRoomReport } from '@/lib/services/reports'
@@ -55,8 +57,16 @@ export default function TeacherGameEndPageClient({ gameId }: { gameId: string })
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#102a43] p-6">
-        <p className="text-3xl font-black text-white">결과 발표 준비 중</p>
+      <div className="result-stage flex min-h-dvh flex-col items-center justify-center gap-5 p-6 font-bitbit">
+        <Image
+          src={gameAssets['mascot-pome'].tight}
+          alt=""
+          width={120}
+          height={120}
+          unoptimized
+          className="result-bob pixelated h-28 w-28 object-contain"
+        />
+        <p className="text-3xl font-black text-[#1E3A8A]">결과 발표 준비 중…</p>
       </div>
     )
   }

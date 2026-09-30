@@ -52,3 +52,5 @@ raw-assets/character-original/
 # 영상 최적화 전 원본 백업 (웹용 mp4/webm만 배포)
 public/main/mp4/_original/
 raw-assets/dontlookdown-original/
+# 박수 마스코트 원본 장면·공유용 GIF (사이트에는 public/assets/icons/*-clap-320.webp 만 배포)
+raw-assets/mascot-clap/

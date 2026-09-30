@@ -29,3 +29,8 @@ export const gameAssets = {
 } as const;
 
 export type GameAssetKey = keyof typeof gameAssets;
+
+/** 움직이는 마스코트 — scripts/make-clap-animation.mjs 로 두 장면을 이어 만든 애니메이션 WebP (투명 배경) */
+export const mascotAnimations = {
+  pomeClap: "/assets/icons/mascot-pome-clap-320.webp",
+} as const;

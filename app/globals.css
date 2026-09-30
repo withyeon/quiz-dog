@@ -1064,47 +1064,42 @@
 }
 
 /* ── 결과 발표(Top 3) 화면 ───────────────────────────────────────── */
+/* 로비·랜딩과 같은 하늘 배경 + 파스텔 스티커 카드. 어두운 무대·방사형 빛줄기는 쓰지 않는다
+   (빛줄기가 욱일기처럼 보인다는 피드백, 2026-09-30). */
 @layer utilities {
-  /* 무대 배경: 위쪽 스포트라이트가 떨어지는 깊은 남색 */
   .result-stage {
     background:
-      radial-gradient(130% 95% at 50% -12%, #2b6ca3 0%, #17456e 38%, #0d2745 68%, #081a2e 100%);
+      radial-gradient(ellipse 90% 70% at 50% 0%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 72%),
+      #d9eef5;
+    color: #1e3a8a;
   }
 
-  /* 무대 조명 원 */
-  .result-spotlight {
-    background: radial-gradient(closest-side, rgba(186, 230, 253, 0.28), rgba(186, 230, 253, 0) 72%);
+  /* 구름 — 천천히 좌우로 흔들린다 */
+  .result-cloud {
+    animation: result-cloud 9s ease-in-out infinite;
+  }
+  @keyframes result-cloud {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(18px, -4px, 0); }
   }
 
-  /* 천천히 흐르는 빛 덩어리 */
-  .result-aurora {
-    animation: result-aurora 14s ease-in-out infinite;
-  }
-  @keyframes result-aurora {
-    0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.5; }
-    50% { transform: translate3d(0, -5%, 0) scale(1.15); opacity: 0.8; }
-  }
-
-  /* 무대 뒤에서 도는 빛줄기 */
-  .result-rays {
-    background: repeating-conic-gradient(
-      from 0deg,
-      rgba(255, 255, 255, 0.09) 0deg 7deg,
-      rgba(255, 255, 255, 0) 7deg 22deg
-    );
-    animation: result-rays 34s linear infinite;
-  }
-  @keyframes result-rays {
-    to { transform: rotate(360deg); }
-  }
-
-  /* 반짝이는 별 */
+  /* 반짝이·하트 */
   .result-twinkle {
     animation: result-twinkle 3.2s ease-in-out infinite;
   }
   @keyframes result-twinkle {
-    0%, 100% { opacity: 0.15; transform: scale(0.7); }
-    50% { opacity: 0.95; transform: scale(1.15); }
+    0%, 100% { opacity: 0.35; transform: scale(0.75) rotate(-8deg); }
+    50% { opacity: 1; transform: scale(1.1) rotate(8deg); }
+  }
+
+  /* 카드 옆에서 톡톡 떠오르는 하트 */
+  .result-float-up {
+    animation: result-float-up 2.8s ease-out infinite;
+  }
+  @keyframes result-float-up {
+    0% { opacity: 0; transform: translateY(12px) scale(0.6); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-70px) scale(1.05); }
   }
 
   /* 등장 연출 */
@@ -1142,17 +1137,26 @@
     50% { transform: translateY(-12px); }
   }
 
-  /* 시상대가 바닥에서 솟아오르는 연출 */
+  /* 왕관처럼 살짝 까딱이는 장식 */
+  .result-wiggle {
+    animation: result-wiggle 2.2s ease-in-out infinite;
+  }
+  @keyframes result-wiggle {
+    0%, 100% { transform: rotate(-10deg) translateY(0); }
+    50% { transform: rotate(6deg) translateY(-6px); }
+  }
+
+  /* 시상대가 구름에서 솟아오르는 연출 */
   .result-rise {
     transform-origin: bottom center;
-    animation: result-rise 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: result-rise 0.85s cubic-bezier(0.22, 1.25, 0.36, 1) both;
   }
   @keyframes result-rise {
     from { transform: scaleY(0.04); opacity: 0; }
     to { transform: scaleY(1); opacity: 1; }
   }
 
-  /* 금속 표면을 스치는 광택 */
+  /* 파스텔 표면을 스치는 부드러운 광택 */
   .result-shine {
     position: relative;
     overflow: hidden;
@@ -1164,74 +1168,53 @@
     background: linear-gradient(
       100deg,
       rgba(255, 255, 255, 0) 38%,
-      rgba(255, 255, 255, 0.55) 50%,
+      rgba(255, 255, 255, 0.45) 50%,
       rgba(255, 255, 255, 0) 62%
     );
     transform: translateX(-120%);
-    animation: result-shine 3.4s ease-in-out infinite;
+    animation: result-shine 3.8s ease-in-out infinite;
   }
   @keyframes result-shine {
-    0%, 55% { transform: translateX(-120%); }
+    0%, 60% { transform: translateX(-120%); }
     100% { transform: translateX(120%); }
   }
 
-  /* 등수별 후광 */
-  .result-glow-gold {
-    animation: result-glow-gold 2.4s ease-in-out infinite;
+  /* 등수 카드 — 두꺼운 파스텔 테두리 + 아래로 깔린 단단한 그림자(로비 버튼과 같은 언어).
+     색은 --result-hard / --result-glow 로 받는다. */
+  .result-sticker {
+    box-shadow:
+      0 10px 0 var(--result-hard),
+      0 22px 44px rgba(14, 165, 233, 0.18);
+    animation: result-sticker-glow 2.6s ease-in-out infinite;
   }
-  @keyframes result-glow-gold {
-    0%, 100% { box-shadow: 0 0 0 rgba(251, 191, 36, 0), 0 22px 60px rgba(0, 0, 0, 0.45); }
-    50% { box-shadow: 0 0 70px rgba(251, 191, 36, 0.6), 0 22px 60px rgba(0, 0, 0, 0.45); }
-  }
-  .result-glow-silver {
-    animation: result-glow-silver 2.6s ease-in-out infinite;
-  }
-  @keyframes result-glow-silver {
-    0%, 100% { box-shadow: 0 0 0 rgba(226, 232, 240, 0), 0 20px 55px rgba(0, 0, 0, 0.45); }
-    50% { box-shadow: 0 0 55px rgba(226, 232, 240, 0.45), 0 20px 55px rgba(0, 0, 0, 0.45); }
-  }
-  .result-glow-bronze {
-    animation: result-glow-bronze 2.6s ease-in-out infinite;
-  }
-  @keyframes result-glow-bronze {
-    0%, 100% { box-shadow: 0 0 0 rgba(251, 146, 60, 0), 0 20px 55px rgba(0, 0, 0, 0.45); }
-    50% { box-shadow: 0 0 55px rgba(251, 146, 60, 0.5), 0 20px 55px rgba(0, 0, 0, 0.45); }
-  }
-
-  /* ── 시상대(Top 3) 무대 ────────────────────────────── */
-
-  /* 1등 뒤에서 내려오는 빛줄기 */
-  .result-beam {
-    background: linear-gradient(180deg, rgba(255, 236, 170, 0.45) 0%, rgba(255, 214, 102, 0.16) 45%, transparent 78%);
-    clip-path: polygon(38% 0%, 62% 0%, 100% 100%, 0% 100%);
-    animation: result-beam 3.6s ease-in-out infinite;
-  }
-  @keyframes result-beam {
-    0%, 100% { opacity: 0.55; }
-    50% { opacity: 0.95; }
+  @keyframes result-sticker-glow {
+    0%, 100% {
+      box-shadow:
+        0 10px 0 var(--result-hard),
+        0 22px 44px rgba(14, 165, 233, 0.18),
+        0 0 0 0 var(--result-glow);
+    }
+    50% {
+      box-shadow:
+        0 10px 0 var(--result-hard),
+        0 22px 44px rgba(14, 165, 233, 0.18),
+        0 0 0 14px var(--result-glow);
+    }
   }
 
-  /* 시상대가 놓인 무대 바닥 */
-  .result-floor {
+  /* 카드 속 물방울 무늬 */
+  .result-polka {
+    background-image: radial-gradient(var(--result-dot) 3px, transparent 3.5px);
+    background-size: 30px 30px;
+    background-position: 0 0;
+  }
+
+  /* 시상대 윗면의 생크림 물결 */
+  .result-frosting {
     background:
-      radial-gradient(60% 100% at 50% 0%, rgba(255, 255, 255, 0.35), transparent 72%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 85%);
-  }
-
-  /* 시상대 아래로 비치는 반사 */
-  .result-reflection {
-    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 75%);
-    -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.5), transparent 75%);
-    transform: scaleY(-1);
-    filter: blur(2px);
-    opacity: 0.28;
-  }
-
-  /* 시상대 숫자 — 파낸 듯한 음각 */
-  .result-engraved {
-    text-shadow:
-      0 2px 0 rgba(255, 255, 255, 0.5),
-      0 -2px 3px rgba(0, 0, 0, 0.25);
+      radial-gradient(circle at 50% 0, #ffffff 9px, transparent 9.5px) 0 10px / 20px 12px repeat-x,
+      linear-gradient(#ffffff, #ffffff) 0 0 / 100% 10px no-repeat;
+    filter: drop-shadow(0 2px 0 rgba(30, 58, 138, 0.08));
   }
 
   /* 기다리는 동안 통통 튀는 점 */
@@ -1239,36 +1222,45 @@
     animation: result-dot 1.2s ease-in-out infinite;
   }
   @keyframes result-dot {
-    0%, 100% { transform: translateY(0); opacity: 0.45; }
+    0%, 100% { transform: translateY(0); opacity: 0.55; }
     50% { transform: translateY(-14px); opacity: 1; }
   }
 
-  /* 금빛 그라데이션 글자 (지원하지 않는 브라우저는 흰 글자로) */
-  .result-gold-text {
-    color: #fff7db;
-    text-shadow: 0 6px 24px rgba(251, 191, 36, 0.45);
+  /* 관중석 친구들이 번갈아 폴짝폴짝 응원 */
+  .result-cheer {
+    animation: result-cheer 1.8s ease-in-out infinite;
   }
-  @supports (background-clip: text) or (-webkit-background-clip: text) {
-    .result-gold-text {
-      background-image: linear-gradient(180deg, #fffdf5 0%, #ffe9a8 45%, #f5b942 100%);
-      background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+  @keyframes result-cheer {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    20% { transform: translateY(-12px) rotate(-5deg); }
+    40% { transform: translateY(0) rotate(0deg); }
+    60% { transform: translateY(-6px) rotate(4deg); }
+    80% { transform: translateY(0) rotate(0deg); }
+  }
+
+  /* 인원이 많으면 관중석이 옆으로 흘러가는 퍼레이드 (목록을 두 번 이어 붙여 -50%까지 민다) */
+  .result-parade {
+    animation: result-parade var(--parade-duration, 40s) linear infinite;
+  }
+  @keyframes result-parade {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-50%, 0, 0); }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .result-aurora,
-    .result-rays,
+    .result-cheer,
+    .result-parade,
+    .result-cloud,
     .result-twinkle,
+    .result-float-up,
     .result-pop,
     .result-fade-up,
     .result-drop-in,
     .result-bob,
+    .result-wiggle,
     .result-rise,
     .result-shine::after,
-    .result-glow-gold,
-    .result-glow-silver,
-    .result-glow-bronze,
+    .result-sticker,
     .result-dot {
       animation: none !important;
     }

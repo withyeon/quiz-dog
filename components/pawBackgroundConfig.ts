@@ -18,6 +18,8 @@ export type PawPrintConfig = {
   centerX?: boolean
   /** 예: 'hidden sm:block' — 작은 화면에서 숨김 */
   visibility?: string
+  /** 화면 가운데 줄에 놓인 발자국 — 가운데가 비어 있는 화면(결과 발표 등)에서는 뺀다 */
+  middle?: boolean
 }
 
 /** 가장자리 + 가로 중앙에 은은하게 배치 — paw / paw2 번갈아 사용 */
@@ -35,9 +37,9 @@ export const PAW_PRINTS: PawPrintConfig[] = [
   { variant: 'paw', top: '82%', left: '5%', size: 28, rotate: -10, opacity: 0.24 },
   { variant: 'paw2', top: '88%', right: '6%', size: 34, rotate: -16, opacity: 0.44 },
   // 가로 중앙 (작게, 세로는 위·중·아래로 분산)
-  { variant: 'paw2', top: '18%', left: '50%', centerX: true, size: 26, rotate: 10, opacity: 0.4, visibility: 'hidden sm:block' },
-  { variant: 'paw', top: '36%', left: '46%', size: 24, rotate: -12, opacity: 0.22, visibility: 'hidden md:block' },
-  { variant: 'paw2', top: '50%', left: '54%', size: 28, rotate: 16, opacity: 0.42 },
-  { variant: 'paw', top: '62%', left: '44%', size: 26, rotate: 8, opacity: 0.24, visibility: 'hidden sm:block' },
-  { variant: 'paw2', top: '78%', left: '50%', centerX: true, size: 28, rotate: -18, opacity: 0.44 },
+  { variant: 'paw2', top: '18%', left: '50%', centerX: true, size: 26, rotate: 10, opacity: 0.4, visibility: 'hidden sm:block', middle: true },
+  { variant: 'paw', top: '36%', left: '46%', size: 24, rotate: -12, opacity: 0.22, visibility: 'hidden md:block', middle: true },
+  { variant: 'paw2', top: '50%', left: '54%', size: 28, rotate: 16, opacity: 0.42, middle: true },
+  { variant: 'paw', top: '62%', left: '44%', size: 26, rotate: 8, opacity: 0.24, visibility: 'hidden sm:block', middle: true },
+  { variant: 'paw2', top: '78%', left: '50%', centerX: true, size: 28, rotate: -18, opacity: 0.44, middle: true },
 ]

@@ -1,37 +1,26 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
-import { heroShowcaseGames, visibleGameModeCount } from '@/components/landing/gameModesData'
+import { visibleGameModeCount } from '@/components/landing/gameModesData'
 import { gameAssets } from '@/assets/game-assets'
 
 /**
- * 영상이 재생을 못 하는 경우(자동재생 차단 등)에도 화면이 한 게임에 멈춰 있지 않도록 두는 최후 타이머.
- * 정상 재생될 때는 onEnded가 먼저 넘기므로 쓰이지 않는다.
+ * 퀴즈독 소개 영상(42초, 1440×1080 4:3, 무음 반복) — 자료 올리기 → AI 문제 생성 → 코드 입장 →
+ * 게임 11개 → 결과 리포트 → 엔딩. 제목·자막이 영상 안에 있어서 카드 위에 따로 글자를 얹지 않는다.
+ * 코드로 그린 장면 + 튜토리얼 데모(/dev/tutorial-preview) 녹화로 만들었다. 포스터는 게임 로고 11개 장면.
  */
-const STUCK_FALLBACK_MS = 90000
+const HERO_PROMO = {
+  webm: '/main/mp4/quizdog-promo.webm',
+  mp4: '/main/mp4/quizdog-promo.mp4',
+  poster: '/main/mp4/quizdog-promo-poster.webp',
+}
 
-/** 히어로 우측 — 실제 플레이 영상을 한 편씩 끝까지 보여주고 다음 게임으로 넘어가는 카드 */
+/** 히어로 우측 — 퀴즈독 소개 영상 */
 function HeroPreview() {
-  const [index, setIndex] = useState(0)
-  const games = heroShowcaseGames
-  const showNext = useCallback(() => {
-    setIndex((prev) => (prev + 1) % games.length)
-  }, [games.length])
-
-  useEffect(() => {
-    if (games.length < 2) return
-    const timer = setTimeout(showNext, STUCK_FALLBACK_MS)
-    return () => clearTimeout(timer)
-  }, [index, games.length, showNext])
-
-  if (games.length === 0) return null
-  const game = games[index]
-
   return (
     <div className="relative -mx-2 sm:mx-0">
       {/* 뒤에 살짝 겹쳐 보이는 카드 — 여러 게임이 쌓여 있는 느낌 */}
@@ -41,34 +30,28 @@ function HeroPreview() {
         aria-hidden
       />
 
+      {/* 영상이 4:3 이라 폰에서도 같은 비율로 둬야 양 끝 자막이 잘리지 않는다 */}
       <div
-        className="toss-card texture-grain relative aspect-[5/4] overflow-hidden rounded-[28px] sm:aspect-[4/3]"
+        className="toss-card texture-grain relative aspect-[4/3] overflow-hidden rounded-[28px]"
         style={{
           backgroundColor: 'rgba(255,255,255,0.55)',
           border: '1px solid rgba(255,255,255,0.9)',
           transform: 'translateZ(0)',
         }}
       >
-        <AnimatePresence mode="wait">
-          <motion.video
-            key={game.previewVideo?.mp4}
-            poster={game.previewImage}
-            autoPlay
-            muted
-            playsInline
-            preload="metadata"
-            loop={games.length < 2}
-            onEnded={showNext}
-            initial={{ opacity: 0, scale: 1.03 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="absolute inset-0 h-full w-full object-cover"
-          >
-            {game.previewVideo?.webm && <source src={game.previewVideo.webm} type="video/webm" />}
-            {game.previewVideo && <source src={game.previewVideo.mp4} type="video/mp4" />}
-          </motion.video>
-        </AnimatePresence>
+        <video
+          poster={HERO_PROMO.poster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="metadata"
+          aria-label="퀴즈독 소개 영상: 수업 자료를 올리면 AI가 문제를 만들고, 학생들이 코드로 입장해 11가지 게임으로 복습한 뒤 결과 리포트를 확인해요"
+          className="absolute inset-0 h-full w-full object-cover"
+        >
+          <source src={HERO_PROMO.webm} type="video/webm" />
+          <source src={HERO_PROMO.mp4} type="video/mp4" />
+        </video>
 
         {/* 상단 광택 라인 */}
         <div
@@ -76,44 +59,6 @@ function HeroPreview() {
           style={{ backgroundImage: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent)' }}
           aria-hidden
         />
-
-        {/* 게임 타이틀 배지 */}
-        <div
-          className="toss-depth-plastic absolute bottom-4 left-4 flex items-center rounded-full px-4 py-2"
-          style={{
-            backgroundColor: 'rgba(255,255,255,0.78)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            border: '1px solid rgba(255,255,255,0.95)',
-          }}
-        >
-          <Image
-            src={game.titleImage}
-            alt={game.name}
-            width={360}
-            height={108}
-            className="h-9 w-auto max-w-[150px] object-contain sm:h-11 sm:max-w-[180px]"
-          />
-        </div>
-
-        {/* 재생 중인 게임 인디케이터 */}
-        <div className="absolute bottom-5 right-5 flex items-center gap-1.5">
-          {games.map((item, i) => (
-            <button
-              key={item.name}
-              onClick={() => setIndex(i)}
-              aria-label={`${item.name} 미리보기`}
-              className="rounded-full"
-              style={{
-                width: i === index ? 20 : 7,
-                height: 7,
-                backgroundColor: i === index ? '#0ea5e9' : 'rgba(255,255,255,0.85)',
-                boxShadow: '0 1px 3px rgba(12,32,77,0.25)',
-                transition: 'width 0.3s ease, background-color 0.3s ease',
-              }}
-            />
-          ))}
-        </div>
       </div>
 
       {/* 마스코트 장식 */}
