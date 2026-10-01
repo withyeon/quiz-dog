@@ -34,6 +34,14 @@ import {
   type ZombieSettings,
 } from '@/lib/game/zombie'
 import ZombieOptionsFields from '@/components/teacher/play/ZombieOptionsFields'
+import RaidOptionsFields from '@/components/teacher/play/RaidOptionsFields'
+import {
+  DEFAULT_RAID_SETTINGS,
+  buildRaidRoomSettings,
+  computeRaidState,
+  parseRaidSettings,
+  type RaidSettings,
+} from '@/lib/game/raid'
 import { isGameOver as isBattleGameOver } from '@/lib/game/battleRoyale'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
@@ -70,6 +78,8 @@ export default function TeacherDashboard() {
   const [studySettings, setStudySettings] = useState<StudySettings>(DEFAULT_STUDY_SETTINGS)
   // 좀비 모드 옵션 — 게임 시간처럼 시작 버튼을 누를 때 rooms.settings 에 담긴다
   const [zombieSettings, setZombieSettings] = useState<ZombieSettings>(DEFAULT_ZOMBIE_SETTINGS)
+  // 펭귄 레이드 옵션(펭귄 수) — 시작 버튼을 누를 때 참가 인원과 함께 rooms.settings 에 담긴다
+  const [raidSettings, setRaidSettings] = useState<RaidSettings>(DEFAULT_RAID_SETTINGS)
   const [hostMode, setHostMode] = useState<HostMode>('live')
   const [showStartTutorial, setShowStartTutorial] = useState(false)
   const [tutorialStepIndex, setTutorialStepIndex] = useState(0)
@@ -354,6 +364,50 @@ export default function TeacherDashboard() {
     void finishByZombieWin()
   }, [ownerId, broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
 
+  // 펭귄 레이드: 펭귄을 전부 쓰러뜨리면(반 전체 승리) 자동 종료
+  useEffect(() => {
+    if (
+      !roomCode
+      || !room
+      || room.status !== 'playing'
+      || room.game_mode !== 'raid'
+      || autoFinishRequestedRef.current
+    ) {
+      return
+    }
+
+    const raidState = computeRaidState(players, parseRaidSettings(room.settings))
+    if (raidState.roster.length === 0 || !raidState.allDefeated) return
+
+    const finishByRaidVictory = async () => {
+      if (autoFinishRequestedRef.current) return
+      autoFinishRequestedRef.current = true
+
+      try {
+        const reason = 'raid_victory'
+        const finishPromise = finishRoom(roomCode)
+        broadcastRoomPatch({ status: 'finished' }, reason)
+        void sendRoomEvent('game:finished', {
+          finishedBy: 'teacher',
+          reason,
+        })
+        await finishPromise
+        try {
+          await saveGameReportSnapshot(room, players, ownerId)
+        } catch (reportError) {
+          console.error('Error saving raid game report snapshot:', reportError)
+        }
+        stopBGM()
+        router.push(`/teacher/game/${roomCode}/end`)
+      } catch (error) {
+        autoFinishRequestedRef.current = false
+        console.error('펭귄 레이드 승리 종료 실패:', error)
+      }
+    }
+
+    void finishByRaidVictory()
+  }, [ownerId, broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
+
   // 눈싸움 대작전: 한 팀 전멸(또는 개인전 최후 생존) 시 자동 종료
   useEffect(() => {
     if (
@@ -527,7 +581,13 @@ export default function TeacherDashboard() {
       }
       const startSettings = gameMode === 'zombie'
         ? buildZombieRoomSettings(zombieSettings, room?.settings)
-        : undefined
+        : gameMode === 'raid'
+          // 펭귄 체력의 기준 인원은 시작 순간의 참가자 수로 고정한다 (시작 뒤 입장해도 체력이 흔들리지 않게)
+          ? buildRaidRoomSettings(
+            { ...raidSettings, playerCount: players.filter((player) => !player.is_kicked).length },
+            room?.settings,
+          )
+          : undefined
       await startRoom({
         roomCode,
         gameMode,
@@ -735,6 +795,10 @@ export default function TeacherDashboard() {
 
             {gameMode === 'zombie' && roomStatus === 'waiting' && (
               <ZombieOptionsFields value={zombieSettings} onChange={setZombieSettings} />
+            )}
+
+            {gameMode === 'raid' && roomStatus === 'waiting' && (
+              <RaidOptionsFields value={raidSettings} onChange={setRaidSettings} />
             )}
 
             {roomStatus !== 'finished' && <TeacherBgmControl />}

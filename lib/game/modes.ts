@@ -199,6 +199,23 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     requiresQuestionSet: true,
   },
   {
+    // 협동 보스 레이드. 반 전체가 한 보스의 체력을 같이 깎는다. 규칙·보스 상태 유도는 lib/game/raid.ts.
+    id: 'raid',
+    route: '/raid',
+    label: '황제 펭귄을 막아라!',
+    shortLabel: '펭귄 레이드',
+    emoji: '🐧',
+    image: '/title/raid.webp',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: '8-bit Battle Loop',
+      src: '/audio/bgm/poop-dodge.mp3',
+    },
+    description: '반 전체가 힘을 합쳐 거대한 펭귄 군단을 물리쳐요. 정답을 맞힐 때마다 펭귄의 체력이 줄어요. 제한 시간 안에 황제 펭귄까지 쓰러뜨리면 다 같이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
     // 게임이 아니라 공부 화면이다. 과제로 내기의 첫 번째 선택지이고, 실시간 수업에서도 열 수 있다.
     // 옵션(피드백 시점·다시 풀기·재도전 횟수·문제 순서)은 lib/game/studySettings.ts, 화면은 app/study.
     id: 'study',
@@ -273,7 +290,7 @@ export function getModeInitialPlayerState(mode: string | null | undefined) {
 
 /**
  * 과제(혼자 풀기)로 낼 수 있는 모드. 공부 모드가 첫 번째다.
- * 눈싸움(팀전)·마피아·좀비(역할 배정)는 여럿이 있어야 성립하므로 뺀다.
+ * 눈싸움(팀전)·마피아·좀비(역할 배정)·펭귄 레이드(반 전체 협동)는 여럿이 있어야 성립하므로 뺀다.
  */
 export const HOMEWORK_GAME_MODES: readonly GameModeId[] = [
   'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'gold_quest', 'factory', 'cafe', 'tower',

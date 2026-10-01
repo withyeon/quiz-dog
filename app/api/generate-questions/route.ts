@@ -135,6 +135,24 @@ export async function POST(request: NextRequest) {
     const rawUserPrompt = formData.get('userPrompt')
     const userPrompt = typeof rawUserPrompt === 'string' ? rawUserPrompt.trim().slice(0, 500) : undefined
 
+    // 선택: 이미 만들어 둔 문제 글 목록 — 한 문제 다시 만들기·몇 개 더 만들기에서 겹치지 않게
+    let avoidQuestions: string[] | undefined
+    const rawAvoid = formData.get('avoidQuestions')
+    if (typeof rawAvoid === 'string' && rawAvoid.trim()) {
+      try {
+        const parsed = JSON.parse(rawAvoid)
+        if (Array.isArray(parsed)) {
+          avoidQuestions = parsed
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => item.trim().slice(0, 200))
+            .filter(Boolean)
+            .slice(0, 40)
+        }
+      } catch {
+        // 형식이 잘못되면 무시
+      }
+    }
+
     if (!VALID_SOURCE_TYPES.includes(sourceType)) {
       return NextResponse.json({ error: `지원하지 않는 소스 타입입니다: ${sourceType}` }, { status: 400 })
     }
@@ -144,7 +162,7 @@ export async function POST(request: NextRequest) {
       const topic = formData.get('topic') as string
       if (!topic) return NextResponse.json({ error: '주제를 입력해주세요.' }, { status: 400 })
 
-      const questions = await generateQuestions({ sourceType, topic, subject, grade, allowedTypes, typeCounts, userPrompt }, questionCount)
+      const questions = await generateQuestions({ sourceType, topic, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
       return NextResponse.json({ questions })
     }
 
@@ -154,7 +172,7 @@ export async function POST(request: NextRequest) {
       if (!youtubeUrl) return NextResponse.json({ error: '유튜브 URL을 입력해주세요.' }, { status: 400 })
 
       const transcript = await getYouTubeTranscript(youtubeUrl)
-      const questions = await generateQuestions({ sourceType, text: transcript, subject, grade, allowedTypes, typeCounts, userPrompt }, questionCount)
+      const questions = await generateQuestions({ sourceType, text: transcript, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
       return NextResponse.json({ questions })
     }
 
@@ -163,7 +181,7 @@ export async function POST(request: NextRequest) {
       const text = formData.get('text') as string
       if (!text) return NextResponse.json({ error: '텍스트를 입력해주세요.' }, { status: 400 })
 
-      const questions = await generateQuestions({ sourceType, text, subject, grade, allowedTypes, typeCounts, userPrompt }, questionCount)
+      const questions = await generateQuestions({ sourceType, text, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
       return NextResponse.json({ questions })
     }
 
@@ -195,7 +213,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ questions })
         }
         // 텍스트가 충분하면 AI로 문제 구조 파싱
-        const questions = await generateQuestions({ sourceType: 'text', text: extractedText, subject, grade, allowedTypes, typeCounts, userPrompt }, questionCount)
+        const questions = await generateQuestions({ sourceType: 'text', text: extractedText, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
         return NextResponse.json({ questions })
       }
 
@@ -246,7 +264,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '파일에서 텍스트를 추출할 수 없습니다.' }, { status: 400 })
       }
 
-      const questions = await generateQuestions({ sourceType: 'text', text, subject, grade, allowedTypes, typeCounts, userPrompt }, questionCount)
+      const questions = await generateQuestions({ sourceType: 'text', text, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
       return NextResponse.json({ questions })
     }
 

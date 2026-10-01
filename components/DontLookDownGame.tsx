@@ -1,9 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import QuizView from './QuizView'
-import { isAvatarPath, resolveAvatarSrc } from '@/lib/utils/playerDisplay'
 import {
     DB_THROTTLE_MS,
     POWERUP_COLLECT_RADIUS,
@@ -31,32 +28,30 @@ import {
     drawSpeedLines,
     drawTrail,
 } from '@/components/dontlookdown/renderer'
-
-import PowerUpIcon from '@/components/dontlookdown/PowerUpIcon'
+import {
+    advanceParticles,
+    advanceTrail,
+    createClouds,
+    createStars,
+    withBurst,
+    withRocketExhaust,
+} from '@/components/dontlookdown/effects'
+import { useGameAssets } from '@/components/dontlookdown/useGameAssets'
+import { useGameInput } from '@/components/dontlookdown/useGameInput'
+import { EnergyPanel, Leaderboard, ProgressPanel, TimeBadge } from '@/components/dontlookdown/StatusPanels'
+import { KeyboardControls, TouchControls } from '@/components/dontlookdown/TouchControls'
+import { FeedbackToast, QuizPanel, SummitAlert } from '@/components/dontlookdown/Overlays'
 import {
     type DLDPlayer,
     type Platform,
     type PowerUp,
-    type PowerUpType,
     type Obstacle,
     type GameSettings,
     PHYSICS,
     ENERGY,
     PLAYER_SIZE,
     POWERUP_SIZE,
-    SUMMITS,
     WORLD,
-    POWERUP_EFFECTS,
-    PLATFORM_IMAGE_COUNT,
-    PLATFORM_PROP_NAMES,
-    type PlatformPropName,
-    BACKDROP_LAYER_NAMES,
-    type BackdropLayerName,
-    SPAWNABLE_POWERUP_TYPES,
-    getPlatformImagePath,
-    getPlatformPropPath,
-    getBackdropLayerPath,
-    getPowerUpImagePath,
     createPlayer,
     updatePlayerPhysics,
     movePlayer,
@@ -65,8 +60,6 @@ import {
     applyPowerUp,
     updateActivePowerUps,
 } from '@/lib/game/dontlookdown'
-import PixelIcon from '@/components/ui/PixelIcon'
-import QuizSetName from '@/components/game/QuizSetName'
 
 interface DontLookDownGameProps {
     playerId: string
@@ -85,6 +78,15 @@ interface DontLookDownGameProps {
     questionSetTitle?: string | null
 }
 
+/**
+ * 점프점프 게임 화면. 캔버스 게임 루프가 ref에 든 권위 상태를 60fps로 돌리고,
+ * React 상태(uiPlayer 등)는 150ms마다 한 번씩만 따라온다.
+ *
+ * - 그리기 함수: components/dontlookdown/renderer.ts
+ * - 파티클·잔상·배경 생성: components/dontlookdown/effects.ts
+ * - 이미지 로딩: useGameAssets, 입력: useGameInput
+ * - HUD·버튼·오버레이: StatusPanels / TouchControls / Overlays
+ */
 export default function DontLookDownGame({
     questionSetTitle,
     playerId,
@@ -149,12 +151,14 @@ export default function DontLookDownGame({
     // Summit 추적
     const summitTrackRef = useRef<number>(1)
 
-    // 플랫폼 이미지 캐시
-    const platformImagesRef = useRef<Record<number, HTMLImageElement>>({})
-    const propImagesRef = useRef<Partial<Record<PlatformPropName, HTMLImageElement>>>({})
-    const backdropImagesRef = useRef<Partial<Record<BackdropLayerName, HTMLImageElement>>>({})
-    const powerUpImagesRef = useRef<Partial<Record<PowerUpType, HTMLImageElement>>>({})
-    const avatarImagesRef = useRef<Record<string, HTMLImageElement>>({})
+    // 이미지 캐시
+    const {
+        platformImagesRef,
+        propImagesRef,
+        backdropImagesRef,
+        powerUpImagesRef,
+        getAvatarImage,
+    } = useGameAssets(characterImage, players)
 
     // ============ React UI 상태 (저빈도 동기화) ============
     const [uiPlayer, setUiPlayer] = useState<DLDPlayer | null>(null)
@@ -162,94 +166,33 @@ export default function DontLookDownGame({
     const [showSummitAlert, setShowSummitAlert] = useState<number | null>(null)
     const [combo, setCombo] = useState(0)
     const [quizFeedback, setQuizFeedback] = useState<QuizFeedback | null>(null)
-    const [isTouch, setIsTouch] = useState(false)
 
-    // 터치 기기 감지 (태블릿/모바일에는 물리 키보드가 없으므로 화면 조작 버튼 제공)
-    useEffect(() => {
-        if (typeof window === 'undefined') return
-        const coarse = window.matchMedia?.('(pointer: coarse)').matches
-        const forced = new URLSearchParams(window.location.search).get('touch') === '1'
-        setIsTouch(forced || Boolean(coarse) || (navigator.maxTouchPoints ?? 0) > 0)
-    }, [])
-
-    // 화면 버튼 → 키보드와 동일한 입력 모델(keysRef) 사용
-    const pressGameKey = (key: string) => {
-        keysRef.current.add(key)
-        if (key === 'jump') jumpBufferRef.current = PHYSICS.JUMP_BUFFER_TIME
-    }
-    const releaseGameKey = (key: string) => {
-        keysRef.current.delete(key)
-    }
+    const { isTouch, pressGameKey, releaseGameKey } = useGameInput({
+        keysRef,
+        jumpBufferRef,
+        onQuizKey: () => setShowQuiz(true),
+        onPowerUpKey: (slotIndex) => {
+            const current = playerRef.current
+            if (current && (current.powerUps?.length ?? 0) > slotIndex) {
+                activatePowerUpSlotRef.current(slotIndex)
+            }
+        },
+    })
 
     useEffect(() => {
         showQuizRef.current = showQuiz
     }, [showQuiz])
 
-    if (cloudsRef.current.length === 0) {
-        cloudsRef.current = Array.from({ length: 24 }, (_, index) => ({
-            x: (index * 173) % WORLD.WIDTH,
-            y: 80 + ((index * 113) % 1700),
-            w: 90 + ((index * 37) % 120),
-            speed: 0.12 + (index % 5) * 0.04,
-            alpha: 0.2 + (index % 4) * 0.08,
-        }))
-    }
-    if (starsRef.current.length === 0) {
-        starsRef.current = Array.from({ length: 80 }, (_, index) => ({
-            x: (index * 97) % WORLD.WIDTH,
-            y: -5200 + ((index * 181) % 3600),
-            size: 1 + (index % 3),
-            alpha: 0.35 + (index % 5) * 0.12,
-        }))
-    }
+    if (cloudsRef.current.length === 0) cloudsRef.current = createClouds()
+    if (starsRef.current.length === 0) starsRef.current = createStars()
 
     const showFeedback = (feedback: QuizFeedback) => {
         setQuizFeedback(feedback)
         window.setTimeout(() => setQuizFeedback(null), 1200)
     }
 
-    const spawnBurst = (
-        x: number,
-        y: number,
-        color: string,
-        count = 12,
-        speed = 220
-    ) => {
-        const next = particlesRef.current.slice()
-        for (let i = 0; i < count; i += 1) {
-            const angle = Math.random() * Math.PI * 2
-            const velocity = speed * (0.35 + Math.random() * 0.75)
-            next.push({
-                x,
-                y,
-                vx: Math.cos(angle) * velocity,
-                vy: Math.sin(angle) * velocity - 80,
-                life: 0.45 + Math.random() * 0.35,
-                maxLife: 0.8,
-                size: 2 + Math.random() * 5,
-                color,
-            })
-        }
-        particlesRef.current = next.slice(-120)
-    }
-
-    const spawnRocketExhaust = (player: DLDPlayer, dt: number) => {
-        const next = particlesRef.current.slice()
-        const count = Math.max(3, Math.ceil(dt * 260))
-        for (let i = 0; i < count; i += 1) {
-            const spread = (Math.random() - 0.5) * PLAYER_SIZE.WIDTH * 1.3
-            next.push({
-                x: player.x + PLAYER_SIZE.WIDTH / 2 + spread,
-                y: player.y + PLAYER_SIZE.HEIGHT - 2,
-                vx: (Math.random() - 0.5) * 120,
-                vy: 260 + Math.random() * 360,
-                life: 0.22 + Math.random() * 0.18,
-                maxLife: 0.4,
-                size: 4 + Math.random() * 8,
-                color: Math.random() > 0.35 ? '#fb923c' : '#fde047',
-            })
-        }
-        particlesRef.current = next.slice(-180)
+    const spawnBurst = (x: number, y: number, color: string, count = 12, speed = 220) => {
+        particlesRef.current = withBurst(particlesRef.current, x, y, color, count, speed)
     }
 
     activatePowerUpSlotRef.current = (index: number) => {
@@ -272,12 +215,6 @@ export default function DontLookDownGame({
         setUiPlayer(playerRef.current)
     }
 
-    const getAvatarImage = (avatar: string) => {
-        const normalized = avatar.trim()
-        if (!isAvatarPath(normalized)) return undefined
-        return avatarImagesRef.current[resolveAvatarSrc(normalized)]
-    }
-
     // ============ props → refs 동기화 ============
     useEffect(() => { platformsRef.current = platforms }, [platforms])
     useEffect(() => { obstaclesRef.current = obstacles }, [obstacles])
@@ -286,27 +223,6 @@ export default function DontLookDownGame({
     useEffect(() => { characterImageRef.current = characterImage }, [characterImage])
     useEffect(() => { onUpdatePlayerRef.current = onUpdatePlayer }, [onUpdatePlayer])
     useEffect(() => { onCollectPowerUpRef.current = onCollectPowerUp }, [onCollectPowerUp])
-
-    useEffect(() => {
-        const avatarPaths = new Set<string>()
-        const normalizedCharacterImage = characterImage.trim()
-        if (isAvatarPath(normalizedCharacterImage)) {
-            avatarPaths.add(resolveAvatarSrc(normalizedCharacterImage))
-        }
-        for (const player of players) {
-            const avatar = String(player.avatar || '').trim()
-            if (isAvatarPath(avatar)) {
-                avatarPaths.add(resolveAvatarSrc(avatar))
-            }
-        }
-
-        avatarPaths.forEach((avatarPath) => {
-            if (avatarImagesRef.current[avatarPath]) return
-            const img = document.createElement('img')
-            img.src = avatarPath
-            avatarImagesRef.current[avatarPath] = img
-        })
-    }, [characterImage, players])
 
     // 다른 플레이어만 따로 보관 — 내 플레이어는 props에서 무시 (서버가 내 좌표를 덮어쓰지 않게)
     useEffect(() => {
@@ -355,104 +271,6 @@ export default function DontLookDownGame({
         observer.observe(el)
         return () => observer.disconnect()
     }, [containerEl])
-
-    // ============ 플랫폼·장식 이미지 로드 ============
-    // 이미지 크기는 발판 박스에 영향을 주지 않는다. 박스는 맵 생성 값 그대로, 그림만 그 폭에 맞춘다.
-    useEffect(() => {
-        for (let i = 1; i <= PLATFORM_IMAGE_COUNT; i++) {
-            const img = document.createElement('img')
-            img.onload = () => {
-                platformImagesRef.current[i] = img
-            }
-            img.src = getPlatformImagePath(i)
-        }
-        for (const name of PLATFORM_PROP_NAMES) {
-            const img = document.createElement('img')
-            img.onload = () => {
-                propImagesRef.current[name] = img
-            }
-            img.src = getPlatformPropPath(name)
-        }
-        for (const name of BACKDROP_LAYER_NAMES) {
-            const img = document.createElement('img')
-            img.onload = () => {
-                backdropImagesRef.current[name] = img
-            }
-            img.src = getBackdropLayerPath(name)
-        }
-    }, [])
-
-    useEffect(() => {
-        for (const type of SPAWNABLE_POWERUP_TYPES) {
-            const img = document.createElement('img')
-            img.onload = () => {
-                powerUpImagesRef.current[type] = img
-            }
-            img.src = getPowerUpImagePath(type)
-        }
-    }, [])
-
-    // ============ 키보드 핸들러 (마운트 시 한 번) ============
-    useEffect(() => {
-        const getGameKey = (e: KeyboardEvent): string | null => {
-            const key = e.key.toLowerCase()
-            const code = e.code?.toLowerCase()
-            if (key === 'arrowleft' || code === 'arrowleft' || key === 'a') return 'left'
-            if (key === 'arrowright' || code === 'arrowright' || key === 'd') return 'right'
-            if (key === 'arrowup' || code === 'arrowup' || key === 'w' || key === ' ') return 'jump'
-            if (key === 'arrowdown' || code === 'arrowdown') return 'down'
-            if (key === 'shift') return 'shift'
-            if (key === 'q') return 'q'
-            if (key === 'e') return 'e'
-            if (key === 'r') return 'r'
-            return null
-        }
-
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const gameKey = getGameKey(e)
-            if (!gameKey) return
-            e.preventDefault()
-            e.stopPropagation()
-
-            keysRef.current.add(gameKey)
-
-            // OS 키 반복은 한 번만 처리 (점프 버퍼/액션은 edge-triggered)
-            if (e.repeat) return
-
-            if (gameKey === 'jump') {
-                jumpBufferRef.current = PHYSICS.JUMP_BUFFER_TIME
-            }
-            if (gameKey === 'q') {
-                setShowQuiz(true)
-            }
-            if (gameKey === 'e' && playerRef.current && (playerRef.current.powerUps?.length ?? 0) > 0) {
-                activatePowerUpSlotRef.current(0)
-            }
-            if (gameKey === 'r' && playerRef.current && (playerRef.current.powerUps?.length ?? 0) > 1) {
-                activatePowerUpSlotRef.current(1)
-            }
-        }
-
-        const handleKeyUp = (e: KeyboardEvent) => {
-            const gameKey = getGameKey(e)
-            if (!gameKey) return
-            e.preventDefault()
-            e.stopPropagation()
-            keysRef.current.delete(gameKey)
-        }
-
-        const handleBlur = () => keysRef.current.clear()
-
-        window.addEventListener('keydown', handleKeyDown, { capture: true, passive: false })
-        window.addEventListener('keyup', handleKeyUp, { capture: true, passive: false })
-        window.addEventListener('blur', handleBlur)
-
-        return () => {
-            window.removeEventListener('keydown', handleKeyDown, { capture: true })
-            window.removeEventListener('keyup', handleKeyUp, { capture: true })
-            window.removeEventListener('blur', handleBlur)
-        }
-    }, [])
 
     // ============ 마운트 시 포커스 ============
     useEffect(() => {
@@ -658,7 +476,7 @@ export default function DontLookDownGame({
             player = updatePlayerPhysics(player, platformsRef.current, obstaclesRef.current, dt)
 
             if (player.activePowerUps.has('rocket')) {
-                spawnRocketExhaust(player, dt)
+                particlesRef.current = withRocketExhaust(particlesRef.current, player, dt)
                 shakeRef.current = Math.max(shakeRef.current, 4)
             }
 
@@ -722,25 +540,8 @@ export default function DontLookDownGame({
             cameraRef.current.y += (targetCamY - cameraRef.current.y) * camAlpha
 
             shakeRef.current = Math.max(0, shakeRef.current - dt * 24)
-            trailRef.current = [
-                ...trailRef.current
-                    .map(point => ({ ...point, life: point.life - dt }))
-                    .filter(point => point.life > 0),
-                {
-                    x: player.x,
-                    y: player.y,
-                    life: Math.min(0.35, 0.14 + (Math.abs(player.vx) + Math.abs(player.vy)) / 5200),
-                },
-            ].slice(-14)
-            particlesRef.current = particlesRef.current
-                .map(particle => ({
-                    ...particle,
-                    x: particle.x + particle.vx * dt,
-                    y: particle.y + particle.vy * dt,
-                    vy: particle.vy + 520 * dt,
-                    life: particle.life - dt,
-                }))
-                .filter(particle => particle.life > 0)
+            trailRef.current = advanceTrail(trailRef.current, player, dt)
+            particlesRef.current = advanceParticles(particlesRef.current, dt)
 
             // DB 업데이트 (throttled, 200ms)
             if (now - lastDbUpdateRef.current >= DB_THROTTLE_MS) {
@@ -760,7 +561,10 @@ export default function DontLookDownGame({
         return () => {
             if (rafId) cancelAnimationFrame(rafId)
         }
-    }, []) // ⚠ 빈 deps — 게임 루프는 마운트 시 한 번만 시작
+    // ⚠ 빈 deps — 게임 루프는 마운트 시 한 번만 시작. useGameAssets 가 돌려주는 ref·getAvatarImage 는
+    // 모두 고정 참조라 deps 에 넣어도 같지만, 루프가 다시 시작되는 것처럼 읽히지 않도록 비워 둔다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // ============ 퀴즈 답안 처리 ============
     const handleAnswer = async (answer: string) => {
@@ -824,17 +628,8 @@ export default function DontLookDownGame({
         return <div className="w-full h-full flex items-center justify-center text-gray-700">불러오는 중</div>
     }
 
-    // ============ UI 파생값 (uiPlayer 기반) ============
-    const summitProgress =
-        SUMMITS.length <= 1 ? 0 : ((uiPlayer.currentSummit - 1) / (SUMMITS.length - 1)) * 100
-    const heightProgress = (uiPlayer.height / settings.summitGoal) * 100
-
     // 리더보드: 내 플레이어는 권위(uiPlayer) 기준, 나머지는 props.players
-    const leaderboardSource = [
-        ...players.filter(p => p.id !== playerId),
-        uiPlayer,
-    ]
-    const leaderboard = leaderboardSource
+    const leaderboard = [...players.filter(p => p.id !== playerId), uiPlayer]
         .sort((a, b) => b.height - a.height)
         .slice(0, 3)
 
@@ -855,121 +650,12 @@ export default function DontLookDownGame({
 
             {/* UI 오버레이 (저빈도 React 렌더링) */}
             <div className="absolute inset-0 pointer-events-none">
-                {remainingTime !== undefined && (
-                    <div className="absolute top-[7rem] left-4 sm:top-4 sm:left-1/2 sm:-translate-x-1/2 bg-black/60 text-white px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl font-bold text-lg sm:text-xl tabular-nums whitespace-nowrap">
-                        <PixelIcon name="time" size={22} alt="" className="inline-block align-[-5px] mr-1" />{Math.floor(remainingTime / 60)}:{String(remainingTime % 60).padStart(2, '0')}
-                    </div>
-                )}
+                {remainingTime !== undefined && <TimeBadge remainingTime={remainingTime} />}
 
-                <div className="absolute top-4 left-4 bg-white/95 rounded-xl px-3 py-2 sm:px-5 sm:py-3 shadow-lg pointer-events-auto w-[calc(50vw-1.5rem)] sm:w-auto sm:min-w-[200px]">
-                    <QuizSetName title={questionSetTitle} className="mb-2 max-w-full" />
-                    <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold text-gray-600">🏔️ 구역 {uiPlayer.currentSummit}/{SUMMITS.length}</span>
-                        <span className="text-xs text-gray-500">{Math.floor(summitProgress)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
-                        <div
-                            className="bg-gradient-to-r from-sky-400 to-sky-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${summitProgress}%` }}
-                        />
-                    </div>
+                <ProgressPanel player={uiPlayer} settings={settings} questionSetTitle={questionSetTitle} />
+                <EnergyPanel player={uiPlayer} onActivatePowerUp={(index) => activatePowerUpSlotRef.current(index)} />
 
-                    <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-600">높이</span>
-                        <span className="text-xs text-gray-500">{Math.floor(uiPlayer.height)}m / {settings.summitGoal}m</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                            className="bg-gradient-to-r from-green-500 to-emerald-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(100, heightProgress)}%` }}
-                        />
-                    </div>
-
-                    {settings.livesEnabled && (
-                        <div className="mt-3 flex items-center gap-1">
-                            <span className="text-sm font-semibold text-gray-600">생명</span>
-                            {Array.from({ length: settings.startingLives }).map((_, i) => (
-                                <span key={i} className="text-lg">
-                                    {i < uiPlayer.lives ? '❤️' : '🖤'}
-                                </span>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <div className="absolute top-4 right-4 bg-white/95 rounded-xl px-3 py-2 sm:px-5 sm:py-3 shadow-lg pointer-events-auto w-[calc(50vw-1.5rem)] sm:w-auto sm:min-w-[180px]">
-                    <div className="flex items-center justify-between mb-1">
-                        <span className="text-sm font-semibold text-gray-600">에너지</span>
-                        <span className="text-xs text-gray-500">{Math.floor(uiPlayer.energy)}</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                        <div
-                            className="bg-gradient-to-r from-yellow-400 to-orange-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min(100, (uiPlayer.energy / ENERGY.MAX) * 100)}%` }}
-                        />
-                    </div>
-
-                    <div className="text-xs font-semibold text-gray-600 mb-2">파워업</div>
-                    <div className="flex gap-2">
-                        {[0, 1].map(index => {
-                            const powerUp = uiPlayer.powerUps[index]
-                            return (
-                                <button
-                                    type="button"
-                                    key={index}
-                                    onClick={() => activatePowerUpSlotRef.current(index)}
-                                    disabled={!powerUp}
-                                    aria-label={powerUp ? `${POWERUP_EFFECTS[powerUp.type].name} 사용` : `빈 파워업 슬롯 ${index + 1}`}
-                                    title={powerUp ? `${POWERUP_EFFECTS[powerUp.type].name} 사용` : '빈 파워업 슬롯'}
-                                    className={`flex h-12 w-12 touch-manipulation items-center justify-center rounded-lg border-2 text-2xl transition active:scale-95 disabled:active:scale-100 ${powerUp ? 'border-yellow-400 bg-yellow-100 hover:bg-yellow-200' : 'cursor-default border-gray-300 bg-gray-100'
-                                        }`}
-                                >
-                                    {powerUp && <PowerUpIcon type={powerUp.type} size={36} />}
-                                </button>
-                            )
-                        })}
-                    </div>
-
-                    {(uiPlayer.activePowerUps.size > 0 || uiPlayer.hasShield) && (
-                        <div className="mt-3 space-y-1">
-                            {uiPlayer.hasShield && (
-                                <div className="text-xs bg-sky-100 px-2 py-1 rounded flex items-center justify-between gap-2">
-                                    <span className="flex items-center gap-1.5">
-                                        <PowerUpIcon type="shield" size={16} />
-                                        {POWERUP_EFFECTS.shield.name}
-                                    </span>
-                                    <span className="font-bold">보호 중</span>
-                                </div>
-                            )}
-                            {Array.from(uiPlayer.activePowerUps.entries()).map(([type, time]) => (
-                                <div key={type} className="text-xs bg-sky-100 px-2 py-1 rounded flex items-center justify-between gap-2">
-                                    <span className="flex items-center gap-1.5">
-                                        <PowerUpIcon type={type} size={16} />
-                                        {POWERUP_EFFECTS[type].name}
-                                    </span>
-                                    <span className="font-bold">{Math.ceil(time)}초</span>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                <AnimatePresence>
-                    {quizFeedback && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.85, y: 12 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: -12 }}
-                            className={`absolute top-24 left-1/2 -translate-x-1/2 rounded-xl px-6 py-3 text-xl font-black text-white shadow-2xl ${
-                                quizFeedback.tone === 'good'
-                                    ? 'bg-emerald-500'
-                                    : 'bg-rose-500'
-                            }`}
-                        >
-                            {quizFeedback.text}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                <FeedbackToast feedback={quizFeedback} />
 
                 {combo > 1 && (
                     <div className="absolute top-20 right-4 rounded-xl bg-sky-500 px-5 py-2 font-black text-white shadow-lg">
@@ -977,167 +663,27 @@ export default function DontLookDownGame({
                     </div>
                 )}
 
-                {/* 폰: 터치 버튼(점프 80px) 위로 올리고, 가로 폰(높이≤500)은 발판·캐릭터를 가리지 않게 상단으로 */}
-                <div className="absolute bottom-28 sm:bottom-20 [@media(max-height:500px)]:bottom-auto [@media(max-height:500px)]:top-16 left-1/2 -translate-x-1/2 bg-white/95 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-lg w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[300px] max-w-[360px]">
-                    <div className="text-xs font-bold text-gray-600 mb-1 sm:mb-2 text-center">순위</div>
-                    <div className="space-y-0.5 sm:space-y-1">
-                        {leaderboard.map((player, index) => (
-                            <div key={player.id} className={`flex items-center justify-between text-sm ${player.id === playerId ? 'font-bold text-blue-600' : ''}`}>
-                                <div className="flex items-center gap-2">
-                                    <span>{index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
-                                    <span className="truncate max-w-[120px]">{player.nickname}</span>
-                                    {player.id === playerId && <span className="text-xs">(나)</span>}
-                                </div>
-                                <span>{Math.floor(player.height)}m</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <Leaderboard players={leaderboard} playerId={playerId} />
 
                 {isTouch ? (
-                    <div className="absolute inset-x-2 bottom-3 z-40 flex select-none items-end justify-between gap-2 pointer-events-none">
-                        {/* 좌우 이동 */}
-                        <div className="flex gap-2 pointer-events-auto">
-                            <button
-                                type="button"
-                                aria-label="왼쪽 이동"
-                                onContextMenu={(e) => e.preventDefault()}
-                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('left') }}
-                                onPointerUp={() => releaseGameKey('left')}
-                                onPointerLeave={() => releaseGameKey('left')}
-                                onPointerCancel={() => releaseGameKey('left')}
-                                className="flex h-14 w-14 sm:h-16 sm:w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
-                            >
-                                ←
-                            </button>
-                            <button
-                                type="button"
-                                aria-label="오른쪽 이동"
-                                onContextMenu={(e) => e.preventDefault()}
-                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('right') }}
-                                onPointerUp={() => releaseGameKey('right')}
-                                onPointerLeave={() => releaseGameKey('right')}
-                                onPointerCancel={() => releaseGameKey('right')}
-                                className="flex h-14 w-14 sm:h-16 sm:w-16 touch-none items-center justify-center rounded-2xl bg-white/85 text-3xl font-black text-slate-700 shadow-lg active:bg-white"
-                            >
-                                →
-                            </button>
-                        </div>
-
-                        {/* 퀴즈 */}
-                        <button
-                            type="button"
-                            onClick={() => setShowQuiz(true)}
-                            className="pointer-events-auto shrink-0 whitespace-nowrap rounded-2xl bg-sky-500 px-3 py-2.5 sm:px-4 sm:py-3 text-xs sm:text-sm font-black text-white shadow-lg active:bg-sky-600"
-                        >
-                            퀴즈 풀기
-                        </button>
-
-                        {/* 질주 + 점프 */}
-                        <div className="flex items-end gap-2 pointer-events-auto">
-                            <button
-                                type="button"
-                                aria-label="질주"
-                                onContextMenu={(e) => e.preventDefault()}
-                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('shift') }}
-                                onPointerUp={() => releaseGameKey('shift')}
-                                onPointerLeave={() => releaseGameKey('shift')}
-                                onPointerCancel={() => releaseGameKey('shift')}
-                                className="flex h-12 w-12 sm:h-14 sm:w-14 touch-none items-center justify-center rounded-2xl bg-white/85 text-xs font-black text-slate-700 shadow-lg active:bg-white"
-                            >
-                                질주
-                            </button>
-                            <button
-                                type="button"
-                                aria-label="점프"
-                                onContextMenu={(e) => e.preventDefault()}
-                                onPointerDown={(e) => { e.preventDefault(); pressGameKey('jump') }}
-                                onPointerUp={() => releaseGameKey('jump')}
-                                onPointerLeave={() => releaseGameKey('jump')}
-                                onPointerCancel={() => releaseGameKey('jump')}
-                                className="flex h-16 w-16 sm:h-20 sm:w-20 touch-none items-center justify-center rounded-full bg-amber-400 text-base font-black text-amber-950 shadow-xl active:bg-amber-500"
-                            >
-                                점프
-                            </button>
-                        </div>
-                    </div>
+                    <TouchControls
+                        onPress={pressGameKey}
+                        onRelease={releaseGameKey}
+                        onOpenQuiz={() => setShowQuiz(true)}
+                    />
                 ) : (
-                    <>
-                        <motion.button
-                            onClick={() => setShowQuiz(true)}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            className="absolute bottom-4 left-4 bg-sky-500 hover:bg-sky-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg pointer-events-auto"
-                        >
-                            퀴즈 풀기
-                        </motion.button>
-
-                        <div className="absolute bottom-4 right-4 hidden md:block bg-black/70 text-white px-4 py-3 rounded-xl text-sm space-y-1">
-                            <div>←/→ 이동 · ↑/스페이스 점프</div>
-                            <div>⇧ 질주 · Q 퀴즈</div>
-                            <div>E/R 파워업 사용</div>
-                        </div>
-                    </>
+                    <KeyboardControls onOpenQuiz={() => setShowQuiz(true)} />
                 )}
             </div>
 
-            <AnimatePresence>
-                {showSummitAlert && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.5, y: -50 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.5, y: 50 }}
-                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50"
-                    >
-                        <div className="bg-gradient-to-r from-sky-500 to-sky-600 text-white px-12 py-6 rounded-2xl shadow-2xl">
-                            <div className="text-4xl font-bold text-center mb-2">
-                                🏔️ 구역 {showSummitAlert} 도달!
-                            </div>
-                            <div className="text-xl text-center opacity-90">
-                                {SUMMITS[showSummitAlert - 1]?.name}
-                            </div>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <SummitAlert summit={showSummitAlert} />
 
-            <AnimatePresence>
-                {showQuiz && currentQuestion && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="absolute right-4 top-24 z-50 w-[min(420px,calc(100%-2rem))]"
-                    >
-                        <motion.div
-                            initial={{ opacity: 0, x: 40, scale: 0.96 }}
-                            animate={{ opacity: 1, x: 0, scale: 1 }}
-                            exit={{ opacity: 0, x: 40, scale: 0.96 }}
-                            className="rounded-2xl border-4 border-sky-300 bg-white/95 p-3 shadow-2xl pointer-events-auto"
-                            onClick={e => e.stopPropagation()}
-                        >
-                            <div className="mb-2 flex items-center justify-between px-1">
-                                <div className="text-sm font-black text-sky-700">
-                                    빠른 충전 퀴즈
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowQuiz(false)}
-                                    className="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-200"
-                                >
-                                    닫기
-                                </button>
-                            </div>
-                            <QuizView
-                                question={currentQuestion}
-                                onAnswer={handleAnswer}
-                                timeLimit={30}
-                                variant="glass"
-                            />
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <QuizPanel
+                open={showQuiz}
+                question={currentQuestion}
+                onAnswer={handleAnswer}
+                onClose={() => setShowQuiz(false)}
+            />
         </div>
     )
 }

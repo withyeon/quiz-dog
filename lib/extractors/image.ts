@@ -114,6 +114,7 @@ ${countInstruction}
       "question_text": "문제 텍스트",
       "options": ["보기1", "보기2", "보기3", "보기4"],
       "answer": "정답 (알 수 있는 경우)",
+      "explanation": "정답인 이유 1~2문장 (정답을 알 수 있을 때만, 모르면 빈 문자열)",
       "figure_box": [ymin, xmin, ymax, xmax] 또는 null
     }
   ]
@@ -128,7 +129,8 @@ ${countInstruction}
 - O/X 문제는 type: "OX", options: ["O", "X"]
 - 단답형은 type: "SHORT", options: []
 - 빈칸 채우기는 type: "BLANK", question_text에 [            ] 사용, options: []
-- 정답이 이미지에 표시되어 있으면 answer에 넣고, 없으면 빈 문자열로 두세요.
+- 정답이 이미지에 표시되어 있으면 answer에 넣고, 없으면 문제를 직접 풀어서 확신이 있을 때만 적고 아니면 빈 문자열로 두세요.
+- answer가 있으면 explanation에 학생 눈높이로 정답인 이유를 1~2문장 쓰세요.
 - 문제 번호는 question_text에 포함하지 마세요.
 - JSON만 출력하고 다른 설명은 포함하지 마세요.`
 }

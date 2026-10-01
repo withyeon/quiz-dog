@@ -47,6 +47,7 @@ import {
   CARD_CHOICE_COUNT as PUPPY_CARD_CHOICE_COUNT,
 } from '@/lib/game/강아지대소동'
 import { withJosa } from '@/lib/utils/korean'
+import { RAID, RAID_ROLES } from '@/lib/game/raid'
 
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
@@ -477,6 +478,51 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       },
       {
         title: '점수가 가장 많으면 1등',
+      },
+    ],
+  },
+  // 숫자는 모두 lib/game/raid.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  // 화면에 실제로 뜨는 낱말(펭귄 · 체력 · 데미지 · 얼음 방패 · 집중 공격 · 역할)만 씁니다.
+  raid: {
+    gameMode: 'raid',
+    title: '황제 펭귄을 막아라!',
+    subtitle: '반 전체가 힘을 합쳐 펭귄 군단의 체력을 깎는 협동 게임입니다. 경쟁이 아니라 모두가 한 편이에요.',
+    slides: [
+      {
+        title: '펭귄의 체력은 반 전체가 같이 깎아요',
+        body: `문제를 맞힐 때마다 지금 싸우는 펭귄의 체력이 줄어요. 한 마리를 쓰러뜨리면 더 센 펭귄이 나오고, 마지막은 황제 펭귄입니다. 제한 시간 안에 모두 쓰러뜨리면 다 같이 승리!`,
+        points: [
+          `정답 하나 = 기본 ${RAID.BASE_DAMAGE} 데미지`,
+          '펭귄 체력은 참가 인원에 맞춰 정해져요',
+          '틀려도 펭귄은 반격하지 않아요. 다음 문제로!',
+        ],
+      },
+      {
+        title: '역할을 고르고 연속 정답을 노려요',
+        body: `시작할 때 세 역할 중 하나를 골라요. ${RAID_ROLES.warrior.name}는 한 방이 세고, ${RAID_ROLES.mage.name}는 연속 정답 보너스가 2배, ${RAID_ROLES.guardian.name}는 얼음 방패를 2칸씩 깨요.`,
+        points: [
+          `${RAID.COMBO_STEPS[0].streak}연속 정답부터 보너스 +${RAID.COMBO_STEPS[0].bonus}`,
+          `${RAID.COMBO_STEPS[RAID.COMBO_STEPS.length - 1].streak}연속이면 +${RAID.COMBO_STEPS[RAID.COMBO_STEPS.length - 1].bonus}`,
+          '틀리면 연속 정답만 끊겨요',
+        ],
+      },
+      {
+        title: '얼음 방패는 여럿이 함께 깨요',
+        body: `펭귄 체력이 ${toPercent(RAID.SHIELD_HP_RATIO)}% 아래로 떨어지면 얼음 방패가 올라와요. 반의 절반 넘는 친구가 한 번씩 맞혀야 깨지고, 그 전에는 체력이 1에서 버텨요.`,
+        points: [
+          '빠른 몇 명만으로는 못 깨요',
+          `${RAID_ROLES.guardian.name}는 한 번에 2칸`,
+          '방패가 깨지면 넘친 데미지는 다음 펭귄에게',
+        ],
+      },
+      {
+        title: '집중 공격 시간을 놓치지 마세요',
+        body: `시작 ${RAID.FRENZY_FIRST_AT}초 뒤부터 ${RAID.FRENZY_PERIOD}초마다 ${RAID.FRENZY_DURATION}초 동안 집중 공격 시간이 와요. 이때 맞히면 데미지가 ${RAID.FRENZY_MULTIPLIER}배! 모든 화면에 동시에 떠서 반 전체가 같이 외치는 순간이에요.`,
+        points: [
+          `${RAID.FRENZY_DURATION}초 동안 데미지 ${RAID.FRENZY_MULTIPLIER}배`,
+          '선생님 화면에서 카운트다운을 볼 수 있어요',
+          '결과는 쓰러뜨린 펭귄 수와 반 전체 데미지',
+        ],
       },
     ],
   },

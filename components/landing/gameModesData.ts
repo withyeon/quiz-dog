@@ -46,6 +46,8 @@ const GAME_MODE_CARDS: GameModeCardDef[] = [
   { modeId: 'zombie', name: '좀비를 피해라', titleImage: '/title/zombie.webp', icon: '/zombie/virus-mutation.webp', color: '#22C55E', bg: 'rgba(34,197,94,0.14)', previewVideo: { webm: '/main/mp4/games/zombie.webm', mp4: '/main/mp4/games/zombie.mp4' }, previewImage: '/zombie/background.png' },
   { modeId: 'treat_rush', name: '간식런', titleImage: '/title/gansik-run.webp', icon: '/gansik-run/bone.webp', color: '#A855F7', bg: 'rgba(168,85,247,0.14)', previewVideo: { webm: '/main/mp4/games/gansik-run.webm', mp4: '/main/mp4/games/gansik-run.mp4' }, previewImage: '/main/games/gansik-run.webp' },
   { modeId: 'poop_dodge', name: '강아지대소동', titleImage: '/title/puppy-chaos.webp', icon: '/puppy-chaos/poop.webp', color: '#F43F5E', bg: 'rgba(244,63,94,0.14)', previewVideo: { webm: '/main/mp4/games/puppy-chaos.webm', mp4: '/main/mp4/games/puppy-chaos.mp4' }, previewImage: '/main/games/puppy-chaos.webp' },
+  // 협동 보스 레이드. 플레이 영상은 아직 없어 호버 때는 플레이 화면 캡처만 보여준다.
+  { modeId: 'raid', name: '황제 펭귄을 막아라', titleImage: '/title/raid.webp', icon: '/raid/penguin-emperor.webp', color: '#0EA5E9', bg: 'rgba(14,165,233,0.14)', previewImage: '/main/games/raid.webp' },
 ]
 
 export const gameModesData: GameModeInfo[] = GAME_MODE_CARDS.map((game) => ({

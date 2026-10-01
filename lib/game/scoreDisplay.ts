@@ -86,6 +86,16 @@ export function getScoreDisplay(player: ScorePlayer, gameMode: string | null | u
     }
   }
 
+  // 펭귄 레이드 점수는 보스에게 입힌 데미지 합이다 (협동 게임이라 "점"보다 기여가 드러나는 이름을 쓴다).
+  if (mode === 'raid') {
+    return {
+      value,
+      label: '데미지',
+      text: `${formatNumber(value)} 데미지`,
+      tone: 'default',
+    }
+  }
+
   // 좀비 모드 점수는 생존 여부가 먼저인 티어 점수다 (인간 200+체력 / 좀비 10×감염수).
   // 그냥 '점'이라고 하면 인간과 좀비가 같은 척도로 보이므로 이름을 붙여준다.
   if (mode === 'zombie') {
@@ -115,6 +125,7 @@ export function getScoreDisplayLabel(gameMode: string | null | undefined): strin
   if (mode === 'dontlookdown') return '높이'
   if (mode === 'zombie') return '생존 점수'
   if (mode === 'study') return '정답 수'
+  if (mode === 'raid') return '데미지'
   return '점수'
 }
 

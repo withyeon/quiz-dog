@@ -7,6 +7,7 @@ import FactoryView from '@/components/FactoryView'
 import BattleRoyaleDashboard from './BattleRoyaleDashboard'
 import CafeDashboard from './CafeDashboard'
 import ZombieDashboard from './ZombieDashboard'
+import RaidDashboard from './RaidDashboard'
 import Link from 'next/link'
 import { getGameModeConfig } from '@/lib/game/modes'
 import PuppyChaosTeacherBoard from '@/components/강아지대소동/강아지대소동TeacherBoard'
@@ -44,6 +45,8 @@ export default function LiveDashboardRenderer({ room, players }: LiveDashboardRe
 
     if (mode === 'zombie') {
         return <ZombieDashboard players={players} room={room} />
+    } else if (mode === 'raid') {
+        return <RaidDashboard players={players} room={room} />
     } else if (mode === 'battle_royale') {
         return <BattleRoyaleDashboard players={players} gameStartTime={room.started_at ? new Date(room.started_at).getTime() : undefined} />
     } else if (mode === 'cafe') {

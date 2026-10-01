@@ -19,6 +19,7 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import PawBackgroundDecor from '@/components/PawBackgroundDecor'
 import GameModeCard from '@/components/landing/GameModeCard'
+import FeatureClip from '@/components/features/FeatureClip'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import { gameAssets } from '@/assets/game-assets'
 import { visibleGameModes } from '@/components/landing/gameModesData'
@@ -103,7 +104,8 @@ function Card({
 }
 
 /**
- * 실제 화면 캡처(16:10). public/main/features/ 아래 webp.
+ * 실제 화면 캡처(16:10). public/main/features/ 아래 webp. 표처럼 글씨가 많아 영상보다 정지 화면이 나은 곳(리포트 표 2장)에 쓴다.
+ * 그 밖의 기능 화면은 FeatureClip(짧은 반복 클립)으로 보여 준다.
  * 캡처 방법은 components/landing/featureIntroData.ts 상단 주석 참고 — 화면이 바뀌면 같은 구도로 다시 찍는다.
  */
 function Shot({
@@ -220,8 +222,8 @@ const STEPS = [
     title: '자료를 올려요',
     description: '수업 자료 파일, 유튜브 링크, 주제 입력이면 충분해요.',
     color: '#0EA5E9',
-    screenshot: '/main/features/step-upload.webp',
-    shotAlt: '문제 만들기 화면에서 수업 자료 파일을 올리는 모습',
+    clip: 'step-upload',
+    clipAlt: '문제 만들기 화면에 수업 자료 파일들이 올라가고 AI가 읽어 들이는 모습',
   },
   {
     step: '02',
@@ -229,8 +231,8 @@ const STEPS = [
     title: 'AI가 문제를 만들어요',
     description: '다양한 유형으로 생성하고 수정도 바로 가능해요.',
     color: '#14B8A6',
-    screenshot: '/main/features/step-review.webp',
-    shotAlt: 'AI가 만든 문제를 저장 전에 검토하고 고치는 화면',
+    clip: 'step-ai',
+    clipAlt: 'AI가 객관식과 OX 문제를 만들어 정답까지 표시하는 모습',
   },
   {
     step: '03',
@@ -238,8 +240,8 @@ const STEPS = [
     title: '게임 코드를 공유해요',
     description: '학생들은 6자리 숫자 코드를 입력해서 간편하게 들어와요.',
     color: '#F43F5E',
-    screenshot: '/main/features/step-code.webp',
-    shotAlt: '참가 코드와 QR이 크게 보이는 게임 시작 화면',
+    clip: 'step-code',
+    clipAlt: '6자리 참가 코드가 뜨고 학생들이 차례로 입장하는 모습',
   },
 ]
 
@@ -424,7 +426,7 @@ export default function FeaturesContent() {
             {STEPS.map((step, i) => (
               <motion.div key={step.step} {...FADE_UP} transition={{ delay: i * 0.1 }}>
                 <Card accent={step.color}>
-                  <Shot src={step.screenshot} alt={step.shotAlt} bleed />
+                  <FeatureClip name={step.clip} alt={step.clipAlt} bleed />
                   <div className="p-7">
                     <div className="mb-4 flex items-center gap-3">
                       <Image src={step.icon} alt="" width={44} height={44} unoptimized className="h-11 w-11 object-contain" />
@@ -498,10 +500,10 @@ export default function FeaturesContent() {
                     ))}
                   </ul>
                 </div>
-                <Shot
-                  src="/main/features/ai-options.webp"
-                  alt="과목·학년·문항 유형별 개수와 추가 요청을 정하는 AI 생성 옵션 화면"
-                  caption="문항 구성과 추가 요청을 정하는 옵션 화면"
+                <FeatureClip
+                  name="ai-options"
+                  alt="과목과 학년을 고르고 유형별 문항 개수를 올린 뒤 추가 요청을 적는 AI 생성 옵션 화면"
+                  caption="과목·학년·문항 구성과 추가 요청을 정하는 옵션 화면"
                 />
               </div>
             </Card>
@@ -548,18 +550,18 @@ export default function FeaturesContent() {
           <motion.div {...FADE_UP} className="mb-8 grid gap-6 md:grid-cols-2">
             <Card>
               <div className="p-4 sm:p-5">
-                <Shot
-                  src="/main/features/lobby-code.webp"
-                  alt="학생이 6자리 게임 코드를 입력하는 입장 화면"
-                  caption="① 선생님이 알려준 6자리 코드를 입력해요"
+                <FeatureClip
+                  name="play-code"
+                  alt="학생이 6자리 게임 코드를 입력하고 닉네임을 정하는 입장 화면"
+                  caption="① 선생님이 알려준 6자리 코드를 넣고 닉네임을 정해요"
                 />
               </div>
             </Card>
             <Card>
               <div className="p-4 sm:p-5">
-                <Shot
-                  src="/main/features/play.webp"
-                  alt="닉네임을 정하고 강아지 캐릭터를 고르는 대기실 화면"
+                <FeatureClip
+                  name="play-character"
+                  alt="강아지 캐릭터를 고르면 입장이 끝나고 친구들이 대기실에 모이는 화면"
                   caption="② 강아지 캐릭터를 고르고 친구들과 대기실에서 기다려요"
                 />
               </div>
@@ -604,7 +606,7 @@ export default function FeaturesContent() {
           <div className="grid gap-6 md:grid-cols-2">
             <motion.div {...FADE_UP}>
               <Card accent="linear-gradient(90deg, #16A34A, #4ADE80)">
-                <Shot src="/main/features/report.webp" alt="참여 학생 수, 평균 정답률, 문항별 정답률이 보이는 게임 결과 리포트" bleed />
+                <FeatureClip name="report" alt="참여 학생 수, 평균 정답률, 문항별 정답률이 채워지는 게임 결과 리포트" bleed />
                 <div className="flex flex-col justify-center p-8">
                   <BarChart3 className="mb-4 h-10 w-10 text-emerald-500" strokeWidth={2.5} />
                   <h3 className="mb-3 text-2xl font-black leading-snug text-[#0F172A]">
@@ -675,9 +677,9 @@ export default function FeaturesContent() {
           <motion.div {...FADE_UP}>
             <Card>
               <div className="grid gap-8 p-6 sm:p-8 md:grid-cols-[1.15fr_1fr] md:items-center">
-                <Shot
-                  src="/main/features/library.webp"
-                  alt="다른 선생님이 공개한 문제집 목록과 선택한 문제집 정보가 보이는 자료실 화면"
+                <FeatureClip
+                  name="library"
+                  alt="자료실 문제집 목록에서 하나를 고르고 내 문제집에 담는 화면"
                 />
                 <div>
                   <span

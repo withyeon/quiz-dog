@@ -4,13 +4,11 @@
  * 게임 모드는 바로 위 '게임 라인업' 섹션에서 이미 보여주므로 여기서는 다루지 않는다.
  *
  * screenshot 은 헤드리스 Chrome(CDP, 1280×800 @2x)으로 실제 화면을 찍어 사이드바(2x 기준 left 512)와
- * 상단 바(top 96)를 잘라내고 1280×800 webp(q82)로 저장한 것. /features 페이지(FeaturesContent.tsx)도 같은 폴더를 쓴다.
+ * 상단 바(top 96)를 잘라내고 1280×800 webp(q82)로 저장한 것. /features 페이지(FeaturesContent.tsx)는 리포트 표 2장만 같은 폴더에서 쓰고
+ * 나머지 기능 화면은 짧은 반복 클립(FeatureClip, public/main/mp4/features/)으로 보여 준다.
  *   ai           → /teacher/create ('오늘 배울 내용' 선택)   report          → TeacherPostGameReport 상단(샘플 8명·5문항)
- *   ai-options   → 같은 화면의 '옵션'(문항 구성) 패널          report-matrix   → 같은 리포트 '문항별 분석' 매트릭스 뷰
- *   step-upload  → '수업 자료 넣기' 선택(드롭존)             report-students → 같은 리포트 '학생별 분석' 표
- *   step-review  → QuestionReviewEditor(샘플 4문항)          library         → /teacher/library 목록(샘플 제목)
- *   step-code    → 게임 시작 4단계(RoomCodePanel+대기 6명)    lobby-code      → /lobby 코드 입력(482913)
- *   play         → /lobby 캐릭터 선택 단계(샘플 8명)
+ *   play         → /lobby 캐릭터 선택 단계(샘플 8명)          report-matrix   → 같은 리포트 '문항별 분석' 매트릭스 뷰
+ *   library      → /teacher/library 목록(샘플 제목)           report-students → 같은 리포트 '학생별 분석' 표
  * 교사 화면은 로그인이 필요하므로 app/dev/shot/<x>/page.tsx 임시 페이지에서 DashboardLayout 안에
  * 컴포넌트를 샘플 데이터로 렌더해 찍고, 찍은 뒤 폴더를 지운다. 화면이 바뀌면 같은 구도로 다시 찍어 교체한다.
  */

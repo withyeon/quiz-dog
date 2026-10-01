@@ -113,6 +113,17 @@ export async function startRoom({ roomCode, gameMode, durationSeconds, settings 
     )
   }
 
+  if (gameMode === 'raid') {
+    // 보스 체력·방패·역할은 전부 players 행에서 유도하므로(lib/game/raid.ts) 시작할 때 깨끗이 비운다.
+    // resetRoom 은 defense/player_class 를 건드리지 않아 다시 시작하면 옛 방패 기여가 남는다.
+    const { error: raidResetError } = await (supabase
+      .from('players') as any)
+      .update({ score: 0, gold: 0, defense: 0, combo_count: 0, player_class: null })
+      .eq('room_code', roomCode)
+
+    if (raidResetError) throw raidResetError
+  }
+
   const updatePayload: Record<string, unknown> = {
     status: 'playing',
     started_at: new Date().toISOString(),

@@ -9,9 +9,11 @@ import { visibleGameModeCount } from '@/components/landing/gameModesData'
 import { gameAssets } from '@/assets/game-assets'
 
 /**
- * 퀴즈독 소개 영상(42초, 1440×1080 4:3, 무음 반복) — 자료 올리기 → AI 문제 생성 → 코드 입장 →
- * 게임 11개 → 결과 리포트 → 엔딩. 제목·자막이 영상 안에 있어서 카드 위에 따로 글자를 얹지 않는다.
- * 코드로 그린 장면 + 튜토리얼 데모(/dev/tutorial-preview) 녹화로 만들었다. 포스터는 게임 로고 11개 장면.
+ * 히어로 영상(약 22초, 1440×1080 4:3, 무음 반복) — "11가지 게임으로 신나게 복습!" 로고 그리드 → 게임 11개
+ * 플레이 장면(각 1.5초, 한 줄 자막) → 로고 엔딩. 역할은 "얼마나 재미있나"이고, "어떻게 쓰나"(AI 문제 생성 →
+ * 코드 입장 → 결과 리포트)는 아래 FeatureVideoTabs 가 맡아 두 영상이 겹치지 않는다.
+ * 제목·자막이 영상 안에 있어서 카드 위에 따로 글자를 얹지 않는다. 게임 장면은 튜토리얼 데모(/dev/tutorial-preview)
+ * 녹화. 포스터는 게임 로고 11개 장면.
  */
 const HERO_PROMO = {
   webm: '/main/mp4/quizdog-promo.webm',
@@ -46,7 +48,7 @@ function HeroPreview() {
           loop
           playsInline
           preload="metadata"
-          aria-label="퀴즈독 소개 영상: 수업 자료를 올리면 AI가 문제를 만들고, 학생들이 코드로 입장해 11가지 게임으로 복습한 뒤 결과 리포트를 확인해요"
+          aria-label="퀴즈독 게임 소개 영상: 타워 디펜스, 인형뽑기, 좀비, 카페, 마피아 등 11가지 게임으로 퀴즈를 복습하는 장면"
           className="absolute inset-0 h-full w-full object-cover"
         >
           <source src={HERO_PROMO.webm} type="video/webm" />

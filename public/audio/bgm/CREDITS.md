@@ -20,6 +20,7 @@ Attribution is not required for CC0, but original authors and source pages are r
 | `zombie` | `zombie.mp3` | `Horror.mp3` from "music loops" | drakzlin | CC0 1.0 | https://opengameart.org/content/music-loops-0 |
 | `treat_rush` | `treat-rush.mp3` | `chiptune_1C2.mp3` from "music loops" | drakzlin | CC0 1.0 | https://opengameart.org/content/music-loops-0 |
 | `poop_dodge` | `poop-dodge.mp3` | `8BitBattleLoop.ogg` from "8-bit Battle Loop" | Wolfgang_ | CC0 1.0 | https://opengameart.org/content/8-bit-battle-loop |
+| `raid` | `poop-dodge.mp3` (shared) | `8BitBattleLoop.ogg` from "8-bit Battle Loop" | Wolfgang_ | CC0 1.0 | https://opengameart.org/content/8-bit-battle-loop |
 | result announcement | `result-announcement.mp3` | `funky-victory-loop.mp3` from "Funky Victory Loop" | Archonic | CC0 1.0 | https://opengameart.org/content/funky-victory-loop |
 
 ## License Reference

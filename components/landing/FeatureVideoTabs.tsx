@@ -4,11 +4,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 
 /**
- * 기능별 탭 영상 — 큰 영상 한 개 + 아래 기능 카드 4개.
+ * 기능별 탭 영상 — 큰 영상 한 개 + 아래 기능 카드 3개.
  * 재생 중인 카드 위쪽 막대가 영상 진행만큼 차오르고, 영상이 끝나면 다음 카드로 넘어간다. 카드를 누르면 바로 바뀐다.
  *
+ * 역할 분담: 히어로 영상은 "얼마나 재미있나"(게임 11개 몽타주), 여기는 "어떻게 쓰나"(만들기 → 입장 → 결과).
+ * 게임 소개는 히어로와 아래 게임 카드가 맡으므로 게임 탭은 두지 않는다 (같은 장면이 두 번 나오지 않게).
+ *
  * 영상은 1920×1080(16:9)인데 내용은 가운데 1440(4:3) 안에만 있다 → 폰에서는 4:3 으로 양옆만 잘라 크게 보여준다.
- * 히어로 소개 영상과 같은 장면을 기능별로 잘라 다시 렌더한 것(public/main/mp4/feature-*.webm|mp4, 포스터 webp).
+ * 코드로 그린 장면을 기능별로 렌더한 것(public/main/mp4/feature-*.webm|mp4, 포스터 webp).
  */
 const FEATURES = [
   {
@@ -22,12 +25,6 @@ const FEATURES = [
     icon: '/icons/ticket.webp',
     title: '코드로 입장',
     description: '학생은 회원가입이나 설치 없이 6자리 코드나 QR로 들어와요',
-  },
-  {
-    id: 'games',
-    icon: '/assets/icons/joystick-64.png',
-    title: '11가지 게임',
-    description: '같은 문제로 타워 디펜스, 인형뽑기 등 원하는 게임을 골라요',
   },
   {
     id: 'report',
@@ -112,7 +109,7 @@ export default function FeatureVideoTabs() {
         </video>
       </div>
 
-      <div role="tablist" aria-label="퀴즈독 기능" className="mt-3 grid grid-cols-2 gap-2.5 sm:mt-4 sm:gap-3.5 lg:grid-cols-4">
+      <div role="tablist" aria-label="퀴즈독 기능" className="mt-3 grid grid-cols-1 gap-2.5 sm:mt-4 sm:grid-cols-3 sm:gap-3.5">
         {FEATURES.map((item, i) => {
           const active = i === index
           return (
