@@ -24,6 +24,11 @@
 - **내용**: 전체 게임 모드 체크 제약, `rooms.set_id`, 제한 시간 필드, 인형뽑기/편의점/배틀/카페/마피아 런타임 컬럼
 - **실행 순서**: `setup.sql`, `migration_question_sets.sql`, `add_question_sets_metadata.sql` 이후 실행
 
+### 5. `20261006_teacher_plans_and_promo_codes.sql`
+- **용도**: 선생님 요금제(`teacher_plans.pro_until`)와 위드현 이용 코드 등록
+- **내용**: `teacher_plans`(본인 행 읽기만), `promo_code_redemptions`(코드당 한 번, 서버 전용), `redeem_promo_code()`(service_role 전용, 프로가 남아 있으면 그 뒤에 1개월을 잇는다)
+- **실행 순서**: 배포 전에 실행. 새 표·함수만 만들므로 기존 기능에는 영향이 없고 여러 번 실행해도 안전하다
+
 ## 실행 방법
 
 ### Supabase 대시보드에서 실행
@@ -55,6 +60,9 @@ add_question_sets_metadata.sql
 
 # 4. 게임 런타임 정합성 보강 (권장)
 20260504_game_runtime_integrity.sql
+
+# 5. 선생님 요금제·이용 코드 (이용 코드 등록을 쓰려면 필수)
+20261006_teacher_plans_and_promo_codes.sql
 ```
 
 ## 테이블 구조

@@ -28,6 +28,10 @@ SUPABASE_SECRET_KEY=your-secret-key-here
 # Vercel 프로젝트 환경변수에 넣으면 크론 요청이 이 값으로 인증된다.
 CRON_SECRET=아무-긴-랜덤-문자열
 
+# 위드현 이용 코드(프로 1개월) 서명 비밀값. 위드현 매니저·초피티와 같은 값이어야 한다(16자 이상).
+# 없으면 내 정보 → 내 플랜의 '이용 코드 등록'이 거절된다. 바꾸면 이미 나눠 준 코드가 모두 무효가 된다.
+WITHYEON_PROMO_CODE_SECRET=매니저와-같은-값
+
 # AI API 설정 (문제 생성 기능 사용 시 필수)
 # Gemini API 또는 OpenAI API 중 하나만 설정
 GEMINI_API_KEY=your-gemini-api-key-here

@@ -8,11 +8,13 @@ import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/components/ui/Toaster'
 import { DISPLAY_NAME_MAX, saveMyDisplayName } from '@/lib/services/profiles'
 import { useMyDisplayName } from '@/hooks/useMyDisplayName'
+import PlanSection from '@/components/settings/PlanSection'
 
 function SettingsContent() {
   const { user } = useAuth()
   const searchParams = useSearchParams()
   const isPasswordReset = searchParams?.get('reset') === '1'
+  const promoCode = searchParams?.get('code') ?? ''
 
   // 프로필 이름 (DB 조회 전에는 가입 이름·이메일로 만든 기본값이 먼저 들어온다)
   const currentName = useMyDisplayName()
@@ -145,6 +147,9 @@ function SettingsContent() {
           )}
         </div>
       </section>
+
+      {/* 내 플랜 · 이용 코드 등록 */}
+      <PlanSection initialCode={promoCode} inputClass={inputClass} />
 
       {/* 비밀번호 */}
       {(hasEmailLogin || isPasswordReset) && (

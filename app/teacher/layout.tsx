@@ -13,7 +13,9 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (!loading && !user) {
-      router.replace(`/login?redirect=${encodeURIComponent(pathname ?? '/teacher')}`)
+      // 쿼리도 함께 넘긴다: quizdog.kr/redeem?code=… 처럼 링크로 들어온 값이 로그인 뒤에도 남게
+      const target = `${pathname ?? '/teacher'}${window.location.search}`
+      router.replace(`/login?redirect=${encodeURIComponent(target)}`)
     }
   }, [loading, user, router, pathname])
 

@@ -151,6 +151,52 @@ export interface Database {
           updated_at?: string
         }
       }
+      teacher_plans: {
+        Row: {
+          user_id: string
+          pro_until: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          pro_until?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          pro_until?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      promo_code_redemptions: {
+        Row: {
+          code: string
+          kind: string
+          user_id: string | null
+          pro_until_before: string | null
+          pro_until_after: string
+          redeemed_at: string
+        }
+        Insert: {
+          code: string
+          kind: string
+          user_id?: string | null
+          pro_until_before?: string | null
+          pro_until_after: string
+          redeemed_at?: string
+        }
+        Update: {
+          code?: string
+          kind?: string
+          user_id?: string | null
+          pro_until_before?: string | null
+          pro_until_after?: string
+          redeemed_at?: string
+        }
+      }
       question_sets: {
         Row: {
           id: string
@@ -448,6 +494,15 @@ export interface Database {
           p_submitted_answer: string
         }
         Returns: boolean
+      }
+      redeem_promo_code: {
+        Args: {
+          p_code: string
+          p_kind: string
+          p_user_id: string
+          p_months: number
+        }
+        Returns: string
       }
     }
     Enums: {
