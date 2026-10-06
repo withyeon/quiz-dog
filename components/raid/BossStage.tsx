@@ -1,17 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Flame, Lock, Snowflake, Sparkles, Trophy } from 'lucide-react'
-import type { RaidBossSprite, RaidBossState, RaidFrenzyState } from '@/lib/game/raid'
+import type { RaidBossDef, RaidBossState, RaidFrenzyState } from '@/lib/game/raid'
 import type { RaidEvent, RaidHitPopup } from '@/hooks/useRaidGame'
+import { RAID_EFFECT_SRC, RAID_SPRITE_SRC } from '@/components/raid/raidAssets'
 
-export const RAID_SPRITE_SRC: Record<RaidBossSprite, { idle: string; hurt: string }> = {
-  guard: { idle: '/raid/penguin-guard.webp', hurt: '/raid/penguin-guard-hurt.webp' },
-  knight: { idle: '/raid/penguin-knight.webp', hurt: '/raid/penguin-knight-hurt.webp' },
-  general: { idle: '/raid/penguin-general.webp', hurt: '/raid/penguin-general-hurt.webp' },
-  emperor: { idle: '/raid/penguin-emperor.webp', hurt: '/raid/penguin-emperor-hurt.webp' },
-}
+/** 보스를 쓰러뜨린 뒤 쓰러진 그림을 보여 주는 시간 (그다음 펭귄이 들어온다) */
+const DOWN_SCENE_MS = 1600
+
+/** 무대 뒤 왕좌의 방 위에 덮는 어둠 — 위쪽 이름과 아래쪽 체력 바 글씨가 읽히게 위아래를 더 어둡게 */
+const ARENA_OVERLAY = 'linear-gradient(180deg, rgba(6, 22, 44, 0.74) 0%, rgba(6, 22, 44, 0.34) 38%, rgba(6, 22, 44, 0.42) 68%, rgba(6, 22, 44, 0.86) 100%)'
+const FRENZY_OVERLAY = 'linear-gradient(180deg, rgba(70, 10, 30, 0.8) 0%, rgba(120, 28, 40, 0.46) 42%, rgba(40, 10, 30, 0.9) 100%)'
 
 type BossStageProps = {
   /** 지금 싸우는 보스. null 이면 전부 쓰러뜨린 상태 */
@@ -70,12 +71,40 @@ export default function BossStage({
     return () => window.clearTimeout(timer)
   }, [latestHitId])
 
+  // 보스를 쓰러뜨리면 쓰러진 그림을 잠깐 보여 주고 다음 펭귄을 들인다.
+  // def 객체는 players 가 바뀔 때마다 새로 만들어지므로 순번으로만 바뀜을 감지한다.
+  const [downBoss, setDownBoss] = useState<RaidBossDef | null>(null)
+  const bossDefRef = useRef<RaidBossDef | null>(boss?.def ?? null)
+  const previousBossRef = useRef<RaidBossDef | null>(boss?.def ?? null)
+  bossDefRef.current = boss?.def ?? null
+  const bossIndex = boss?.def.index ?? -1
+  useEffect(() => {
+    const previous = previousBossRef.current
+    const next = bossDefRef.current
+    previousBossRef.current = next
+    // 전부 쓰러뜨린 경우(next 없음)는 아래 승리 화면이 쓰러진 황제를 보여 준다
+    if (!previous || !next || next.index <= previous.index) return
+    setDownBoss(previous)
+    const timer = window.setTimeout(() => setDownBoss(null), DOWN_SCENE_MS)
+    return () => window.clearTimeout(timer)
+  }, [bossIndex])
+
   const sprite = boss ? RAID_SPRITE_SRC[boss.def.sprite] : null
-  const spriteWidth = (isLarge ? 208 : 96) * (boss?.def.isFinal ? 1.18 : 1)
+  const baseWidth = isLarge ? 208 : 112
+  const shownIsFinal = downBoss ? downBoss.isFinal : boss ? boss.def.isFinal : true
+  const spriteWidth = baseWidth * (shownIsFinal ? 1.18 : 1)
   const spriteHeight = spriteWidth * 1.25
+  const shieldRing = spriteHeight * 1.1
   const shield = boss?.shield
   const shieldActive = Boolean(shield?.active)
-  const hpPercent = boss ? Math.max(0, Math.min(100, (boss.hp / boss.def.maxHp) * 100)) : 0
+  // 쓰러진 장면 동안은 이름·체력도 쓰러진 펭귄 것(체력 0)을 보여 준다. 다음 펭귄은 장면이 끝난 뒤에 소개한다.
+  const hpView = downBoss
+    ? { hp: 0, maxHp: downBoss.maxHp, ratio: 0 }
+    : boss
+      ? { hp: boss.hp, maxHp: boss.def.maxHp, ratio: boss.hpRatio }
+      : null
+  const hpPercent = hpView ? Math.max(0, Math.min(100, (hpView.hp / hpView.maxHp) * 100)) : 0
+  const showShield = Boolean(shield) && !downBoss
 
   return (
     <section
@@ -87,9 +116,7 @@ export default function BossStage({
             : 'border-sky-200/30 shadow-sky-950/30'
       } ${className}`}
       style={{
-        background: frenzy.active
-          ? 'linear-gradient(160deg, #3b0f1f 0%, #6b1d2c 45%, #1b2742 100%)'
-          : 'linear-gradient(160deg, #0b2d4d 0%, #134b6e 55%, #0f3a5c 100%)',
+        background: `${frenzy.active ? FRENZY_OVERLAY : ARENA_OVERLAY}, url('${RAID_EFFECT_SRC.arena}') center 62% / cover no-repeat, #0b2d4d`,
       }}
     >
       {/* 눈발 */}
@@ -126,11 +153,13 @@ export default function BossStage({
           <div className="min-w-0">
             <div className={`flex items-center gap-2 font-black text-sky-100/80 ${isLarge ? 'text-sm' : 'text-[11px]'}`}>
               <Snowflake className={isLarge ? 'h-4 w-4' : 'h-3 w-3'} />
-              {boss ? `${defeatedCount + 1} / ${bossCount}번째 펭귄` : `${bossCount}마리 모두 처치`}
-              {boss?.def.isFinal && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-amber-950">최종 보스</span>}
+              {downBoss
+                ? `${downBoss.index + 1} / ${bossCount}번째 펭귄`
+                : boss ? `${defeatedCount + 1} / ${bossCount}번째 펭귄` : `${bossCount}마리 모두 처치`}
+              {(downBoss ? downBoss.isFinal : boss?.def.isFinal) && <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-amber-950">최종 보스</span>}
             </div>
             <h2 className={`truncate font-black leading-tight ${isLarge ? 'text-3xl sm:text-4xl' : 'text-lg'}`}>
-              {boss ? boss.def.name : '승리!'}
+              {downBoss ? downBoss.name : boss ? boss.def.name : '승리!'}
             </h2>
           </div>
 
@@ -158,29 +187,31 @@ export default function BossStage({
           className="relative flex items-end justify-center"
           style={{ height: spriteHeight + (isLarge ? 36 : 14) }}
         >
-          {/* 얼음 방패 고리 */}
-          {boss && shieldActive && (
-            <motion.div
-              className="pointer-events-none absolute rounded-full border-4 border-cyan-200/80"
-              style={{
-                width: spriteWidth * 1.35,
-                height: spriteWidth * 1.35,
-                bottom: isLarge ? 0 : -6,
-                background: 'radial-gradient(circle, rgba(165,243,252,0.28) 0%, rgba(165,243,252,0.06) 60%, transparent 72%)',
-                boxShadow: '0 0 40px rgba(103, 232, 249, 0.45)',
-              }}
-              animate={{ scale: [1, 1.04, 1], rotate: [0, 6, 0] }}
-              transition={{ duration: 2.2, repeat: Infinity }}
-            />
-          )}
-
           <AnimatePresence mode="popLayout">
-            {boss && sprite ? (
+            {downBoss && boss ? (
+              <motion.div
+                key={`down-${downBoss.index}`}
+                initial={{ opacity: 0, y: -14, rotate: -6 }}
+                animate={{ opacity: 1, y: 0, rotate: 0 }}
+                exit={{ opacity: 0, y: 24, transition: { duration: 0.3 } }}
+                transition={{ type: 'spring', bounce: 0.5, duration: 0.6 }}
+              >
+                <img
+                  src={RAID_SPRITE_SRC[downBoss.sprite].down}
+                  alt={`쓰러진 ${downBoss.name}`}
+                  width={spriteWidth}
+                  height={spriteHeight}
+                  draggable={false}
+                  style={{ width: spriteWidth, height: spriteHeight }}
+                />
+              </motion.div>
+            ) : boss && sprite ? (
               <motion.div
                 key={boss.def.index}
                 initial={{ opacity: 0, scale: 0.5, y: 24 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, y: 70, rotate: 100, scale: 0.8, transition: { duration: 0.7 } }}
+                // 쓰러지는 연출은 쓰러진 그림이 맡으므로 서 있는 그림은 바로 사라진다
+                exit={{ opacity: 0, transition: { duration: 0.12 } }}
                 transition={{ type: 'spring', bounce: 0.45, duration: 0.8 }}
                 className="relative"
               >
@@ -189,36 +220,101 @@ export default function BossStage({
                   animate={shakeKey ? { x: [0, -10, 10, -7, 7, -3, 0] } : { x: 0 }}
                   transition={{ duration: 0.38 }}
                 >
-                  <motion.img
-                    src={hurt ? sprite.hurt : sprite.idle}
-                    alt={boss.def.name}
-                    width={spriteWidth}
-                    height={spriteHeight}
-                    draggable={false}
-                    className={`select-none ${hurt ? 'brightness-150 saturate-150' : ''}`}
+                  {/*
+                    맞은 표정은 처음부터 겹쳐 그려 두고 투명도만 바꾼다. src 를 바꾸면 첫 타격 때
+                    아직 안 받은 그림(장당 50~70KB)을 기다리느라 펭귄이 잠깐 사라진다.
+                  */}
+                  <motion.div
+                    className="relative select-none"
                     style={{
-                      imageRendering: 'pixelated',
                       width: spriteWidth,
                       height: spriteHeight,
                       filter: boss.def.isFinal && !hurt ? 'drop-shadow(0 0 18px rgba(255, 210, 63, 0.55))' : undefined,
                     }}
                     animate={{ y: [0, -6, 0] }}
                     transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                  />
+                  >
+                    <img
+                      src={sprite.idle}
+                      alt={boss.def.name}
+                      width={spriteWidth}
+                      height={spriteHeight}
+                      draggable={false}
+                      className={`absolute inset-0 h-full w-full ${hurt ? 'opacity-0' : 'opacity-100'}`}
+                    />
+                    <img
+                      src={sprite.hurt}
+                      alt=""
+                      aria-hidden
+                      width={spriteWidth}
+                      height={spriteHeight}
+                      draggable={false}
+                      className={`absolute inset-0 h-full w-full ${hurt ? 'opacity-100 brightness-125' : 'opacity-0'}`}
+                    />
+                  </motion.div>
                 </motion.div>
               </motion.div>
             ) : (
+              // 마지막 보스는 항상 황제 펭귄이라 승리 화면은 쓰러진 황제를 보여 준다
               <motion.div
                 key="victory"
-                initial={{ opacity: 0, scale: 0.6 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center gap-2 pb-2 text-center"
+                initial={{ opacity: 0, y: -14, rotate: -6 }}
+                animate={{ opacity: 1, y: 0, rotate: 0 }}
+                transition={{ type: 'spring', bounce: 0.5, duration: 0.6 }}
+                className="flex flex-col items-center text-center"
               >
-                <Trophy className={isLarge ? 'h-20 w-20 text-amber-300' : 'h-10 w-10 text-amber-300'} />
-                <p className={`font-black ${isLarge ? 'text-2xl' : 'text-sm'}`}>펭귄 군단을 모두 물리쳤어요!</p>
+                <img
+                  src={RAID_SPRITE_SRC.emperor.down}
+                  alt="쓰러진 황제 펭귄"
+                  width={spriteWidth * 0.8}
+                  height={spriteHeight * 0.8}
+                  draggable={false}
+                  style={{ width: spriteWidth * 0.8, height: spriteHeight * 0.8 }}
+                />
+                <p className={`flex items-center gap-1.5 font-black ${isLarge ? 'text-2xl' : 'text-sm'}`}>
+                  <Trophy className={isLarge ? 'h-7 w-7 text-amber-300' : 'h-4 w-4 text-amber-300'} />
+                  펭귄 군단을 모두 물리쳤어요!
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* 얼음 방패 고리 — 가운데가 빈 그림이라 펭귄 앞에 겹친다 */}
+          {boss && !downBoss && shieldActive && (
+            <motion.img
+              src={RAID_EFFECT_SRC.iceShield}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="pointer-events-none absolute z-10"
+              style={{ width: shieldRing, height: shieldRing, left: '50%', marginLeft: -shieldRing / 2, bottom: 0 }}
+              initial={{ opacity: 0, scale: 0.7 }}
+              animate={{ opacity: [0.85, 1, 0.85], scale: [1, 1.04, 1] }}
+              transition={{ duration: 2.2, repeat: Infinity }}
+            />
+          )}
+
+          {/* 타격 효과 — 타격마다 key 가 바뀌어 한 번 터지고 투명하게 남는다 */}
+          {boss && !downBoss && latestHitId > 0 && (
+            <motion.img
+              key={`burst-${latestHitId}`}
+              src={RAID_EFFECT_SRC.hit}
+              alt=""
+              aria-hidden
+              draggable={false}
+              className="pointer-events-none absolute z-10"
+              style={{
+                width: spriteWidth * 0.8,
+                height: spriteWidth * 0.8,
+                left: '50%',
+                marginLeft: -spriteWidth * 0.4 + (((latestHitId * 53) % 41) - 20),
+                bottom: spriteHeight * 0.28,
+              }}
+              initial={{ opacity: 0, scale: 0.3, rotate: -25 }}
+              animate={{ opacity: [0, 1, 0], scale: [0.3, 1.1, 1.25], rotate: 0 }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+            />
+          )}
 
           {/* 타격 숫자 */}
           <AnimatePresence>
@@ -229,7 +325,7 @@ export default function BossStage({
                 animate={{ opacity: [0, 1, 1, 0], y: [10, -30, -60, -90], scale: hit.mine ? [0.6, 1.25, 1.1, 1] : [0.8, 1, 1, 0.95] }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 1.35, ease: 'easeOut' }}
-                className="pointer-events-none absolute whitespace-nowrap font-black drop-shadow-[0_2px_0_rgba(0,0,0,0.8)]"
+                className="pointer-events-none absolute z-20 whitespace-nowrap font-black drop-shadow-[0_2px_0_rgba(0,0,0,0.8)]"
                 style={{
                   left: `${20 + ((hit.id * 37) % 60)}%`,
                   bottom: '38%',
@@ -246,23 +342,23 @@ export default function BossStage({
         </div>
 
         {/* 체력 바 */}
-        {boss && (
+        {hpView && (
           <div>
             <div className={`mb-1 flex items-center justify-between font-black ${isLarge ? 'text-base' : 'text-xs'}`}>
               <span className="flex items-center gap-1 text-sky-100">
                 체력
-                {shieldActive && <Lock className={isLarge ? 'h-4 w-4 text-cyan-200' : 'h-3 w-3 text-cyan-200'} />}
+                {showShield && shieldActive && <Lock className={isLarge ? 'h-4 w-4 text-cyan-200' : 'h-3 w-3 text-cyan-200'} />}
               </span>
-              <span className="tabular-nums">{boss.hp.toLocaleString()} / {boss.def.maxHp.toLocaleString()}</span>
+              <span className="tabular-nums">{hpView.hp.toLocaleString()} / {hpView.maxHp.toLocaleString()}</span>
             </div>
             <div className={`relative overflow-hidden rounded-full bg-slate-950/60 ring-1 ring-white/15 ${isLarge ? 'h-6' : 'h-3.5'}`}>
               <motion.div
-                className={`h-full rounded-full bg-gradient-to-r ${hpTone(boss.hpRatio)}`}
+                className={`h-full rounded-full bg-gradient-to-r ${hpTone(hpView.ratio)}`}
                 initial={false}
                 animate={{ width: `${hpPercent}%` }}
                 transition={{ type: 'spring', bounce: 0, duration: 0.6 }}
               />
-              {shieldActive && (
+              {showShield && shieldActive && (
                 <div
                   className="pointer-events-none absolute inset-0 rounded-full"
                   style={{
@@ -273,7 +369,7 @@ export default function BossStage({
             </div>
 
             {/* 방패 상태 */}
-            {shield && (shieldActive || (shield.broken && boss.hpRatio <= 0.5)) && (
+            {showShield && shield && (shieldActive || (shield.broken && hpView.ratio <= 0.5)) && (
               <div className={`mt-2 flex items-center gap-2 rounded-xl px-3 font-black ${isLarge ? 'py-2 text-base' : 'py-1.5 text-xs'} ${
                 shieldActive ? 'bg-cyan-200/20 text-cyan-100 ring-1 ring-cyan-200/50' : 'bg-white/10 text-sky-100'
               }`}>

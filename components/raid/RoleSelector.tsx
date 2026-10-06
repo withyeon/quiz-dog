@@ -1,7 +1,8 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { BadgeCheck, ShieldCheck, Sparkles, Sword, type LucideIcon } from 'lucide-react'
+import { BadgeCheck, Sword } from 'lucide-react'
+import { RAID_ROLE_ICON_SRC } from '@/components/raid/raidAssets'
 import { RAID, RAID_ROLES, RAID_ROLE_ORDER, type RaidRole } from '@/lib/game/raid'
 
 type RoleSelectorProps = {
@@ -9,21 +10,18 @@ type RoleSelectorProps = {
   selectedRole?: RaidRole | null
 }
 
-const ROLE_VISUALS: Record<RaidRole, { Icon: LucideIcon; tone: string; line: string; stat: string }> = {
+const ROLE_VISUALS: Record<RaidRole, { tone: string; line: string; stat: string }> = {
   warrior: {
-    Icon: Sword,
     tone: 'bg-rose-50 text-rose-700 border-rose-200',
     line: 'bg-rose-400',
     stat: `정답 데미지 ${Math.round(RAID.BASE_DAMAGE * RAID_ROLES.warrior.damageMultiplier)} (기본 ${RAID.BASE_DAMAGE})`,
   },
   mage: {
-    Icon: Sparkles,
     tone: 'bg-violet-50 text-indigo-700 border-indigo-200',
     line: 'bg-indigo-400',
     stat: `${RAID.COMBO_STEPS[0].streak}연속부터 보너스 +${RAID.COMBO_STEPS[0].bonus * RAID_ROLES.mage.comboMultiplier}`,
   },
   guardian: {
-    Icon: ShieldCheck,
     tone: 'bg-cyan-50 text-cyan-700 border-cyan-200',
     line: 'bg-cyan-400',
     stat: `얼음 방패를 한 번에 ${RAID_ROLES.guardian.shieldPower}칸`,
@@ -59,7 +57,6 @@ export default function RoleSelector({ onSelect, selectedRole }: RoleSelectorPro
         {RAID_ROLE_ORDER.map((roleId) => {
           const info = RAID_ROLES[roleId]
           const visual = ROLE_VISUALS[roleId]
-          const Icon = visual.Icon
           const isSelected = selectedRole === roleId
           return (
             <motion.button
@@ -76,7 +73,7 @@ export default function RoleSelector({ onSelect, selectedRole }: RoleSelectorPro
             >
               <div className={`absolute inset-x-0 top-0 h-1 ${visual.line}`} />
               <div className={`mb-3 flex h-14 w-14 items-center justify-center rounded-[8px] border ${visual.tone}`}>
-                <Icon className="h-7 w-7" strokeWidth={2.4} />
+                <img src={RAID_ROLE_ICON_SRC[roleId]} alt="" width={44} height={44} className="h-11 w-11" draggable={false} />
               </div>
               <div className="mb-1 flex flex-wrap items-center gap-2">
                 <h3 className="text-xl font-black text-slate-950">{info.name}</h3>

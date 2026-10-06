@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { Flame, ShieldCheck, Snowflake, Users } from 'lucide-react'
 import { RAID, RAID_ROLES, RAID_ROLE_ORDER, getRaidBossRoster, type RaidSettings } from '@/lib/game/raid'
-import { RAID_SPRITE_SRC } from '@/components/raid/BossStage'
+import { RAID_ROLE_ICON_SRC, RAID_SPRITE_SRC } from '@/components/raid/raidAssets'
 
 type RaidLobbyPanelProps = {
   players: Array<{ id: string; nickname: string; is_kicked?: boolean | null }>
@@ -41,7 +41,7 @@ export default function RaidLobbyPanel({ players, settings }: RaidLobbyPanelProp
               width={boss.isFinal ? 88 : 64}
               height={boss.isFinal ? 110 : 80}
               draggable={false}
-              style={{ imageRendering: 'pixelated', width: boss.isFinal ? 88 : 64, height: boss.isFinal ? 110 : 80 }}
+              style={{ width: boss.isFinal ? 88 : 64, height: boss.isFinal ? 110 : 80 }}
             />
             <span className="text-sm font-black text-slate-800">{boss.name}</span>
             <span className="text-xs font-bold text-slate-500">체력 {boss.maxHp.toLocaleString()}</span>
@@ -54,7 +54,10 @@ export default function RaidLobbyPanel({ players, settings }: RaidLobbyPanelProp
           const info = RAID_ROLES[roleId]
           return (
             <div key={roleId} className="rounded-[8px] border border-slate-200 bg-white/[0.72] p-4">
-              <div className="text-base font-black text-slate-900">{info.name}</div>
+              <div className="flex items-center gap-2 text-base font-black text-slate-900">
+                <img src={RAID_ROLE_ICON_SRC[roleId]} alt="" width={28} height={28} className="h-7 w-7" draggable={false} />
+                {info.name}
+              </div>
               <div className="mt-1 text-xs font-semibold text-slate-500">{info.description}</div>
             </div>
           )

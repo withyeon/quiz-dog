@@ -1,11 +1,6 @@
 'use client'
 
-import { toast } from '@/components/ui/Toaster'
-import { getPlayerById } from '@/lib/services/players'
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import Image from 'next/image'
-import { AlertTriangle, Anchor, CheckCircle2 } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import GameTimeBadge from '@/components/GameTimeBadge'
 import ShieldPromptModal from '@/components/ShieldPromptModal'
@@ -13,69 +8,27 @@ import ChestView from '@/components/ChestView'
 import GameResult from '@/components/GameResult'
 import Countdown from '@/components/Countdown'
 import PreStartQuizGate from '@/components/PreStartQuizGate'
-import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
-import { useGameBase } from '@/hooks/useGameBase'
-import {
-  BOX_EVENT_IMAGE,
-  GOLD_STEAL_RATE,
-  SHIELD_STREAK,
-  applyBoxEvent,
-  generateBoxEvent,
-  toPercent,
-  type BoxEvent,
-} from '@/lib/game/goldQuest'
-import PlayerSelector from '@/components/PlayerSelector'
-import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
-import AnswerReveal from '@/components/AnswerReveal'
-import type { Database } from '@/types/database.types'
-import PixelIcon from '@/components/ui/PixelIcon'
-import QuizSetName from '@/components/game/QuizSetName'
+import GoldQuestHeader from '@/components/goldquest/GoldQuestHeader'
+import GoldQuestLobbyPanel from '@/components/goldquest/GoldQuestLobbyPanel'
+import QuizUnavailablePanel from '@/components/goldquest/QuizUnavailablePanel'
+import PlayerSelectStage from '@/components/goldquest/PlayerSelectStage'
+import WrongAnswerPanel from '@/components/goldquest/WrongAnswerPanel'
+import GoldRanking from '@/components/goldquest/GoldRanking'
+import { useGoldQuestGame } from '@/hooks/useGoldQuestGame'
 
-type Player = Database['public']['Tables']['players']['Row']
-type AttackRequestPayload = {
-  requestId: string
-  attackerPlayerId: string
-  attackerNickname: string
-  targetPlayerId: string
-  event: BoxEvent
-}
-type AttackResponsePayload = {
-  requestId: string
-  attackerPlayerId: string
-  targetPlayerId: string
-  /** 피해자가 방어권으로 막았는지 */
-  blocked: boolean
-}
-/** 공격이 확정된 뒤 피해자 화면에 결과를 알리는 이벤트 */
-type AttackNoticePayload = {
-  attackerPlayerId: string
-  targetPlayerId: string
-  message: string
-}
-
-/** 공격 요청에 대한 피해자의 최종 결과 (공격자 대기 resolver로 전달) */
-type AttackResult = {
-  blocked: boolean
-}
-
-// 골드 뺏기(엘프/마법사) 방어권: 피해자가 방어 여부를 결정할 수 있는 시간.
-const SHIELD_DECISION_MS = 5000
-// 공격자가 피해자 응답을 기다릴 때 결정 시간 위에 더 얹는 네트워크 왕복 여유.
-// (요청 도달 + 응답 도달 지연을 흡수) — 이 버퍼가 너무 작으면 정상 방어가
-// 타임아웃 뒤 도착해 무시되어 방어가 간헐적으로 실패한다.
-const SHIELD_NETWORK_BUFFER_MS = 3000
-
+/**
+ * 해적왕의 보물찾기 학생 화면. 규칙·상태는 useGoldQuestGame 훅이 맡고,
+ * 여기서는 currentView 에 따라 어떤 패널을 보여줄지만 정한다.
+ */
 export default function GamePage() {
   const {
     roomCode,
     playerId,
     currentView,
-    setCurrentView,
     currentQuestionIndex,
     revealedAnswer,
     showCountdown,
     handleCountdownComplete,
-    consecutiveCorrect,
     answerHistory,
     questions,
     questionsLoading,
@@ -91,505 +44,27 @@ export default function GamePage() {
     playersLoading,
     currentPlayer,
     currentQuestion,
-    playSFX,
     handlePreStartQuizAnswer,
-    checkAnswer,
-    handleWrongAnswer,
-    goToNextQuestion,
-    sendRoomEvent,
-    commitPlayerDelta,
-    commitPlayerSteal,
-    commitPlayerSwap,
-    commitPlayerPatch,
     sessionStartedAt,
-  } = useGameBase({ expectedGameMode: 'gold_quest' })
-
-  // 골드퀘스트 원자 변경 어댑터 — 동시 상자 개봉/강탈 시 골드 증발·복제 방지.
-  const goldMutator = useMemo(() => ({
-    delta: (playerId: string, deltas: { gold?: number; score?: number }, reason?: string) =>
-      commitPlayerDelta(playerId, deltas, { reason }).then(() => undefined),
-    steal: (victimId: string, thiefId: string, amount: number, reason?: string) =>
-      commitPlayerSteal(victimId, thiefId, amount, ['gold', 'score'], reason).then(() => undefined),
-    swap: (aId: string, bId: string, reason?: string) =>
-      commitPlayerSwap(aId, bId, ['gold', 'score'], reason).then(() => undefined),
-  }), [commitPlayerDelta, commitPlayerSteal, commitPlayerSwap])
-
-  const [selectedChest, setSelectedChest] = useState<number | null>(null)
-  const [boxEvent, setBoxEvent] = useState<BoxEvent | null>(null)
-  const [isProcessingReward, setIsProcessingReward] = useState(false)
-  const [hasShield, setHasShield] = useState(false) // 방어권 보유 여부
-  const [shieldNotice, setShieldNotice] = useState<string | null>(null)
-  const [pendingEvent, setPendingEvent] = useState<BoxEvent | null>(null) // 플레이어 선택 대기 중인 이벤트
-  const [playerSelectTimeLeft, setPlayerSelectTimeLeft] = useState<number>(0)
-  // 상대가 방어권을 쓸지 정하는 동안 공격자 화면에 보여줄 안내 (null이면 일반 '처리 중')
-  const [awaitingShieldText, setAwaitingShieldText] = useState<string | null>(null)
-  // 방어권 사용 여부를 묻는 모달 (네이티브 confirm 대체 — 게임 루프를 막지 않는다)
-  const [shieldAsk, setShieldAsk] = useState<{ message: string; expiresAt: number } | null>(null)
-  const shieldResolverRef = useRef<((useShield: boolean) => void) | null>(null)
-  const hasShieldRef = useRef(false)
-  const attackResolversRef = useRef(new Map<string, (result: AttackResult) => void>())
-  // 정답 후 상자 화면 자동 전환 타이머 (수동 클릭과 중복 실행 방지)
-  const correctTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // 상자/플레이어 선택 후 다음 문제 자동 이동 타이머 (중복 점프 방지)
-  const advanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const clearCorrectTimer = () => {
-    if (correctTimerRef.current) {
-      clearTimeout(correctTimerRef.current)
-      correctTimerRef.current = null
-    }
-  }
-
-  /** 방어권 사용 여부를 모달로 묻는다. 제한 시간이 지나면 자동으로 false. */
-  const askShield = useCallback((message: string, timeoutMs = 5000) => {
-    return new Promise<boolean>((resolve) => {
-      // 앞선 요청이 남아 있으면 먼저 정리한다.
-      shieldResolverRef.current?.(false)
-      shieldResolverRef.current = resolve
-      setShieldAsk({ message, expiresAt: Date.now() + timeoutMs })
-    })
-  }, [])
-
-  const answerShield = useCallback((useShield: boolean) => {
-    const resolve = shieldResolverRef.current
-    shieldResolverRef.current = null
-    setShieldAsk(null)
-    resolve?.(useShield)
-  }, [])
-
-  // 제한 시간 초과 시 자동으로 '사용 안 함'
-  useEffect(() => {
-    if (!shieldAsk) return
-    const timer = window.setTimeout(
-      () => answerShield(false),
-      Math.max(0, shieldAsk.expiresAt - Date.now()),
-    )
-    return () => window.clearTimeout(timer)
-  }, [shieldAsk, answerShield])
-
-  // 다음 문제 이동 예약: 항상 기존 타이머를 먼저 정리해 중복 점프를 막는다.
-  const scheduleAdvance = (action: () => void, delay: number) => {
-    if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
-    advanceTimerRef.current = setTimeout(() => {
-      advanceTimerRef.current = null
-      action()
-    }, delay)
-  }
-
-  // 언마운트 시 남은 타이머 정리
-  useEffect(() => {
-    return () => {
-      clearCorrectTimer()
-      if (advanceTimerRef.current) clearTimeout(advanceTimerRef.current)
-    }
-  }, [])
-
-  // 가져오기(엘프/마법사)인데 대상이 없으면 2초 후 다음 문제로
-  const selectableForSteal = pendingEvent && (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD')
-    ? players.filter((p) => p.id !== playerId && (p.gold ?? 0) > 0)
-    : []
-  const rankedPlayers = [...players].sort((a, b) => {
-    const goldDiff = (b.gold ?? 0) - (a.gold ?? 0)
-    if (goldDiff !== 0) return goldDiff
-    return (b.score ?? 0) - (a.score ?? 0)
-  })
-  const leaderGold = Math.max(1, ...rankedPlayers.map((player) => player.gold ?? 0))
-  const isPaused = room?.status === 'paused'
-  const quizUnavailableMessage = !room?.set_id
-    ? '이 방에 연결된 문제집이 없습니다. 선생님이 문제집을 선택해 새 방을 만들어야 합니다.'
-    : questionsError
-      ? `문제를 불러오지 못했습니다. ${questionsError}`
-      : questions.length === 0
-        ? '이 문제집에 표시할 문제가 없습니다. 선생님이 문제를 추가한 뒤 다시 시작해야 합니다.'
-        : null
-
-  useEffect(() => {
-    hasShieldRef.current = hasShield
-  }, [hasShield])
-
-  // 방어권은 players.has_umbrella에 같이 저장한다(다른 모드는 이 컬럼을 쓰지 않는다).
-  // 공격자가 "상대에게 방어권이 있는지"를 DB에서 확인해야 하고, 새로고침해도 방어권이
-  // 사라지지 않아야 하기 때문이다.
-  const hasRestoredShieldRef = useRef(false)
-  const persistedShield = (currentPlayer as { has_umbrella?: boolean | null } | null)?.has_umbrella
-  useEffect(() => {
-    if (!currentPlayer || hasRestoredShieldRef.current) return
-    hasRestoredShieldRef.current = true
-    if (persistedShield) setHasShield(true)
-  }, [currentPlayer, persistedShield])
-
-  const setShieldPersisted = useCallback((value: boolean) => {
-    setHasShield(value)
-    hasShieldRef.current = value
-    if (!playerId) return
-    commitPlayerPatch(playerId, { has_umbrella: value }, value ? 'gold_quest_shield_gain' : 'gold_quest_shield_use')
-      .catch((error) => console.error('방어권 저장 실패:', error))
-  }, [commitPlayerPatch, playerId])
-
-  useEffect(() => {
-    if (!shieldNotice) return
-    const timer = window.setTimeout(() => setShieldNotice(null), 2200)
-    return () => window.clearTimeout(timer)
-  }, [shieldNotice])
-
-  // 골드 이동은 공격자가 서버 원자 연산으로 확정한다. 피해자 화면은
-  // (1) 방어권이 있을 때 사용 여부를 답하고, (2) 확정 결과를 알림으로 받는 역할만 한다.
-  // 예전에는 피해자가 골드 이동까지 확정했는데, 피해자 화면이 없거나(이탈·백그라운드)
-  // 이벤트가 유실되면 '골드 가져오기'가 조용히 실패했다.
-  useEffect(() => {
-    if (!playerId) return
-
-    return subscribeRoomRuntimeEvent((event) => {
-      if (event.type === 'gold_quest:attack_response') {
-        const payload = event.payload as AttackResponsePayload | undefined
-        if (!payload || payload.attackerPlayerId !== playerId) return
-        const resolve = attackResolversRef.current.get(payload.requestId)
-        if (!resolve) return
-        attackResolversRef.current.delete(payload.requestId)
-        resolve({ blocked: payload.blocked })
-        return
-      }
-
-      if (event.type === 'gold_quest:attack_notice') {
-        const payload = event.payload as AttackNoticePayload | undefined
-        if (!payload || payload.targetPlayerId !== playerId) return
-        toast.info(payload.message)
-        playSFX('incorrect')
-        return
-      }
-
-      if (event.type !== 'gold_quest:attack_request') return
-      const payload = event.payload as AttackRequestPayload | undefined
-      if (!payload || payload.targetPlayerId !== playerId || payload.attackerPlayerId === playerId) return
-
-      const attackName = payload.event.itemName || '공격'
-
-      // 공격자는 DB에서 내 방어권을 확인한 뒤에만 물어온다. 그래도 로컬 상태가 다르면 '안 씀'으로 답한다.
-      void (async () => {
-        let blocked = false
-
-        if (hasShieldRef.current) {
-          const useShield = await askShield(
-            `${payload.attackerNickname}님이 ${attackName} 효과를 사용했습니다.`,
-            SHIELD_DECISION_MS,
-          )
-          if (useShield) {
-            blocked = true
-            setShieldPersisted(false)
-            setShieldNotice(`${payload.attackerNickname}님의 공격을 방어권으로 막았습니다!`)
-            playSFX('item')
-          }
-        }
-
-        void sendRoomEvent('gold_quest:attack_response', {
-          requestId: payload.requestId,
-          attackerPlayerId: payload.attackerPlayerId,
-          targetPlayerId: playerId,
-          blocked,
-        } satisfies AttackResponsePayload)
-      })()
-    })
-  }, [askShield, playerId, playSFX, sendRoomEvent, setShieldPersisted])
-
-  const waitForShieldResponse = async (event: BoxEvent, targetPlayer: Player): Promise<AttackResult> => {
-    if (!playerId || !currentPlayer) return { blocked: false }
-    const requestId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
-
-    return new Promise<AttackResult>((resolve) => {
-      // 피해자가 제한 시간 안에 방어권을 쓰지 않으면(응답 없음 포함) 공격이 그대로 들어간다.
-      // 피해자 모달(5초)이 이 대기(8초)보다 짧아 정상적인 방어는 늦게 도착하지 않는다.
-      const timer = window.setTimeout(() => {
-        attackResolversRef.current.delete(requestId)
-        resolve({ blocked: false })
-      }, SHIELD_DECISION_MS + SHIELD_NETWORK_BUFFER_MS)
-
-      attackResolversRef.current.set(requestId, (result) => {
-        window.clearTimeout(timer)
-        resolve(result)
-      })
-
-      void sendRoomEvent('gold_quest:attack_request', {
-        requestId,
-        attackerPlayerId: playerId,
-        attackerNickname: currentPlayer.nickname,
-        targetPlayerId: targetPlayer.id,
-        event,
-      } satisfies AttackRequestPayload)
-    })
-  }
-  useEffect(() => {
-    if (currentView !== 'playerSelect' || !pendingEvent || pendingEvent.type === 'KING') return
-    if (pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD') {
-      if (selectableForSteal.length === 0) {
-        const t = setTimeout(() => {
-          setSelectedChest(null)
-          setBoxEvent(null)
-          setPendingEvent(null)
-          setIsProcessingReward(false)
-          goToNextQuestion()
-        }, 2000)
-        return () => clearTimeout(t)
-      }
-    }
-  }, [currentView, pendingEvent, selectableForSteal.length, goToNextQuestion])
-
-  // playerSelect 화면 진입 시 15초 제한: 시간 초과하면 선택 없이 다음 문제로
-  useEffect(() => {
-    if (currentView !== 'playerSelect' || !pendingEvent || isProcessingReward || boxEvent?.targetPlayerId) return
-    const LIMIT = 15
-    setPlayerSelectTimeLeft(LIMIT)
-    const interval = window.setInterval(() => {
-      setPlayerSelectTimeLeft((prev) => {
-        if (prev <= 1) {
-          window.clearInterval(interval)
-          setSelectedChest(null)
-          setBoxEvent(null)
-          setPendingEvent(null)
-          setIsProcessingReward(false)
-          goToNextQuestion()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => window.clearInterval(interval)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentView, pendingEvent])
-
-  // 게임 종료 시 playerSelect 화면에 걸려있으면 강제 스킵
-  useEffect(() => {
-    if (currentView !== 'playerSelect' || !pendingEvent) return
-    if (room?.status === 'finished' || room?.status === 'ended') {
-      setSelectedChest(null)
-      setBoxEvent(null)
-      setPendingEvent(null)
-      setIsProcessingReward(false)
-      goToNextQuestion()
-    }
-  }, [room?.status, currentView, pendingEvent, goToNextQuestion])
-
-  // 카운트다운 완료는 훅(useGameBase)의 handleCountdownComplete가 처리한다. 완료를 훅에 알려야
-  // 시작 전 퀴즈 게이트(shouldShowPreStartQuiz)가 열리고, 게이트가 끝나면 훅이 'quiz'로 넘긴다.
-  // 예전에는 페이지 자체 핸들러가 바로 'quiz'로 들어가며 훅에는 알리지 않아 훅의
-  // isCountdownComplete가 영원히 false였고, 시작 전 퀴즈 3문제가 조용히 건너뛰어졌다.
-
-  // 정답 후 상자 선택 화면으로 이동 (제출 후 자동/클릭 공용)
-  // 자동(1.5초)과 수동 클릭이 모두 이 함수를 호출하므로, 예약된 자동
-  // 타이머를 먼저 정리해 상자를 고른 뒤 뒤늦게 화면이 리셋되는 일을 막는다.
-  const goToChestView = () => {
-    clearCorrectTimer()
-    setCurrentView('chest')
-    setSelectedChest(null)
-    setBoxEvent(null)
-    setIsProcessingReward(false)
-  }
-
-  // 뒤집혀진 퀴즈 화면에서 호출될 '골드퀘스트'용 커스텀 핸들러
-  const handleAnswerSubmit = async (answer: string) => {
-    const correct = await checkAnswer(answer)
-
-    if (correct) {
-      playSFX('correct')
-      // 연속 정답 시 방어권 획득 (Gold Quest 전용, 적립 없음)
-      if (consecutiveCorrect + 1 >= SHIELD_STREAK && !hasShield) {
-        setShieldPersisted(true)
-        setShieldNotice(`${SHIELD_STREAK}연속 정답 - 방어권 획득!`)
-        playSFX('item')
-      }
-      // 정답: 상자 선택 화면으로 (1.5초 후 자동 이동)
-      // 배너를 직접 클릭해 먼저 넘어가면 goToChestView가 이 타이머를 정리한다.
-      clearCorrectTimer()
-      correctTimerRef.current = setTimeout(goToChestView, 1500)
-    } else {
-      playSFX('incorrect')
-      handleWrongAnswer() // 공통 오답 처리 (wrong 뷰 -> 다음 문제)
-    }
-    return correct
-  }
-
-  // 상자 선택 처리
-  const handleChestSelect = async (chestIndex: number) => {
-    if (isProcessingReward || !playerId || !currentPlayer) return
-
-    setIsProcessingReward(true)
-    setSelectedChest(chestIndex)
-
-    try {
-      playSFX('click')
-
-      // 해적 컨셉 보상 생성
-      const event = generateBoxEvent(currentPlayer.gold, players, playerId, false)
-      setBoxEvent(event)
-      void sendRoomEvent('game:effect', {
-        mode: 'gold_quest',
-        actorPlayerId: playerId,
-        chestIndex,
-        event,
-      })
-
-      // 긍정 효과 사운드
-      if (event.type === 'GOLD_STACK' || event.type === 'JESTER' || event.type === 'UNICORN') {
-        playSFX('item')
-      }
-
-      // 방어권이 있고 부정 효과인 경우 방어권 사용
-      const isNegativeEvent = event.type === 'SLIME_MONSTER' ||
-        event.type === 'DRAGON'
-
-      if (hasShield && isNegativeEvent) {
-        const useShield = await askShield(`${event.itemName} 효과가 나왔습니다.`, 5000)
-        if (useShield) {
-          setShieldPersisted(false)
-          setShieldNotice('방어권으로 손실 효과를 막았습니다!')
-          playSFX('item')
-          const blockedEvent: BoxEvent = {
-            type: 'FAIRY',
-            message: '방어권이 손실 효과를 막았다.',
-            itemName: '방어권',
-            icon: '🛡️',
-          }
-          setBoxEvent(blockedEvent)
-
-          scheduleAdvance(() => {
-            setSelectedChest(null)
-            setBoxEvent(null)
-            setIsProcessingReward(false)
-            goToNextQuestion()
-          }, 3000)
-          return
-        }
-      }
-
-      // King (Swap), Elf, Wizard는 플레이어 선택 필요
-      if (event.type === 'KING' || event.type === 'ELF' || event.type === 'WIZARD') {
-        setPendingEvent(event)
-        setCurrentView('playerSelect')
-        setIsProcessingReward(false)
-        return
-      }
-
-      // 일반 이벤트 처리
-      const targetPlayer = event.targetPlayerId
-        ? players.find((p) => p.id === event.targetPlayerId) || null
-        : null
-
-      await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, goldMutator)
-
-      // 3초 후 다음 문제로
-      scheduleAdvance(() => {
-        setSelectedChest(null)
-        setBoxEvent(null)
-        setIsProcessingReward(false)
-        goToNextQuestion()
-      }, 3000)
-    } catch (error) {
-      console.error('Error updating reward:', error)
-      setIsProcessingReward(false)
-    }
-  }
-
-  // 플레이어 선택 처리 (King/Elf/Wizard)
-  const handlePlayerSelect = async (targetPlayerId: string) => {
-    if (isProcessingReward || !pendingEvent || !playerId || !currentPlayer) return
-
-    playSFX('click')
-    setIsProcessingReward(true)
-
-    try {
-      const targetPlayer = players.find((player) => player.id === targetPlayerId) as Player | null
-      if (!targetPlayer) {
-        setIsProcessingReward(false)
-        return
-      }
-
-      // 이벤트에 선택한 플레이어 ID와 값 설정
-      const event: BoxEvent = {
-        ...pendingEvent,
-        targetPlayerId,
-      }
-
-      // 상대의 최신 골드·방어권은 DB에서 다시 읽는다(화면의 players는 몇 초 늦을 수 있다).
-      const freshTarget = await getPlayerById(targetPlayerId).catch(() => null)
-      const targetGold = freshTarget?.gold ?? targetPlayer.gold ?? 0
-      const targetHasShield = Boolean((freshTarget as { has_umbrella?: boolean | null } | null)?.has_umbrella)
-
-      // Elf와 Wizard의 경우 훔칠 골드 양 계산
-      if (pendingEvent.type === 'ELF' && targetGold > 0) {
-        event.value = Math.floor(targetGold * GOLD_STEAL_RATE.ELF)
-        event.message = `${targetPlayer.nickname}님의 골드 ${toPercent(GOLD_STEAL_RATE.ELF)}%를 가져왔다. +${event.value} 골드`
-      } else if (pendingEvent.type === 'WIZARD' && targetGold > 0) {
-        event.value = Math.floor(targetGold * GOLD_STEAL_RATE.WIZARD)
-        event.message = `${targetPlayer.nickname}님의 골드 ${toPercent(GOLD_STEAL_RATE.WIZARD)}%를 가져왔다. +${event.value} 골드`
-      } else if (pendingEvent.type === 'KING') {
-        event.message = `${targetPlayer.nickname}님과 골드를 교환했다.`
-      }
-
-      // 상대에게 방어권이 있을 때만 사용 여부를 묻고 기다린다. 없으면 바로 확정한다.
-      let result: AttackResult = { blocked: false }
-      if (targetHasShield) {
-        setAwaitingShieldText(`${targetPlayer.nickname}님이 방어권을 쓸지 정하는 중이에요.`)
-        try {
-          result = await waitForShieldResponse(event, targetPlayer)
-        } finally {
-          setAwaitingShieldText(null)
-        }
-      }
-
-      let outcomeEvent: BoxEvent
-      if (result.blocked) {
-        // targetPlayerId가 있어야 playerSelect 화면의 결과 패널에 표시된다.
-        outcomeEvent = {
-          type: 'FAIRY',
-          targetPlayerId,
-          message: `${targetPlayer.nickname}님이 방어권으로 공격을 막았다.`,
-          itemName: '방어권',
-          icon: '🛡️',
-        }
-      } else {
-        // 골드 이동은 공격자가 서버 원자 연산으로 확정한다(피해자 화면이 없어도 동작).
-        try {
-          await applyBoxEvent(event, playerId, currentPlayer, targetPlayer, goldMutator)
-          outcomeEvent = event
-          const noticeMessage = event.type === 'KING'
-            ? `${currentPlayer.nickname}님이 왕의 명령서로 나와 골드를 교환했어요.`
-            : `${currentPlayer.nickname}님이 ${event.itemName}로 내 골드 ${event.value ?? 0}을 가져갔어요.`
-          void sendRoomEvent('gold_quest:attack_notice', {
-            attackerPlayerId: playerId,
-            targetPlayerId,
-            message: noticeMessage,
-          } satisfies AttackNoticePayload)
-        } catch (error) {
-          console.error('Error applying attack:', error)
-          outcomeEvent = {
-            type: 'FAIRY',
-            targetPlayerId,
-            message: `${targetPlayer.nickname}님에게 효과가 닿지 않았다.`,
-            itemName: '실패',
-            icon: '💨',
-          }
-        }
-      }
-
-      setBoxEvent(outcomeEvent)
-
-      // 3초 후 다음 문제로
-      scheduleAdvance(() => {
-        setSelectedChest(null)
-        setBoxEvent(null)
-        setPendingEvent(null)
-        setIsProcessingReward(false)
-        goToNextQuestion()
-      }, 3000)
-    } catch (error) {
-      console.error('Error applying event:', error)
-      setPendingEvent(null)
-      setBoxEvent(null)
-      setIsProcessingReward(false)
-      scheduleAdvance(() => goToNextQuestion(), 1000)
-    }
-  }
+    isPaused,
+    rankedPlayers,
+    leaderGold,
+    quizUnavailableMessage,
+    selectedChest,
+    boxEvent,
+    isProcessingReward,
+    hasShield,
+    shieldNotice,
+    pendingEvent,
+    playerSelectTimeLeft,
+    awaitingShieldText,
+    shieldAsk,
+    answerShield,
+    goToChestView,
+    handleAnswerSubmit,
+    handleChestSelect,
+    handlePlayerSelect,
+  } = useGoldQuestGame()
 
   if (!roomCode || !playerId) {
     return (
@@ -620,76 +95,11 @@ export default function GamePage() {
         status={room?.status}
       />
       <div className="max-w-6xl mx-auto relative z-10">
-        <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="gold-quest-ink-panel mb-4 p-3 sm:mb-6 sm:p-5 text-[#17262a]"
-        >
-          {/*
-            폰(세로·가로)에서 헤더가 화면의 30~50%를 먹어 문제 선택지가 첫 화면에 안 보이던 문제:
-            제목과 정보 칩을 sm(640px)부터 한 줄로 두고, 폰에서는 칩 3개를 한 줄(grid-cols-3)로 줄인다.
-          */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-white/60 bg-white/35 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] sm:h-12 sm:w-12">
-                <Image
-                  src="/title/gold-quest.webp"
-                  alt=""
-                  fill
-                  className="object-contain p-1"
-                  sizes="48px"
-                />
-              </div>
-              <div>
-                <h1 className="gold-quest-title text-xl sm:text-3xl font-black leading-none">
-                  해적왕의 보물찾기
-                </h1>
-                <QuizSetName title={questionSetTitle} className="mt-1.5" />
-              </div>
-            </div>
-            {currentPlayer && (
-              <div className="grid grid-cols-3 gap-2 sm:flex sm:items-stretch">
-                <div className="gold-quest-glass-chip min-w-0 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
-                  <div className="text-xs font-bold text-slate-500">참가자</div>
-                  <div className="truncate text-base font-black sm:max-w-[180px] sm:text-lg">{currentPlayer.nickname}</div>
-                </div>
-                <div className="gold-quest-glass-chip min-w-0 rounded-lg px-3 py-2 sm:px-4 sm:py-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-500">
-                    <Image
-                      src="/gold-quest/gold-stack.webp"
-                      alt=""
-                      width={16}
-                      height={16}
-                      className="h-4 w-4 object-contain"
-                    />
-                    골드
-                  </div>
-                  <div className="text-base font-black text-amber-700 tabular-nums sm:text-lg">{currentPlayer.gold}</div>
-                </div>
-                <div className={`min-w-0 rounded-lg border px-3 py-2 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.62)] sm:px-4 sm:py-3 ${
-                  hasShield
-                    ? 'border-emerald-200/70 bg-emerald-100/45 text-emerald-800'
-                    : 'gold-quest-glass-chip text-slate-500'
-                }`}>
-                  <div className="flex items-center gap-2 text-xs font-bold">
-                    <Image
-                      src="/gold-quest/shield.webp"
-                      alt=""
-                      width={16}
-                      height={16}
-                      className="h-4 w-4 object-contain"
-                    />
-                    방어권
-                  </div>
-                  {hasShield && (
-                    <div className="text-base font-black sm:text-lg">보유</div>
-                  )}
-                  {!hasShield && <div className="text-base font-black sm:text-lg">없음</div>}
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.header>
+        <GoldQuestHeader
+          questionSetTitle={questionSetTitle}
+          currentPlayer={currentPlayer}
+          hasShield={hasShield}
+        />
 
         {shieldNotice && (
           <motion.div
@@ -719,42 +129,7 @@ export default function GamePage() {
 
         {/* 게임 화면 */}
         <div className="mb-6">
-          {currentView === 'lobby' && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="gold-quest-panel p-8 sm:p-12 text-center"
-            >
-              <motion.div
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 2.2, repeat: Infinity }}
-                className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-lg border border-amber-300/70 bg-amber-100/70"
-              >
-                <Anchor className="h-8 w-8 text-[#0c3b42]" />
-              </motion.div>
-              <h2 className="gold-quest-title text-4xl font-black text-[#17262a] mb-4">
-                게임 대기 중
-              </h2>
-              <p className="text-gray-600 text-lg mb-6">선생님이 게임을 시작할 때까지 기다려주세요.</p>
-              <div className="flex items-center justify-center gap-2">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    className="w-3 h-3 bg-[#0c3b42] rounded-full"
-                    animate={{
-                      scale: [1, 1.5, 1],
-                      opacity: [0.5, 1, 0.5],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      delay: i * 0.2,
-                    }}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
+          {currentView === 'lobby' && <GoldQuestLobbyPanel />}
 
           {currentView === 'quiz' && currentQuestion && (
             <QuizView
@@ -768,24 +143,7 @@ export default function GamePage() {
           )}
 
           {currentView === 'quiz' && !currentQuestion && (
-            <div className="gold-quest-panel p-8 sm:p-12 text-center">
-              {questionsLoading ? (
-                <>
-                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
-                  <h2 className="gold-quest-title text-3xl font-black text-[#17262a]">문제 불러오는 중</h2>
-                </>
-              ) : (
-                <>
-                  <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-lg border border-amber-300/70 bg-amber-100/70">
-                    <AlertTriangle className="h-8 w-8 text-amber-700" />
-                  </div>
-                  <h2 className="gold-quest-title text-3xl font-black text-[#17262a]">퀴즈를 시작할 수 없습니다</h2>
-                  <p className="mx-auto mt-4 max-w-xl text-base font-bold leading-relaxed text-slate-600">
-                    {quizUnavailableMessage || '문제 정보를 찾지 못했습니다. 선생님이 게임을 다시 시작해야 합니다.'}
-                  </p>
-                </>
-              )}
-            </div>
+            <QuizUnavailablePanel questionsLoading={questionsLoading} message={quizUnavailableMessage} />
           )}
 
           {currentView === 'chest' && (
@@ -799,102 +157,19 @@ export default function GamePage() {
           )}
 
           {currentView === 'playerSelect' && pendingEvent && (
-            <>
-              {/* 선택 완료 후 결과 메시지 (가져오기/교환 적용됨, 방어권으로 막힘, 실패) */}
-              {boxEvent?.targetPlayerId ? (
-                <div className="gold-quest-panel p-8 max-w-3xl mx-auto text-center">
-                  {boxEvent.itemName === '방어권' ? (
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-sky-300/70 bg-sky-50">
-                      <Image src="/gold-quest/shield.webp" alt="방어권" width={36} height={36} className="h-9 w-9 object-contain" />
-                    </div>
-                  ) : boxEvent.itemName === '실패' ? (
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-slate-300/70 bg-slate-50 text-3xl">
-                      {boxEvent.icon}
-                    </div>
-                  ) : (
-                    <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-lg border border-emerald-300/70 bg-emerald-50">
-                      <CheckCircle2 className="h-8 w-8 text-emerald-700" />
-                    </div>
-                  )}
-                  <p className="text-xl font-black text-[#17262a] mb-2">{boxEvent.message}</p>
-                  <p className="text-sm font-semibold text-slate-500">잠시 후 다음 문제로 넘어갑니다.</p>
-                </div>
-              ) : isProcessingReward ? (
-                <div className="gold-quest-panel p-8 max-w-3xl mx-auto text-center">
-                  <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-amber-200 border-t-[#0c3b42]" />
-                  <p className="text-xl font-black text-[#17262a]">{awaitingShieldText ?? '처리 중'}</p>
-                </div>
-              ) : (
-                <PlayerSelector
-                  players={players.filter((p) => {
-                    if (p.id === playerId) return false // 자기 자신 제외
-                    if (pendingEvent.type === 'KING') return true
-                    return (p.gold ?? 0) > 0 // Elf/Wizard: 골드 있는 상대만
-                  })}
-                  currentPlayerId={playerId || ''}
-                  onSelect={handlePlayerSelect}
-                  title={
-                    pendingEvent.type === 'KING'
-                      ? '골드 교환'
-                      : pendingEvent.type === 'ELF'
-                        ? '엘프의 밀서'
-                        : '마법사의 계약서'
-                  }
-                  description={
-                    `${pendingEvent.type === 'KING'
-                      ? '교환할 상대를 선택하세요.'
-                      : `골드 ${toPercent(
-                          pendingEvent.type === 'ELF' ? GOLD_STEAL_RATE.ELF : GOLD_STEAL_RATE.WIZARD,
-                        )}%를 가져올 상대를 선택하세요.`} (${playerSelectTimeLeft}초)`
-                  }
-                  icon={pendingEvent.icon || '⚔️'}
-                  iconImage={BOX_EVENT_IMAGE[pendingEvent.type]}
-                  emptyMessage={
-                    pendingEvent.type === 'ELF' || pendingEvent.type === 'WIZARD'
-                      ? '골드가 있는 상대가 없어요.'
-                      : undefined
-                  }
-                />
-              )}
-            </>
+            <PlayerSelectStage
+              pendingEvent={pendingEvent}
+              boxEvent={boxEvent}
+              isProcessingReward={isProcessingReward}
+              awaitingShieldText={awaitingShieldText}
+              players={players}
+              playerId={playerId}
+              playerSelectTimeLeft={playerSelectTimeLeft}
+              onSelect={handlePlayerSelect}
+            />
           )}
 
-          {currentView === 'wrong' && (
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="gold-quest-panel p-8 sm:p-12 text-center border-red-200"
-            >
-              <motion.div
-                animate={{ rotate: [0, -10, 10, -10, 0] }}
-                transition={{ duration: 0.5 }}
-                className="mx-auto mb-6 flex justify-center"
-              >
-                <PixelIcon name="wrong" size={112} />
-              </motion.div>
-              <h2 className="gold-quest-title text-4xl sm:text-5xl font-black text-red-700 mb-4">틀렸습니다</h2>
-              <AnswerReveal answer={revealedAnswer} />
-              <p className="text-gray-700 text-lg font-semibold">3초 후 다음 문제로 이동합니다.</p>
-              <div className="mt-6 flex justify-center gap-2">
-                {[0, 1, 2].map((i) => (
-                  <motion.div
-                    key={i}
-                    className="w-2 h-2 bg-red-500 rounded-full"
-                    animate={{
-                      scale: [1, 1.5, 1],
-                    }}
-                    transition={{
-                      duration: 1,
-                      repeat: Infinity,
-                      delay: i * 0.3,
-                    }}
-                  />
-                ))}
-              </div>
-            </motion.div>
-          )}
-
+          {currentView === 'wrong' && <WrongAnswerPanel revealedAnswer={revealedAnswer} />}
         </div>
 
         {/* 게임 결과 화면 */}
@@ -909,73 +184,7 @@ export default function GamePage() {
 
         {/* 플레이어 순위 (결과 화면이 아닐 때만 표시) */}
         {currentView !== 'result' && (
-          <section className="gold-quest-ink-panel p-4 sm:p-5 text-[#17262a]">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="gold-quest-title flex items-center gap-2 text-xl font-black">
-                <Image src="/trophy.webp" alt="" width={20} height={20} className="h-5 w-5 object-contain" />
-                골드 순위
-              </h2>
-              <div className="text-xs font-bold text-slate-500">{rankedPlayers.length}명 참가</div>
-            </div>
-            <div className="grid gap-2">
-              {rankedPlayers.map((player, index) => {
-                const isTopPlayer = index === 0
-                const isCurrent = player.id === playerId
-                const gold = player.gold ?? 0
-                const fill = Math.max(6, Math.round((gold / leaderGold) * 100))
-                return (
-                  <div
-                    key={player.id}
-                    className={`relative overflow-hidden rounded-lg border p-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] ${
-                      isCurrent
-                        ? 'border-amber-300/70 bg-amber-100/45'
-                        : isTopPlayer
-                          ? 'border-red-200/70 bg-red-100/40'
-                          : 'gold-quest-glass-chip'
-                    }`}
-                  >
-                    <div
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-amber-200/40 to-transparent"
-                      style={{ width: `${fill}%` }}
-                    />
-                    <div className="relative flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <div className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-sm font-black ${
-                          isTopPlayer ? 'bg-red-500 text-white' : 'border border-white/50 bg-white/35 text-slate-700 backdrop-blur-sm'
-                        }`}>
-                          {index + 1}
-                        </div>
-                        <PlayerAvatarDisplay
-                          avatar={player.avatar}
-                          nickname={player.nickname}
-                          fallback="P"
-                          className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg border border-white/55 bg-white/35 text-2xl backdrop-blur-sm"
-                          sizes="40px"
-                        />
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="truncate font-black">{player.nickname}</span>
-                            {isCurrent && (
-                              <span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-black text-[#163238]">
-                                나
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="flex items-center justify-end gap-1.5 text-lg font-black text-amber-700 tabular-nums">
-                          <Image src="/gold-quest/gold-stack.webp" alt="" width={18} height={18} className="h-[18px] w-[18px]" />
-                          {gold}
-                        </div>
-                        <div className="text-xs font-bold text-slate-500">골드</div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
+          <GoldRanking rankedPlayers={rankedPlayers} leaderGold={leaderGold} playerId={playerId} />
         )}
       </div>
       <AnimatePresence>

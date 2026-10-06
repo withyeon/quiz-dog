@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, Flame, Lock, Snowflake, Sword, Users } from 'lucide-react'
 import type { Database } from '@/types/database.types'
-import BossStage, { RAID_SPRITE_SRC } from '@/components/raid/BossStage'
+import BossStage from '@/components/raid/BossStage'
+import { RAID_ROLE_ICON_SRC, RAID_SPRITE_SRC } from '@/components/raid/raidAssets'
 import { useRaidEvents, useRaidFrenzyClock, useRaidHitPopups } from '@/hooks/useRaidEffects'
 import {
   RAID,
@@ -163,11 +164,11 @@ export default function RaidDashboard({ players, room }: RaidDashboardProps) {
                     }`}
                   >
                     <img
-                      src={RAID_SPRITE_SRC[boss.def.sprite].idle}
+                      src={boss.defeated ? RAID_SPRITE_SRC[boss.def.sprite].down : RAID_SPRITE_SRC[boss.def.sprite].idle}
                       alt=""
                       width={20}
                       height={25}
-                      style={{ imageRendering: 'pixelated', width: 20, height: 25, opacity: boss.defeated ? 0.5 : 1 }}
+                      style={{ width: 20, height: 25 }}
                     />
                     {boss.def.name}
                     {boss.defeated && <Check className="h-3.5 w-3.5" />}
@@ -213,7 +214,10 @@ export default function RaidDashboard({ players, room }: RaidDashboardProps) {
               <div key={player.id} className="rounded-lg border border-white/10 bg-white/10 px-3 py-2">
                 <div className="truncate text-sm font-black">{player.nickname}</div>
                 <div className="mt-0.5 flex items-center justify-between text-[11px] font-bold text-sky-100/70">
-                  <span>{role ? RAID_ROLES[role].name : '역할 고르는 중'}</span>
+                  <span className="flex items-center gap-1">
+                    {role && <img src={RAID_ROLE_ICON_SRC[role]} alt="" width={14} height={14} className="h-3.5 w-3.5" />}
+                    {role ? RAID_ROLES[role].shortName : '역할 고르는 중'}
+                  </span>
                   <span className="text-amber-200">{(player.score ?? 0).toLocaleString()} · {player.gold ?? 0}명중</span>
                 </div>
               </div>

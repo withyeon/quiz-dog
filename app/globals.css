@@ -733,6 +733,14 @@
     background-attachment: fixed;
   }
 
+  /* 펭귄 레이드: 눈싸움 화면 틀(battle-shell)을 그대로 쓰고 배경 그림만 남극 얼음 궁전으로 바꾼다.
+     background 단축 속성을 쓰면 터치 기기용 background-attachment: scroll 까지 덮어써서 이미지만 바꾼다. */
+  .raid-shell {
+    background-image:
+      linear-gradient(180deg, rgba(240, 248, 255, 0.5) 0%, rgba(232, 244, 252, 0.34) 46%, rgba(244, 249, 253, 0.5) 100%),
+      url('/background/raid.webp');
+  }
+
   .battle-shell::before,
   .battle-shell::after {
     content: '';

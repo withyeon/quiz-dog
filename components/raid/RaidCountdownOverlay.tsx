@@ -19,7 +19,6 @@ export default function RaidCountdownOverlay({ onComplete }: { onComplete: () =>
           height={120}
           draggable={false}
           className="mx-auto mb-3 h-[120px] w-[96px]"
-          style={{ imageRendering: 'pixelated' }}
         />
         <h1 className="mb-2 text-4xl font-black sm:text-5xl">황제 펭귄을 막아라!</h1>
         <p className="text-lg font-bold text-cyan-200 sm:text-xl">정답을 맞혀 반 전체가 함께 펭귄의 체력을 깎아요</p>

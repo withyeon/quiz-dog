@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Flame, Snowflake, Sword, Target, Users } from 'lucide-react'
 import { HudTile } from '@/components/battle/BattleHud'
 import QuizSetName from '@/components/game/QuizSetName'
+import { RAID_ROLE_ICON_SRC } from '@/components/raid/raidAssets'
 import { RAID_ROLES, getComboBonus, type RaidFrenzyState, type RaidRole, type RaidState } from '@/lib/game/raid'
 
 type RaidHeaderProps = {
@@ -78,7 +79,9 @@ export default function RaidHeader({
               detail={raidState.current ? raidState.current.def.name : '전부 처치!'}
             />
             <HudTile
-              icon={<Sword className="h-3.5 w-3.5" />}
+              icon={role
+                ? <img src={RAID_ROLE_ICON_SRC[role]} alt="" width={14} height={14} className="h-3.5 w-3.5" draggable={false} />
+                : <Sword className="h-3.5 w-3.5" />}
               label="역할"
               value={roleInfo ? roleInfo.shortName : '미선택'}
               detail={roleInfo ? roleInfo.tagline : '시작할 때 골라요'}

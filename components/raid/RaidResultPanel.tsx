@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion'
 import { Trophy, Users } from 'lucide-react'
 import { RAID_ROLES, type RaidRole, type RaidState } from '@/lib/game/raid'
-import { RAID_SPRITE_SRC } from '@/components/raid/BossStage'
+import { RAID_SPRITE_SRC } from '@/components/raid/raidAssets'
 
 type RaidResultPanelProps = {
   raidState: RaidState
@@ -30,9 +30,24 @@ export default function RaidResultPanel({ raidState, role, myDamage, myHits, onS
     >
       <div className="mb-4 flex justify-center">
         {victory ? (
-          <motion.div animate={{ y: [0, -8, 0] }} transition={{ duration: 1.6, repeat: Infinity }}>
-            <Trophy className="h-20 w-20 text-amber-400" />
-          </motion.div>
+          // 승리: 쓰러진 황제 펭귄 위로 트로피 (마지막 보스는 항상 황제)
+          <div className="relative">
+            <img
+              src={RAID_SPRITE_SRC.emperor.down}
+              alt="쓰러진 황제 펭귄"
+              width={128}
+              height={160}
+              draggable={false}
+              style={{ width: 128, height: 160 }}
+            />
+            <motion.div
+              className="absolute left-1/2 top-2 -translate-x-1/2"
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity }}
+            >
+              <Trophy className="h-12 w-12 text-amber-400 drop-shadow" />
+            </motion.div>
+          </div>
         ) : lastBoss ? (
           <img
             src={RAID_SPRITE_SRC[lastBoss.def.sprite].idle}
@@ -40,7 +55,7 @@ export default function RaidResultPanel({ raidState, role, myDamage, myHits, onS
             width={88}
             height={110}
             draggable={false}
-            style={{ imageRendering: 'pixelated', width: 88, height: 110 }}
+            style={{ width: 88, height: 110 }}
           />
         ) : null}
       </div>
