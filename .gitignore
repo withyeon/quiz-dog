@@ -55,3 +55,6 @@ public/main/mp4/_original/
 raw-assets/dontlookdown-original/
 # 박수 마스코트 원본 장면·공유용 GIF (사이트에는 public/assets/icons/*-clap-320.webp 만 배포)
 raw-assets/mascot-clap/
+# 상세페이지 렌더 임시 출력·헤드리스 크롬 프로필
+marketing/detail-page/source/out/
+marketing/detail-page/source/chrome-profile/

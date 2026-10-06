@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>퀴즈독 상세페이지</title>
+<style>
+@font-face { font-family: 'DNFBitBitv2'; src: url('public/fonts/DNFBitBitv2.woff2') format('woff2'); font-display: block; }
+:root {
+  --navy: #1E3A8A;
+  --ink: #0F172A;
+  --text: #334155;
+  --muted: #64748B;
+  --sky: #4FC3F7;
+  --sky-d: #0EA5E9;
+  --bg: #d9eef5;
+  --card-shadow: 0 4px 6px rgba(0,0,0,0.04), 0 16px 40px rgba(148,163,184,0.18);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: #eef6f9; }
+body { word-break: keep-all; font-family: 'DNFBitBitv2', sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+img { display: block; }
+#page { width: 860px; margin: 0 auto; background: var(--bg); overflow: hidden; }
+
+.sec { position: relative; padding: 96px 56px; overflow: hidden; }
+.sec > * { position: relative; z-index: 2; }
+.paw { position: absolute; z-index: 0 !important; pointer-events: none; }
+
+/* 공통 텍스트 */
+.pix {
+  color: #fff;
+  -webkit-text-stroke: 3px var(--navy);
+  paint-order: stroke fill;
+  text-shadow: 0 3px 0 #1B3378, 0 5px 6px rgba(12,32,77,0.22);
+  letter-spacing: 0.04em;
+  line-height: 1.28;
+}
+.pix .ac { color: var(--sky); }
+.center { text-align: center; }
+.point {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 10px 22px; border-radius: 999px;
+  background: #fff; color: #0369A1; border: 3px solid #7DD3FC;
+  font-size: 20px; letter-spacing: 0.06em;
+}
+.point img { width: 28px; height: 28px; object-fit: contain; }
+.h2 { font-size: 48px; margin-top: 22px; }
+.sub { margin-top: 14px; font-size: 22px; line-height: 1.6; color: #475569; }
+
+.card { background: #fff; border-radius: 28px; box-shadow: var(--card-shadow); overflow: hidden; }
+.shot { width: 100%; aspect-ratio: 16/10; object-fit: cover; object-position: top; border-radius: 16px; border: 2px solid #E2E8F0; background: #F8FAFC; }
+.shot.bleed { border-radius: 0; border: 0; border-bottom: 2px solid #F1F5F9; }
+.cap { margin-top: 14px; text-align: center; font-size: 18px; color: #94A3B8; }
+
+/* ── 히어로 ── */
+.hero { padding-top: 70px; padding-bottom: 80px; background: linear-gradient(180deg, #bfe6f5 0%, #d9eef5 55%); }
+.hero .logo { width: 300px; margin: 0 auto -6px; filter: drop-shadow(0 4px 10px rgba(30,58,138,0.28)); }
+.hero .badge { display: inline-block; padding: 10px 26px; border-radius: 999px; background: #E0F2FE; color: #0369A1; border: 3px solid #7DD3FC; font-size: 22px; }
+.hero h1 { font-size: 74px; margin-top: 26px; color: #FFD43B; -webkit-text-stroke-width: 4px; }
+.hero h1 .ac { color: #FF7A45; }
+.hero .lead { margin-top: 18px; font-size: 25px; line-height: 1.6; color: #475569; }
+.browser { margin: 44px auto 0; width: 748px; border-radius: 22px; background: #fff; box-shadow: 0 10px 50px rgba(14,165,233,0.22), 0 2px 8px rgba(0,0,0,0.06); overflow: hidden; border: 3px solid #fff; }
+.browser .bar { height: 38px; background: #F1F5F9; display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+.browser .bar i { width: 12px; height: 12px; border-radius: 50%; background: #CBD5E1; display: block; }
+.browser .bar i:nth-child(1) { background: #FCA5A5; } .browser .bar i:nth-child(2) { background: #FCD34D; } .browser .bar i:nth-child(3) { background: #86EFAC; }
+.browser .bar span { margin-left: 14px; flex: 1; height: 24px; border-radius: 12px; background: #fff; font-size: 14px; color: #94A3B8; display: flex; align-items: center; padding-left: 14px; }
+.browser img.main { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+.hero .mascots { position: absolute; left: 0; right: 0; bottom: 92px; z-index: 3; }
+.hero .mascots img { position: absolute; height: 150px; width: auto; filter: drop-shadow(0 8px 10px rgba(15,23,42,0.18)); }
+.chips { margin-top: 40px; display: flex; justify-content: center; gap: 10px; flex-wrap: nowrap; white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 8px; padding: 13px 18px; border-radius: 999px; background: rgba(255,255,255,0.9); font-size: 18px; color: #334155; box-shadow: 0 2px 10px rgba(15,23,42,0.06); }
+.chip img { width: 26px; height: 26px; object-fit: contain; }
+
+/* ── 고민 ── */
+.worry { background: #fff; }
+.worry .q { font-size: 44px; color: var(--ink); line-height: 1.35; }
+.bubbles { margin-top: 44px; display: flex; flex-direction: column; gap: 22px; }
+.bubble { display: flex; align-items: center; gap: 20px; }
+.bubble.r { flex-direction: row-reverse; }
+.bubble .face { width: 88px; height: 88px; flex: none; border-radius: 50%; background: #F1F5F9; display: flex; align-items: center; justify-content: center; }
+.bubble .face img { width: 62px; height: 62px; object-fit: contain; }
+.bubble .txt { position: relative; background: #F1F5F9; border-radius: 26px; padding: 26px 30px; font-size: 24px; line-height: 1.55; color: #334155; max-width: 560px; }
+.bubble .txt b { color: #E11D48; font-weight: normal; }
+.arrow-down { margin: 46px auto 0; width: 0; height: 0; border-left: 34px solid transparent; border-right: 34px solid transparent; border-top: 34px solid #BAE6FD; }
+.answer { margin-top: 34px; text-align: center; }
+.answer img { width: 260px; margin: 0 auto 4px; filter: drop-shadow(0 4px 10px rgba(30,58,138,0.25)); }
+.answer .pix { font-size: 50px; }
+
+/* ── 숫자 ── */
+.nums { padding-top: 80px; padding-bottom: 80px; }
+.numgrid { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.num { background: #fff; border-radius: 28px; padding: 30px 30px 28px; box-shadow: var(--card-shadow); display: flex; flex-direction: column; align-items: flex-start; }
+.num img { width: 56px; height: 56px; object-fit: contain; }
+.num .big { margin-top: 16px; font-size: 52px; color: var(--sky-d); line-height: 1; }
+.num .big small { font-size: 26px; color: var(--ink); margin-left: 4px; }
+.num .lbl { margin-top: 12px; font-size: 21px; color: #475569; line-height: 1.45; }
+
+/* ── 단계 ── */
+.steps { margin-top: 48px; display: flex; flex-direction: column; gap: 26px; }
+.step { display: grid; grid-template-columns: 380px 1fr; align-items: center; }
+.step .shot { border-radius: 0; border: 0; height: 100%; aspect-ratio: auto; min-height: 238px; }
+.step.flip { grid-template-columns: 1fr 380px; }
+.step.flip .shot { order: 2; }
+.step .body { padding: 30px 32px; }
+.step .n { font-size: 40px; line-height: 1; }
+.step h3 { margin-top: 14px; font-size: 30px; color: var(--ink); font-weight: normal; }
+.step p { margin-top: 12px; font-size: 20px; line-height: 1.6; color: var(--muted); }
+.stripe { height: 7px; }
+
+/* ── AI ── */
+.src-grid { margin-top: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.src { padding: 28px; }
+.src .ic { width: 64px; height: 64px; border-radius: 18px; display: flex; align-items: center; justify-content: center; }
+.src .ic img { width: 42px; height: 42px; object-fit: contain; }
+.src h3 { margin-top: 18px; font-size: 27px; color: var(--ink); font-weight: normal; }
+.src p { margin-top: 10px; font-size: 19px; line-height: 1.6; color: var(--muted); min-height: 61px; }
+.src .tag { display: inline-block; margin-top: 16px; padding: 8px 14px; border-radius: 12px; font-size: 16px; }
+.detail { margin-top: 24px; padding: 28px; }
+.detail h3 { margin-top: 26px; font-size: 32px; color: var(--ink); font-weight: normal; padding: 0 8px; }
+.checks { list-style: none; margin-top: 18px; display: flex; flex-direction: column; gap: 16px; padding: 0 8px 6px; }
+.checks li { display: flex; align-items: flex-start; gap: 14px; font-size: 21px; line-height: 1.5; color: #334155; }
+.checks li img { width: 32px; height: 32px; object-fit: contain; flex: none; }
+.checks li .ck { width: 30px; height: 30px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 17px; margin-top: 1px; }
+
+/* ── 게임 ── */
+.games { background: linear-gradient(180deg, #d9eef5 0%, #cfe8f2 100%); }
+.ggrid { margin-top: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.game { border-radius: 24px; }
+.game .thumb { position: relative; }
+.game .thumb img.f { width: 100%; aspect-ratio: 16/10; object-fit: cover; }
+.game .thumb img.t { position: absolute; left: 10px; bottom: -34px; width: 92px; height: 92px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.25)); }
+.game .gb { padding: 14px 20px 22px 112px; min-height: 120px; }
+.game h3 { font-size: 24px; color: var(--ink); font-weight: normal; }
+.game p { margin-top: 8px; font-size: 16.5px; line-height: 1.55; color: var(--muted); }
+.study { margin-top: 24px; padding: 26px 30px; display: flex; align-items: center; gap: 22px; }
+.study img { width: 84px; height: 84px; object-fit: contain; flex: none; }
+.study h3 { font-size: 26px; color: var(--ink); font-weight: normal; }
+.study p { margin-top: 8px; font-size: 19px; line-height: 1.55; color: var(--muted); }
+
+/* ── 학생 ── */
+.two { margin-top: 44px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.two .card { padding: 16px 16px 20px; }
+.two .cap { font-size: 17px; color: #475569; line-height: 1.5; text-align: left; padding: 0 6px; }
+.two .cap b { color: var(--sky-d); font-weight: normal; }
+.pgrid { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.pt { padding: 26px; display: flex; gap: 16px; }
+.pt .ic { width: 58px; height: 58px; flex: none; border-radius: 16px; display: flex; align-items: center; justify-content: center; }
+.pt .ic img { width: 38px; height: 38px; object-fit: contain; }
+.pt h3 { font-size: 22px; color: var(--ink); font-weight: normal; }
+.pt p { margin-top: 8px; font-size: 17.5px; line-height: 1.55; color: var(--muted); }
+
+/* ── 리포트 ── */
+.report .big-card .body { padding: 30px 34px 34px; }
+.report .big-card h3 { font-size: 34px; color: var(--ink); font-weight: normal; line-height: 1.35; }
+.report .big-card p { margin-top: 14px; font-size: 20px; line-height: 1.65; color: var(--muted); }
+.rlist { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.rlist .card { padding: 24px 26px; }
+.rlist h4 { font-size: 22px; color: var(--ink); font-weight: normal; display: flex; align-items: center; gap: 10px; }
+.rlist h4 span { width: 28px; height: 28px; border-radius: 50%; background: #22C55E; color: #fff; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.rlist p { margin-top: 10px; font-size: 17.5px; line-height: 1.55; color: var(--muted); }
+.full-shot { margin-top: 20px; padding: 18px 18px 20px; }
+
+/* ── 자료실 ── */
+.library .card.lib { padding: 22px 22px 30px; }
+
+/* ── 추천 ── */
+.recom { background: #fff; }
+.rec-list { margin-top: 40px; display: flex; flex-direction: column; gap: 16px; }
+.rec { display: flex; align-items: center; gap: 18px; background: #F0F9FF; border: 3px solid #BAE6FD; border-radius: 22px; padding: 22px 26px; font-size: 23px; color: #1E293B; line-height: 1.45; }
+.rec .ck { width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--sky-d); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.env { margin-top: 44px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.env div { background: #F8FAFC; border-radius: 22px; padding: 24px 16px; text-align: center; border: 2px solid #E2E8F0; }
+.env img { width: 52px; height: 52px; object-fit: contain; margin: 0 auto; }
+.env b { display: block; margin-top: 12px; font-size: 21px; color: var(--ink); font-weight: normal; }
+.env span { display: block; margin-top: 6px; font-size: 16px; color: var(--muted); line-height: 1.45; }
+.env-title { margin-top: 64px; font-size: 30px; color: var(--ink); text-align: center; }
+
+/* ── CTA ── */
+.cta { padding-top: 90px; padding-bottom: 110px; background: linear-gradient(180deg, #d9eef5 0%, #bfe6f5 100%); }
+.cta .box { background: #fff; border-radius: 36px; padding: 56px 40px 60px; text-align: center; box-shadow: 0 8px 48px rgba(14,165,233,0.16), 0 2px 8px rgba(0,0,0,0.05); }
+.cta .ms { display: flex; justify-content: center; gap: 24px; align-items: flex-end; }
+.cta .ms img { height: 120px; width: auto; }
+.cta .free { display: inline-flex; align-items: center; gap: 10px; margin-top: 30px; padding: 12px 26px; border-radius: 999px; color: #fff; font-size: 22px; background: linear-gradient(90deg, #0ea5e9, #38bdf8); }
+.cta .free img { width: 28px; height: 28px; object-fit: contain; }
+.cta h2 { margin-top: 24px; font-size: 60px; }
+.cta .url { margin-top: 30px; display: inline-flex; align-items: center; gap: 12px; padding: 20px 40px; border-radius: 999px; color: #fff; font-size: 34px; letter-spacing: 0.04em;
+  background: linear-gradient(180deg, #7dd3fc 0%, #4FC3F7 45%, #0ea5e9 100%);
+  box-shadow: 0 7px 0 #0b8fc4, 0 14px 28px rgba(14,165,233,0.3), inset 0 1px 0 rgba(255,255,255,0.45);
+  text-shadow: 0 1px 0 rgba(0,0,0,0.18); }
+.cta .url img { width: 36px; height: 36px; }
+.cta .note { margin-top: 26px; font-size: 19px; color: var(--muted); line-height: 1.6; }
+.cta .logo2 { width: 220px; margin: 54px auto 0; filter: drop-shadow(0 4px 10px rgba(30,58,138,0.28)); }
+</style>
+</head>
+<body>
+<div id="page">
+
+<!-- 01 히어로 -->
+<section class="sec hero center" data-name="01-hero">
+  <img class="paw" src="public/main/images/paw.webp" style="width:120px;top:40px;left:-20px;opacity:.12;transform:rotate(-20deg)">
+  <img class="paw" src="public/main/images/paw2.webp" style="width:90px;top:330px;right:20px;opacity:.12;transform:rotate(18deg)">
+  <img class="logo" src="public/header-logo.webp" alt="">
+  <span class="badge">초등 교실을 위한 AI 퀴즈 게임</span>
+  <h1 class="pix">수업 준비는 3분,<br>교실은 <span class="ac">게임</span>으로</h1>
+  <p class="lead">자료만 올리면 AI가 문제를 만들고,<br>학생들은 코드 하나로 바로 입장해요.</p>
+  <div class="browser">
+    <div class="bar"><i></i><i></i><i></i><span>quizdog.kr</span></div>
+    <img class="main" src="public/main/mp4/quizdog-promo-poster.webp" alt="">
+  </div>
+  <div class="chips">
+    <span class="chip"><img src="public/icons/rocket.webp">설치 없음</span>
+    <span class="chip"><img src="public/icons/ticket.webp">학생은 가입 없이 코드로 입장</span>
+    <span class="chip"><img src="public/icons/people.webp">PC · 태블릿 · 휴대폰</span>
+  </div>
+</section>
+
+<!-- 02 고민 -->
+<section class="sec worry" data-name="02-worry">
+  <p class="q center">선생님, 이런 고민<br>해 보셨나요?</p>
+  <div class="bubbles">
+    <div class="bubble"><div class="face"><img src="public/zombie/quiz.webp"></div><div class="txt">수업 퀴즈 하나 만드는 데<br><b>한 시간</b>이 훌쩍 지나가요.</div></div>
+    <div class="bubble r"><div class="face"><img src="public/icons/waiting.webp"></div><div class="txt">학생 계정 만들고 로그인시키다가<br><b>수업 시간</b>이 다 가요.</div></div>
+    <div class="bubble"><div class="face"><img src="public/icons/time.webp"></div><div class="txt">게임은 신나는데 끝나고 나면<br>무엇을 다시 짚어야 할지 <b>남는 게 없어요</b>.</div></div>
+  </div>
+  <div class="arrow-down"></div>
+  <div class="answer">
+    <img src="public/header-logo.webp" alt="퀴즈독">
+    <p class="pix">한 번에 <span class="ac">해결</span>해 드려요!</p>
+  </div>
+</section>
+
+<!-- 03 숫자 -->
+<section class="sec nums center" data-name="03-numbers">
+  <span class="point"><img src="public/icons/crown.webp">퀴즈독 한눈에 보기</span>
+  <h2 class="pix h2">숫자로 보는 <span class="ac">퀴즈독</span></h2>
+  <div class="numgrid" style="text-align:left">
+    <div class="num"><img src="public/assets/icons/joystick-128.png"><p class="big">12<small>종</small></p><p class="lbl">초등학생 눈높이에 맞춘<br>퀴즈 게임 모드</p></div>
+    <div class="num"><img src="public/icons/rare.webp"><p class="big">20<small>문항</small></p><p class="lbl">자료 하나로 AI가 한 번에<br>만들어 주는 최대 문항 수</p></div>
+    <div class="num"><img src="public/icons/ticket.webp"><p class="big">6<small>자리</small></p><p class="lbl">학생은 숫자 코드만 넣으면<br>바로 입장 (가입 없음)</p></div>
+    <div class="num"><img src="public/icons/rocket.webp"><p class="big">0<small>개</small></p><p class="lbl">설치할 프로그램 없음<br>웹 브라우저면 충분해요</p></div>
+  </div>
+</section>
+
+<!-- 04 3단계 -->
+<section class="sec center" data-name="04-steps">
+  <img class="paw" src="public/main/images/paw.webp" style="width:110px;top:60px;right:-10px;opacity:.1;transform:rotate(24deg)">
+  <span class="point">POINT 01 · 이렇게 쓰여요</span>
+  <h2 class="pix h2">수업 준비,<br><span class="ac">세 단계</span>면 끝나요</h2>
+  <p class="sub">파일 하나만 있으면 문제집부터 게임까지 이어집니다.</p>
+  <div class="steps" style="text-align:left">
+    <div class="card"><div class="stripe" style="background:#0EA5E9"></div><div class="step">
+      <img class="shot" src="public/main/mp4/features/step-upload-poster.webp">
+      <div class="body"><p class="n pix" style="color:#7DD3FC">01</p><h3>자료를 올려요</h3><p>수업 자료 파일, 유튜브 링크,<br>주제 한 줄이면 충분해요.</p></div>
+    </div></div>
+    <div class="card"><div class="stripe" style="background:#14B8A6"></div><div class="step flip">
+      <img class="shot" src="public/main/mp4/features/step-ai-poster.webp">
+      <div class="body"><p class="n pix" style="color:#5EEAD4">02</p><h3>AI가 문제를 만들어요</h3><p>객관식 · OX · 주관식으로 만들고<br>그 자리에서 바로 고칠 수 있어요.</p></div>
+    </div></div>
+    <div class="card"><div class="stripe" style="background:#F43F5E"></div><div class="step">
+      <img class="shot" src="public/main/mp4/features/step-code-poster.webp">
+      <div class="body"><p class="n pix" style="color:#FDA4AF">03</p><h3>게임 코드를 공유해요</h3><p>학생들은 6자리 숫자 코드를<br>입력해서 간편하게 들어와요.</p></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- 05 AI -->
+<section class="sec center" data-name="05-ai">
+  <span class="point"><img src="public/icons/rare.webp">POINT 02 · AI 문제 생성</span>
+  <h2 class="pix h2">어떤 자료도<br><span class="ac">퀴즈</span>가 됩니다!</h2>
+  <div class="src-grid" style="text-align:left">
+    <div class="card src"><span class="ic" style="background:#0EA5E91A"><img src="public/icons/rare.webp"></span><h3>주제 한 줄로</h3><p>단원이나 활동명을 적으면<br>바로 퀴즈 초안을 잡아 줘요.</p><span class="tag" style="background:#0EA5E914;color:#0284C7">예: 4학년 1학기 분수의 덧셈</span></div>
+    <div class="card src"><span class="ic" style="background:#14B8A61A"><img src="public/zombie/log.webp"></span><h3>수업 자료에서</h3><p>학습지, 안내문, 발표 자료에서<br>낼 만한 문제를 골라요.</p><span class="tag" style="background:#14B8A614;color:#0F766E">PDF · DOCX · PPTX · TXT · CSV</span></div>
+    <div class="card src"><span class="ic" style="background:#EF44441A"><img src="public/icons/flip.webp"></span><h3>유튜브 영상에서</h3><p>영상 속 설명을 바탕으로<br>확인 문제를 구성해요.</p><span class="tag" style="background:#EF444414;color:#DC2626">영상 링크만 붙여 넣기</span></div>
+    <div class="card src"><span class="ic" style="background:#F973161A"><img src="public/icons/scan.webp"></span><h3>시험지 스캔에서</h3><p>스캔한 활동지나 사진 속 문제를<br>편집할 수 있게 옮겨요.</p><span class="tag" style="background:#F9731614;color:#C2410C">PDF · JPG · PNG · WEBP</span></div>
+  </div>
+  <div class="card detail" style="text-align:left">
+    <img class="shot" src="public/main/mp4/features/ai-options-poster.webp">
+    <h3>AI가 만든 문제, 그대로 쓰지 않아도 돼요</h3>
+    <ul class="checks">
+      <li><img src="public/icons/correct.webp">객관식 · OX · 주관식을 유형별 개수로 지정 (최대 20문항)</li>
+      <li><img src="public/icons/people.webp">과목과 대상 학년을 골라 눈높이에 맞춘 문제로</li>
+      <li><img src="public/assets/icons/mascot-pome-64.png">“쉽게 내 주세요” 같은 추가 요청을 AI에게 전달</li>
+      <li><img src="public/icons/lucky.webp">생성 결과를 문항별로 검토하고 그 자리에서 수정</li>
+      <li><img src="public/zombie/quiz.webp">AI 없이 직접 입력하는 수동 작성도 지원</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 06 게임 -->
+<section class="sec games center" data-name="06-games">
+  <img class="paw" src="public/main/images/paw2.webp" style="width:120px;top:50px;left:-24px;opacity:.1;transform:rotate(-16deg)">
+  <span class="point"><img src="public/assets/icons/joystick-64.png">POINT 03 · 게임 모드</span>
+  <h2 class="pix h2">초등교사 출신 개발자가 만든<br><span class="ac">초등학생 눈높이 게임</span></h2>
+  <p class="sub">같은 문제집으로 매번 다른 게임을 골라 플레이해요.</p>
+  <div class="ggrid" id="ggrid" style="text-align:left"></div>
+  <div class="card study" style="text-align:left">
+    <img src="public/title/study.webp">
+    <div><h3>차분하게 풀고 싶을 땐, 공부 모드</h3><p>게임 없이 문제만 차근차근 풀어요. 바로 정답과 해설을 보고,<br>틀린 문제는 다 맞힐 때까지 다시 풀 수 있어요.</p></div>
+  </div>
+</section>
+
+<!-- 07 학생 참여 -->
+<section class="sec center" data-name="07-students">
+  <span class="point"><img src="public/assets/icons/mascot-pome-64.png">POINT 04 · 학생 참여</span>
+  <h2 class="pix h2">학생은 <span class="ac">코드로</span> 입장</h2>
+  <p class="sub">회원가입, 설치 같은 복잡한 절차가 필요 없어요.</p>
+  <div class="two">
+    <div class="card"><img class="shot" src="public/main/mp4/features/play-code-poster.webp"><p class="cap"><b>①</b> 선생님이 알려 준 6자리 코드를 넣고 닉네임을 정해요</p></div>
+    <div class="card"><img class="shot" src="public/main/mp4/features/play-character-poster.webp"><p class="cap"><b>②</b> 강아지 캐릭터를 고르고 친구들과 대기실에서 기다려요</p></div>
+  </div>
+  <div class="pgrid" style="text-align:left">
+    <div class="card pt"><span class="ic" style="background:#0EA5E91A"><img src="public/icons/ticket.webp"></span><div><h3>가입도, 설치도 없이</h3><p>화면에 뜬 참여 코드만 입력하면 끝. 계정을 만들 필요가 없어요.</p></div></div>
+    <div class="card pt"><span class="ic" style="background:#14B8A61A"><img src="public/icons/dog.webp"></span><div><h3>닉네임 + 강아지 캐릭터</h3><p>이름을 정하고 마음에 드는 강아지를 골라 대기실에서 기다려요.</p></div></div>
+    <div class="card pt"><span class="ic" style="background:#22C55E1A"><img src="public/icons/shield.webp"></span><div><h3>부적절한 닉네임 자동 차단</h3><p>비속어 필터가 걸러 줘서 교실에서 안심하고 쓸 수 있어요.</p></div></div>
+    <div class="card pt"><span class="ic" style="background:#F973161A"><img src="public/icons/crown.webp"></span><div><h3>실시간 순위표</h3><p>점수가 올라가는 게 바로 보여서 끝까지 집중이 이어져요.</p></div></div>
+  </div>
+</section>
+
+<!-- 08 리포트 -->
+<section class="sec report center" data-name="08-report">
+  <img class="paw" src="public/main/images/paw.webp" style="width:110px;top:70px;right:-14px;opacity:.1;transform:rotate(20deg)">
+  <span class="point" style="color:#15803D;border-color:#86EFAC"><img src="public/trophy.webp">POINT 05 · 결과 리포트</span>
+  <h2 class="pix h2">수업과 <span class="ac">평가</span>를 한 번에</h2>
+  <div class="card big-card" style="text-align:left;margin-top:44px">
+    <div class="stripe" style="background:linear-gradient(90deg,#16A34A,#4ADE80)"></div>
+    <img class="shot bleed" src="public/main/mp4/features/report-poster.webp">
+    <div class="body"><h3>한 판이 그대로 형성평가가 됩니다</h3><p>게임하는 동안 쌓인 답안이 문항별 · 학생별 통계로 정리돼요.<br>리포트만 열면 다음 차시에 무엇을 짚을지 바로 정할 수 있어요.</p></div>
+  </div>
+  <div class="rlist" style="text-align:left">
+    <div class="card"><h4><span>✓</span>평균 정답률 한눈에</h4><p>참여 인원, 문항 수, 평균 정답률을 게임이 끝나면 바로 확인해요.</p></div>
+    <div class="card"><h4><span>✓</span>문항별 정답률</h4><p>어떤 문제에서 막혔는지 보여서 다시 짚을 부분을 고르기 쉬워요.</p></div>
+    <div class="card"><h4><span>✓</span>학생별 상세 기록</h4><p>학생마다 맞고 틀린 문항을 표로 펼쳐 보고 피드백에 활용해요.</p></div>
+    <div class="card"><h4><span>✓</span>지난 게임 기록 보관</h4><p>진행했던 게임이 기록으로 남아 언제든 다시 열어 볼 수 있어요.</p></div>
+  </div>
+  <div class="card full-shot"><img class="shot" src="public/main/features/report-matrix.webp"><p class="cap">문항별 분석 — 어떤 문제에서 막혔는지 한눈에</p></div>
+  <div class="card full-shot"><img class="shot" style="aspect-ratio:16/8.6" src="public/main/features/report-students.webp"><p class="cap">학생별 분석 — 정답률 · 점수 · 응답 시간을 학생마다</p></div>
+</section>
+
+<!-- 09 자료실 -->
+<section class="sec library center" data-name="09-library">
+  <span class="point" style="color:#0F766E;border-color:#5EEAD4"><img src="public/zombie/quiz.webp">POINT 06 · 자료실</span>
+  <h2 class="pix h2">만들 시간이 없다면<br><span class="ac">자료실</span> 문제집으로</h2>
+  <div class="card lib" style="text-align:left;margin-top:44px">
+    <img class="shot" src="public/main/mp4/features/library-poster.webp">
+    <ul class="checks" style="margin-top:26px">
+      <li><span class="ck" style="background:#14B8A6">✓</span>우리 반 진도에 맞는 문제집을 골라 바로 활용</li>
+      <li><span class="ck" style="background:#14B8A6">✓</span>재미있는 퀴즈로 계기교육도 쉽고 재밌게</li>
+      <li><span class="ck" style="background:#14B8A6">✓</span>내 문제집에 담아 원하는 대로 고쳐 쓰기</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 10 추천 -->
+<section class="sec recom" data-name="10-recommend">
+  <p class="pix h2 center" style="margin-top:0">이런 선생님께<br><span class="ac">추천</span>해요</p>
+  <div class="rec-list">
+    <div class="rec"><span class="ck">✓</span>수업 마무리 퀴즈를 빠르게 준비하고 싶은 선생님</div>
+    <div class="rec"><span class="ck">✓</span>학생들이 즐겁게 복습했으면 하는 선생님</div>
+    <div class="rec"><span class="ck">✓</span>학생 계정 관리 없이 바로 쓰고 싶은 선생님</div>
+    <div class="rec"><span class="ck">✓</span>게임 결과를 형성평가 자료로 남기고 싶은 선생님</div>
+    <div class="rec"><span class="ck">✓</span>매번 다른 게임으로 수업 분위기를 바꾸고 싶은 선생님</div>
+  </div>
+  <p class="env-title">이런 환경에서 쓸 수 있어요</p>
+  <div class="env">
+    <div><img src="public/icons/people.webp"><b>모든 기기</b><span>PC · 태블릿<br>휴대폰</span></div>
+    <div><img src="public/icons/rocket.webp"><b>설치 없음</b><span>인터넷 브라우저로<br>바로 접속</span></div>
+    <div><img src="public/icons/ticket.webp"><b>코드 입장</b><span>학생 회원가입<br>필요 없음</span></div>
+  </div>
+</section>
+
+<!-- 11 CTA -->
+<section class="sec cta" data-name="11-cta">
+  <img class="paw" src="public/main/images/paw.webp" style="width:120px;top:40px;left:-20px;opacity:.12;transform:rotate(-20deg)">
+  <img class="paw" src="public/main/images/paw2.webp" style="width:100px;bottom:50px;right:10px;opacity:.12;transform:rotate(16deg)">
+  <div class="box">
+    <div class="ms"><img src="public/assets/tight/mascot-pome.png"><img src="public/assets/tight/mascot_sigol.png"></div>
+    <span class="free"><img src="public/icons/ticket.webp">가입 후 2주 Pro 기능 무료 체험</span>
+    <h2 class="pix">지금 <span class="ac">바로</span> 써 보세요</h2>
+    <div class="url"><img src="public/assets/icons/joystick-64.png">quizdog.kr</div>
+    <p class="note">인터넷 창에 quizdog.kr 을 입력하고<br>선생님 계정으로 시작하세요.</p>
+  </div>
+  <img class="logo2" src="public/header-logo.webp" alt="">
+</section>
+
+</div>
+<script>
+const GAMES = [
+  ['gold-quest', 'gold-quest', '해적왕의 보물찾기', '퀴즈를 맞히고 보물 상자를 열어 골드를 모아요.'],
+  ['battle-royale', 'battle-royale', '눈싸움 대작전', '팀을 나눠 눈뭉치를 던져요. 상대 팀을 모두 눈사람으로!'],
+  ['fishing', 'fishing', '인형뽑기', '집게를 조준해 좋은 인형을 뽑아 점수를 모아요.'],
+  ['factory', 'factory', '전설의 편의점', '퀴즈를 맞혀 좋은 상품을 팔고 돈을 벌어요.'],
+  ['cafe', 'cafe', '달콤 바삭 카페', '음식을 만들어 손님에게 서빙하고 돈을 모아요.'],
+  ['mafia', 'mafia', '쉿! 마피아', '금고를 열어 돈을 모으고 친구를 조사해요.'],
+  ['tower-defense', 'tower-defense', '타워 디펜스', '타워를 세워 몰려오는 적을 막아요.'],
+  ['dontlookdown', 'jump_jump', '점프점프', '정답 에너지로 발판을 올라 가장 높이!'],
+  ['zombie', 'zombie', '좀비를 피해라', '좀비를 피해 끝까지 살아남아요.'],
+  ['gansik-run', 'gansik-run', '간식런', '달리며 퀴즈를 풀고 아이템을 모아요.'],
+  ['puppy-chaos', 'puppy-chaos', '강아지대소동', '똥을 피하고 뼈다귀를 모아요.'],
+  ['raid', 'raid', '황제 펭귄을 막아라', '반 전체가 힘을 합쳐 펭귄 군단을 물리쳐요.'],
+];
+document.getElementById('ggrid').innerHTML = GAMES.map(([img, title, name, desc]) => `
+  <div class="card game">
+    <div class="thumb">
+      <img class="f" src="${img === 'raid' ? 'public/main/games/raid.webp' : 'g/' + img + '.jpg'}">
+      <img class="t" src="public/title/${title}.webp">
+    </div>
+    <div class="gb"><h3>${name}</h3><p>${desc}</p></div>
+  </div>`).join('');
+</script>
+</body>
+</html>
