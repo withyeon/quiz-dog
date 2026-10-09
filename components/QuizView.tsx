@@ -10,6 +10,7 @@ import { getQuestionAnswer } from '@/lib/services/questions'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import QuestionImage from '@/components/QuestionImage'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
+import { useQuestionTextFilter } from '@/components/prank/HanjaOnlyQuestion'
 
 interface QuizViewProps {
   question: {
@@ -36,6 +37,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timeLimit || 30)
   const { playSFX } = useAudioContext()
+  const filterQuestionText = useQuestionTextFilter()
 
   // 카운트다운이 참조하는 값들을 ref로 들고 있는다.
   //
@@ -186,7 +188,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
         <h2 className={`gold-quest-title text-2xl sm:text-3xl [@media(max-height:760px)]:text-xl font-black leading-tight mb-4 [@media(max-height:760px)]:mb-2 ${
           isGoldQuest ? 'text-[#17262a]' : isBattle ? 'text-[#13202b]' : isGlass ? 'lg-question-title' : 'text-gray-900'
         }`}>
-          {displayBlankText(question.question_text)}
+          {displayBlankText(filterQuestionText(question.question_text))}
         </h2>
       </div>
 
@@ -245,7 +247,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                 : 'rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200'
             }`}>
               <p className={`text-xl whitespace-pre-wrap leading-relaxed ${isGlass ? 'text-white' : 'text-gray-800'}`}>
-                {splitBlankText(question.question_text).map((part, i, arr) => (
+                {splitBlankText(filterQuestionText(question.question_text)).map((part, i, arr) => (
                   <span key={i}>
                     {part}
                     {i < arr.length - 1 && (

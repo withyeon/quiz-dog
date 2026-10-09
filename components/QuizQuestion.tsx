@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { Database } from '@/types/database.types'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
+import { useQuestionTextFilter } from '@/components/prank/HanjaOnlyQuestion'
 
 type Question = Database['public']['Tables']['questions']['Row']
 
@@ -22,6 +23,7 @@ export default function QuizQuestion({
 }: QuizQuestionProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>('')
   const [timeLeft, setTimeLeft] = useState(timeLimit || 0)
+  const filterQuestionText = useQuestionTextFilter()
 
   // Json 타입을 string[]로 안전하게 변환
   const options: string[] = Array.isArray(question.options) 
@@ -37,7 +39,7 @@ export default function QuizQuestion({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6">
       <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">{displayBlankText(question.question_text)}</h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">{displayBlankText(filterQuestionText(question.question_text))}</h2>
         {timeLimit && timeLeft > 0 && (
           <div className="text-sm text-gray-500">남은 시간: {timeLeft}초</div>
         )}
@@ -123,7 +125,7 @@ export default function QuizQuestion({
           <div>
             <div className="p-4 bg-gray-50 rounded-lg mb-3">
               <p className="text-gray-700 whitespace-pre-wrap">
-                {splitBlankText(question.question_text).map((part, i, arr) => (
+                {splitBlankText(filterQuestionText(question.question_text)).map((part, i, arr) => (
                   <span key={i}>
                     {part}
                     {i < arr.length - 1 && (

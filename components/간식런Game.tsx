@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { isQuizAnswerMatch } from '@/lib/quiz/answerMatching'
 import { displayBlankText } from '@/lib/quiz/blankText'
+import { useQuestionTextFilter } from '@/components/prank/HanjaOnlyQuestion'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import {
   type GansikRunState, type ItemType,
@@ -102,6 +103,7 @@ export default function GansikRunGame({
   const lastHudRef = useRef({ score: -1, time: -1, speed: -1, chaser: false, itemCount: -1, shield: false })
   const [canvasSize, setCanvasSize] = useState({ w: 400, h: 700 })
   const [showQuiz, setShowQuiz] = useState(false)
+  const filterQuestionText = useQuestionTextFilter()
   const [currentQ, setCurrentQ] = useState<GansikRunQuestion | null>(null)
   const [quizTimer, setQuizTimer] = useState<number>(GAME.QUIZ_TIMEOUT)
   const [quizInput, setQuizInput] = useState('')
@@ -867,7 +869,7 @@ export default function GansikRunGame({
                 />
               )}
               <h3 className="text-lg md:text-xl font-bold text-white mb-3 leading-snug whitespace-pre-wrap">
-                {displayBlankText(currentQ.question_text)}
+                {displayBlankText(filterQuestionText(currentQ.question_text))}
               </h3>
 
               {isChoiceQuestion ? (

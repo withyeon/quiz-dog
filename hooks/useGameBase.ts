@@ -18,6 +18,7 @@ import { finishRoom } from '@/lib/services/rooms'
 import { formatServiceError } from '@/lib/services/errors'
 import { getQuestionSetTitle } from '@/lib/services/questionSets'
 import { updatePlayer } from '@/lib/services/players'
+import { useRegisterHanjaOnlyNickname } from '@/components/prank/HanjaOnlyQuestion'
 import {
     applyPlayerDelta,
     stealPlayerResource,
@@ -226,6 +227,8 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 현재 플레이어 & 문제 ───
     const currentPlayer = players.find((p) => p.id === playerId) || null
+    // 특정 닉네임에게 문제 지문을 한자만 보이게 하는 장난 기능(components/prank/HanjaOnlyQuestion.tsx)
+    useRegisterHanjaOnlyNickname(currentPlayer?.nickname)
 
     // ─── 과제 모드: 제한 시간은 방이 아니라 "이 학생이 게임에 들어간 시각"부터 센다 ───
     // 학생마다 다른 시간에 들어오므로 room.started_at을 쓰면 늦게 온 학생은 시작하자마자 끝난다.
