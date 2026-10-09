@@ -2,8 +2,8 @@
 
 import type React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import CafeImage from '@/components/cafe/CafeImage'
-import { MENU_ITEMS, CUSTOMER_FALLBACK_EMOJI, formatCafeMoneyDelta, type Customer } from '@/lib/game/cafe'
+import CustomerCard from '@/components/cafe/CustomerCard'
+import { MENU_ITEMS, type Customer } from '@/lib/game/cafe'
 
 type Props = {
   customersInLine: Customer[]
@@ -48,90 +48,19 @@ export default function CustomerLine({
                 if (!menu) return null
 
                 const patience = getCustomerPatience(customer)
-                const isUrgentCustomer = patience < 0.3
 
                 return (
-                  <motion.div
+                  <CustomerCard
                     key={customer.id}
-                    initial={{ opacity: 0, y: 100, scale: 0.5 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 100, scale: 0.5, x: 200 }}
-                    transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-                    className="relative flex flex-col items-center cursor-pointer group"
+                    characterImage={customer.characterImage}
+                    menu={menu}
+                    patience={patience}
+                    secondsLeft={Math.ceil(patience * customer.patience)}
+                    price={getDisplayPrice(menu.sellPrice)}
+                    priceCrashed={priceCrashed}
                     onClick={(e) => onCustomerClick(customer, e)}
                     style={{ order: index }}
-                  >
-                    {/* 손님 */}
-                    <motion.div
-                      animate={{
-                        y: [0, -5, 0],
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        ease: 'easeInOut',
-                      }}
-                      className={`mb-1.5 transition-all flex items-center justify-center ${isUrgentCustomer
-                          ? 'animate-pulse scale-110'
-                          : 'group-hover:scale-110'
-                        }`}
-                    >
-                      <div className="relative w-14 h-14 sm:w-[4.5rem] sm:h-[4.5rem] [@media(max-height:500px)]:w-10 [@media(max-height:500px)]:h-10">
-                        <CafeImage
-                          src={customer.characterImage}
-                          alt="손님"
-                          width={72}
-                          height={72}
-                          className="w-full h-full object-contain"
-                          fallbackEmoji={CUSTOMER_FALLBACK_EMOJI}
-                          fallbackClassName="w-full h-full text-5xl"
-                        />
-                      </div>
-                    </motion.div>
-
-                    {/* 주문 말풍선 */}
-                    <motion.div
-                      whileHover={{ scale: 1.04 }}
-                      className={`bg-white rounded-2xl px-2 py-2 sm:px-4 sm:py-3 shadow-xl border-4 min-w-[92px] sm:min-w-[120px] [@media(max-height:500px)]:py-1 transition-all ${isUrgentCustomer
-                          ? 'border-red-500 bg-red-50 animate-pulse'
-                          : 'border-amber-400 group-hover:border-amber-500'
-                        }`}
-                    >
-                      <div className="text-center">
-                        <div className="mb-1.5 flex items-center justify-center">
-                          <CafeImage
-                            src={menu.image}
-                            alt={menu.name}
-                            width={56}
-                            height={56}
-                            className="w-10 h-10 sm:w-14 sm:h-14 [@media(max-height:500px)]:w-7 [@media(max-height:500px)]:h-7 object-contain"
-                            fallbackEmoji={menu.emoji}
-                            fallbackClassName="text-3xl"
-                          />
-                        </div>
-                        <div className="text-xs sm:text-sm font-bold text-gray-800 mb-0.5 sm:mb-1 whitespace-nowrap">{menu.name}</div>
-                        <div className={`text-xs font-semibold ${priceCrashed ? 'text-rose-600' : 'text-green-600'}`}>
-                          {formatCafeMoneyDelta(getDisplayPrice(menu.sellPrice))}
-                        </div>
-                      </div>
-                    </motion.div>
-
-                    {/* 인내심 게이지 */}
-                    <div className="mt-1.5 sm:mt-2 w-20 sm:w-28 h-2 bg-gray-200 rounded-full overflow-hidden border-2 border-gray-400">
-                      <motion.div
-                        initial={{ width: '100%' }}
-                        animate={{
-                          width: `${patience * 100}%`,
-                          backgroundColor: patience > 0.5 ? '#10b981' : patience > 0.3 ? '#f59e0b' : '#ef4444',
-                        }}
-                        transition={{ duration: 0.5 }}
-                        className="h-full rounded-full"
-                      />
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1 font-semibold">
-                      {Math.ceil(patience * customer.patience)}초
-                    </div>
-                  </motion.div>
+                  />
                 )
               })}
             </AnimatePresence>

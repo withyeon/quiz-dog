@@ -10,11 +10,14 @@ import {
 } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ShoppingCart, TrendingUp, X } from "lucide-react";
-import CafeImage from "@/components/cafe/CafeImage";
+import CustomerCard from "@/components/cafe/CustomerCard";
+import MenuPlate from "@/components/cafe/MenuPlate";
+import FillFoodButton, { FILL_FOOD_HINT } from "@/components/cafe/FillFoodButton";
+import { GoldenSpatulaBadge, GoldenSpatulaChip } from "@/components/cafe/GoldenSpatula";
+import { ShopMenuCard, ShopUpgradeCard } from "@/components/cafe/ShopCards";
 import ItemChoiceModal from "@/components/cafe/ItemChoiceModal";
 import PixelIcon from "@/components/ui/PixelIcon";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import QuizSetName from "@/components/game/QuizSetName";
 import {
   CUSTOMER_PATIENCE_SECONDS,
@@ -22,7 +25,6 @@ import {
   RESTOCK_PER_CORRECT,
   STARTER_MENU_ID,
   UPGRADES,
-  formatCafeMoney,
   formatCafeMoneyDelta,
   formatTime,
   type MenuItem,
@@ -311,26 +313,7 @@ function CafeHud({ time, cash, cashFrom, served, servedFrom, golden }: HudState)
           </HudChip>
         </div>
         <AnimatePresence>
-          {golden && (
-            <motion.div
-              key="golden-spatula"
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0 }}
-              className="flex items-center gap-1 rounded-lg bg-amber-400 px-2 py-1 text-sm font-black text-amber-950"
-            >
-              <CafeImage
-                src={CAFE_ITEMS.GOLDEN_SPATULA.image}
-                alt={CAFE_ITEMS.GOLDEN_SPATULA.name}
-                width={20}
-                height={20}
-                className="h-5 w-5 object-contain"
-                fallbackEmoji={CAFE_ITEMS.GOLDEN_SPATULA.emoji}
-                fallbackClassName="h-5 w-5 text-sm"
-              />
-              {GOLDEN_SPATULA_MULTIPLIER}배
-            </motion.div>
-          )}
+          {golden && <GoldenSpatulaChip key="golden-spatula" />}
         </AnimatePresence>
       </div>
       <Button className="shrink-0 border-4 border-amber-800 bg-white px-3 py-2 text-sm font-bold text-amber-700 shadow-xl hover:bg-amber-50">
@@ -343,7 +326,7 @@ function CafeHud({ time, cash, cashFrom, served, servedFrom, golden }: HudState)
 
 // ───────────────────────── 카페 무대 (CafeView 본문) ─────────────────────────
 
-/** 손님 하나 — 캐릭터 + 주문 말풍선 + 인내심 게이지 (CafeView 의 손님 마크업) */
+/** 손님 하나 — 실제 손님 줄과 같은 CustomerCard. 손님이 빠지면 남은 손님이 미끄러진다(layout) */
 function CustomerFigure({
   customer,
   pointer,
@@ -352,88 +335,21 @@ function CustomerFigure({
   pointer?: boolean;
 }) {
   const { image, menu, patience } = customer;
-  const isUrgent = patience < 0.3;
   return (
-    <motion.div
+    <CustomerCard
       layout
-      initial={{ opacity: 0, y: 100, scale: 0.5 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 100, scale: 0.5, x: 200 }}
-      transition={{ type: "spring", stiffness: 200, damping: 20 }}
-      className="group relative flex cursor-pointer flex-col items-center"
+      characterImage={image}
+      menu={menu}
+      patience={patience}
+      secondsLeft={Math.ceil(patience * CUSTOMER_PATIENCE_SECONDS)}
+      price={menu.sellPrice}
     >
-      <motion.div
-        animate={{ y: [0, -5, 0] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-        className={`mb-1.5 flex items-center justify-center ${isUrgent ? "animate-pulse scale-110" : ""}`}
-      >
-        <div className="relative h-14 w-14 sm:h-[4.5rem] sm:w-[4.5rem]">
-          <CafeImage
-            src={image}
-            alt="손님"
-            width={72}
-            height={72}
-            className="h-full w-full object-contain"
-            fallbackEmoji="🐶"
-            fallbackClassName="h-full w-full text-5xl"
-          />
-        </div>
-      </motion.div>
-
-      <div
-        className={`min-w-[92px] rounded-2xl border-4 bg-white px-2 py-2 shadow-xl sm:min-w-[120px] sm:px-4 sm:py-3 ${
-          isUrgent
-            ? "animate-pulse border-red-500 bg-red-50"
-            : "border-amber-400"
-        }`}
-      >
-        <div className="text-center">
-          <div className="mb-1.5 flex items-center justify-center">
-            <CafeImage
-              src={menu.image}
-              alt={menu.name}
-              width={56}
-              height={56}
-              className="h-10 w-10 object-contain sm:h-14 sm:w-14"
-              fallbackEmoji={menu.emoji}
-              fallbackClassName="text-3xl"
-            />
-          </div>
-          <div className="mb-0.5 whitespace-nowrap text-xs font-bold text-gray-800 sm:mb-1 sm:text-sm">
-            {menu.name}
-          </div>
-          <div className="text-xs font-semibold text-green-600">
-            {formatCafeMoneyDelta(menu.sellPrice)}
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-1.5 h-2 w-20 overflow-hidden rounded-full border-2 border-gray-400 bg-gray-200 sm:mt-2 sm:w-28">
-        <motion.div
-          initial={{ width: "100%" }}
-          animate={{
-            width: `${patience * 100}%`,
-            backgroundColor:
-              patience > 0.5
-                ? "#10b981"
-                : patience > 0.3
-                  ? "#f59e0b"
-                  : "#ef4444",
-          }}
-          transition={{ duration: 0.5 }}
-          className="h-full rounded-full"
-        />
-      </div>
-      <div className="mt-1 text-xs font-semibold text-gray-600">
-        {Math.ceil(patience * CUSTOMER_PATIENCE_SECONDS)}초
-      </div>
-
       {pointer && <TapPointer className="-right-3 top-24" />}
-    </motion.div>
+    </CustomerCard>
   );
 }
 
-/** 접시 줄 — 모든 메뉴 슬롯 (CafeView 의 접시 영역). 데모는 폭이 좁아 한 줄(sm)로 편다 */
+/** 접시 줄 — 실제 매대와 같은 MenuPlate. 데모는 폭이 좁아 한 줄(sm)로 편다 */
 function PlateRow({
   stock,
   unlocked,
@@ -447,100 +363,31 @@ function PlateRow({
 }) {
   return (
     <div className="grid grid-cols-4 justify-items-center gap-x-2 gap-y-1.5 sm:grid-cols-8">
-      {MENU_ITEMS.map((menu) => {
-        const isUnlocked = unlocked.includes(menu.id);
-        const count = stock[menu.id] || 0;
-        const hasOrder = orders.includes(menu.id);
-        return (
-          <div key={menu.id} className="relative flex flex-col items-center">
-            <motion.div
-              animate={pop === menu.id ? { scale: [1, 1.18, 1] } : {}}
-              transition={{ duration: 0.5 }}
-              className={`relative h-14 w-14 rounded-full border-2 shadow-md ${
-                isUnlocked
-                  ? count > 0
-                    ? hasOrder
-                      ? "scale-105 border-green-400 bg-green-100"
-                      : "border-amber-300 bg-white"
-                    : "border-amber-300 bg-white opacity-60"
-                  : "border-gray-500 bg-gray-300 opacity-40"
-              }`}
-            >
-              {isUnlocked && count > 0 && (
-                <div className="absolute inset-0 flex items-center justify-center p-1.5">
-                  <CafeImage
-                    src={menu.image}
-                    alt={menu.name}
-                    width={40}
-                    height={40}
-                    className="h-full w-full object-contain"
-                    fallbackEmoji={menu.emoji}
-                    fallbackClassName="text-2xl"
-                  />
-                </div>
-              )}
-              {isUnlocked && (
-                <motion.div
-                  key={count}
-                  initial={{ scale: pop === menu.id ? 1.6 : 1 }}
-                  animate={{ scale: 1 }}
-                  className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-bold ${
-                    count > 0
-                      ? "border-blue-600 bg-blue-500 text-white"
-                      : "border-gray-600 bg-gray-500 text-white"
-                  }`}
-                >
-                  {count}
-                </motion.div>
-              )}
-              {hasOrder && isUnlocked && (
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 0.5, repeat: Infinity }}
-                  className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-yellow-600 bg-yellow-400"
-                >
-                  <span className="text-[10px]">⚡</span>
-                </motion.div>
-              )}
-            </motion.div>
-            {isUnlocked && (
-              <div className="mt-1 max-w-[56px] truncate text-center text-[10px] font-bold text-gray-700">
-                {menu.name}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {MENU_ITEMS.map((menu) => (
+        <div key={menu.id} className="relative flex flex-col items-center">
+          <MenuPlate
+            menu={menu}
+            isUnlocked={unlocked.includes(menu.id)}
+            stock={stock[menu.id] || 0}
+            hasOrder={orders.includes(menu.id)}
+            pop={pop === menu.id}
+          />
+        </div>
+      ))}
     </div>
   );
 }
 
-/** 음식 채우기 버튼 + 안내 문구 (CafeView 하단) */
-function FillFoodButton({ pointer }: { pointer?: boolean }) {
+/** 음식 채우기 버튼 + 안내 문구 — 실제 화면과 같은 버튼·문장 */
+function FillFoodRow({ pointer }: { pointer?: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="relative">
-        <Button
-          variant="outline"
-          className="h-auto min-h-0 min-w-[280px] items-center justify-between gap-3 border-2 border-[#3A9BDC] bg-[#88D1E7] px-10 py-1.5 text-sm font-bold text-[#1a5f8f] shadow-[0_3px_0_#3A9BDC] hover:border-[#3A9BDC] hover:bg-[#7ec8e0] hover:text-[#1a5f8f]"
-          style={{
-            backgroundImage:
-              "linear-gradient(180deg, #D9F2F9 0%, #88D1E7 52%, #7ec5e8 100%)",
-          }}
-        >
-          <span className="inline-flex items-center gap-1.5">
-            <PixelIcon name="dish" size={22} alt="" />
-            음식 채우기
-          </span>
-          <span className="mr-3 text-xs font-semibold text-[#1a5f8f]/85">
-            스페이스바
-          </span>
-        </Button>
+        <FillFoodButton />
         {pointer && <TapPointer />}
       </div>
       <p className="text-center text-xs font-bold text-slate-700 drop-shadow-sm">
-        손님을 클릭하여 주문한 메뉴를 서빙하세요! 재고가 없으면 음식 채우기
-        버튼을 눌러주세요.
+        {FILL_FOOD_HINT}
       </p>
     </div>
   );
@@ -580,7 +427,7 @@ function CafeStage({
           </AnimatePresence>
         </div>
         <PlateRow stock={stock} unlocked={unlocked} orders={orders} pop={pop} />
-        <FillFoodButton pointer={pointerOn === "button"} />
+        <FillFoodRow pointer={pointerOn === "button"} />
       </div>
     </div>
   );
@@ -829,21 +676,7 @@ function RareScene({ onBeat }: { onBeat: BeatSetter }) {
             exit={{ opacity: 0, scale: 1.1 }}
             className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-amber-300/15"
           >
-            <div className="rounded-lg bg-amber-400 px-6 py-4 text-2xl font-black text-amber-950 shadow-2xl sm:px-8 sm:py-5 sm:text-3xl">
-              <span className="inline-flex items-center gap-2">
-                <CafeImage
-                  src={CAFE_ITEMS.GOLDEN_SPATULA.image}
-                  alt=""
-                  width={40}
-                  height={40}
-                  className="h-10 w-10 object-contain"
-                  fallbackEmoji={CAFE_ITEMS.GOLDEN_SPATULA.emoji}
-                  fallbackClassName="h-10 w-10 text-3xl"
-                />
-                {CAFE_ITEMS.GOLDEN_SPATULA.name} {GOLDEN_SPATULA_MULTIPLIER}배
-                수익!
-              </span>
-            </div>
+            <GoldenSpatulaBadge className="px-6 py-4 text-2xl sm:px-8 sm:py-5 sm:text-3xl" />
             <div className="absolute inset-x-0 top-[14%] flex justify-center">
               <motion.div
                 initial={{ opacity: 1, y: 0, scale: 1 }}
@@ -859,55 +692,6 @@ function RareScene({ onBeat }: { onBeat: BeatSetter }) {
         )}
       </AnimatePresence>
     </Scene>
-  );
-}
-
-/** 상점 메뉴 카드 — CafeShop 의 Card 와 같은 구성 */
-function ShopMenuCard({ menu, canBuy }: { menu: MenuItem; canBuy: boolean }) {
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.8 }}
-    >
-      <Card
-        className={`border-4 ${canBuy ? "border-green-500 bg-green-50" : "border-gray-300 bg-gray-50"}`}
-      >
-        <CardHeader className="p-4 pb-2">
-          <div className="mb-2 flex justify-center">
-            <CafeImage
-              src={menu.image}
-              alt={menu.name}
-              width={64}
-              height={64}
-              className="h-16 w-16 object-contain"
-              fallbackEmoji={menu.emoji}
-              fallbackClassName="h-16 w-16 text-4xl"
-            />
-          </div>
-          <CardTitle className="text-center text-lg text-gray-900">
-            {menu.name}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 pt-0">
-          <div className="space-y-2 text-center">
-            <div className="whitespace-nowrap text-base font-bold text-amber-600 sm:text-xl">
-              {formatCafeMoney(menu.cost)}
-            </div>
-            <div className="whitespace-nowrap text-xs font-bold text-green-600">
-              팔면 {formatCafeMoneyDelta(menu.sellPrice)}
-            </div>
-            <Button
-              disabled={!canBuy}
-              className={`w-full whitespace-nowrap px-2 text-xs sm:text-sm ${canBuy ? "bg-green-500 hover:bg-green-600" : "cursor-not-allowed bg-gray-300"}`}
-            >
-              {canBuy ? "잠금 해제!" : "돈 부족"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
   );
 }
 
@@ -930,7 +714,8 @@ function ShopScene({ onBeat }: { onBeat: BeatSetter }) {
       />
       <Overlay dark="rgba(0,0,0,0.5)">
         <div ref={boxRef} className="relative w-full max-w-4xl">
-          <div className="[zoom:0.55] sm:[zoom:0.8]">
+          {/* 실제 상점 카드는 세로로 길어 sm 에서 0.8 이면 업그레이드 카드가 잘린다 */}
+          <div className="[zoom:0.55] sm:[zoom:0.7]">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -968,11 +753,18 @@ function ShopScene({ onBeat }: { onBeat: BeatSetter }) {
               <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <AnimatePresence>
                   {shown.map((menu) => (
-                    <ShopMenuCard
+                    <motion.div
                       key={menu.id}
-                      menu={menu}
-                      canBuy={menu.id === CEREAL.id && !bought}
-                    />
+                      layout
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                    >
+                      <ShopMenuCard
+                        menu={menu}
+                        canBuy={menu.id === CEREAL.id && !bought}
+                      />
+                    </motion.div>
                   ))}
                 </AnimatePresence>
               </div>
@@ -980,26 +772,9 @@ function ShopScene({ onBeat }: { onBeat: BeatSetter }) {
                 <TrendingUp className="h-6 w-6 text-blue-600" />
                 업그레이드
               </h3>
-              <Card className="border-4 border-gray-300 bg-gray-50">
-                <CardContent className="flex items-center justify-between gap-3 p-4">
-                  <div>
-                    <div className="text-lg font-bold text-gray-900">
-                      {ADVERTISING.name}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {ADVERTISING.description}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-3">
-                    <div className="whitespace-nowrap text-base font-bold text-blue-600 sm:text-xl">
-                      {formatCafeMoney(ADVERTISING.cost)}
-                    </div>
-                    <Button disabled className="cursor-not-allowed bg-gray-300">
-                      돈 부족
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <ShopUpgradeCard upgrade={ADVERTISING} canBuy={false} />
+              </div>
             </motion.div>
           </div>
           {pointer && (

@@ -267,8 +267,27 @@ function asString(value: unknown): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim()
 }
 
+/**
+ * 시험지 옮기기용: 줄바꿈은 살리고(보기 상자 ㄱ·ㄴ·ㄷ, 지문 단락) 줄 안의 공백만 정리한다.
+ * 화면(QuizView·검수 textarea)은 줄바꿈을 그대로 보여 준다.
+ */
+function asVerbatimString(value: unknown): string {
+  return String(value ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.replace(/[ \t\u00a0]+/g, ' ').trim())
+    // 종이의 답란("답: ______", "정답: (    )")은 문제 내용이 아니므로 뗀다
+    .filter((line) => !/^(답|정답)\s*[:：]?\s*[_＿\-—–()\[\]□\s]*$/.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+// 비교용 키. 글자·숫자·한글(자모 ㄱ·ㄴ·ㄷ 포함)만 남긴다.
+// "ㄱ, ㄷ" 같은 조합형 보기나 "+", "×" 같은 기호 보기는 키가 비어 서로 같은 보기로 오해되므로 원문을 그대로 키로 쓴다.
 function normalizeForCompare(value: string): string {
-  return value.normalize('NFKC').toLowerCase().replace(/[^0-9a-z가-힣]/g, '')
+  const key = value.normalize('NFKC').toLowerCase().replace(/[^0-9a-z가-힣ㄱ-ㆎ]/g, '')
+  return key || value.normalize('NFKC').replace(/\s+/g, '')
 }
 
 function normalizeQuestionType(type: unknown): GeneratedQuestion['type'] {
@@ -280,12 +299,14 @@ function normalizeQuestionType(type: unknown): GeneratedQuestion['type'] {
   return 'SHORT'
 }
 
-// 보기 앞의 번호·기호(①, 1., A), 가) 등)와 끝의 마침표를 떼어 낸다
+// 보기 앞의 번호·기호(①, 1., A), 가) 등)와 끝의 마침표를 떼어 낸다.
+// "1.5", "3.14"처럼 숫자 뒤에 바로 숫자가 오면 소수점이므로 번호로 보지 않는다.
 function cleanOptionText(option: string): string {
   return option
     .replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, '')
     .replace(/^[A-Ea-e가-마][\).]\s*/, '')
-    .replace(/^[1-9][\).]\s*/, '')
+    .replace(/^[1-9]\)\s*/, '')
+    .replace(/^[1-9]\.(?!\d)\s*/, '')
     .replace(/\.$/, '')
     .trim()
 }
@@ -304,12 +325,30 @@ function dedupeOptions(options: unknown): string[] {
     })
 }
 
+// 정답이 "③", "3", "3번", "C", "다" 같은 보기 번호(기호)로만 적혀 있으면 그 자리의 보기를 돌려준다.
+const CHOICE_LABEL_INDEX: Record<string, number> = {
+  '①': 0, '②': 1, '③': 2, '④': 3, '⑤': 4,
+  '1': 0, '2': 1, '3': 2, '4': 3, '5': 4,
+  A: 0, B: 1, C: 2, D: 3, E: 4,
+  '가': 0, '나': 1, '다': 2, '라': 3, '마': 4,
+}
+
+function resolveChoiceLabel(answer: string, options: string[]): string | null {
+  const label = answer
+    .trim()
+    .toUpperCase()
+    .replace(/^\(|\)$/g, '')
+    .replace(/\s*번$/, '')
+    .replace(/[.)]$/, '')
+    .trim()
+  const index = CHOICE_LABEL_INDEX[label]
+  if (index === undefined) return null
+  return options[index] ?? null
+}
+
 function normalizeChoiceAnswer(answer: string, options: string[]): string {
-  const labelIndex: Record<string, number> = { A: 0, B: 1, C: 2, D: 3, '1': 0, '2': 1, '3': 2, '4': 3 }
-  const label = answer.toUpperCase().replace(/[^A-D1-4]/g, '')
-  if (label && label === answer.toUpperCase().trim() && labelIndex[label] !== undefined && options[labelIndex[label]]) {
-    return options[labelIndex[label]]
-  }
+  const byLabel = resolveChoiceLabel(answer, options)
+  if (byLabel) return byLabel
 
   const cleaned = cleanOptionText(answer)
   const answerKey = normalizeForCompare(cleaned)
@@ -323,9 +362,23 @@ function normalizeOxAnswer(answer: string): 'O' | 'X' | '' {
   return ''
 }
 
-function ensureBlankPlaceholder(questionText: string, answer: string): string {
+// 시험지에 흔한 빈칸 표기: "(      )", "(  ㉠  )", "______", "□□" → 앱의 빈칸 표시로 통일
+// (asVerbatimString이 공백을 한 칸으로 줄이므로 괄호 안 공백 수는 따지지 않는다)
+const PAPER_BLANK_SOURCE = '\\(\\s*\\)|\\(\\s*[㉠-㉭]\\s*\\)|_{3,}|□{2,}'
+
+function ensureBlankPlaceholder(questionText: string, answer: string, verbatim = false): string {
   if (/\[\s*\]|\{\{blank\}\}/.test(questionText) || questionText.includes(BLANK_PLACEHOLDER)) {
     return questionText.replace(/\{\{blank\}\}|\[\s*\]/g, BLANK_PLACEHOLDER)
+  }
+
+  if (verbatim && new RegExp(PAPER_BLANK_SOURCE).test(questionText)) {
+    // 빈칸이 여럿이면 첫 번째만 답 칸으로 쓰고 나머지는 그대로 둔다 (게임은 빈칸 하나만 받는다)
+    let replaced = false
+    return questionText.replace(new RegExp(PAPER_BLANK_SOURCE, 'g'), (match) => {
+      if (replaced) return match
+      replaced = true
+      return BLANK_PLACEHOLDER
+    })
   }
 
   if (answer && questionText.includes(answer)) {
@@ -345,18 +398,48 @@ function shuffleArray<T>(items: T[]): T[] {
   return copy
 }
 
-function normalizeQuestion(rawQuestion: unknown, shuffleChoices = false): GeneratedQuestion | null {
+type NormalizeOptions = {
+  /** AI가 만든 문제: 정답 자리로 찍지 못하게 보기를 섞는다 */
+  shuffleChoices?: boolean
+  /**
+   * 시험지 옮기기: 종이에 적힌 대로 보존한다.
+   * - 줄바꿈 유지, 보기 수·순서 그대로(4개가 아니어도 버리거나 깎지 않음 → 검수 화면이 알려 준다)
+   * - 정답을 못 읽었어도 문제를 버리지 않는다(선생님이 검수에서 채움)
+   * - 정답이 보기와 안 맞아도 보기를 덧붙이지 않는다
+   */
+  verbatim?: boolean
+}
+
+function normalizeQuestion(rawQuestion: unknown, { shuffleChoices = false, verbatim = false }: NormalizeOptions = {}): GeneratedQuestion | null {
   if (!rawQuestion || typeof rawQuestion !== 'object') return null
   const raw = rawQuestion as Partial<GeneratedQuestion>
   const type = normalizeQuestionType(raw.type)
-  let questionText = asString(raw.question_text)
+  let questionText = verbatim ? asVerbatimString(raw.question_text) : asString(raw.question_text)
   let answer = asString(raw.answer)
   let options = dedupeOptions(raw.options)
   // 해설은 선택. 너무 길면 자른다 (화면에 카드로 보여주는 글이라 몇 문장이면 충분하다).
   const explanationText = asString(raw.explanation).slice(0, 400)
   const explanation = explanationText ? { explanation: explanationText } : {}
 
-  if (!questionText || !answer) return null
+  if (!questionText) return null
+  if (!answer && !verbatim) return null
+
+  if (verbatim) {
+    // 종이 시험지 그대로: 형식만 맞추고 내용은 손대지 않는다
+    if (type === 'CHOICE') {
+      if (options.length === 0) return null
+      const matched = answer ? normalizeChoiceAnswer(answer, options) : ''
+      return { type, question_text: questionText, options, answer: matched, ...explanation }
+    }
+    if (type === 'OX') {
+      return { type, question_text: questionText, options: ['O', 'X'], answer: normalizeOxAnswer(answer), ...explanation }
+    }
+    if (type === 'BLANK') {
+      questionText = ensureBlankPlaceholder(questionText, answer, true)
+      return { type, question_text: questionText, options: [], answer, ...explanation }
+    }
+    return { type: 'SHORT', question_text: questionText, options: [], answer, ...explanation }
+  }
 
   if (type === 'CHOICE') {
     answer = normalizeChoiceAnswer(answer, options)
@@ -392,15 +475,22 @@ function normalizeQuestion(rawQuestion: unknown, shuffleChoices = false): Genera
   return { type: 'SHORT', question_text: questionText, options: [], answer, ...explanation }
 }
 
-function validateQuestions(questions: unknown[], questionCount?: number, shuffleChoices = false): GeneratedQuestion[] {
+// 시험지는 "다음 중 옳은 것은?"처럼 같은 글이 여러 번 나오므로 보기까지 합쳐서 같을 때만 중복으로 본다
+function questionDedupeKey(question: GeneratedQuestion, verbatim: boolean): string {
+  const text = normalizeForCompare(question.question_text)
+  if (!verbatim) return text
+  return `${text}|${question.options.map(normalizeForCompare).join('|')}`
+}
+
+function validateQuestions(questions: unknown[], questionCount?: number, normalizeOptions: NormalizeOptions = {}): GeneratedQuestion[] {
   const seen = new Set<string>()
   const normalizedQuestions: GeneratedQuestion[] = []
 
   for (const rawQuestion of questions) {
-    const question = normalizeQuestion(rawQuestion, shuffleChoices)
+    const question = normalizeQuestion(rawQuestion, normalizeOptions)
     if (!question) continue
 
-    const key = normalizeForCompare(question.question_text)
+    const key = questionDedupeKey(question, normalizeOptions.verbatim === true)
     if (seen.has(key)) continue
     seen.add(key)
     normalizedQuestions.push(question)
@@ -488,7 +578,7 @@ async function generateQuestionsWithGemini(
   for (let attempt = 0; attempt < 2; attempt++) {
     const prompt = buildGenerationPrompt(input, questionCount, repairNote)
     const text = await callGeminiWithRetry(apiKey, prompt)
-    const questions = validateQuestions(parseQuestionsFromJSON(text), questionCount, true)
+    const questions = validateQuestions(parseQuestionsFromJSON(text), questionCount, { shuffleChoices: true })
     if (questions.length > bestQuestions.length) bestQuestions = questions
     if (questions.length >= questionCount) return questions
     repairNote = buildRepairNote(questionCount, questions.length)
@@ -536,7 +626,7 @@ async function generateQuestionsWithOpenAI(
     const text = data?.choices?.[0]?.message?.content
     if (!text) throw new Error('OpenAI 응답에 문제 내용이 없습니다.')
 
-    const questions = validateQuestions(parseQuestionsFromJSON(text), questionCount, true)
+    const questions = validateQuestions(parseQuestionsFromJSON(text), questionCount, { shuffleChoices: true })
     if (questions.length > bestQuestions.length) bestQuestions = questions
     if (questions.length >= questionCount) return questions
     repairNote = buildRepairNote(questionCount, questions.length)
@@ -549,11 +639,12 @@ async function generateQuestionsWithOpenAI(
 /**
  * 시험지/문제지에서 추출된 Vision AI 응답을 파싱합니다.
  * extractQuestionsFromImage()의 raw 텍스트를 받아 GeneratedQuestion[]으로 변환합니다.
- * (시험지는 원본 보기 순서를 지켜야 하므로 보기를 섞지 않는다)
+ * 시험지는 종이에 적힌 대로 옮기는 것이 목적이라 보기를 섞지 않고, 보기 수·정답 유무로 문제를 버리지 않는다
+ * (형식이 안 맞는 문제는 검수 화면이 빨간 표시로 알려 준다).
  */
 export function parseExamVisionResponse(visionText: string): GeneratedQuestion[] {
   const questions = parseQuestionsFromJSON(visionText)
-  return validateQuestions(questions)
+  return validateQuestions(questions, undefined, { verbatim: true })
 }
 
 /** 시험지 이미지 안 그림 영역. Gemini 규약: [ymin, xmin, ymax, xmax], 0~1000 비율 */
@@ -586,9 +677,9 @@ export function parseExamVisionResponseWithFigures(visionText: string): ExamVisi
   const items: ExamVisionItem[] = []
 
   for (const rawQuestion of rawQuestions) {
-    const question = normalizeQuestion(rawQuestion)
+    const question = normalizeQuestion(rawQuestion, { verbatim: true })
     if (!question) continue
-    const key = normalizeForCompare(question.question_text)
+    const key = questionDedupeKey(question, true)
     if (seen.has(key)) continue
     seen.add(key)
     const figureBox = parseFigureBox((rawQuestion as { figure_box?: unknown } | null)?.figure_box)

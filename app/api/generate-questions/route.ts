@@ -205,15 +205,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (ext === 'pdf') {
-        // 텍스트 추출 시도 → 스캔본이면 Vision으로 전환 (PDF는 페이지를 이미지로 못 만들어 그림 첨부는 생략)
-        const extractedText = await extractTextFromPDF(file)
-        if (isLikelyScannedPDF(extractedText)) {
-          const visionText = await extractQuestionsFromImage(file, questionCount)
-          const questions = parseExamVisionResponse(visionText).slice(0, questionCount)
-          return NextResponse.json({ questions })
-        }
-        // 텍스트가 충분하면 AI로 문제 구조 파싱
-        const questions = await generateQuestions({ sourceType: 'text', text: extractedText, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
+        // 글자가 있는 PDF라도 "자료로 새 문제 만들기"(generateQuestions)로 보내면 문제가 다시 쓰인다.
+        // 시험지는 종이 그대로 옮기는 것이 목적이므로 Gemini에 PDF를 그대로 주고 전사시킨다
+        // (PDF는 페이지를 이미지로 못 만들어 그림 첨부만 생략).
+        const visionText = await extractQuestionsFromImage(file, questionCount)
+        const questions = parseExamVisionResponse(visionText).slice(0, questionCount)
         return NextResponse.json({ questions })
       }
 

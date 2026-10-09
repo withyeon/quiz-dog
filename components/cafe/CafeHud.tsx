@@ -7,7 +7,8 @@ import CafeImage from '@/components/cafe/CafeImage'
 import PixelIcon from '@/components/ui/PixelIcon'
 import QuizSetName from '@/components/game/QuizSetName'
 import { formatCafeMoney, formatTime } from '@/lib/game/cafe'
-import { CAFE_ITEMS, GOLDEN_SPATULA_MULTIPLIER, type ItemId } from '@/lib/game/cafeItems'
+import { CAFE_ITEMS, type ItemId } from '@/lib/game/cafeItems'
+import { GoldenSpatulaChip } from '@/components/cafe/GoldenSpatula'
 
 type Props = {
   timeRemaining: number
@@ -86,26 +87,7 @@ export default function CafeHud({
                   </motion.div>
                 )
               })}
-              {goldenSpatulaActive && (
-                <motion.div
-                  key="golden-spatula"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  className="flex items-center gap-1 rounded-lg bg-amber-400 px-2 py-1 text-sm font-black text-amber-950"
-                >
-                  <CafeImage
-                    src={CAFE_ITEMS.GOLDEN_SPATULA.image}
-                    alt={CAFE_ITEMS.GOLDEN_SPATULA.name}
-                    width={20}
-                    height={20}
-                    className="h-5 w-5 object-contain"
-                    fallbackEmoji={CAFE_ITEMS.GOLDEN_SPATULA.emoji}
-                    fallbackClassName="h-5 w-5 text-sm"
-                  />
-                  {GOLDEN_SPATULA_MULTIPLIER}배
-                </motion.div>
-              )}
+              {goldenSpatulaActive && <GoldenSpatulaChip key="golden-spatula" />}
             </AnimatePresence>
           </div>
         </div>

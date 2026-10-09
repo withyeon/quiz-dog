@@ -42,7 +42,14 @@ export async function extractQuestionsFromImage(
 
   const genAI = new GoogleGenerativeAI(apiKey)
   const callModel = async (modelName: string): Promise<string> => {
-    const model = genAI.getGenerativeModel({ model: modelName })
+    const model = genAI.getGenerativeModel({
+      model: modelName,
+      generationConfig: {
+        // 옮겨 적기(전사)가 목적이라 창의성은 0으로. 조금만 올라가도 문장을 다듬거나 보기를 바꿔 쓴다.
+        temperature: 0,
+        responseMimeType: 'application/json',
+      },
+    })
     const result = await model.generateContent(parts)
     return result.response.text()
   }
@@ -98,39 +105,40 @@ function getMimeTypeFromName(filename: string): string {
 
 function buildExamExtractionPrompt(questionCount?: number): string {
   const countInstruction = questionCount
-    ? `이미지에서 최대 ${questionCount}개의 문제를 추출해주세요.`
-    : '이미지에서 모든 문제를 추출해주세요.'
+    ? `문서에 있는 문제를 앞에서부터 차례로 최대 ${questionCount}개까지 옮기세요.`
+    : '문서에 있는 모든 문제를 차례로 옮기세요.'
 
-  return `당신은 시험지/문제지 이미지를 분석하는 전문가입니다.
+  return `당신은 종이 시험지·문제지를 디지털로 옮겨 적는 전사(轉寫) 담당자입니다. 문제를 새로 만들거나 고치는 사람이 아닙니다.
 ${countInstruction}
 
-이미지에 있는 문제를 정확히 읽고, 아래 JSON 형식으로 변환해주세요.
+가장 중요한 규칙 — 종이에 적힌 그대로 옮기기:
+- 문제 글과 보기는 종이에 쓰인 글자를 한 글자도 바꾸지 말고 그대로 적으세요. 문장을 줄이거나 쉽게 풀어 쓰거나 맞춤법·띄어쓰기를 고치거나 순서를 바꾸는 것은 모두 금지입니다.
+- 보기는 종이에 있는 개수와 순서를 그대로 옮기세요. 보기가 2개·3개·5개여도 4개로 늘리거나 줄이지 마세요. 새 보기를 지어내지 마세요.
+- 문제를 풀 때 꼭 필요한 지문·보기 상자(<보기> ㄱ. ㄴ. ㄷ. …)·조건·대화문이 있으면 줄이지 말고 그 문제의 question_text 안에 줄바꿈으로 함께 넣으세요. 여러 문제가 한 지문을 공유하면 그 문제들 각각에 같은 지문을 넣으세요.
+- 종이에 없는 문제를 만들어 채우지 마세요. 읽을 수 없는 문제는 빼세요.
+- 문제 번호(1., 2., ③ 등)와 배점([3점] 등), 답을 적는 칸("답:", "정답:" 뒤의 밑줄·빈 괄호·네모 칸)은 question_text에 포함하지 마세요. 답란은 문제 내용이 아닙니다. 보기 앞의 ①②③·가나다·A B C 기호도 options에 넣지 마세요(기호를 뺀 보기 글만 적습니다).
+- 문제 유형은 종이의 형태를 보고 정하세요. 보기에서 고르면 CHOICE, O·X로 답하면 OX, 빈칸(괄호·밑줄)을 채우면 BLANK, 짧은 답을 쓰면 SHORT입니다. 서술형·논술형처럼 문장으로 답하는 문제는 SHORT로 두고 answer는 빈 문자열로 두세요.
 
-출력 형식:
+출력 형식(JSON만):
 {
   "questions": [
     {
       "type": "CHOICE" | "SHORT" | "OX" | "BLANK",
-      "question_text": "문제 텍스트",
+      "question_text": "문제 글 (종이 그대로)",
       "options": ["보기1", "보기2", "보기3", "보기4"],
-      "answer": "정답 (알 수 있는 경우)",
-      "explanation": "정답인 이유 1~2문장 (정답을 알 수 있을 때만, 모르면 빈 문자열)",
+      "answer": "정답",
+      "explanation": "정답인 이유 1~2문장 (정답을 알 때만, 모르면 빈 문자열)",
       "figure_box": [ymin, xmin, ymax, xmax] 또는 null
     }
   ]
 }
 
-규칙:
-- 문제를 풀려면 꼭 봐야 하는 그림·도형·표·그래프·지도가 이미지 안에 있으면, 그 그림 영역만
-  figure_box에 [ymin, xmin, ymax, xmax] 형식(이미지 높이·너비를 각각 0~1000으로 본 비율)으로 적으세요.
-  문제 글자나 보기 글자는 상자에 넣지 말고 그림만 감싸세요. 그림이 없는 문제는 null입니다.
-- 두 문제가 같은 그림을 공유하면 두 문제 모두 같은 figure_box를 적으세요.
-- 보기가 있는 문제는 type: "CHOICE", options에 보기를 넣으세요.
-- O/X 문제는 type: "OX", options: ["O", "X"]
-- 단답형은 type: "SHORT", options: []
-- 빈칸 채우기는 type: "BLANK", question_text에 [            ] 사용, options: []
-- 정답이 이미지에 표시되어 있으면 answer에 넣고, 없으면 문제를 직접 풀어서 확신이 있을 때만 적고 아니면 빈 문자열로 두세요.
-- answer가 있으면 explanation에 학생 눈높이로 정답인 이유를 1~2문장 쓰세요.
-- 문제 번호는 question_text에 포함하지 마세요.
-- JSON만 출력하고 다른 설명은 포함하지 마세요.`
+세부 규칙:
+- CHOICE: answer는 options에 적은 보기 글과 완전히 같은 문자열로 쓰세요(번호가 아니라 글). 종이에 정답이 표시돼 있으면(동그라미·채점 표시·정답표) 그것을 쓰고, 없으면 직접 풀어서 확신이 있을 때만 적고 아니면 빈 문자열로 두세요.
+- OX: options는 ["O", "X"], answer는 "O" 또는 "X".
+- BLANK: options는 [], question_text의 빈칸 자리는 [            ]로 바꾸고 answer는 빈칸에 들어갈 말을 쓰세요. 빈칸이 여럿이면 첫 빈칸만 [            ]로 바꾸세요.
+- SHORT: options는 [], answer는 종이의 정답을 그대로 쓰세요(모르면 빈 문자열).
+- figure_box: 문제를 풀려면 꼭 봐야 하는 그림·도형·표·그래프·지도가 이미지 안에 있으면, 그 그림 영역만 [ymin, xmin, ymax, xmax] 형식(이미지 높이·너비를 각각 0~1000으로 본 비율)으로 적으세요. 문제 글자나 보기 글자는 상자에 넣지 말고 그림만 감싸세요. 그림이 없으면 null, 두 문제가 같은 그림을 공유하면 둘 다 같은 상자를 적으세요.
+- explanation: answer가 있을 때만 학생 눈높이로 1~2문장. 문제 글은 고치지 마세요.
+- JSON 외의 설명은 쓰지 마세요.`
 }

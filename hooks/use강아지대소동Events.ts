@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { supabase, checkSupabaseConfig } from '@/lib/supabase/client'
+import { releaseRealtimeChannel } from '@/lib/supabase/realtimeLifecycle'
 import type { PuppyChaosEvent } from '@/lib/services/강아지대소동Events'
 
 type RefreshOptions = {
@@ -71,7 +72,7 @@ export function usePuppyChaosEvents(sessionId: string, enabled = true) {
       })
 
     return () => {
-      supabase.removeChannel(channel)
+      releaseRealtimeChannel(channel)
     }
   }, [enabled, refreshEvents, sessionId])
 

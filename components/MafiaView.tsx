@@ -65,6 +65,9 @@ interface MafiaViewProps {
 
 type MafiaViewType = 'quiz' | 'actionSelect' | 'vaultSelection' | 'vaultResult' | 'investigation' | 'wrong'
 
+/** 발각 경고가 화면에 보이는 시간(ms). 화면이 보이는 동안만 센다. */
+const CAUGHT_NOTICE_MS = 4000
+
 function parseRuntime(value: Json | null | undefined): MafiaRuntime {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
   const source = 'mafia' in value && value.mafia && typeof value.mafia === 'object'
@@ -159,7 +162,9 @@ export default function MafiaView({
   // 내가 친구 조사에 발각됐을 때 내 화면에 띄우는 경고 (조사자 이름 + 환수 금액)
   const [caughtNotice, setCaughtNotice] = useState<{ investigatorName: string; recovered: number } | null>(null)
   const caughtNoticeAtRef = useRef(0)
-  const caughtNoticeTimerRef = useRef<number | null>(null)
+  // 내가 스스로 수상함을 해제한 시각(금고 열기·친구 조사). DB 폴백이 이를 '발각'으로 오인하지 않게 한다.
+  const selfFlagClearAtRef = useRef(0)
+  const wasCheatingRef = useRef<boolean | null>(null)
   const logEndRef = useRef<HTMLDivElement>(null)
 
   const mafiaPlayers = useMemo(() => players.map(toMafiaPlayer), [players])
@@ -205,18 +210,28 @@ export default function MafiaView({
     caughtNoticeAtRef.current = now
     setCaughtNotice({ investigatorName, recovered })
     playSFX('incorrect')
-    if (caughtNoticeTimerRef.current) window.clearTimeout(caughtNoticeTimerRef.current)
-    caughtNoticeTimerRef.current = window.setTimeout(() => {
-      setCaughtNotice(null)
-      caughtNoticeTimerRef.current = null
-    }, 3200)
   }, [playSFX])
 
+  // 발각 경고는 "화면이 보이는 동안" CAUGHT_NOTICE_MS 뒤에 닫는다.
+  // 탭이 뒤에 숨어 있거나 폰 화면이 꺼진 채 발각되면(애니메이션·렌더가 멈춘 상태) 타이머를 돌리지 않고,
+  // 다시 보이는 순간부터 세기 시작한다. (예전엔 숨은 탭에서 3초 만에 조용히 사라져 "안 떴다"고 보였다.)
   useEffect(() => {
-    return () => {
-      if (caughtNoticeTimerRef.current) window.clearTimeout(caughtNoticeTimerRef.current)
+    if (!caughtNotice || typeof document === 'undefined') return
+    let timer: number | null = null
+    const arm = () => {
+      if (timer !== null) return
+      timer = window.setTimeout(() => setCaughtNotice(null), CAUGHT_NOTICE_MS)
     }
-  }, [])
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') arm()
+    }
+    if (document.visibilityState === 'visible') arm()
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      if (timer !== null) window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [caughtNotice])
 
   useEffect(() => {
     return subscribeRoomRuntimeEvent((event) => {
@@ -252,6 +267,20 @@ export default function MafiaView({
       }
     })
   }, [addLog, playerId, roomCode, showCaughtNotice])
+
+  // 최후 폴백: broadcast(mafia:caught·player:patch)가 모두 유실돼도 DB(postgres_changes·3초 재동기화)로
+  // 내 수상함 플래그가 '남에 의해' 해제된 것을 감지하면 발각 경고를 띄운다.
+  // 내가 금고를 열거나 친구를 조사해 스스로 해제한 경우(selfFlagClearAtRef)는 제외한다.
+  const isCheatingNow = player?.isCheating ?? null
+  useEffect(() => {
+    const was = wasCheatingRef.current
+    wasCheatingRef.current = isCheatingNow
+    if (was !== true || isCheatingNow !== false) return
+    const now = Date.now()
+    if (now - selfFlagClearAtRef.current < 5000) return
+    if (now - caughtNoticeAtRef.current < 15000) return // 이미 broadcast로 띄웠다
+    showCaughtNotice('친구', 0)
+  }, [isCheatingNow, showCaughtNotice])
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -302,6 +331,7 @@ export default function MafiaView({
       result.newPlayer.cheatPendingVault = false
     } else if (result.newPlayer.isCheating) {
       result.newPlayer.isCheating = false
+      selfFlagClearAtRef.current = Date.now()
     }
     setSelectedVaultResult({ vault, log: result.log })
     setCurrentView('vaultResult')
@@ -361,6 +391,7 @@ export default function MafiaView({
       setInvestigationResult(result.result)
       // 친구 조사는 본인의 '다음 라운드 행동'이므로, 조사하는 순간 본인의 수상함은 해제된다.
       const clearedInvestigator = { ...result.newInvestigator, isCheating: false, cheatPendingVault: false }
+      selfFlagClearAtRef.current = Date.now()
 
       // 발각 알림은 아래 patch/steal 커밋(각각 broadcast를 동반)보다 먼저 보내, 발각된 친구 화면에 이름·환수 금액이 바로 뜨게 한다.
       if (result.success) {

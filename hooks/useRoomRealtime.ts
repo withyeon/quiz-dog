@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase, checkSupabaseConfig } from '@/lib/supabase/client'
+import { releaseRealtimeChannel } from '@/lib/supabase/realtimeLifecycle'
 import {
   subscribeRoomRuntimeEvent,
   type RoomPatchPayload,
@@ -186,7 +187,7 @@ export function useRoomRealtime({
       })
 
     return () => {
-      supabase.removeChannel(channel)
+      releaseRealtimeChannel(channel)
     }
   }, [enabled, refreshRoom, roomCode])
 

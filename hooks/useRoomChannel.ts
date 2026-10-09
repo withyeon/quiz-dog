@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, checkSupabaseConfig } from '@/lib/supabase/client'
+import { ensureRealtimeSocketConnected, releaseRealtimeChannel } from '@/lib/supabase/realtimeLifecycle'
 import {
   emitRoomRuntimeEvent,
   flattenPresenceState,
@@ -30,6 +31,9 @@ type UseRoomChannelOptions = {
   onResyncNeeded?: (reason: RoomResyncReason) => void | Promise<void>
 }
 
+/** 구독이 안 된 채널을 이 간격으로 살펴 소켓 재연결·채널 재생성을 한다 */
+const WATCHDOG_INTERVAL_MS = 3000
+
 type SendEventResult = {
   ok: boolean
   reason?: string
@@ -46,6 +50,8 @@ export function useRoomChannel({
   const [status, setStatus] = useState<RoomChannelStatus>('idle')
   const [presence, setPresence] = useState<RoomPresenceMeta[]>([])
   const [clientId, setClientId] = useState('')
+  // 버려진 채널(teardown)을 새로 만들어야 할 때 올려서 구독 효과를 다시 돌린다
+  const [generation, setGeneration] = useState(0)
 
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const statusRef = useRef<RoomChannelStatus>('idle')
@@ -208,13 +214,27 @@ export function useRoomChannel({
 
     channelRef.current = channel
 
+    // 안전망: 구독이 안 된 채로 멈춰 있으면 소켓을 다시 연결하고, 채널이 통째로 버려졌으면
+    // (소켓 teardown → state 'closed') 새로 만든다. realtime-js는 소켓이 닫힌 채 남으면 스스로
+    // connect()를 다시 부르지 않아 join이 영원히 묻힌다(로비 → 게임 전환에서 실제로 일어났던 일).
+    const watchdog = window.setInterval(() => {
+      if (channelRef.current !== channel || statusRef.current === 'subscribed') return
+      if (channel.state === 'closed') {
+        setGeneration((value) => value + 1)
+        return
+      }
+      ensureRealtimeSocketConnected()
+    }, WATCHDOG_INTERVAL_MS)
+
     return () => {
+      window.clearInterval(watchdog)
       channelRef.current = null
       clientIdRef.current = ''
       setPresence([])
-      supabase.removeChannel(channel)
+      // removeChannel이 아니라 unsubscribe: 마지막 채널이라고 소켓까지 끊지 않는다(이유는 helper 주석).
+      releaseRealtimeChannel(channel)
     }
-  }, [enabled, role, roomCode, setChannelStatus])
+  }, [enabled, generation, role, roomCode, setChannelStatus])
 
   useEffect(() => {
     const channel = channelRef.current

@@ -10,8 +10,9 @@ const sharp = require('sharp')
 
 const DIR = path.dirname(new URL(import.meta.url).pathname)
 const OUT = path.join(DIR, 'out')
-const PORT = 8777
-const CDP = 9334
+const DEST = path.resolve(DIR, '..')
+const PORT = Number(process.env.RENDER_PORT || 8777)
+const CDP = Number(process.env.CDP_PORT || 9335)
 const DPR = 2
 const TYPES = { '.html': 'text/html; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.woff2': 'font/woff2', '.js': 'text/javascript' }
 
@@ -22,9 +23,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'content-type': TYPES[path.extname(p)] || 'application/octet-stream' })
     res.end(buf)
   })
-}).listen(PORT)
+}).listen(PORT, '127.0.0.1')
 
-const profile = path.join(DIR, 'chrome-profile')
+const profile = path.join(DIR, `chrome-profile-${CDP}`)
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${CDP}`, `--user-data-dir=${profile}`, '--hide-scrollbars', '--no-first-run', 'about:blank',
 ], { stdio: 'ignore' })
@@ -75,6 +76,15 @@ try {
   const png = full
   console.log('full', W, total)
   await sharp(full, { limitInputPixels: false }).resize({ width: 860 }).jpeg({ quality: 90, chromaSubsampling: '4:4:4', mozjpeg: true }).toFile(path.join(OUT, 'quizdog-detail-full-860.jpg'))
+  const sectionsDir = path.join(DEST, 'sections')
+  fs.mkdirSync(sectionsDir, { recursive: true })
+  for (const s of info.secs) {
+    fs.copyFileSync(path.join(OUT, 'sections', `${s.name}.jpg`), path.join(sectionsDir, `${s.name}.jpg`))
+  }
+  fs.copyFileSync(path.join(OUT, 'quizdog-detail-full-860.jpg'), path.join(DEST, 'quizdog-detail-full-860.jpg'))
+  const removedSection = path.join(sectionsDir, '03-numbers.jpg')
+  if (!info.secs.some(s => s.name === '03-numbers') && fs.existsSync(removedSection)) fs.unlinkSync(removedSection)
+  console.log('saved', DEST)
   if (process.env.PREVIEW) {
     await sharp(png, { limitInputPixels: false }).resize({ width: 430 }).png().toFile(path.join(DIR, 'preview.png'))
   }
