@@ -107,14 +107,26 @@ export function useFishingGame({
   useEffect(() => { activeItemsRef.current = activeItems }, [activeItems])
   useEffect(() => { consecutiveCorrectRef.current = consecutiveCorrect }, [consecutiveCorrect])
 
-  // 저장된 데이터 복원
+  // 저장된 데이터 복원 (새로고침 방어) — 플레이어당 한 번만 한다.
+  // currentPlayer 는 내 행이 DB 에서 갱신될 때마다(인형 저장, 정답 기록 동기화, 주기 재동기화) 새 객체가 되므로
+  // 매번 복원하면 정답 수가 '뽑은 인형 수'로 되돌아가 기계 등급이 기준치를 넘길 때마다 초기화되던 버그가 있었다.
+  // 정답 수는 서버에 따로 없으니 인형 수와 정답 기록(answer_history)의 정답 개수 중 큰 값으로 채운다.
+  const restoredPlayerIdRef = useRef<string | null>(null)
   useEffect(() => {
-    if (!currentPlayer) return
+    if (!currentPlayer || restoredPlayerIdRef.current === currentPlayer.id) return
+    restoredPlayerIdRef.current = currentPlayer.id
+
     const savedDolls = Array.isArray(currentPlayer.caught_dolls)
       ? normalizeSavedDolls(currentPlayer.caught_dolls as Doll[])
       : []
+    const history = Array.isArray(currentPlayer.answer_history)
+      ? (currentPlayer.answer_history as Array<{ isCorrect?: boolean } | null>)
+      : []
+    const correctFromHistory = history.filter((record) => record?.isCorrect === true).length
+
+    caughtDollsRef.current = savedDolls
     setCaughtDolls(savedDolls)
-    setCorrectAnswers(savedDolls.length)
+    setCorrectAnswers(Math.max(savedDolls.length, correctFromHistory))
   }, [currentPlayer])
 
   // 언마운트 시 타이머 정리

@@ -179,8 +179,13 @@ export default function CreateQuestionPage() {
     return items
   }, [sourceType, topic, file, youtubeUrl, examFile, grade, subject, isExam, totalTypeCount])
 
+  const examNamePlaceholder = examFile ? stripExtension(examFile.name).slice(0, 60) : ''
+
   const summaryRows: SummaryRow[] = [
     { label: '자료', value: sourceLabel || `${getSourceOption(sourceType).title} · 아직 없어요`, muted: !sourceLabel },
+    ...(isExam
+      ? [{ label: '이름', value: setName.trim() || (examNamePlaceholder ? `${examNamePlaceholder} (파일 이름)` : '검수 화면에서 정해요'), muted: !setName.trim() }]
+      : []),
     { label: '대상', value: [grade, subject].filter(Boolean).join(' · ') || '학년 · 과목 미정', muted: !grade && !subject },
     {
       label: '구성',
@@ -628,6 +633,23 @@ export default function CreateQuestionPage() {
                   disabled={!!progress}
                 />
               </SectionCard>
+
+              {isExam && (
+                <SectionCard step={4} title="퀴즈 이름은 뭐라고 할까요?" caption="비워 두면 시험지 파일 이름을 그대로 써요. 검수 화면에서도 고칠 수 있어요." optional>
+                  <div className="mb-1.5 flex items-center justify-end">
+                    <span className={`text-xs font-semibold ${setName.length > 60 ? 'text-rose-500' : 'text-slate-400'}`}>{setName.length}/60</span>
+                  </div>
+                  <input
+                    id="exam-set-name"
+                    type="text"
+                    value={setName}
+                    onChange={(e) => setSetName(e.target.value.slice(0, 60))}
+                    disabled={!!progress}
+                    placeholder={examNamePlaceholder || '예: 2학기 중간고사 대비 퀴즈'}
+                    className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3.5 text-[15px] font-semibold text-slate-900 outline-none transition placeholder:font-medium placeholder:text-slate-400 focus:border-sky-400 focus:ring-4 focus:ring-sky-100 disabled:bg-slate-50"
+                  />
+                </SectionCard>
+              )}
 
               {!isExam && (
                 <SectionCard step={4} title="AI에게 부탁할 말" caption="강조하고 싶은 점이나 피했으면 하는 것을 적어요." optional>

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import HudMetric from '@/components/game/HudMetric'
 import {
+    PLAYER_START_HP,
     TOWER_TYPES,
     TowerTypeId,
     WAVES,
@@ -41,6 +42,43 @@ interface TowerBattleHeaderProps {
     startWaveButtonLabel: string
     onQuizClick: () => void
     onStartWave: () => void
+}
+
+/** 코어 체력: 숫자 대신 비율 막대. 50% 아래면 주황, 25% 아래면 빨강으로 바뀌고 맥박처럼 깜빡인다 */
+function HpBarMetric({ hp, maxHp }: { hp: number; maxHp: number }) {
+    const ratio = Math.max(0, Math.min(1, hp / maxHp))
+    const percent = Math.round(ratio * 100)
+    const isDanger = ratio <= 0.25
+    const isWarning = !isDanger && ratio <= 0.5
+    const barColor = isDanger ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-emerald-500'
+    const textColor = isDanger ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-slate-950'
+    return (
+        <div
+            className={`min-w-0 rounded-lg border px-1.5 py-1 shadow-sm backdrop-blur sm:min-w-[108px] sm:px-3 sm:py-2 ${
+                isDanger ? 'border-red-200 bg-red-50/[0.85] animate-pulse' : 'border-white/70 bg-white/[0.72]'
+            }`}
+            role="meter"
+            aria-label="코어 체력"
+            aria-valuemin={0}
+            aria-valuemax={maxHp}
+            aria-valuenow={Math.max(0, hp)}
+        >
+            <div className="mb-0.5 flex items-center gap-1.5 text-[10px] font-bold tracking-normal text-slate-500 sm:mb-1 sm:text-[11px] sm:tracking-[0.08em]">
+                <HeartPulse className="hidden h-3 w-3 shrink-0 text-red-500 sm:block sm:h-3.5 sm:w-3.5" />
+                <span className="truncate">코어</span>
+            </div>
+            <div className={`truncate text-base font-black leading-none tabular-nums sm:text-xl ${textColor}`}>
+                {Math.max(0, Math.round(hp))}
+                <span className="text-[10px] font-bold text-slate-400 sm:text-xs">/{maxHp}</span>
+            </div>
+            <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/80 sm:mt-1.5 sm:h-2">
+                <div
+                    className={`h-full rounded-full transition-[width,background-color] duration-300 ease-out ${barColor}`}
+                    style={{ width: `${percent}%` }}
+                />
+            </div>
+        </div>
+    )
 }
 
 export default function TowerBattleHeader({
@@ -101,7 +139,7 @@ export default function TowerBattleHeader({
                 </div>
 
                 <div className="grid grid-cols-5 gap-1.5 sm:gap-2 xl:flex">
-                    <HudMetric icon={HeartPulse} label="코어" value={hp} detail="체력" tone="text-red-500" />
+                    <HpBarMetric hp={hp} maxHp={PLAYER_START_HP} />
                     <HudMetric icon={Coins} label="골드" value={gold.toLocaleString()} detail={`${totalGoldEarned.toLocaleString()} 획득`} tone="text-amber-500" />
                     {/* 선생님 화면·결과 순위와 같은 숫자. 예전엔 학생 화면 어디에도 점수가 없었다 */}
                     <HudMetric icon={Trophy} label="점수" value={score.toLocaleString()} detail="선생님 화면 순위" tone="text-emerald-500" />
