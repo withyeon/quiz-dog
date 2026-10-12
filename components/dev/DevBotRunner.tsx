@@ -1,7 +1,11 @@
 'use client'
 
 /**
- * /dev "봇 친구" 실행기. 사람이 게임을 하는 탭 안에서 봇마다 "문제 풀기"를 흉내 낸다.
+ * /dev 판 실행기. 사람이 게임을 하는 탭 안에서 두 가지를 한다.
+ * 1) 시간 종료: /dev 방에는 선생님 화면이 없으니, 게임 시간이 끝나면 선생님 화면과 같은 방식으로 방을 끝낸다
+ *    (rooms.status = finished + room:patch·game:finished). 그래야 모든 모드가 실제 수업처럼 결과 화면으로 넘어간다.
+ *    편의점처럼 선생님의 종료 신호만 기다리는 모드도 있어서 학생 쪽 로컬 종료만으로는 부족하다.
+ * 2) 봇 친구: 봇마다 "문제 풀기"를 흉내 낸다.
  *
  * 한 바퀴: (모드별 주기 × 난이도 속도)만큼 기다림 → 난이도 정답률로 맞힘/틀림 결정 →
  *          모드별 보상·벌점을 봇 행에 반영(lib/dev/devBotModes.ts) → answer_history 에 한 줄 추가.
@@ -13,7 +17,12 @@
  */
 
 import { useEffect } from 'react'
-import { emitRoomRuntimeEvent, type RoomEventType } from '@/lib/realtime/roomChannel'
+import {
+  emitRoomRuntimeEvent,
+  subscribeOutgoingRoomEvent,
+  type RoomChannelEvent,
+  type RoomEventType,
+} from '@/lib/realtime/roomChannel'
 import { DEV_BOT_DIFFICULTIES, readDevBotSession, type DevBot, type DevBotSession } from '@/lib/dev/devBots'
 import { DEV_BOT_WARMUP_ANSWERS, getDevBotModeStrategy, type DevBotContext } from '@/lib/dev/devBotModes'
 import {
@@ -25,8 +34,8 @@ import {
   type PlayerDeltas,
   type PlayerMaxes,
 } from '@/lib/services/playerMutations'
-import { getRoomByCode } from '@/lib/services/rooms'
-import { listPlayersInRoom, updatePlayer } from '@/lib/services/players'
+import { finishRoom, getRoomByCode } from '@/lib/services/rooms'
+import { getPlayerById, listPlayersInRoom, updatePlayer } from '@/lib/services/players'
 import { listQuestionsForGame, type GameQuestion } from '@/lib/services/questions'
 import type { Database } from '@/types/database.types'
 
@@ -80,6 +89,19 @@ function startEngine(session: DevBotSession): () => void {
   let lastRoomRefresh = 0
   const players = new Map<string, PlayerRow>()
   const strategy = getDevBotModeStrategy(session.gameMode)
+  const botIds: ReadonlySet<string> = new Set(session.bots.map((bot) => bot.playerId))
+
+  // 봇을 겨냥한 이벤트(사람이나 다른 봇이 쓴 카페 방해 아이템 등)를 그 봇의 모드 동작에 넘긴다.
+  // 봇은 화면이 없어서, 사람 화면이 스스로 거는 효과를 봇은 여기서 대신 받는다.
+  const deliverToBot = (event: Pick<RoomChannelEvent, 'type' | 'payload'>) => {
+    if (!strategy.onEvent || stopped) return
+    const payload = (event.payload ?? {}) as Record<string, unknown>
+    const targetId = payload.targetId ?? payload.targetPlayerId
+    const state = states.find((s) => s.bot.playerId === targetId)
+    if (!state) return
+    void strategy.onEvent(ctxFor(state), event.type, payload)
+      .catch((error) => console.warn(`[봇] ${state.bot.nickname} 이벤트 처리 실패`, error))
+  }
 
   // 이 탭의 게임 화면에 봇이 보낸 것처럼 이벤트를 흘린다. 화면들은 event.playerId 로 보낸 사람을 가린다.
   const emitEvent = (type: RoomEventType, playerId: string, payload: Record<string, unknown>) => {
@@ -92,6 +114,7 @@ function startEngine(session: DevBotSession): () => void {
       seq: (eventSeq += 1),
       payload,
     })
+    deliverToBot({ type, payload })
   }
 
   const publishRow = (row: PlayerRow, columns: Array<keyof PlayerRow>) => {
@@ -102,6 +125,8 @@ function startEngine(session: DevBotSession): () => void {
   const ctxFor = (state: BotState): DevBotContext => ({
     bot: state.bot,
     roomCode: session.roomCode,
+    botIds,
+    aggressive: session.aggressive === true,
     memory: state.memory,
     room: () => room,
     self: () => players.get(state.bot.playerId) ?? null,
@@ -129,6 +154,17 @@ function startEngine(session: DevBotSession): () => void {
       const current = players.get(state.bot.playerId)
       if (current) players.set(current.id, { ...current, ...patch } as PlayerRow)
       emitEvent('player:patch', state.bot.playerId, { playerId: state.bot.playerId, patch, reason: 'dev_bot' })
+    },
+    patchPlayer: async (playerId: string, patch: Record<string, unknown>, reason = 'dev_bot') => {
+      await updatePlayer(playerId, patch)
+      const current = players.get(playerId)
+      if (current) players.set(playerId, { ...current, ...patch } as PlayerRow)
+      emitEvent('player:patch', state.bot.playerId, { playerId, patch, reason })
+    },
+    fetchPlayer: async (playerId: string) => {
+      const row = await getPlayerById(playerId)
+      if (row) players.set(row.id, row)
+      return row
     },
     publishRows: (rows: PlayerRow[], columns: Array<keyof PlayerRow>) => {
       rows.forEach((row) => publishRow(row, columns))
@@ -225,6 +261,11 @@ function startEngine(session: DevBotSession): () => void {
     }
   })()
 
+  // 사람이 보낸 이벤트는 이 탭으로 돌아오지 않으므로(self:false) 보내는 순간 엿봐서 봇에게 넘긴다
+  const unsubscribeOutgoing = subscribeOutgoingRoomEvent((event) => {
+    if (event.roomCode === session.roomCode) deliverToBot(event)
+  })
+
   // 사람 쪽 행(다른 플레이어)도 가끔 다시 읽는다. 공격 대상 고르기 등 모드 동작이 쓴다.
   const playersTimer = window.setInterval(() => {
     void listPlayersInRoom(session.roomCode)
@@ -237,6 +278,54 @@ function startEngine(session: DevBotSession): () => void {
     stopped = true
     window.clearInterval(timer)
     window.clearInterval(playersTimer)
+    unsubscribeOutgoing()
+  }
+}
+
+/**
+ * 게임 시간이 끝나면 선생님 화면(useTeacherPlayRoom 의 시간 종료)과 같은 방식으로 방을 끝낸다.
+ * DB 상태가 바뀌면 다른 화면은 realtime 으로 따라오고, 이 탭은 아래 로컬 이벤트로 바로 결과로 넘어간다.
+ */
+function startRoomFinisher(session: DevBotSession): () => void {
+  let stopped = false
+  let finishing = false
+
+  const tick = async () => {
+    if (stopped || finishing) return
+    const room = await getRoomByCode(session.roomCode).catch(() => null)
+    if (!room || room.status !== 'playing' || !room.started_at || !room.duration_seconds) return
+    const deadline = new Date(room.started_at).getTime() + Number(room.duration_seconds) * 1000
+    if (Date.now() < deadline) return
+
+    finishing = true
+    const reason = `${room.game_mode || 'game'}_time_up`
+    try {
+      await finishRoom(session.roomCode)
+      for (const [type, payload] of [
+        ['room:patch', { patch: { status: 'finished' }, reason }],
+        ['game:finished', { finishedBy: 'dev', reason }],
+      ] as const) {
+        emitRoomRuntimeEvent({
+          type,
+          roomCode: session.roomCode,
+          clientId: 'dev-room-finisher',
+          playerId: null,
+          sentAt: new Date().toISOString(),
+          seq: (eventSeq += 1),
+          payload,
+        })
+      }
+    } catch (error) {
+      finishing = false
+      console.warn('[dev] 시간 종료 처리 실패', error)
+    }
+  }
+
+  void tick()
+  const timer = window.setInterval(() => void tick(), 2000)
+  return () => {
+    stopped = true
+    window.clearInterval(timer)
   }
 }
 
@@ -247,7 +336,12 @@ export default function DevBotRunner() {
     // 그 판의 게임 화면에서만 움직인다(결과 화면·다른 방으로 가면 멈춘다)
     const room = new URLSearchParams(window.location.search).get('room')
     if (room !== session.roomCode) return
-    return startEngine(session)
+    const stopFinisher = startRoomFinisher(session)
+    const stopEngine = session.bots.length > 0 ? startEngine(session) : null
+    return () => {
+      stopFinisher()
+      stopEngine?.()
+    }
   }, [])
 
   return null

@@ -87,6 +87,30 @@ export function subscribeRoomRuntimeEvent(
   }
 }
 
+// ─── 이 탭이 보내는 이벤트 엿보기 ───
+// 방 채널은 self:false 라 이 탭이 보낸 이벤트는 이 탭으로 돌아오지 않는다. 같은 탭 안에서 그 이벤트에
+// 반응해야 하는 것만 여기서 받는다 — /dev 봇 친구(components/dev/DevBotRunner.tsx)는 사람이 게임하는 탭 안에서
+// 돌기 때문에, 사람이 봇에게 쓴 카페 방해 아이템을 이걸로 받는다. 듣는 쪽이 없으면 아무 일도 하지 않는다.
+const outgoingListeners = new Set<(event: RoomChannelEvent) => void>()
+
+export function subscribeOutgoingRoomEvent(listener: (event: RoomChannelEvent) => void): () => void {
+  outgoingListeners.add(listener)
+  return () => {
+    outgoingListeners.delete(listener)
+  }
+}
+
+export function notifyOutgoingRoomEvent(event: RoomChannelEvent): void {
+  outgoingListeners.forEach((listener) => {
+    try {
+      listener(event)
+    } catch (error) {
+      // 엿보는 쪽 오류가 실제 전송을 막지 않게 한다
+      console.warn('보낸 이벤트 처리 실패', error)
+    }
+  })
+}
+
 const roomClientIds = new Map<string, string>()
 
 /**

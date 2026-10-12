@@ -6,9 +6,14 @@
  * - 사람 화면이 실제로 읽는 컬럼만, 사람이 받는 것과 비슷한 크기로 바꾼다. 게임 규칙 함수가 있으면 그대로 쓴다
  *   (골드퀘스트 상자·인형뽑기·마피아 금고·눈싸움 데미지·레이드 데미지).
  * - 숫자는 원자 증분만 쓴다. 사람이 봇을 공격·강탈하면 그 값이 봇 행에 바로 쌓이므로 절대값으로 덮지 않는다.
- * - 사람에게 하는 공격은 사람 화면이 DB 변화만으로 알아채는 모드(골드퀘스트·눈싸움·좀비)에서만 한다.
- *   다른 모드는 사람 자기 점수를 자기 화면이 절대값으로 쓰므로, 봇이 깎아도 곧 덮인다.
- * - 사람이 보낸 브로드캐스트는 이 탭에 돌아오지 않는다(self:false). 그래서 봇은 그런 이벤트에 반응하지 않는다.
+ * - 공격·방해는 사람이 쓰는 것과 같은 길로 한다.
+ *   · DB 로 끝나는 것(골드퀘스트 강탈·교환, 눈싸움, 좀비, 마피아 조사 환수, 간식런 점수 뺏기, 똥폭탄·점수 도둑)은 그대로 쓴다.
+ *   · 피해자 화면이 스스로 효과를 거는 것(카페 방해 아이템, 화면 뒤집기·축소, 간식런 점수 뺏기의 화면 쪽)은
+ *     사람이 보내는 것과 같은 이벤트를 이 탭에 흘린다.
+ *   · 피해자가 봇이면 화면이 없으니 실행기가 그 이벤트를 봇의 onEvent 로 넘기고, 봇이 효과를 수입·돈에 반영한다
+ *     (사람이 봇에게 쓴 것도 같다. 사람이 보낸 이벤트는 보내는 순간 엿본다 — lib/realtime/roomChannel.ts).
+ * - 시작 전 퀴즈를 마친 플레이어만 노린다(isTargetable). 공격 확률은 게임 규칙 그대로이고,
+ *   /dev 의 "공격 자주"를 켜면(ctx.aggressive) 훨씬 자주 쓴다.
  */
 
 import { DEV_BOT_DIFFICULTIES, type DevBot } from '@/lib/dev/devBots'
@@ -24,8 +29,29 @@ import {
   isCriticalHit,
   type PlayerClass,
 } from '@/lib/game/battleRoyale'
-import { getMachineRank, tryFishing, type Doll } from '@/lib/game/fishing'
-import { generateSafeVaults, DIAMOND_CASH_VALUE } from '@/lib/game/mafia'
+import { getMachineRank, trySpecialItem, tryFishing, type Doll } from '@/lib/game/fishing'
+import {
+  DIAMOND_CASH_VALUE,
+  applyCheat,
+  attemptInvestigate,
+  generateSafeVaults,
+  openSafeVault,
+  type MultiplierType,
+  type Player as MafiaPlayer,
+  type SafeVault,
+} from '@/lib/game/mafia'
+import { RARE_ITEM_STREAK, TAX_IMMUNITY_SECONDS, TAX_RATE, getRandomItemChoices } from '@/lib/game/cafeItems'
+import { MENU_ITEMS } from '@/lib/game/cafe'
+import { rollBoxItem } from '@/lib/game/간식런'
+import {
+  CARD_DEFS,
+  POOP_BOMB_SCORE,
+  SCORE_THIEF_AMOUNT,
+  createPoopBombAttack,
+  drawCardChoices,
+  parsePendingAttacks,
+} from '@/lib/game/강아지대소동'
+import { sortPlayersByScore } from '@/lib/utils/playerSorting'
 import { GAME_CONSTANTS, ZOMBIE_ACTION_LIMITS, getZombieMeta } from '@/lib/game/zombie'
 import { zombieApplyAction, zombieAttack } from '@/lib/services/playerMutations'
 import {
@@ -43,6 +69,10 @@ type RoomRow = Database['public']['Tables']['rooms']['Row']
 export type DevBotContext = {
   bot: DevBot
   roomCode: string
+  /** 이번 판 봇들의 player id. 피해자가 봇이면 화면 효과 대신 점수 손해로 바꿀 때 쓴다 */
+  botIds: ReadonlySet<string>
+  /** /dev "공격 자주". 켜면 방해·공격 아이템을 훨씬 자주 쓴다 */
+  aggressive: boolean
   /** 봇마다 따로 쓰는 메모(연속 정답, 누적 정답 등) */
   memory: Record<string, number>
   room: () => RoomRow | null
@@ -58,6 +88,10 @@ export type DevBotContext = {
   swap: (otherId: string, columns: DeltaColumn[]) => Promise<void>
   /** 숫자가 아닌 컬럼 덮어쓰기 + 화면에 바로 알림 (봇 자기 행만) */
   setFields: (patch: Record<string, unknown>) => Promise<void>
+  /** 다른 플레이어 행의 숫자가 아닌 컬럼 덮어쓰기(마피아 수상함 해제·똥폭탄 쌓기) + 화면에 바로 알림 */
+  patchPlayer: (playerId: string, patch: Record<string, unknown>, reason?: string) => Promise<void>
+  /** DB 최신 행 한 줄(마피아 조사처럼 상대의 지금 값으로 판정해야 할 때) */
+  fetchPlayer: (playerId: string) => Promise<PlayerRow | null>
   /** RPC 가 돌려준 권위 있는 행들을 화면에 알림 */
   publishRows: (rows: PlayerRow[], columns: Array<keyof PlayerRow>) => void
   /** 이 탭의 게임 화면에 봇이 보낸 것처럼 이벤트를 흘린다(사람 화면 연출용) */
@@ -70,6 +104,8 @@ export type DevBotModeStrategy = {
   /** 시작할 때 봇마다 한 번(직업·역할처럼 사람이 게임 화면에서 고르는 값) */
   onStart?: (ctx: DevBotContext) => Promise<void>
   onAnswer: (ctx: DevBotContext, correct: boolean, answerTimeMs: number) => Promise<void>
+  /** 이 봇을 겨냥한 이벤트(사람·다른 봇이 쓴 방해 아이템 등). 사람 화면이 스스로 거는 효과를 봇은 여기서 받는다 */
+  onEvent?: (ctx: DevBotContext, type: RoomEventType, payload: Record<string, unknown>) => Promise<void>
 }
 
 const randInt = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1))
@@ -94,6 +130,78 @@ function pickTarget(candidates: PlayerRow[]): PlayerRow | null {
   return targetable.length > 0 ? pick(targetable) : null
 }
 
+/** 사람 플레이어 중 공격받을 준비(시작 전 퀴즈 끝)가 된 사람이 있는지. 모두에게 가는 화면 공격을 언제 보낼지 정한다 */
+function hasReadyHuman(ctx: DevBotContext): boolean {
+  return ctx.players().some((p) => !ctx.botIds.has(p.id) && isTargetable(p))
+}
+
+/** 화면 뒤집기·축소처럼 "나 빼고 모두"에게 가는 화면 공격. 사람 화면이 받아서 스스로 건다 */
+function emitScreenAttack(ctx: DevBotContext, mode: 'fishing' | 'treat_rush', effect: 'screen_flip' | 'screen_shrink') {
+  const self = ctx.self()
+  if (!self || !hasReadyHuman(ctx)) return
+  const durationMs = 7000
+  ctx.emit('game:effect', {
+    mode,
+    effect,
+    ...(mode === 'treat_rush' ? { item: effect } : {}),
+    sourcePlayerId: self.id,
+    sourceName: self.nickname,
+    durationMs,
+    expiresAt: Date.now() + durationMs,
+  })
+}
+
+// ── 마피아: 화면(MafiaView)과 같은 방식으로 행 ↔ 게임 규칙 객체를 오간다 ──
+function toMafiaPlayer(row: PlayerRow): MafiaPlayer {
+  const item = row.active_item as { mafia?: Record<string, unknown> } | Record<string, unknown> | null
+  const raw = (item && typeof item === 'object' && 'mafia' in item && item.mafia && typeof item.mafia === 'object'
+    ? item.mafia
+    : item ?? {}) as Record<string, unknown>
+  return {
+    id: row.id,
+    name: row.nickname,
+    isAi: false,
+    cash: row.mafia_cash ?? row.score ?? 0,
+    diamonds: row.mafia_diamonds ?? 0,
+    status: 'active',
+    isCheating: raw.isCheating === true,
+    cheatPendingVault: raw.cheatPendingVault === true,
+    multipliers: Array.isArray(raw.multipliers)
+      ? raw.multipliers.filter((m): m is MultiplierType => m === 1.5 || m === 2)
+      : [],
+  }
+}
+
+function mafiaFlagPatch(player: MafiaPlayer): Record<string, unknown> {
+  return {
+    active_item: {
+      mafia: {
+        isCheating: player.isCheating,
+        cheatPendingVault: player.cheatPendingVault ?? false,
+        multipliers: player.multipliers,
+      },
+    },
+  }
+}
+
+// ── 카페: 봇이 연 메뉴(정답 4개마다 하나씩)와 판매가 ──
+const CAFE_MENU_PRICES = [1000, 3000, 8000, 15000, 35000, 80000]
+
+/** 봇 카페 정보(active_item). 사람 화면의 카피캣(1등 메뉴 가져오기)과 세금 면제 표시가 읽는다(CafePlayerMeta) */
+async function publishCafeMeta(ctx: DevBotContext, level: number): Promise<void> {
+  const unlockedMenus = MENU_ITEMS.slice(0, level + 1).map((menu) => menu.id)
+  await ctx.setFields({ active_item: { unlockedMenus, taxFreeUntil: ctx.memory.taxFreeUntil ?? 0 } })
+}
+
+/** 몰래본 금고 중 가장 좋은 것(배수는 대략 150달러어치로 친다) */
+function bestVault(vaults: SafeVault[]): SafeVault {
+  const value = (v: SafeVault) => v.reward === 'cash'
+    ? v.amount
+    : v.reward === 'diamond' ? v.amount * DIAMOND_CASH_VALUE
+      : v.reward === 'empty' ? 0 : 150
+  return [...vaults].sort((a, b) => value(b) - value(a))[0]
+}
+
 /** 마지막 행동 뒤 흐른 초. 시간에 따라 저절로 쌓이는 점수(편의점 매출·타워 처치·간식런 달리기)에 쓴다 */
 function secondsSinceLast(ctx: DevBotContext): number {
   const now = Date.now()
@@ -110,7 +218,9 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
       if (!correct) return
       const self = ctx.self()
       if (!self) return
-      const event = generateBoxEvent(self.gold ?? 0, ctx.players(), self.id)
+      // 공격 자주: 상자 3개를 열어 보고 강탈·교환이 있으면 그걸 고른다(규칙 그대로면 정답의 약 10%만 공격)
+      const draws = Array.from({ length: ctx.aggressive ? 3 : 1 }, () => generateBoxEvent(self.gold ?? 0, ctx.players(), self.id))
+      const event = draws.find((e) => e.type === 'ELF' || e.type === 'WIZARD' || e.type === 'KING') ?? draws[0]
       // 방어권(has_umbrella)이 있는 사람은 건드리지 않는다. 봇은 사람 화면의 방어권 응답을 들을 수 없어서다.
       const exposed = ctx.players().filter((p) => p.id !== self.id && !p.has_umbrella)
       switch (event.type) {
@@ -198,6 +308,12 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
     onAnswer: async (ctx, correct, answerTimeMs) => {
       if (!correct) return
       ctx.memory.correct = (ctx.memory.correct ?? 0) + 1
+      // 정답 때 특별 아이템(1/7)이 나오고, 그중 화면 뒤집기·축소는 나 빼고 모두에게 간다
+      const special = trySpecialItem()
+      const attack = special?.type === 'SCREEN_FLIP' || special?.type === 'SCREEN_SHRINK'
+        ? special.type
+        : ctx.aggressive && Math.random() < 0.35 ? pick(['SCREEN_FLIP', 'SCREEN_SHRINK'] as const) : null
+      if (attack) emitScreenAttack(ctx, 'fishing', attack === 'SCREEN_FLIP' ? 'screen_flip' : 'screen_shrink')
       const aim = DEV_BOT_DIFFICULTIES[ctx.bot.difficulty].accuracy * 0.85
       const result = tryFishing(answerTimeMs / 1000, getMachineRank(ctx.memory.correct), false, aim)
       if (!result.success || !result.doll) return
@@ -229,33 +345,144 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
   },
 
   // 카페: 정답마다 손님 한 명. 메뉴가 점점 비싸진다(정답 4개마다 다음 메뉴). 점수 = 지금 가진 돈.
+  // 정답마다 사람처럼 아이템 3개 중 하나를 고르고, 방해 아이템(세금·악성 리뷰·가격 폭락·바퀴벌레)이 있으면 절반쯤 쓴다.
+  // 봇이 방해 아이템을 맞으면(onEvent) 손님·가격이 줄어든 만큼 수입이 줄고, 세금은 가진 돈의 25%가 사라진다.
   cafe: {
     cycleSeconds: 10,
     onAnswer: async (ctx, correct) => {
-      if (!correct) return
+      if (!correct) {
+        ctx.memory.streak = 0
+        return
+      }
       ctx.memory.correct = (ctx.memory.correct ?? 0) + 1
-      const menuPrices = [1000, 3000, 8000, 15000, 35000, 80000]
-      const price = menuPrices[Math.min(menuPrices.length - 1, Math.floor(ctx.memory.correct / 4))]
-      await ctx.addDelta({ score: price, cafe_cash: price })
+      ctx.memory.streak = (ctx.memory.streak ?? 0) + 1
+      const level = Math.min(CAFE_MENU_PRICES.length - 1, Math.floor(ctx.memory.correct / 4))
+      const now = Date.now()
+      // 악성 리뷰: 손님이 안 와서 못 판다 / 가격 폭락·바퀴벌레: 절반만 번다
+      const factor = now < (ctx.memory.closedUntil ?? 0)
+        ? 0
+        : now < Math.max(ctx.memory.priceCrashUntil ?? 0, ctx.memory.roachUntil ?? 0) ? 0.5 : 1
+      const price = Math.round(CAFE_MENU_PRICES[level] * factor)
+      if (price > 0) await ctx.addDelta({ score: price, cafe_cash: price })
+      // 연 메뉴가 늘면 카페 정보(active_item)를 다시 올린다. 사람의 카피캣·세금 면제 표시가 이걸 읽는다.
+      if (level !== ctx.memory.publishedLevel) {
+        ctx.memory.publishedLevel = level
+        await publishCafeMeta(ctx, level)
+      }
+
+      // 연속 정답 3개부터 희귀 아이템(세금·바퀴벌레)이 섞인다. 공격 자주면 처음부터 섞고 방해 아이템을 거의 늘 고른다.
+      const choices = getRandomItemChoices(ctx.aggressive ? RARE_ITEM_STREAK : ctx.memory.streak)
+      const debuffs = choices.filter((item) => item.type === 'debuff')
+      if (debuffs.length === 0 || Math.random() > (ctx.aggressive ? 0.95 : 0.5)) return
+      const self = ctx.self()
+      const target = self ? pickTarget(ctx.players().filter((p) => p.id !== self.id)) : null
+      if (!self || !target) return
+      const item = pick(debuffs)
+      // 사람이 보내는 것과 같은 이벤트. 사람 카페면 사람 화면이, 봇 카페면 그 봇의 onEvent 가 효과를 건다.
+      ctx.emit('cafe:item_attack', {
+        attackerId: self.id,
+        attackerNickname: self.nickname,
+        targetId: target.id,
+        itemId: item.id,
+        duration: item.duration,
+      })
+    },
+    onEvent: async (ctx, type, payload) => {
+      if (type !== 'cafe:item_attack') return
+      const now = Date.now()
+      const duration = Number(payload.duration) || 0
+      switch (payload.itemId) {
+        case 'BAD_REVIEW':
+          ctx.memory.closedUntil = now + (duration || 15000)
+          return
+        case 'PRICE_CRASH':
+          ctx.memory.priceCrashUntil = now + (duration || 20000)
+          return
+        case 'ROACH_ALERT':
+          // 손님 절반이 떠나고 재고 절반이 버려진다 → 한동안 절반만 판다
+          ctx.memory.roachUntil = now + 10000
+          return
+        case 'TAX': {
+          // 사람 카페와 같은 규칙: 가진 돈의 25%가 사라지고, 30초 동안은 세금이 안 걷힌다
+          if (now < (ctx.memory.taxFreeUntil ?? 0)) return
+          const cash = ctx.self()?.cafe_cash ?? ctx.self()?.score ?? 0
+          const paid = Math.floor(cash * TAX_RATE)
+          ctx.memory.taxFreeUntil = now + TAX_IMMUNITY_SECONDS * 1000
+          if (paid > 0) await ctx.addDelta({ score: -paid, cafe_cash: -paid })
+          await publishCafeMeta(ctx, ctx.memory.publishedLevel ?? 0)
+          return
+        }
+        default:
+          return
+      }
     },
   },
 
-  // 마피아: 순위는 현금 + 다이아×100. 실제 금고 표에서 하나를 연다.
+  // 마피아: 순위는 현금 + 다이아×100. 정답이면 사람처럼 '친구 조사' 또는 '금고 열기'를 한다.
+  // - 금고 열기는 가끔 몰래보기로 가장 좋은 금고를 고른다. 그러면 다음 행동까지 수상함이 남아 사람이 조사로 잡을 수 있다.
+  // - 친구 조사는 누가 몰래봤는지 모르니 아무나 고른다. 몰래본 사람을 잡으면 자금 30%를 환수하고 상대에게 발각 알림이 뜬다.
   mafia: {
     cycleSeconds: 10,
     onAnswer: async (ctx, correct) => {
       if (!correct) return
-      const vault = pick(generateSafeVaults())
-      const multiplier = ctx.memory.multiplier ?? 1
-      if (vault.reward === 'cash') {
-        const cash = Math.floor(vault.amount * multiplier)
-        await ctx.addDelta({ mafia_cash: cash, gold: cash, score: cash })
-      } else if (vault.reward === 'diamond') {
-        const diamonds = Math.floor(vault.amount * multiplier)
-        await ctx.addDelta({ mafia_diamonds: diamonds, score: diamonds * DIAMOND_CASH_VALUE })
-      } else if (vault.reward === 'multiplier_1.5' || vault.reward === 'multiplier_2') {
-        ctx.memory.multiplier = multiplier * (vault.multiplierType ?? 1)
+      const selfRow = ctx.self()
+      if (!selfRow) return
+      const me = toMafiaPlayer(selfRow)
+
+      const target = Math.random() < (ctx.aggressive ? 0.45 : 0.25)
+        ? pickTarget(ctx.players().filter((p) => p.id !== me.id))
+        : null
+      if (target) {
+        // 상대 잔액·수상함은 DB 최신값으로 판정한다(사람 화면과 같다)
+        const fresh = toMafiaPlayer((await ctx.fetchPlayer(target.id)) ?? target)
+        const result = attemptInvestigate(me, fresh, Date.now())
+        // 조사는 '다음 행동'이라 내 수상함은 풀린다
+        await ctx.setFields(mafiaFlagPatch({ ...result.newInvestigator, isCheating: false, cheatPendingVault: false }))
+        if (!result.success) return
+        ctx.emit('game:effect', {
+          kind: 'mafia:caught',
+          targetPlayerId: target.id,
+          investigatorName: me.name,
+          recovered: result.recovered ?? 0,
+        })
+        await ctx.patchPlayer(target.id, mafiaFlagPatch(result.newTarget), 'mafia_target_caught')
+        const recovered = result.recovered ?? 0
+        if (recovered > 0) {
+          const convert = result.diamondsConverted ?? 0
+          if (convert > 0) {
+            await ctx.addDeltaTo(target.id, {
+              mafia_diamonds: -convert,
+              mafia_cash: convert * DIAMOND_CASH_VALUE,
+              gold: convert * DIAMOND_CASH_VALUE,
+            })
+          }
+          await ctx.steal(target.id, recovered, ['mafia_cash', 'score', 'gold'])
+        }
+        ctx.emit('game:effect', { kind: 'mafia:log', message: result.log, logType: 'danger' })
+        return
       }
+
+      const vaults = generateSafeVaults()
+      const peek = Math.random() < (ctx.aggressive ? 0.5 : 0.3)
+      const actor = peek ? applyCheat(vaults, me, Date.now()).newPlayer : me
+      const vault = peek ? bestVault(vaults) : pick(vaults)
+      const opened = openSafeVault(vault, actor)
+      const next = opened.newPlayer
+      // 몰래본 그 라운드에 연 금고는 수상함을 유지하고, 지난 라운드 수상함은 이번 행동으로 풀린다(MafiaView 와 같다)
+      if (next.cheatPendingVault) next.cheatPendingVault = false
+      else if (next.isCheating) next.isCheating = false
+      const cash = next.cash - me.cash
+      const diamonds = next.diamonds - me.diamonds
+      const deltas: PlayerDeltas = {}
+      if (cash !== 0) {
+        deltas.mafia_cash = cash
+        deltas.gold = cash
+      }
+      if (diamonds !== 0) deltas.mafia_diamonds = diamonds
+      if (cash + diamonds * DIAMOND_CASH_VALUE !== 0) deltas.score = cash + diamonds * DIAMOND_CASH_VALUE
+      if (Object.keys(deltas).length > 0) await ctx.addDelta(deltas)
+      await ctx.setFields(mafiaFlagPatch(next))
+      ctx.emit('game:effect', { kind: 'mafia:log', message: opened.log, logType: vault.reward === 'empty' ? 'info' : 'success' })
     },
   },
 
@@ -312,21 +539,85 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
   },
 
   // 간식런: 게임 중엔 다른 학생이 안 보인다. 달리기 점수(초당 2~3) + 30초마다 퀴즈 정답 +50.
+  // 달리며 줍는 상자(퀴즈 한 번 사이 1~2개)에서 점수 뺏기(10%)·화면 뒤집기·축소(8%)가 나오면 쓴다.
   treat_rush: {
     cycleSeconds: 30,
     onAnswer: async (ctx, correct) => {
       const running = Math.round(secondsSinceLast(ctx) * (2 + Math.random()))
       const earned = running + (correct ? 50 : 0)
       if (earned > 0) await ctx.addDelta({ score: earned })
+
+      const self = ctx.self()
+      if (!self) return
+      const boxes = ctx.aggressive ? 3 : randInt(1, 2)
+      for (let i = 0; i < boxes; i += 1) {
+        const rolled = rollBoxItem()
+        const item = ctx.aggressive && rolled !== 'score_steal' && rolled !== 'screen_flip' && rolled !== 'screen_shrink' && Math.random() < 0.4
+          ? pick(['score_steal', 'screen_flip', 'screen_shrink'] as const)
+          : rolled
+        if (item === 'screen_flip' || item === 'screen_shrink') {
+          emitScreenAttack(ctx, 'treat_rush', item)
+        } else if (item === 'score_steal') {
+          const target = pickTarget(ctx.players().filter((p) => p.id !== self.id && p.is_online !== false && (p.score ?? 0) > 0))
+          if (!target) continue
+          const amount = Math.max(10, Math.min(120, Math.ceil((target.score ?? 0) * 0.2)))
+          await ctx.steal(target.id, amount, ['score'])
+          // 사람 화면은 자기 점수를 로컬에서 들고 있다가 덮어쓰므로, 같은 이벤트로 화면 점수도 깎게 한다
+          ctx.emit('game:effect', {
+            mode: 'treat_rush',
+            effect: 'score_steal',
+            item,
+            sourcePlayerId: self.id,
+            sourceName: self.nickname,
+            targetPlayerId: target.id,
+            amount,
+          })
+        }
+      }
     },
   },
 
   // 강아지대소동: 학생 화면엔 다른 학생이 안 보인다(선생님 TV 화면엔 나온다). 정답 +100 + 피하기 보상.
+  // 정답 뒤 카드 3장 중 공격 카드(똥폭탄 → 1등에게, 점수 도둑 → 아무에게 50점)가 있으면 절반쯤 쓴다.
   poop_dodge: {
     cycleSeconds: 17,
     onAnswer: async (ctx, correct) => {
-      const earned = correct ? 100 + randInt(50, 200) : randInt(20, 60)
-      await ctx.addDelta({ score: earned })
+      const self = ctx.self()
+      if (!self) return
+      let earned = correct ? 100 + randInt(50, 200) : randInt(20, 60)
+
+      // 받은 똥폭탄은 다음 피하기에서 맞는다. 봇은 피하기 화면이 없으니 한 개에 20점 손해로 친다.
+      const bombs = parsePendingAttacks(self.pending_attacks)
+      if (bombs.length > 0) {
+        await ctx.setFields({ pending_attacks: [] })
+        earned -= 20 * bombs.length
+      }
+
+      if (correct) {
+        const attackCards = drawCardChoices().filter((card) => card.id === 'poop_bomb' || card.id === 'score_thief')
+        const useAttack = attackCards.length > 0 ? Math.random() < (ctx.aggressive ? 0.95 : 0.5) : ctx.aggressive && Math.random() < 0.5
+        const card = useAttack ? (attackCards.length > 0 ? pick(attackCards) : pick([CARD_DEFS.poop_bomb, CARD_DEFS.score_thief])) : null
+        const others = ctx.players().filter((p) => p.id !== self.id)
+        if (card?.id === 'poop_bomb') {
+          // 게임 규칙: 똥폭탄은 1등에게 간다
+          const top = sortPlayersByScore(others.filter(isTargetable))[0]
+          if (top) {
+            const fresh = (await ctx.fetchPlayer(top.id)) ?? top
+            await ctx.patchPlayer(top.id, {
+              pending_attacks: [...parsePendingAttacks(fresh.pending_attacks), createPoopBombAttack(self.nickname)],
+            }, 'poop_dodge_poop_bomb')
+            earned += POOP_BOMB_SCORE
+          }
+        } else if (card?.id === 'score_thief') {
+          const target = pickTarget(others)
+          if (target) {
+            await ctx.addDeltaTo(target.id, { score: -SCORE_THIEF_AMOUNT })
+            earned += SCORE_THIEF_AMOUNT
+          }
+        }
+      }
+
+      if (earned !== 0) await ctx.addDelta({ score: earned })
     },
   },
 

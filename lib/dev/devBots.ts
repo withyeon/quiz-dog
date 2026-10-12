@@ -7,6 +7,9 @@
  *
  * 설정은 /dev 에서 게임 시작을 누른 탭의 sessionStorage 에만 둔다(lib/dev/devPlayFlags.ts 와 같은 방식).
  * 다른 학생·다른 탭에는 영향이 없고, 탭을 닫으면 봇도 멈춘다.
+ *
+ * 게임 시간도 여기서 정한다. /dev 방에는 선생님 화면이 없어서, 시간이 끝나면 같은 실행기가 선생님 대신
+ * 방을 끝내 결과 화면으로 넘어가게 한다(봇이 없어도 한다).
  */
 
 export type DevBotDifficulty = 'easy' | 'medium' | 'hard'
@@ -30,6 +33,9 @@ export const DEV_BOT_DIFFICULTIES: Record<DevBotDifficulty, DevBotDifficultyProf
 
 export const DEV_BOT_MAX_COUNT = 8
 
+/** 게임 시간(분). 선생님 화면(GameDurationPicker)과 같은 선택지에 무제한(null)을 더했다 */
+export const DEV_GAME_DURATION_MINUTES = [3, 5, 7, 10] as const
+
 // 봇 이름. 실제 학생과 헷갈리지 않게 '봇'을 붙인다.
 const BOT_NAMES = ['뭉치', '보리', '초코', '콩이', '두부', '호두', '라떼', '모카', '쿠키', '젤리', '구름', '마루']
 
@@ -41,8 +47,18 @@ export function createDevBotNicknames(count: number, difficulty: DevBotDifficult
 }
 
 // ─── /dev 에서 고른 값(다음에 /dev 를 열어도 그대로) ───
-export type DevBotSettings = { count: number; difficulty: DevBotDifficulty }
-export const DEFAULT_DEV_BOT_SETTINGS: DevBotSettings = { count: 0, difficulty: 'medium' }
+export type DevBotSettings = {
+  count: number
+  difficulty: DevBotDifficulty
+  /**
+   * 공격 자주: 방해·공격 아이템이 나올 때까지 기다리지 않고 훨씬 자주 쓴다(공격 화면 테스트용).
+   * 끄면 게임 규칙의 확률 그대로라, 봇이 몇 명뿐이면 공격이 드물다(골드퀘스트 강탈은 정답의 약 10%).
+   */
+  aggressive: boolean
+  /** 게임 시간(분). null 이면 무제한(예전 /dev 처럼 끝나지 않는다) */
+  durationMinutes: number | null
+}
+export const DEFAULT_DEV_BOT_SETTINGS: DevBotSettings = { count: 0, difficulty: 'medium', aggressive: false, durationMinutes: 5 }
 const SETTINGS_KEY = 'quizdog:devBotSettings'
 
 function isDifficulty(value: unknown): value is DevBotDifficulty {
@@ -54,7 +70,14 @@ export function readDevBotSettings(): DevBotSettings {
   try {
     const parsed = JSON.parse(window.sessionStorage.getItem(SETTINGS_KEY) ?? 'null') as Partial<DevBotSettings> | null
     const count = Math.max(0, Math.min(DEV_BOT_MAX_COUNT, Math.floor(Number(parsed?.count) || 0)))
-    return { count, difficulty: isDifficulty(parsed?.difficulty) ? parsed.difficulty : DEFAULT_DEV_BOT_SETTINGS.difficulty }
+    return {
+      count,
+      difficulty: isDifficulty(parsed?.difficulty) ? parsed.difficulty : DEFAULT_DEV_BOT_SETTINGS.difficulty,
+      aggressive: parsed?.aggressive === true,
+      durationMinutes: parsed && 'durationMinutes' in parsed
+        ? (DEV_GAME_DURATION_MINUTES as readonly number[]).includes(Number(parsed.durationMinutes)) ? Number(parsed.durationMinutes) : null
+        : DEFAULT_DEV_BOT_SETTINGS.durationMinutes,
+    }
   } catch {
     return DEFAULT_DEV_BOT_SETTINGS
   }
@@ -75,6 +98,8 @@ export type DevBotSession = {
   roomCode: string
   gameMode: string
   setId: string | null
+  /** 공격 자주(DevBotSettings.aggressive) */
+  aggressive?: boolean
   bots: DevBot[]
 }
 const SESSION_KEY = 'quizdog:devBotSession'
@@ -83,14 +108,15 @@ export function readDevBotSession(): DevBotSession | null {
   if (typeof window === 'undefined') return null
   try {
     const parsed = JSON.parse(window.sessionStorage.getItem(SESSION_KEY) ?? 'null') as DevBotSession | null
-    if (!parsed?.roomCode || !Array.isArray(parsed.bots) || parsed.bots.length === 0) return null
+    // 봇이 없어도 세션은 쓴다(시간이 끝나면 방을 끝내는 일)
+    if (!parsed?.roomCode || !Array.isArray(parsed.bots)) return null
     return parsed
   } catch {
     return null
   }
 }
 
-/** 봇 없이 시작하면 null 로 지워서, 앞 판 봇이 새 판에 따라오지 않게 한다. */
+/** /dev 에서 새 판을 시작할 때마다 덮어쓴다. 그래서 앞 판 봇이 새 판에 따라오지 않는다. */
 export function writeDevBotSession(session: DevBotSession | null): void {
   if (typeof window === 'undefined') return
   try {

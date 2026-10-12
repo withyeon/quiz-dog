@@ -14,6 +14,7 @@ import {
   DEFAULT_DEV_BOT_SETTINGS,
   DEV_BOT_DIFFICULTIES,
   DEV_BOT_MAX_COUNT,
+  DEV_GAME_DURATION_MINUTES,
   createDevBotNicknames,
   readDevBotSettings,
   writeDevBotSession,
@@ -196,6 +197,8 @@ export default function DevPage() {
       // - 떨어지지마는 게임을 시작하는 순간 방에 있는 학생만 맵에 그린다. 봇이 미리 있어야 한다.
       // - 내가 가장 먼저 만든 행이라, 접속 정보(presence)가 잠깐 비어도 방장(눈싸움 팀 배정)은 내가 된다.
       // 봇이 없으면 예전 순서(startRoom → 나) 그대로다.
+      // 게임 시간. 정하면 실제 수업처럼 시간이 흐르고, 끝나면 이 탭이 선생님 대신 방을 끝낸다(DevBotRunner).
+      const durationSeconds = botSettings.durationMinutes ? botSettings.durationMinutes * 60 : undefined
       let playerData: { id: string } | null = null
       let bots: DevBot[] = []
       if (botSettings.count > 0) {
@@ -212,9 +215,9 @@ export default function DevPage() {
             return { playerId: created.id, nickname: botNickname, difficulty: botSettings.difficulty }
           }),
         )
-        await startRoom({ roomCode: room.room_code, gameMode: selectedMode })
+        await startRoom({ roomCode: room.room_code, gameMode: selectedMode, durationSeconds })
       } else {
-        await startRoom({ roomCode: room.room_code, gameMode: selectedMode })
+        await startRoom({ roomCode: room.room_code, gameMode: selectedMode, durationSeconds })
         playerData = await createHuman()
       }
 
@@ -223,10 +226,8 @@ export default function DevPage() {
         throw new Error('플레이어 생성 후 id를 받지 못했습니다.')
       }
 
-      // 봇 실행기(components/dev/DevBotRunner.tsx)가 이 탭에서 읽는다. 봇이 없으면 앞 판 봇 정보를 지운다.
-      writeDevBotSession(bots.length > 0
-        ? { roomCode: room.room_code, gameMode: selectedMode, setId: selectedSetId, bots }
-        : null)
+      // 실행기(components/dev/DevBotRunner.tsx)가 이 탭에서 읽는다. 봇을 움직이고, 시간이 끝나면 방을 끝낸다.
+      writeDevBotSession({ roomCode: room.room_code, gameMode: selectedMode, setId: selectedSetId, aggressive: botSettings.aggressive, bots })
 
       const gameUrl = getGameModeUrl(selectedMode, room.room_code, pid)
 
@@ -319,6 +320,33 @@ export default function DevPage() {
           </p>
         </div>
 
+        {/* 게임 시간 */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            게임 시간 <span className="font-normal text-gray-500">(끝나면 결과 화면으로 넘어가요)</span>
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            {[null, ...DEV_GAME_DURATION_MINUTES].map((minutes) => (
+              <button
+                key={minutes ?? 'unlimited'}
+                type="button"
+                onClick={() => updateBotSettings({ durationMinutes: minutes })}
+                aria-pressed={botSettings.durationMinutes === minutes}
+                className={`h-10 rounded-lg border-2 px-4 font-bold transition ${
+                  botSettings.durationMinutes === minutes
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {minutes === null ? '무제한' : `${minutes}분`}
+              </button>
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-gray-500">
+            /dev 방에는 선생님 화면이 없어서, 시간이 끝나면 이 탭이 선생님 대신 방을 끝냅니다. 무제한이면 예전처럼 끝나지 않습니다.
+          </p>
+        </div>
+
         {/* 봇 친구 */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
           <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -362,6 +390,14 @@ export default function DevPage() {
                 </button>
               )
             })}
+          </div>
+          <div className={`mt-4 ${botSettings.count === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+            <DevToggle
+              label="공격 자주"
+              description="봇이 방해·공격 아이템(강탈·세금·화면 뒤집기·똥폭탄·친구 조사 등)을 훨씬 자주 씁니다. 끄면 게임 규칙의 확률 그대로라 봇이 적으면 공격이 드뭅니다."
+              checked={botSettings.aggressive}
+              onChange={(aggressive) => updateBotSettings({ aggressive })}
+            />
           </div>
           <p className="mt-3 text-xs text-gray-500">
             봇은 이 탭에서 게임 화면이 열려 있는 동안만 움직이고, 순위표·결과에 다른 학생처럼 나옵니다.

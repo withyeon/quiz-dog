@@ -7,6 +7,7 @@ import {
   emitRoomRuntimeEvent,
   flattenPresenceState,
   getRoomClientId,
+  notifyOutgoingRoomEvent,
   type RoomChannelEvent,
   type RoomEventType,
   type RoomPresenceMeta,
@@ -101,6 +102,8 @@ export function useRoomChannel({
       seq: seqRef.current,
       payload,
     }
+    // self:false 라 이 탭으로는 안 돌아오는 이벤트를, 같은 탭에서 들어야 하는 쪽(/dev 봇)에 알린다
+    notifyOutgoingRoomEvent(event as RoomChannelEvent)
 
     // 1) 채널이 살아 있으면 웹소켓으로 보낸다(ack 대기).
     //    예전에는 채널이 '구독됨'이 아니면 여기서 조용히 포기했다. 교실 와이파이가 흔들려
