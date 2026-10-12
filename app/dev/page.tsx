@@ -1,13 +1,13 @@
 'use client'
 
 import { toast } from '@/components/ui/Toaster'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { checkSupabaseConfig, testSupabaseConnection } from '@/lib/supabase/client'
 import { CHARACTERS } from '@/lib/utils/characters'
 import { GAME_MODES, getGameModeUrl, type GameModeId } from '@/lib/game/modes'
-import { listQuestionSetsWithCounts } from '@/lib/services/questionSets'
+import { listQuestionSetsWithCounts, type QuestionSetSummary } from '@/lib/services/questionSets'
 import { createPlayerForRoom, createRoom, startRoom } from '@/lib/services/rooms'
 import { DEFAULT_DEV_PLAY_FLAGS, readDevPlayFlags, writeDevPlayFlags, type DevPlayFlags } from '@/lib/dev/devPlayFlags'
 import {
@@ -72,6 +72,25 @@ function DevToggle({
   )
 }
 
+// 마지막으로 고른 문제집. 같은 문제집으로 여러 번 테스트하므로, 다시 /dev 를 열어도 그대로 골라 둔다(이 탭에서만).
+const DEV_SET_ID_KEY = 'quizdog:devSetId'
+
+function readLastDevSetId(): string | null {
+  try {
+    return window.sessionStorage.getItem(DEV_SET_ID_KEY)
+  } catch {
+    return null
+  }
+}
+
+function writeLastDevSetId(setId: string): void {
+  try {
+    window.sessionStorage.setItem(DEV_SET_ID_KEY, setId)
+  } catch {
+    // 저장이 막혀도 이번 화면에서는 고른 대로 동작한다
+  }
+}
+
 function formatDevStartError(error: unknown): string {
   if (error instanceof Error) {
     const m = error.message
@@ -105,8 +124,20 @@ export default function DevPage() {
   const [selectedMode, setSelectedMode] = useState<GameModeId | null>(null)
   const [loading, setLoading] = useState(false)
   const [nickname, setNickname] = useState('개발자')
-  const [questionSets, setQuestionSets] = useState<any[]>([])
+  const [questionSets, setQuestionSets] = useState<QuestionSetSummary[]>([])
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
+  const [setSearch, setSetSearch] = useState('')
+  const setListRef = useRef<HTMLUListElement | null>(null)
+
+  // 처음 불러왔을 때 고른 문제집(지난번에 고른 것일 수 있다)이 목록 아래쪽이면 목록 안에서만 그 자리로 내려 준다
+  useEffect(() => {
+    const list = setListRef.current
+    const selected = list?.querySelector<HTMLElement>('[aria-selected="true"]')
+    // 목록이 relative 라 offsetTop 이 목록 기준이다. 고른 항목이 가운데 오게 한다.
+    if (list && selected) list.scrollTop = selected.offsetTop - (list.clientHeight - selected.offsetHeight) / 2
+    // 문제집 목록이 처음 채워질 때만
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionSets])
   const [connectionHint, setConnectionHint] = useState<string | null>(null)
   // 서버 렌더와 어긋나지 않게 기본값으로 시작하고, 마운트 후 이 탭에 저장된 값을 읽는다.
   const [playFlags, setPlayFlags] = useState<DevPlayFlags>(DEFAULT_DEV_PLAY_FLAGS)
@@ -149,9 +180,11 @@ export default function DevPage() {
       try {
         const sets = await listQuestionSetsWithCounts()
         if (cancelled) return
-        setQuestionSets(sets.slice(0, 5))
+        // 전부 보여 준다(최신순). 목록은 스크롤되고 검색할 수 있다.
+        setQuestionSets(sets)
         if (sets.length > 0) {
-          setSelectedSetId(sets[0].id)
+          const lastSetId = readLastDevSetId()
+          setSelectedSetId(sets.some((set) => set.id === lastSetId) ? lastSetId : sets[0].id)
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
@@ -285,17 +318,61 @@ export default function DevPage() {
           {questionSets.length === 0 ? (
             <p className="text-gray-500 text-sm">문제집이 없습니다. 먼저 문제집을 생성해주세요.</p>
           ) : (
-            <select
-              value={selectedSetId || ''}
-              onChange={(e) => setSelectedSetId(e.target.value)}
-              className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              {questionSets.map((set) => (
-                <option key={set.id} value={set.id}>
-                  {set.title}
-                </option>
-              ))}
-            </select>
+            <>
+              <input
+                type="search"
+                value={setSearch}
+                onChange={(e) => setSetSearch(e.target.value)}
+                placeholder={`문제집 ${questionSets.length}개 중 검색`}
+                aria-label="문제집 검색"
+                className="mb-2 w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {(() => {
+                const keyword = setSearch.trim().toLowerCase()
+                const visibleSets = keyword
+                  ? questionSets.filter((set) => set.title.toLowerCase().includes(keyword))
+                  : questionSets
+                const selectedSet = questionSets.find((set) => set.id === selectedSetId)
+                return (
+                  <>
+                    {selectedSet && (
+                      <p className="mb-2 text-sm text-gray-600">
+                        선택: <span className="font-semibold text-gray-900">{selectedSet.title}</span> · {selectedSet.question_count}문제
+                      </p>
+                    )}
+                    <ul ref={setListRef} className="relative max-h-72 overflow-y-auto rounded-lg border-2 border-gray-200 divide-y divide-gray-100" role="listbox" aria-label="문제집 목록">
+                      {visibleSets.map((set) => {
+                        const selected = set.id === selectedSetId
+                        return (
+                          <li key={set.id}>
+                            <button
+                              type="button"
+                              role="option"
+                              aria-selected={selected}
+                              onClick={() => {
+                                setSelectedSetId(set.id)
+                                writeLastDevSetId(set.id)
+                              }}
+                              className={`flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition ${
+                                selected ? 'bg-blue-50 font-semibold text-blue-900' : 'hover:bg-gray-50 text-gray-800'
+                              }`}
+                            >
+                              <span className="min-w-0 flex-1 truncate">{set.title}</span>
+                              <span className={`shrink-0 text-xs ${set.question_count === 0 ? 'text-red-500' : 'text-gray-500'}`}>
+                                {set.question_count}문제
+                              </span>
+                            </button>
+                          </li>
+                        )
+                      })}
+                      {visibleSets.length === 0 && (
+                        <li className="px-4 py-3 text-sm text-gray-500">&apos;{setSearch.trim()}&apos;이(가) 들어간 문제집이 없어요</li>
+                      )}
+                    </ul>
+                  </>
+                )
+              })()}
+            </>
           )}
         </div>
 
