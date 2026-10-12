@@ -16,6 +16,9 @@ import { formatTime } from '@/lib/game/mafia'
 import { useGameBase } from '@/hooks/useGameBase'
 import PixelIcon from '@/components/ui/PixelIcon'
 
+// 방에 제한 시간이 없을 때(/dev 로 만든 방 등) 보여 주는 게임 시간. 이 시간이 지나면 결과로 넘어간다(useGameBase).
+const MAFIA_FALLBACK_DURATION_SECONDS = 420
+
 export default function MafiaPage() {
   const router = useRouter()
   const {
@@ -46,10 +49,10 @@ export default function MafiaPage() {
     commitPlayerDelta,
     commitPlayerSteal,
     sendRoomEvent,
-  } = useGameBase({ expectedGameMode: 'mafia', preStartQuizTotal: 0 })
+  } = useGameBase({ expectedGameMode: 'mafia', preStartQuizTotal: 0, fallbackDurationSeconds: MAFIA_FALLBACK_DURATION_SECONDS })
 
-  const [remainingTime, setRemainingTime] = useState(room?.duration_seconds ?? 420)
-  const duration = room?.duration_seconds ?? 420
+  const [remainingTime, setRemainingTime] = useState(room?.duration_seconds ?? MAFIA_FALLBACK_DURATION_SECONDS)
+  const duration = room?.duration_seconds ?? MAFIA_FALLBACK_DURATION_SECONDS
 
   useEffect(() => {
     if (room?.status === 'playing' && currentView === 'lobby' && !shouldShowPreStartQuiz) {

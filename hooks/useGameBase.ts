@@ -103,6 +103,13 @@ interface UseGameBaseOptions {
     /** 게임 시작 전 제출해야 하는 문제 수. 기본값: 3 */
     preStartQuizTotal?: number
     /**
+     * 방에 제한 시간(duration_seconds)이 없을 때 화면이 대신 보여 주는 게임 시간(초).
+     * 주면 그 시간이 지났을 때도 제한 시간이 있는 방과 똑같이 결과로 넘어간다.
+     * (/dev 로 만든 방은 제한 시간이 없어, 마피아처럼 기본 시간을 카운트다운으로 보여 주는 화면이 00:00 에서 멈춰 있었다)
+     * 방에 제한 시간이 있으면 쓰지 않는다.
+     */
+    fallbackDurationSeconds?: number
+    /**
      * 훅이 answer_history를 복구·동기화할지. 기본값: true.
      * 공부 모드처럼 페이지가 정답 기록을 직접 관리하면 false — 그래야 훅이 옛 기록을
      * 되읽어 5초 뒤 다시 써서 페이지가 막 저장한 기록을 덮어쓰는 일이 없다.
@@ -131,6 +138,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         timeLimit = 30,
         preStartQuizTotal = DEFAULT_PRE_START_QUIZ_TOTAL,
         manageAnswerHistory = true,
+        fallbackDurationSeconds,
     } = options
     const requiredPreStartQuizCount = Math.max(0, preStartQuizTotal)
     const router = useRouter()
@@ -578,13 +586,13 @@ export function useGameBase(options: UseGameBaseOptions) {
             || !room
             || room.status !== 'playing'
             || !sessionStartedAt
-            || !room.duration_seconds
+            || !(room.duration_seconds || fallbackDurationSeconds)
         ) {
             return
         }
 
         const startedMs = new Date(sessionStartedAt).getTime()
-        const durationSeconds = Number(room.duration_seconds)
+        const durationSeconds = Number(room.duration_seconds || fallbackDurationSeconds)
         if (!Number.isFinite(startedMs) || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return
 
         // 과제는 개인 제한 시간과 제출 마감 중 먼저 오는 쪽에서 끝난다
@@ -605,7 +613,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         tick()
         const interval = window.setInterval(tick, 1000)
         return () => window.clearInterval(interval)
-    }, [expectedGameMode, forceFinishForStudent, homeworkDueAt, isHomework, room, roomCode, sessionStartedAt])
+    }, [expectedGameMode, fallbackDurationSeconds, forceFinishForStudent, homeworkDueAt, isHomework, room, roomCode, sessionStartedAt])
 
     // ─── 카운트다운 완료 처리 ───
     const handleCountdownComplete = useCallback(() => {
