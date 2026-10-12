@@ -14,6 +14,7 @@ import {
 import HudMetric from '@/components/game/HudMetric'
 import {
     PLAYER_START_HP,
+    TOWER_DANGER_HP,
     TOWER_TYPES,
     TowerTypeId,
     WAVES,
@@ -44,18 +45,21 @@ interface TowerBattleHeaderProps {
     onStartWave: () => void
 }
 
-/** 코어 체력: 숫자 대신 비율 막대. 50% 아래면 주황, 25% 아래면 빨강으로 바뀌고 맥박처럼 깜빡인다 */
+/**
+ * 코어 체력: 숫자 대신 비율 막대. 50% 아래면 주황, 30 이하(맵 빨간 테두리와 같은 기준)면 빨강.
+ * 위험할 때 깜빡이는 건 막대뿐이다. 예전엔 맵 전체가 깜빡여서 플레이가 거슬렸다.
+ */
 function HpBarMetric({ hp, maxHp }: { hp: number; maxHp: number }) {
     const ratio = Math.max(0, Math.min(1, hp / maxHp))
     const percent = Math.round(ratio * 100)
-    const isDanger = ratio <= 0.25
+    const isDanger = hp <= TOWER_DANGER_HP
     const isWarning = !isDanger && ratio <= 0.5
     const barColor = isDanger ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-emerald-500'
     const textColor = isDanger ? 'text-red-600' : isWarning ? 'text-amber-600' : 'text-slate-950'
     return (
         <div
             className={`min-w-0 rounded-lg border px-1.5 py-1 shadow-sm backdrop-blur sm:min-w-[108px] sm:px-3 sm:py-2 ${
-                isDanger ? 'border-red-200 bg-red-50/[0.85] animate-pulse' : 'border-white/70 bg-white/[0.72]'
+                isDanger ? 'border-red-200 bg-red-50/[0.85]' : 'border-white/70 bg-white/[0.72]'
             }`}
             role="meter"
             aria-label="코어 체력"
@@ -73,7 +77,7 @@ function HpBarMetric({ hp, maxHp }: { hp: number; maxHp: number }) {
             </div>
             <div className="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-slate-200/80 sm:mt-1.5 sm:h-2">
                 <div
-                    className={`h-full rounded-full transition-[width,background-color] duration-300 ease-out ${barColor}`}
+                    className={`h-full rounded-full transition-[width,background-color] duration-300 ease-out ${barColor} ${isDanger ? 'animate-pulse' : ''}`}
                     style={{ width: `${percent}%` }}
                 />
             </div>

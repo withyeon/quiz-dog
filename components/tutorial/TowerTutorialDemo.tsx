@@ -41,6 +41,7 @@ import {
   getTowerWaveOutlook,
   hasReachedEnd,
   moveProjectile,
+  TOWER_DANGER_HP,
   type BuildSlot,
   type Enemy,
   type EnemyTypeId,
@@ -900,7 +901,7 @@ function TowerScreen({ ctx, stageRef, panel, onPlaceTower, showLeaks = false }: 
   const contentRef = useRef<HTMLDivElement>(null)
   const fit = useFitScreen(stageRef, contentRef)
   const outlook = getTowerWaveOutlook(battle.currentWave)
-  const isDangerous = battle.hp <= 30
+  const isDangerous = battle.hp <= TOWER_DANGER_HP
 
   let panelNode: ReactNode = null
   if (panel === 'wave') {
@@ -935,7 +936,7 @@ function TowerScreen({ ctx, stageRef, panel, onPlaceTower, showLeaks = false }: 
     <div ref={stageRef} className="pointer-events-none absolute inset-0 flex items-center justify-center px-3 pb-3 sm:px-5">
       <div ref={contentRef} className="shrink-0" style={{ width: fit.width, zoom: fit.zoom }}>
         {panelNode}
-        <div className={`tower-map-frame relative transition-all duration-300 ${isDangerous ? 'animate-pulse ring-4 ring-red-500 ring-offset-2' : ''}`}>
+        <div className={`tower-map-frame relative transition-all duration-300 ${isDangerous ? 'ring-4 ring-red-500 ring-offset-2' : ''}`}>
           <TowerDefenseMap
             towers={battle.towers}
             enemies={battle.enemies}

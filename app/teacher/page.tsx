@@ -15,6 +15,7 @@ import {
   Plus,
   Trash2,
   Share2,
+  Globe,
 } from 'lucide-react'
 import {
   copyQuestionSetFromQuestionsOnly,
@@ -31,6 +32,7 @@ import { getLocalLikedQuestionSetIds, getLibraryClientId } from '@/lib/utils/lib
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/components/ui/Toaster'
 import ShareSetModal from '@/components/share/ShareSetModal'
+import { setLibraryListing } from '@/lib/services/sharing'
 import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 import PixelIcon from '@/components/ui/PixelIcon'
 
@@ -140,6 +142,34 @@ function TeacherPageContent() {
     } catch (error) {
       console.error('Error duplicating question set:', error)
       toast.error('복제에 실패했습니다.')
+    }
+  }
+
+  /** 목록 한 줄의 자료실 공개 여부를 다시 불러오지 않고 바로 반영한다. */
+  const applyLibraryState = (setId: string, isPublic: boolean) => {
+    setQuestionSets((prev) => prev.map((set) => (set.id === setId ? { ...set, is_public: isPublic } : set)))
+  }
+
+  /**
+   * 자료실에 올린 문제집을 다시 내린다.
+   * 공유 모달 안에도 같은 토글이 있지만, 아이콘 뒤에 숨어 있어 찾기 어렵다는 피드백이 있어
+   * 공개 중인 문제집에는 목록에서 바로 누를 수 있는 버튼을 둔다.
+   */
+  const handleUnpublish = async (set: QuestionSet) => {
+    const ok = await confirmAsync({
+      title: '자료실에서 내릴까요?',
+      message: '다른 선생님이 자료실에서 더 이상 찾을 수 없게 돼요. 이미 담아 간 문제집은 그대로 남고, 언제든 다시 올릴 수 있어요.',
+      confirmLabel: '자료실에서 내리기',
+    })
+    if (!ok) return
+
+    try {
+      await setLibraryListing(set.id, false)
+      applyLibraryState(set.id, false)
+      toast.success('자료실에서 내렸어요.')
+    } catch (error) {
+      console.error('자료실 회수 실패:', error)
+      toast.error('자료실에서 내리지 못했어요: ' + formatServiceError(error))
     }
   }
 
@@ -382,6 +412,12 @@ function TeacherPageContent() {
                           <span>{set.question_count}문항</span>
                           <span>·</span>
                           <span>{new Date(set.created_at).toLocaleDateString('ko-KR')}</span>
+                          {set.is_public && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-black text-sky-700 ring-1 ring-sky-200">
+                              <Globe className="h-3 w-3" />
+                              자료실 공개 중
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -398,11 +434,22 @@ function TeacherPageContent() {
                         <Play className="h-4 w-4 fill-current" />
                         게임 시작
                       </button>
+                      {set.is_public && (
+                        <button
+                          onClick={() => handleUnpublish(set)}
+                          className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 text-sm font-bold text-sky-700 transition hover:border-sky-300 hover:bg-white"
+                          aria-label={`${set.title} 자료실에서 내리기`}
+                          title="자료실에서 내리기"
+                        >
+                          <Globe className="h-4 w-4" />
+                          자료실에서 내리기
+                        </button>
+                      )}
                       <button
                         onClick={() => setSharingSet({ id: set.id, title: set.title })}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
-                        aria-label={`${set.title} 공유`}
-                        title="링크로 공유"
+                        aria-label={`${set.title} 공유 설정`}
+                        title="공유 설정 (링크 · 자료실)"
                       >
                         <Share2 className="h-4 w-4" />
                       </button>
@@ -481,6 +528,7 @@ function TeacherPageContent() {
           setId={sharingSet.id}
           title={sharingSet.title}
           onClose={() => setSharingSet(null)}
+          onLibraryChange={(isPublic) => applyLibraryState(sharingSet.id, isPublic)}
         />
       )}
     </div>

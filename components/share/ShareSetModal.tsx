@@ -25,10 +25,13 @@ export default function ShareSetModal({
   setId,
   title,
   onClose,
+  onLibraryChange,
 }: {
   setId: string
   title: string
   onClose: () => void
+  /** 자료실 등재를 켜고 끌 때 부모 목록의 배지도 같이 바뀌도록 알린다. */
+  onLibraryChange?: (isPublic: boolean) => void
 }) {
   const [state, setState] = useState<ShareState | null>(null)
   const [busy, setBusy] = useState<'link' | 'library' | null>(null)
@@ -89,7 +92,8 @@ export default function ShareSetModal({
       const next = !state.isPublic
       await setLibraryListing(setId, next)
       setState({ ...state, isPublic: next })
-      toast.success(next ? '자료실에 등재했어요.' : '자료실에서 내렸어요.')
+      onLibraryChange?.(next)
+      toast.success(next ? '자료실에 올렸어요.' : '자료실에서 내렸어요.')
     } catch (error) {
       console.error('자료실 설정 실패:', error)
       toast.error('자료실 설정을 바꾸지 못했어요.')
@@ -181,7 +185,9 @@ export default function ShareSetModal({
                 <div>
                   <p className="font-black text-slate-900">자료실에도 올리기</p>
                   <p className="mt-1 text-sm font-medium text-slate-500">
-                    퀴즈독 자료실에서 다른 선생님이 검색해 찾을 수 있어요.
+                    {state.isPublic
+                      ? '지금 자료실에 공개 중이에요. 끄면 바로 내려가요.'
+                      : '퀴즈독 자료실에서 다른 선생님이 검색해 찾을 수 있어요.'}
                   </p>
                 </div>
                 <Toggle on={state.isPublic} busy={busy === 'library'} onClick={toggleLibrary} label="자료실 등재" />

@@ -9,7 +9,55 @@ import { CHARACTERS } from '@/lib/utils/characters'
 import { GAME_MODES, getGameModeUrl, type GameModeId } from '@/lib/game/modes'
 import { listQuestionSetsWithCounts } from '@/lib/services/questionSets'
 import { createPlayerForRoom, createRoom, startRoom } from '@/lib/services/rooms'
+import { DEFAULT_DEV_PLAY_FLAGS, readDevPlayFlags, writeDevPlayFlags, type DevPlayFlags } from '@/lib/dev/devPlayFlags'
 import Image from 'next/image'
+
+// 플레이 테스트용 스위치. 켜면 이 탭에서 시작한 게임에만 적용된다(lib/dev/devPlayFlags.ts).
+const DEV_PLAY_TOGGLES: Array<{ key: keyof DevPlayFlags; label: string; description: string }> = [
+  {
+    key: 'hanjaOnly',
+    label: '한글 없애기',
+    description: "문제 지문에서 한글을 지워 한자만 보입니다. '떠영남친혀니' 닉네임으로 들어갔을 때와 같은 효과입니다.",
+  },
+  {
+    key: 'forceShortAnswer',
+    label: '객관식 → 단답식',
+    description: '객관식·OX 문제의 보기를 숨기고 모든 문제를 직접 입력해서 풀게 합니다. (OX 는 O 또는 X 입력)',
+  },
+]
+
+function DevToggle({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string
+  description: string
+  checked: boolean
+  onChange: (next: boolean) => void
+}) {
+  return (
+    <label className="flex items-start justify-between gap-4 rounded-lg border-2 border-gray-200 px-4 py-3 cursor-pointer hover:border-gray-300">
+      <span className="flex-1">
+        <span className="block font-semibold text-gray-800">{label}</span>
+        <span className="block text-sm text-gray-500 mt-0.5">{description}</span>
+      </span>
+      <span className="relative inline-flex shrink-0 items-center mt-1">
+        <input
+          type="checkbox"
+          role="switch"
+          aria-checked={checked}
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="peer sr-only"
+        />
+        <span className="h-7 w-12 rounded-full bg-gray-300 transition-colors peer-checked:bg-blue-600 peer-focus-visible:ring-2 peer-focus-visible:ring-blue-400" />
+        <span className="absolute left-1 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
+      </span>
+    </label>
+  )
+}
 
 function formatDevStartError(error: unknown): string {
   if (error instanceof Error) {
@@ -47,6 +95,16 @@ export default function DevPage() {
   const [questionSets, setQuestionSets] = useState<any[]>([])
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
   const [connectionHint, setConnectionHint] = useState<string | null>(null)
+  // 서버 렌더와 어긋나지 않게 기본값으로 시작하고, 마운트 후 이 탭에 저장된 값을 읽는다.
+  const [playFlags, setPlayFlags] = useState<DevPlayFlags>(DEFAULT_DEV_PLAY_FLAGS)
+
+  useEffect(() => {
+    setPlayFlags(readDevPlayFlags())
+  }, [])
+
+  const updatePlayFlag = (key: keyof DevPlayFlags, value: boolean) => {
+    setPlayFlags(writeDevPlayFlags({ [key]: value }))
+  }
 
   // Supabase 연결 + 문제집 로드
   useEffect(() => {
@@ -94,6 +152,8 @@ export default function DevPage() {
     }
 
     setLoading(true)
+    // 게임 화면이 읽는 값은 sessionStorage 이므로, 시작 직전에 한 번 더 확정해 둔다.
+    writeDevPlayFlags(playFlags)
     try {
       const room = await createRoom({
         setId: selectedSetId,
@@ -183,6 +243,27 @@ export default function DevPage() {
               ))}
             </select>
           )}
+        </div>
+
+        {/* 플레이 테스트 스위치 */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            플레이 테스트 스위치
+          </label>
+          <div className="space-y-3">
+            {DEV_PLAY_TOGGLES.map((toggle) => (
+              <DevToggle
+                key={toggle.key}
+                label={toggle.label}
+                description={toggle.description}
+                checked={playFlags[toggle.key]}
+                onChange={(next) => updatePlayFlag(toggle.key, next)}
+              />
+            ))}
+          </div>
+          <p className="mt-3 text-xs text-gray-500">
+            이 탭에서 시작한 게임에만 적용되고, 탭을 닫으면 꺼집니다. 다른 학생 화면에는 영향이 없습니다.
+          </p>
         </div>
 
         {/* 게임 모드 선택 */}

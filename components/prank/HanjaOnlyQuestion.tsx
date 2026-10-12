@@ -13,9 +13,12 @@
  * - 닉네임은 useGameBase 가 현재 플레이어를 알게 될 때 registerHanjaOnlyNickname 으로
  *   전역 스토어에 올리고, QuizView 등 렌더러는 useQuestionTextFilter 로 변환 함수를 받아 쓴다.
  *   그래서 게임 페이지들은 손대지 않아도 된다.
+ * - /dev 페이지의 '한글 없애기' 토글(lib/dev/devPlayFlags.ts)을 켜면 닉네임과 상관없이 같은 효과가 난다.
+ *   이 토글은 HANJA_ONLY_ENABLED 와 무관하게 동작한다.
  */
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { useDevPlayFlags } from '@/lib/dev/devPlayFlags'
 
 // ─── 스위치 ───────────────────────────────────────────────────────────
 export const HANJA_ONLY_ENABLED = true
@@ -71,9 +74,10 @@ export function useRegisterHanjaOnlyNickname(nickname: string | null | undefined
   }, [nickname])
 }
 
-/** 문제 렌더러에서 호출. 현재 플레이어가 대상이면 한글을 지우는 변환 함수를 돌려준다. */
+/** 문제 렌더러에서 호출. 현재 플레이어가 대상이거나 /dev 토글이 켜져 있으면 한글을 지우는 변환 함수를 돌려준다. */
 export function useQuestionTextFilter(): (text: string) => string {
   const nickname = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
-  const active = isHanjaOnlyTarget(nickname)
+  const { hanjaOnly: devHanjaOnly } = useDevPlayFlags()
+  const active = devHanjaOnly || isHanjaOnlyTarget(nickname)
   return useCallback((text: string) => (active ? stripHangul(text) : text), [active])
 }

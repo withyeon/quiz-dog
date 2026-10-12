@@ -138,6 +138,8 @@ export const ENEMY_TYPES: Record<EnemyTypeId, EnemyType> = {
 export const MAP_WIDTH = 800
 export const MAP_HEIGHT = 600
 export const PLAYER_START_HP = 100
+/** 이 이하면 위험: 맵 빨간 테두리 + 헤더 체력 막대 깜빡임 */
+export const TOWER_DANGER_HP = 30
 export const PLAYER_START_GOLD = 300
 export const MAX_TOWER_LEVEL = 4
 export const QUIZ_HP_PENALTY = 5

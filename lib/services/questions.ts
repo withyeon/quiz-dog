@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Database, Json } from '@/types/database.types'
+import { applyForceShortAnswer } from '@/lib/dev/devPlayFlags'
 
 export type QuestionType = Database['public']['Tables']['questions']['Row']['type']
 
@@ -87,7 +88,10 @@ export async function listQuestionsForGame(
     explanation: question.explanation ?? null,
   }))
 
-  return options.shuffle ? shuffleQuestions(questions) : questions
+  // /dev 의 '객관식→단답식' 토글이 켜진 탭에서만 객관식·OX 를 단답형으로 바꾼다. 평소엔 그대로 돌려준다.
+  const gameQuestions = applyForceShortAnswer(questions)
+
+  return options.shuffle ? shuffleQuestions(gameQuestions) : gameQuestions
 }
 
 export async function checkQuestionAnswer(

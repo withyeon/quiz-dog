@@ -22,6 +22,7 @@ import TowerWaveClearToast from '@/components/tower/TowerWaveClearToast'
 import { useGameBase } from '@/hooks/useGameBase'
 import { useTowerDefenseGame } from '@/hooks/useTowerDefenseGame'
 import {
+    TOWER_DANGER_HP,
     TOWER_QUIZ_TIME_LIMIT,
     calculateQuizGoldReward,
 } from '@/lib/game/tower'
@@ -289,7 +290,7 @@ export default function TowerPage() {
         }
     }, [clearQuizReturnTimer])
 
-    const isDangerous = hp <= 30
+    const isDangerous = hp <= TOWER_DANGER_HP
 
     if (!roomCode || !playerId) {
         return (
@@ -384,7 +385,7 @@ export default function TowerPage() {
                                 />
 
                                 <div className={`tower-map-frame relative transition-all duration-300 ${
-                                    isDangerous ? 'animate-pulse ring-4 ring-red-500 ring-offset-2' : ''
+                                    isDangerous ? 'ring-4 ring-red-500 ring-offset-2' : ''
                                 }`}>
                                     <AnimatePresence>
                                         {waveClearToast && (
