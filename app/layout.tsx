@@ -14,6 +14,7 @@ import { AudioProviderWrapper } from '@/components/AudioProviderWrapper'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ConfirmDialogProvider } from '@/components/ui/ConfirmDialog'
 import { Toaster } from '@/components/ui/Toaster'
+import DevBotRunnerGate from '@/components/dev/DevBotRunnerGate'
 
 const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
@@ -293,6 +294,8 @@ export default function RootLayout({
             <AudioProviderWrapper>{children}</AudioProviderWrapper>
             {/* 앱 전역 토스트 — 학생 화면(로비/게임)에서도 동작해야 하므로 루트에 마운트 */}
             <Toaster />
+            {/* /dev 봇 친구 실행기. /dev 에서 봇과 함께 시작한 탭에서만 켜진다(components/dev/DevBotRunnerGate.tsx) */}
+            <DevBotRunnerGate />
           </ConfirmDialogProvider>
         </AuthProvider>
       </body>

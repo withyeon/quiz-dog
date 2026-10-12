@@ -10,6 +10,18 @@ import { GAME_MODES, getGameModeUrl, type GameModeId } from '@/lib/game/modes'
 import { listQuestionSetsWithCounts } from '@/lib/services/questionSets'
 import { createPlayerForRoom, createRoom, startRoom } from '@/lib/services/rooms'
 import { DEFAULT_DEV_PLAY_FLAGS, readDevPlayFlags, writeDevPlayFlags, type DevPlayFlags } from '@/lib/dev/devPlayFlags'
+import {
+  DEFAULT_DEV_BOT_SETTINGS,
+  DEV_BOT_DIFFICULTIES,
+  DEV_BOT_MAX_COUNT,
+  createDevBotNicknames,
+  readDevBotSettings,
+  writeDevBotSession,
+  writeDevBotSettings,
+  type DevBot,
+  type DevBotDifficulty,
+  type DevBotSettings,
+} from '@/lib/dev/devBots'
 import Image from 'next/image'
 
 // 플레이 테스트용 스위치. 켜면 이 탭에서 시작한 게임에만 적용된다(lib/dev/devPlayFlags.ts).
@@ -97,10 +109,20 @@ export default function DevPage() {
   const [connectionHint, setConnectionHint] = useState<string | null>(null)
   // 서버 렌더와 어긋나지 않게 기본값으로 시작하고, 마운트 후 이 탭에 저장된 값을 읽는다.
   const [playFlags, setPlayFlags] = useState<DevPlayFlags>(DEFAULT_DEV_PLAY_FLAGS)
+  const [botSettings, setBotSettings] = useState<DevBotSettings>(DEFAULT_DEV_BOT_SETTINGS)
 
   useEffect(() => {
     setPlayFlags(readDevPlayFlags())
+    setBotSettings(readDevBotSettings())
   }, [])
+
+  const updateBotSettings = (next: Partial<DevBotSettings>) => {
+    setBotSettings((prev) => {
+      const merged = { ...prev, ...next }
+      writeDevBotSettings(merged)
+      return merged
+    })
+  }
 
   const updatePlayFlag = (key: keyof DevPlayFlags, value: boolean) => {
     setPlayFlags(writeDevPlayFlags({ [key]: value }))
@@ -159,21 +181,52 @@ export default function DevPage() {
         setId: selectedSetId,
         gameMode: selectedMode,
       })
-      await startRoom({ roomCode: room.room_code, gameMode: selectedMode })
 
       const randomCharacter = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)]
-
-      const playerData = await createPlayerForRoom({
+      const createHuman = () => createPlayerForRoom({
         roomCode: room.room_code,
         nickname: nickname.trim() || '개발자',
         avatar: randomCharacter.emoji,
         gameMode: selectedMode,
       })
 
+      // 봇 친구가 있으면 나 → 봇 → startRoom 순서로 넣는다.
+      // - startRoom 의 눈싸움 체력 초기화·좀비 역할 배정·레이드 초기화는 "시작할 때 방에 있는 학생"에게만 한다.
+      //   봇과 나 모두 받아야 게임 안에서 제대로 보인다(봇만 받고 나는 못 받으면 좀비는 역할 없이 멈춘다).
+      // - 떨어지지마는 게임을 시작하는 순간 방에 있는 학생만 맵에 그린다. 봇이 미리 있어야 한다.
+      // - 내가 가장 먼저 만든 행이라, 접속 정보(presence)가 잠깐 비어도 방장(눈싸움 팀 배정)은 내가 된다.
+      // 봇이 없으면 예전 순서(startRoom → 나) 그대로다.
+      let playerData: { id: string } | null = null
+      let bots: DevBot[] = []
+      if (botSettings.count > 0) {
+        playerData = await createHuman()
+        bots = await Promise.all(
+          createDevBotNicknames(botSettings.count, botSettings.difficulty).map(async (botNickname) => {
+            const character = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)]
+            const created = await createPlayerForRoom({
+              roomCode: room.room_code,
+              nickname: botNickname,
+              avatar: character.imagePath || character.emoji,
+              gameMode: selectedMode,
+            })
+            return { playerId: created.id, nickname: botNickname, difficulty: botSettings.difficulty }
+          }),
+        )
+        await startRoom({ roomCode: room.room_code, gameMode: selectedMode })
+      } else {
+        await startRoom({ roomCode: room.room_code, gameMode: selectedMode })
+        playerData = await createHuman()
+      }
+
       const pid = playerData?.id
       if (!pid) {
         throw new Error('플레이어 생성 후 id를 받지 못했습니다.')
       }
+
+      // 봇 실행기(components/dev/DevBotRunner.tsx)가 이 탭에서 읽는다. 봇이 없으면 앞 판 봇 정보를 지운다.
+      writeDevBotSession(bots.length > 0
+        ? { roomCode: room.room_code, gameMode: selectedMode, setId: selectedSetId, bots }
+        : null)
 
       const gameUrl = getGameModeUrl(selectedMode, room.room_code, pid)
 
@@ -263,6 +316,55 @@ export default function DevPage() {
           </div>
           <p className="mt-3 text-xs text-gray-500">
             이 탭에서 시작한 게임에만 적용되고, 탭을 닫으면 꺼집니다. 다른 학생 화면에는 영향이 없습니다.
+          </p>
+        </div>
+
+        {/* 봇 친구 */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-2 border-gray-200">
+          <label className="block text-sm font-semibold text-gray-700 mb-3">
+            봇 친구 <span className="font-normal text-gray-500">(혼자 하기 심심할 때 같은 방에 들어와 같이 풀어요)</span>
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            {Array.from({ length: DEV_BOT_MAX_COUNT + 1 }, (_, count) => (
+              <button
+                key={count}
+                type="button"
+                onClick={() => updateBotSettings({ count })}
+                aria-pressed={botSettings.count === count}
+                className={`h-10 min-w-10 rounded-lg border-2 px-3 font-bold transition ${
+                  botSettings.count === count
+                    ? 'border-blue-600 bg-blue-600 text-white'
+                    : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {count === 0 ? '없음' : `${count}명`}
+              </button>
+            ))}
+          </div>
+          <div className={`mt-4 grid grid-cols-3 gap-2 ${botSettings.count === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
+            {(Object.keys(DEV_BOT_DIFFICULTIES) as DevBotDifficulty[]).map((difficulty) => {
+              const profile = DEV_BOT_DIFFICULTIES[difficulty]
+              const active = botSettings.difficulty === difficulty
+              return (
+                <button
+                  key={difficulty}
+                  type="button"
+                  onClick={() => updateBotSettings({ difficulty })}
+                  aria-pressed={active}
+                  className={`rounded-lg border-2 px-3 py-2 text-left transition ${
+                    active ? 'border-blue-600 bg-blue-50' : 'border-gray-200 bg-white hover:border-gray-300'
+                  }`}
+                >
+                  <span className="block font-bold text-gray-900">
+                    {profile.label}급 <span className="text-sm font-semibold text-gray-500">정답률 {Math.round(profile.accuracy * 100)}%</span>
+                  </span>
+                  <span className="block text-xs text-gray-500 mt-0.5">{profile.description}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="mt-3 text-xs text-gray-500">
+            봇은 이 탭에서 게임 화면이 열려 있는 동안만 움직이고, 순위표·결과에 다른 학생처럼 나옵니다.
           </p>
         </div>
 
