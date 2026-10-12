@@ -7,6 +7,7 @@ import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
 import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
+import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
 import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
 import {
@@ -67,7 +68,9 @@ export function useConvenienceStoreGame() {
   const [products, setProducts] = useState<Product[]>([])
   const [money, setMoney] = useState(0)
   const [isQuizMode, setIsQuizMode] = useState(false)
-  const [questions, setQuestions] = useState<GameQuestion[]>([])
+  const [fetchedQuestions, setFetchedQuestions] = useState<GameQuestion[]>([])
+  // /dev 토글이나 '한의대최강' 닉네임이면 객관식·OX 를 단답형으로 바꿔 쓴다(hooks/usePlayFlags.ts).
+  const questions = usePlayQuestions(fetchedQuestions)
   const [questionsLoading, setQuestionsLoading] = useState(false)
   const [questionsError, setQuestionsError] = useState<string | null>(null)
   const [questionSetTitle, setQuestionSetTitle] = useState<string | null>(null)
@@ -168,6 +171,8 @@ export function useConvenienceStoreGame() {
 
   // 현재 플레이어 정보
   const currentPlayer = players.find((p) => p.id === playerId) as StorePlayer | undefined
+  // 닉네임 장난('한의대우등생'·'한의대최강')을 위해 현재 플레이어 닉네임을 올린다(hooks/usePlayFlags.ts).
+  useRegisterPlayerNickname(currentPlayer?.nickname)
   const isPaused = room?.status === 'paused'
 
   const forceFinishForStudent = useCallback((reason = 'forced_finish') => {
@@ -214,13 +219,13 @@ export function useConvenienceStoreGame() {
         // 섞지 않고 문제집 순서 그대로 둔다. answer_history의 questionIndex가 결과 화면(문제집 순서)과
         // 같은 번호를 가리켜야 "복습할 문제"가 실제 틀린 문항을 보여준다. 본게임은 어차피 랜덤 출제.
         const loadedQuestions = await listQuestionsForGame(setId)
-        setQuestions(loadedQuestions)
+        setFetchedQuestions(loadedQuestions)
         // 시작 전 3문제만 학생마다 다른 순서로 나오도록 인덱스 순서를 따로 섞는다.
         setPreStartOrder(shuffleIndexes(loadedQuestions.length))
       } catch (error) {
         const msg = formatServiceError(error)
         console.error('Error fetching questions:', msg, error)
-        setQuestions([])
+        setFetchedQuestions([])
         setQuestionsError(msg)
       } finally {
         setQuestionsLoading(false)

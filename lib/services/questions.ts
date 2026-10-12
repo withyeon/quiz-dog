@@ -1,6 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Database, Json } from '@/types/database.types'
-import { applyForceShortAnswer } from '@/lib/dev/devPlayFlags'
 
 export type QuestionType = Database['public']['Tables']['questions']['Row']['type']
 
@@ -88,10 +87,9 @@ export async function listQuestionsForGame(
     explanation: question.explanation ?? null,
   }))
 
-  // /dev 의 '객관식→단답식' 토글이 켜진 탭에서만 객관식·OX 를 단답형으로 바꾼다. 평소엔 그대로 돌려준다.
-  const gameQuestions = applyForceShortAnswer(questions)
-
-  return options.shuffle ? shuffleQuestions(gameQuestions) : gameQuestions
+  // 객관식→단답식 전환(/dev 토글·닉네임 장난)은 여기서 하지 않는다. 닉네임은 문제를 다 불러온 뒤에야
+  // 알 수 있어서, 게임 훅이 hooks/usePlayFlags.ts 의 usePlayQuestions 로 화면에 쓸 때 바꾼다.
+  return options.shuffle ? shuffleQuestions(questions) : questions
 }
 
 export async function checkQuestionAnswer(

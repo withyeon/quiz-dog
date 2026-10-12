@@ -18,7 +18,7 @@ import { finishRoom } from '@/lib/services/rooms'
 import { formatServiceError } from '@/lib/services/errors'
 import { getQuestionSetTitle } from '@/lib/services/questionSets'
 import { updatePlayer } from '@/lib/services/players'
-import { useRegisterHanjaOnlyNickname } from '@/components/prank/HanjaOnlyQuestion'
+import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
 import {
     applyPlayerDelta,
     stealPlayerResource,
@@ -146,7 +146,9 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [showCountdown, setShowCountdown] = useState(false)
     const [consecutiveCorrect, setConsecutiveCorrect] = useState(0)
     const [answerHistory, setAnswerHistory] = useState<AnswerRecord[]>([])
-    const [questions, setQuestions] = useState<Question[]>([])
+    const [fetchedQuestions, setFetchedQuestions] = useState<Question[]>([])
+    // /dev 토글이나 '한의대최강' 닉네임이면 객관식·OX 를 단답형으로 바꿔 쓴다(hooks/usePlayFlags.ts).
+    const questions = usePlayQuestions(fetchedQuestions)
     const [questionsLoading, setQuestionsLoading] = useState(false)
     const [questionsError, setQuestionsError] = useState<string | null>(null)
     const [questionSetTitle, setQuestionSetTitle] = useState<string | null>(null)
@@ -227,8 +229,8 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 현재 플레이어 & 문제 ───
     const currentPlayer = players.find((p) => p.id === playerId) || null
-    // 특정 닉네임에게 문제 지문을 한자만 보이게 하는 장난 기능(components/prank/HanjaOnlyQuestion.tsx)
-    useRegisterHanjaOnlyNickname(currentPlayer?.nickname)
+    // 닉네임 장난('한의대우등생'·'한의대최강')을 위해 현재 플레이어 닉네임을 올린다(hooks/usePlayFlags.ts).
+    useRegisterPlayerNickname(currentPlayer?.nickname)
 
     // ─── 과제 모드: 제한 시간은 방이 아니라 "이 학생이 게임에 들어간 시각"부터 센다 ───
     // 학생마다 다른 시간에 들어오므로 room.started_at을 쓰면 늦게 온 학생은 시작하자마자 끝난다.
@@ -412,7 +414,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     // ─── 문제 가져오기 ───
     useEffect(() => {
         if (!room?.set_id) {
-            setQuestions([])
+            setFetchedQuestions([])
             setQuestionsLoading(false)
             setQuestionsError(null)
             return
@@ -423,15 +425,15 @@ export function useGameBase(options: UseGameBaseOptions) {
         const fetchQuestions = async () => {
             setQuestionsLoading(true)
             setQuestionsError(null)
-            setQuestions([])
+            setFetchedQuestions([])
             try {
                 const loadedQuestions = await listQuestionsForGame(setId)
-                if (isMounted) setQuestions(loadedQuestions)
+                if (isMounted) setFetchedQuestions(loadedQuestions)
             } catch (error) {
                 const msg = formatServiceError(error)
                 console.error('Error fetching questions:', msg, error)
                 if (isMounted) {
-                    setQuestions([])
+                    setFetchedQuestions([])
                     setQuestionsError(msg)
                 }
             } finally {

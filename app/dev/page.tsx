@@ -17,7 +17,7 @@ const DEV_PLAY_TOGGLES: Array<{ key: keyof DevPlayFlags; label: string; descript
   {
     key: 'hanjaOnly',
     label: '한글 없애기',
-    description: "문제 지문에서 한글을 지워 한자만 보입니다. '떠영남친혀니' 닉네임으로 들어갔을 때와 같은 효과입니다.",
+    description: '문제 지문에서 한글을 지워 한자만 보입니다.',
   },
   {
     key: 'forceShortAnswer',

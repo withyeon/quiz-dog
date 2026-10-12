@@ -1,15 +1,13 @@
 /**
  * /dev 페이지에서 켜는 "플레이 테스트용 스위치".
  *
- * - hanjaOnly: 문제 지문에서 한글을 지워 한자만 보이게 한다('떠영남친혀니' 닉네임 장난과 같은 효과).
+ * - hanjaOnly: 문제 지문에서 한글을 지워 한자만 보이게 한다.
  * - forceShortAnswer: 객관식(CHOICE)·OX 문제를 전부 단답형(SHORT)으로 바꿔 직접 입력해서 풀게 한다.
  *
  * /dev 에서 게임 시작을 누른 탭의 sessionStorage 에 저장되므로, 같은 탭에서 로비→게임으로 넘어가도
  * 유지되고 탭을 닫으면 사라진다. 다른 학생·다른 탭에는 영향이 없다.
  *
- * 읽는 곳
- * - components/prank/HanjaOnlyQuestion.tsx (useQuestionTextFilter) → hanjaOnly
- * - lib/services/questions.ts (listQuestionsForGame) → forceShortAnswer
+ * 게임 화면은 이 값을 직접 읽지 않고 hooks/usePlayFlags.ts 를 거친다. 거기서 닉네임 장난과 합쳐진다.
  */
 
 import { useSyncExternalStore } from 'react'
@@ -85,12 +83,11 @@ export function useDevPlayFlags(): DevPlayFlags {
 }
 
 /**
- * forceShortAnswer 가 켜져 있으면 객관식·OX 를 단답형으로 바꾼다. 보기는 비우고 type 만 SHORT 로 둔다.
+ * 객관식·OX 를 단답형으로 바꾼다. 보기는 비우고 type 만 SHORT 로 둔다.
  * 정답은 서버 RPC(check_question_answer)가 보기 글자 그대로(OX 는 'O'/'X')와 비교하므로 채점은 그대로 맞는다.
  * BLANK 는 이미 직접 입력형이라 손대지 않는다.
  */
-export function applyForceShortAnswer<T extends { type: string; options: string[] }>(questions: T[]): T[] {
-  if (!readDevPlayFlags().forceShortAnswer) return questions
+export function toShortAnswerQuestions<T extends { type: string; options: string[] }>(questions: T[]): T[] {
   return questions.map((question) =>
     question.type === 'CHOICE' || question.type === 'OX'
       ? { ...question, type: 'SHORT', options: [] }
