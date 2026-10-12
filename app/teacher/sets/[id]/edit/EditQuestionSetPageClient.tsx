@@ -34,6 +34,7 @@ import type { Database } from '@/types/database.types'
 import { displayBlankText } from '@/lib/quiz/blankText'
 import QuestionImageField from '@/components/teacher/QuestionImageField'
 import MultiSelectChoiceFields from '@/components/teacher/MultiSelectChoiceFields'
+import CommaSeparatedOptionsInput from '@/components/teacher/CommaSeparatedOptionsInput'
 import { isMultiSelectQuestion, isGusungchigiSet } from '@/lib/quiz/multiSelect'
 import { getQuestionErrors } from '@/lib/quiz/questionQuality'
 
@@ -391,13 +392,9 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                           <label className="mb-2 block text-sm font-semibold text-slate-600">
                             보기 (쉼표로 구분)
                           </label>
-                          <input
-                            type="text"
-                            value={Array.isArray(question.options) ? question.options.join(', ') : ''}
-                            onChange={(e) => {
-                              const options = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                              updateQuestionField(index, 'options', options)
-                            }}
+                          <CommaSeparatedOptionsInput
+                            options={question.options}
+                            onChange={(options) => updateQuestionField(index, 'options', options)}
                             className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                             placeholder="보기1, 보기2, 보기3, 보기4"
                           />
@@ -610,13 +607,9 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                 <label className="mb-2 block text-sm font-semibold text-slate-600">
                   보기 (쉼표로 구분)
                 </label>
-                <input
-                  type="text"
-                  value={Array.isArray(newQuestion.options) ? newQuestion.options.join(', ') : ''}
-                  onChange={(e) => {
-                    const options = e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                    updateNewQuestion('options', options)
-                  }}
+                <CommaSeparatedOptionsInput
+                  options={newQuestion.options}
+                  onChange={(options) => updateNewQuestion('options', options)}
                   className="w-full rounded-xl border border-slate-200 px-4 py-2 outline-none transition focus:border-sky-400 focus:ring-2 focus:ring-sky-100"
                   placeholder="보기1, 보기2, 보기3, 보기4"
                 />
