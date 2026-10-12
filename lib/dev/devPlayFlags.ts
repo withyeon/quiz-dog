@@ -11,6 +11,7 @@
  */
 
 import { useSyncExternalStore } from 'react'
+import { isMultiSelectGameQuestion } from '@/lib/quiz/multiSelect'
 
 export const DEV_PLAY_FLAGS_STORAGE_KEY = 'quizdog:devPlayFlags'
 
@@ -86,10 +87,12 @@ export function useDevPlayFlags(): DevPlayFlags {
  * 객관식·OX 를 단답형으로 바꾼다. 보기는 비우고 type 만 SHORT 로 둔다.
  * 정답은 서버 RPC(check_question_answer)가 보기 글자 그대로(OX 는 'O'/'X')와 비교하므로 채점은 그대로 맞는다.
  * BLANK 는 이미 직접 입력형이라 손대지 않는다.
+ * 구성치기(다중 선택) 문제는 약재 여러 개를 직접 타이핑하게 되면 외우기 연습이 아니라 받아쓰기가 되므로
+ * 단답형으로 바꾸지 않고 다중 선택 그대로 둔다(lib/quiz/multiSelect.ts).
  */
-export function toShortAnswerQuestions<T extends { type: string; options: string[] }>(questions: T[]): T[] {
+export function toShortAnswerQuestions<T extends { type: string; options: string[]; multiSelect?: boolean }>(questions: T[]): T[] {
   return questions.map((question) =>
-    question.type === 'CHOICE' || question.type === 'OX'
+    (question.type === 'CHOICE' || question.type === 'OX') && !isMultiSelectGameQuestion(question)
       ? { ...question, type: 'SHORT', options: [] }
       : question,
   )

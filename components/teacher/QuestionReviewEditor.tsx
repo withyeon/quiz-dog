@@ -25,6 +25,8 @@ import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import { toast } from '@/components/ui/Toaster'
 import QuestionImageField from '@/components/teacher/QuestionImageField'
 import AudienceFields from '@/components/teacher/create/AudienceFields'
+import MultiSelectChoiceFields from '@/components/teacher/MultiSelectChoiceFields'
+import { isGusungchigiSet } from '@/lib/quiz/multiSelect'
 import {
   CHOICE_OPTION_COUNT,
   QUESTION_TYPE_LABEL,
@@ -91,6 +93,11 @@ interface QuestionCardProps {
   onDelete: (uid: string) => void
   onRegenerate?: (index: number) => void
   regenerating: boolean
+  /**
+   * 구성치기 판정에 쓸 문제집 이름. 구성치기 문제집이 아니면 null 로 넘겨, 이름을 칠 때마다
+   * 모든 카드가 다시 그려지지 않게 한다(lib/quiz/multiSelect.ts).
+   */
+  setTitle: string | null
 }
 
 const QuestionCard = memo(function QuestionCard({
@@ -104,9 +111,12 @@ const QuestionCard = memo(function QuestionCard({
   onDelete,
   onRegenerate,
   regenerating,
+  setTitle,
 }: QuestionCardProps) {
-  const errors = getQuestionErrors(q)
-  const warnings = getQuestionWarnings(q)
+  const errors = getQuestionErrors(q, setTitle)
+  const warnings = getQuestionWarnings(q, setTitle)
+  // 구성치기 문제집의 객관식은 정답을 여러 개 토글로 고른다(2개 이상이면 다중 선택 문제)
+  const isMultiSelectSet = isGusungchigiSet(setTitle)
   const style = TYPE_STYLE[q.type] ?? TYPE_STYLE.CHOICE
   const options = q.options || []
   const displayText = q.type === 'BLANK' ? displayBlankText(q.question_text) : q.question_text
@@ -229,8 +239,17 @@ const QuestionCard = memo(function QuestionCard({
           compact
         />
 
+        {/* 보기 — 구성치기 문제집의 객관식: 정답 여러 개 토글, 보기 4~20개 */}
+        {q.type === 'CHOICE' && isMultiSelectSet && (
+          <MultiSelectChoiceFields
+            options={options}
+            answer={q.answer}
+            onChange={(patch) => onPatch(q.uid, patch)}
+          />
+        )}
+
         {/* 보기 — 객관식 */}
-        {q.type === 'CHOICE' && (
+        {q.type === 'CHOICE' && !isMultiSelectSet && (
           <div>
             <div className="mb-1.5 flex items-center justify-between">
               <span className="text-sm font-bold text-slate-700">보기</span>
@@ -455,15 +474,18 @@ export default function QuestionReviewEditor({
     return () => clearTimeout(timer)
   }, [lastDeleted])
 
+  // 구성치기 판정에 쓸 문제집 이름. 일반 문제집이면 null 이라 카드에 늘 같은 값이 간다.
+  const multiSelectSetTitle = isGusungchigiSet(setName) ? setName : null
+
   const issues = useMemo(() => {
     let errors = 0
     let warnings = 0
     for (const q of questions) {
-      errors += getQuestionErrors(q).length
-      warnings += getQuestionWarnings(q).length
+      errors += getQuestionErrors(q, multiSelectSetTitle).length
+      warnings += getQuestionWarnings(q, multiSelectSetTitle).length
     }
     return { errors, warnings }
-  }, [questions])
+  }, [questions, multiSelectSetTitle])
 
   const typeCounts = useMemo(() => {
     const counts: Partial<Record<QuestionType, number>> = {}
@@ -645,7 +667,7 @@ export default function QuestionReviewEditor({
         {/* 문제 목록 */}
         <div className="mt-5 space-y-4">
           {questions.map((q, index) => (
-            <div key={q.uid} data-has-error={getQuestionErrors(q).length > 0 ? 'true' : undefined}>
+            <div key={q.uid} data-has-error={getQuestionErrors(q, multiSelectSetTitle).length > 0 ? 'true' : undefined}>
               <QuestionCard
                 question={q}
                 index={index}
@@ -657,6 +679,7 @@ export default function QuestionReviewEditor({
                 onDelete={handleDelete}
                 onRegenerate={ai ? handleRegenerate : undefined}
                 regenerating={ai?.busyIndex === index}
+                setTitle={multiSelectSetTitle}
               />
             </div>
           ))}

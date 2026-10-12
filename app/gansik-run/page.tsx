@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Target, Package } from 'lucide-react'
 import { type GansikRunState, type ItemType, formatTime, ITEM_DEFS, GAME } from '@/lib/game/간식런'
 import { useGameBase } from '@/hooks/useGameBase'
+import { isMultiSelectGameQuestion } from '@/lib/quiz/multiSelect'
 import type { Json } from '@/types/database.types'
 import ItemGlyph from '@/components/ItemGlyph'
 import PixelIcon from '@/components/ui/PixelIcon'
@@ -75,7 +76,12 @@ export default function GansikRunPage() {
   // 시작 전 퀴즈가 앞의 N문제를 쓰므로, 게임 안 퀴즈는 그 다음 문제부터 돌린다 (바로 반복 방지)
   const gameQuestions = useMemo<GansikRunQuestion[]>(() => {
     if (serverQuestions.length === 0) return DUMMY_QUESTIONS
-    const mapped = serverQuestions.map(q => ({
+    // 숨겨진 구성치기(다중 선택) 문제는 게임 안 퀴즈(간식런Game 의 자체 보기 UI)가 지원하지 않아 건너뛴다.
+    // 보기를 누르면 바로 제출되는 화면이라 한 개만 골라 무조건 틀리게 된다. 시작 전 퀴즈(QuizView)에서는 그대로 나온다.
+    // 전부 다중 선택이면 빈 목록 → 간식런Game 이 퀴즈 없이 달리기만 이어 간다(더미 문제를 내지 않는다).
+    const playable = serverQuestions.filter((q) => !isMultiSelectGameQuestion(q))
+    if (playable.length === 0) return []
+    const mapped = playable.map(q => ({
       id: q.id,
       question_text: q.question_text,
       options: (q.options ?? []) as string[],

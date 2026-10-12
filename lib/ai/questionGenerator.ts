@@ -408,15 +408,39 @@ type NormalizeOptions = {
    * - 정답이 보기와 안 맞아도 보기를 덧붙이지 않는다
    */
   verbatim?: boolean
+  /**
+   * 숨겨진 구성치기(다중 선택) 문제집의 시험지 옮기기(lib/quiz/multiSelect.ts). verbatim 과 같이 쓴다.
+   * - 한 칸에 "마황, 계지, 행인"처럼 쉼표로 붙은 보기를 여러 보기로 나눈다
+   * - 쉼표로 이은 정답은 항목마다 보기 글자에 맞춰 "마황, 계지, 행인, 감초"로 다시 잇는다
+   */
+  multiSelect?: boolean
 }
 
-function normalizeQuestion(rawQuestion: unknown, { shuffleChoices = false, verbatim = false }: NormalizeOptions = {}): GeneratedQuestion | null {
+// 구성치기: 보기가 한 원소에 쉼표로 붙어 오거나(["마황, 계지"]) 문자열 하나로 오면("마황, 계지") 쉼표마다 나눈다
+function splitCommaOptions(options: unknown): unknown {
+  if (typeof options === 'string') return options.split(',')
+  if (!Array.isArray(options)) return options
+  return options.flatMap((option) => (typeof option === 'string' ? option.split(',') : [option]))
+}
+
+// 구성치기: "마황, ③, 행인" 같은 정답을 항목마다 보기 글자로 맞추고(번호면 그 보기로), 겹치면 하나만 남긴다
+function normalizeMultiSelectChoiceAnswer(answer: string, options: string[]): string {
+  const items = answer
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => normalizeChoiceAnswer(item, options))
+    .filter(Boolean)
+  return [...new Set(items)].join(', ')
+}
+
+function normalizeQuestion(rawQuestion: unknown, { shuffleChoices = false, verbatim = false, multiSelect = false }: NormalizeOptions = {}): GeneratedQuestion | null {
   if (!rawQuestion || typeof rawQuestion !== 'object') return null
   const raw = rawQuestion as Partial<GeneratedQuestion>
   const type = normalizeQuestionType(raw.type)
   let questionText = verbatim ? asVerbatimString(raw.question_text) : asString(raw.question_text)
   let answer = asString(raw.answer)
-  let options = dedupeOptions(raw.options)
+  let options = dedupeOptions(multiSelect && type === 'CHOICE' ? splitCommaOptions(raw.options) : raw.options)
   // 해설은 선택. 너무 길면 자른다 (화면에 카드로 보여주는 글이라 몇 문장이면 충분하다).
   const explanationText = asString(raw.explanation).slice(0, 400)
   const explanation = explanationText ? { explanation: explanationText } : {}
@@ -428,7 +452,11 @@ function normalizeQuestion(rawQuestion: unknown, { shuffleChoices = false, verba
     // 종이 시험지 그대로: 형식만 맞추고 내용은 손대지 않는다
     if (type === 'CHOICE') {
       if (options.length === 0) return null
-      const matched = answer ? normalizeChoiceAnswer(answer, options) : ''
+      const matched = !answer
+        ? ''
+        : multiSelect && answer.includes(',')
+          ? normalizeMultiSelectChoiceAnswer(answer, options)
+          : normalizeChoiceAnswer(answer, options)
       return { type, question_text: questionText, options, answer: matched, ...explanation }
     }
     if (type === 'OX') {
@@ -642,9 +670,12 @@ async function generateQuestionsWithOpenAI(
  * 시험지는 종이에 적힌 대로 옮기는 것이 목적이라 보기를 섞지 않고, 보기 수·정답 유무로 문제를 버리지 않는다
  * (형식이 안 맞는 문제는 검수 화면이 빨간 표시로 알려 준다).
  */
-export function parseExamVisionResponse(visionText: string): GeneratedQuestion[] {
+export function parseExamVisionResponse(
+  visionText: string,
+  { multiSelect = false }: { multiSelect?: boolean } = {},
+): GeneratedQuestion[] {
   const questions = parseQuestionsFromJSON(visionText)
-  return validateQuestions(questions, undefined, { verbatim: true })
+  return validateQuestions(questions, undefined, { verbatim: true, multiSelect })
 }
 
 /** 시험지 이미지 안 그림 영역. Gemini 규약: [ymin, xmin, ymax, xmax], 0~1000 비율 */
@@ -671,13 +702,16 @@ export function parseFigureBox(value: unknown): FigureBox | null {
  * parseExamVisionResponse와 같은 검증·중복 제거를 거치되, 문제마다 그림 영역을 같이 돌려준다.
  * (normalizeQuestion은 알려진 필드만 남기므로 figure_box는 원본에서 따로 읽는다)
  */
-export function parseExamVisionResponseWithFigures(visionText: string): ExamVisionItem[] {
+export function parseExamVisionResponseWithFigures(
+  visionText: string,
+  { multiSelect = false }: { multiSelect?: boolean } = {},
+): ExamVisionItem[] {
   const rawQuestions = parseQuestionsFromJSON(visionText)
   const seen = new Set<string>()
   const items: ExamVisionItem[] = []
 
   for (const rawQuestion of rawQuestions) {
-    const question = normalizeQuestion(rawQuestion, { verbatim: true })
+    const question = normalizeQuestion(rawQuestion, { verbatim: true, multiSelect })
     if (!question) continue
     const key = questionDedupeKey(question, true)
     if (seen.has(key)) continue

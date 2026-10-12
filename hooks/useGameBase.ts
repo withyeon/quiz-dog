@@ -19,6 +19,7 @@ import { formatServiceError } from '@/lib/services/errors'
 import { getQuestionSetTitle } from '@/lib/services/questionSets'
 import { updatePlayer } from '@/lib/services/players'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
+import { useRegisterQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
 import {
     applyPlayerDelta,
     stealPlayerResource,
@@ -231,6 +232,8 @@ export function useGameBase(options: UseGameBaseOptions) {
     const currentPlayer = players.find((p) => p.id === playerId) || null
     // 닉네임 장난('한의대우등생'·'한의대최강')을 위해 현재 플레이어 닉네임을 올린다(hooks/usePlayFlags.ts).
     useRegisterPlayerNickname(currentPlayer?.nickname)
+    // 구성치기 문제집이면 QuizView 가 오답 때 해설을 보여주도록 지금 문제집 제목을 올린다(hooks/useQuestionSetTitle.ts).
+    useRegisterQuestionSetTitle(questionSetTitle)
 
     // ─── 과제 모드: 제한 시간은 방이 아니라 "이 학생이 게임에 들어간 시각"부터 센다 ───
     // 학생마다 다른 시간에 들어오므로 room.started_at을 쓰면 늦게 온 학생은 시작하자마자 끝난다.

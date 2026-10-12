@@ -1,16 +1,27 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
 import PixelIcon from '@/components/ui/PixelIcon'
 import { useAudioContext } from '@/components/AudioProvider'
-import { isQuizAnswerMatch, splitAcceptableAnswers } from '@/lib/quiz/answerMatching'
+import { isMultiSelectAnswerMatch, isQuizAnswerMatch, splitAcceptableAnswers } from '@/lib/quiz/answerMatching'
+import {
+  MULTI_SELECT_TIME_MULTIPLIER,
+  getMultiSelectOptionResults,
+  isGusungchigiSet,
+  isMultiSelectGameQuestion,
+  joinMultiSelectAnswer,
+  splitMultiSelectAnswer,
+  type MultiSelectOptionResult,
+} from '@/lib/quiz/multiSelect'
 import { getQuestionAnswer } from '@/lib/services/questions'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import QuestionImage from '@/components/QuestionImage'
+import MultiSelectChoices from '@/components/quiz/MultiSelectChoices'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 import { useQuestionTextFilter } from '@/components/prank/HanjaOnlyQuestion'
+import { useCurrentQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
 
 interface QuizViewProps {
   question: {
@@ -20,6 +31,10 @@ interface QuizViewProps {
     options: string[]
     answer?: string
     image_url?: string | null
+    /** 숨겨진 구성치기(다중 선택) 문제 표시. listQuestionsForGame 이 서버 판정으로 붙인다(lib/quiz/multiSelect.ts) */
+    multiSelect?: boolean
+    /** 해설. 구성치기 문제집에서만 오답 때 "정답: …" 아래에 보여준다(isGusungchigiSet). 게임 문제 객체에 이미 들어 있다 */
+    explanation?: string | null
   }
   onAnswer: (answer: string) => void | boolean | Promise<void | boolean>
   timeLimit?: number
@@ -29,15 +44,23 @@ interface QuizViewProps {
   paused?: boolean
 }
 
-export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick, className, variant = 'default', paused = false }: QuizViewProps) {
+export default function QuizView({ question, onAnswer, timeLimit: baseTimeLimit, onCorrectClick, className, variant = 'default', paused = false }: QuizViewProps) {
+  // 구성치기(다중 선택) 문제는 여러 개를 골라야 해서 제한 시간을 늘려 준다. 아니면 받은 값 그대로다.
+  const isMultiSelect = isMultiSelectGameQuestion(question) && (!question.type || question.type === 'CHOICE')
+  const timeLimit = isMultiSelect && baseTimeLimit ? baseTimeLimit * MULTI_SELECT_TIME_MULTIPLIER : baseTimeLimit
   const [inputValue, setInputValue] = useState<string>('')
   const [submittedAnswer, setSubmittedAnswer] = useState<string>('')
   const [answerResult, setAnswerResult] = useState<boolean | null>(null)
   const [revealedAnswer, setRevealedAnswer] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [timeLeft, setTimeLeft] = useState(timeLimit || 30)
+  // 다중 선택에서 지금 고른 보기 위치들(제출 전 토글 상태)
+  const [multiSelected, setMultiSelected] = useState<ReadonlySet<number>>(() => new Set())
   const { playSFX } = useAudioContext()
   const filterQuestionText = useQuestionTextFilter()
+  // 구성치기 문제집이면 오답 때 해설을 보여준다. 제목은 게임 훅이 올린 값을 읽는다(hooks/useQuestionSetTitle.ts).
+  const questionSetTitle = useCurrentQuestionSetTitle()
+  const wrongExplanation = isGusungchigiSet(questionSetTitle) ? question.explanation?.trim() ?? '' : ''
 
   // 카운트다운이 참조하는 값들을 ref로 들고 있는다.
   //
@@ -76,12 +99,14 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
       }
 
       if (typeof question.answer === 'string') {
-        setAnswerResult(isQuizAnswerMatch(answer, question.answer))
+        setAnswerResult(isMultiSelect
+          ? isMultiSelectAnswerMatch(answer, question.answer)
+          : isQuizAnswerMatch(answer, question.answer))
       }
     } finally {
       setIsSubmitting(false)
     }
-  }, [paused, submittedAnswer, isSubmitting, playSFX, onAnswer, question.answer])
+  }, [paused, submittedAnswer, isSubmitting, playSFX, onAnswer, question.answer, isMultiSelect])
 
   handleAnswerSelectRef.current = handleAnswerSelect
 
@@ -126,7 +151,39 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
     setAnswerResult(null)
     setRevealedAnswer(null)
     setIsSubmitting(false)
+    setMultiSelected(new Set())
   }, [question.id, timeLimit])
+
+  // ─── 구성치기(다중 선택) ───
+  // 시간이 다 되면 기존처럼 빈 답으로 처리되고, 그 뒤로는 더 고를 수 없다.
+  const isMultiLocked = paused || submittedAnswer !== '' || isSubmitting || answerResult !== null
+    || (Boolean(timeLimit) && timeLeft <= 0)
+
+  const toggleMultiOption = useCallback((index: number) => {
+    if (isMultiLocked) return
+    playSFX('click')
+    setMultiSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
+  }, [isMultiLocked, playSFX])
+
+  const submitMultiSelect = useCallback(() => {
+    if (isMultiLocked || multiSelected.size === 0) return
+    // 보기 순서대로 쉼표로 이어 한 문자열로 낸다. 서버는 순서와 상관없이 집합으로 비교한다.
+    const picked = question.options.filter((_, index) => multiSelected.has(index))
+    void handleAnswerSelect(joinMultiSelectAnswer(picked))
+  }, [handleAnswerSelect, isMultiLocked, multiSelected, question.options])
+
+  // 결과 색: 맞혔으면 고른 것이 전부 정답, 틀렸으면 공개된 정답과 비교해 맞게/잘못/빠뜨림을 나눈다.
+  const multiResults = useMemo<MultiSelectOptionResult[] | null>(() => {
+    if (!isMultiSelect || answerResult === null) return null
+    if (answerResult) return question.options.map((_, index) => (multiSelected.has(index) ? 'correct' : 'idle'))
+    if (!revealedAnswer) return null
+    return getMultiSelectOptionResults(question.options, multiSelected, revealedAnswer)
+  }, [answerResult, isMultiSelect, multiSelected, question.options, revealedAnswer])
 
   // 오답일 때 정답을 보여준다(학습용). question.answer가 있으면 그대로, 없으면 서버에서 조회.
   useEffect(() => {
@@ -298,8 +355,22 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
           </div>
         )}
 
+        {/* 구성치기(다중 선택) 문제: 토글 칩 + 제출 */}
+        {isMultiSelect && (
+          <MultiSelectChoices
+            options={question.options}
+            selected={multiSelected}
+            onToggle={toggleMultiOption}
+            onSubmit={submitMultiSelect}
+            locked={isMultiLocked}
+            isSubmitting={isSubmitting}
+            results={multiResults}
+            variant={variant}
+          />
+        )}
+
         {/* 객관식 문제 (기본) */}
-        {(!question.type || question.type === 'CHOICE' || question.type === 'OX') && question.options.map((option, index) => {
+        {(!question.type || question.type === 'CHOICE' || question.type === 'OX') && !isMultiSelect && question.options.map((option, index) => {
           const isSelected = submittedAnswer === option
           const hasResolved = answerResult !== null
           const isCorrect = answerResult === true && isSelected
@@ -396,7 +467,7 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                 ? 'rounded-lg shadow-2xl bg-[#0f766e] text-white border border-teal-200 cursor-pointer hover:bg-[#115e59] transition-colors'
               : 'rounded-lg shadow-2xl bg-green-600 text-white border-2 border-green-300 cursor-pointer hover:bg-green-500 transition-colors'
             : isGlass
-              ? 'lg-banner-wrong text-white drop-shadow'
+              ? `lg-banner-wrong text-white drop-shadow ${wrongExplanation ? '!rounded-3xl' : ''}`
               : isGoldQuest
               ? 'rounded-lg shadow-2xl bg-[#a83d34] text-white border border-red-200'
               : isBattle
@@ -420,15 +491,44 @@ export default function QuizView({ question, onAnswer, timeLimit, onCorrectClick
                 <PixelIcon name="wrong" size={32} />
                 오답입니다
               </span>
-              {revealedAnswer && splitAcceptableAnswers(revealedAnswer).length > 0 && (
+              {revealedAnswer && isMultiSelect && splitMultiSelectAnswer(revealedAnswer).length > 0 && (
+                <span className="text-base sm:text-lg font-bold opacity-95">
+                  정답: {splitMultiSelectAnswer(revealedAnswer).join(', ')}
+                </span>
+              )}
+              {revealedAnswer && !isMultiSelect && splitAcceptableAnswers(revealedAnswer).length > 0 && (
                 <span className="text-base sm:text-lg font-bold opacity-95">
                   정답: {splitAcceptableAnswers(revealedAnswer).join(' / ')}
                 </span>
               )}
+              {wrongExplanation && <WrongAnswerExplanation text={wrongExplanation} />}
             </div>
           )}
         </MotionDiv>
       )}
     </MotionDiv>
+  )
+}
+
+// 첫 줄이 이 말로 시작하면 그 줄만 눈에 띄게 보여준다(구성치기 해설에서 쓰는 외우기용 한 줄)
+const EXPLANATION_HIGHLIGHT_PREFIX = '말야마:'
+
+/** 구성치기 문제집의 오답 해설. 줄바꿈을 그대로 살리고, 첫 줄이 '말야마:'로 시작하면 그 줄만 굵게·다른 색으로. */
+function WrongAnswerExplanation({ text }: { text: string }) {
+  const [firstLine, ...restLines] = text.split('\n')
+  const highlightFirst = firstLine.trimStart().startsWith(EXPLANATION_HIGHLIGHT_PREFIX)
+  const rest = restLines.join('\n')
+
+  return (
+    <div className="mt-1 w-full max-w-xl whitespace-pre-wrap break-keep text-left text-sm font-medium leading-relaxed opacity-95 sm:text-base">
+      {highlightFirst ? (
+        <>
+          <div className="font-black text-yellow-200">{firstLine}</div>
+          {rest && <div>{rest}</div>}
+        </>
+      ) : (
+        text
+      )}
+    </div>
   )
 }

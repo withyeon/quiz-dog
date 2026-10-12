@@ -29,6 +29,12 @@
 - **내용**: `teacher_plans`(본인 행 읽기만), `promo_code_redemptions`(코드당 한 번, 서버 전용), `redeem_promo_code()`(service_role 전용, 프로가 남아 있으면 그 뒤에 1개월을 잇는다)
 - **실행 순서**: 배포 전에 실행. 새 표·함수만 만들므로 기존 기능에는 영향이 없고 여러 번 실행해도 안전하다
 
+### 6. `20261012_multi_select_answers.sql`
+- **용도**: 숨겨진 구성치기(다중 선택) 채점. 제목에 '구성치기'가 있는 문제집의, 정답에 쉼표가 있는 객관식만 순서 무관 집합 비교로 채점한다
+- **내용**: `check_question_answer`에 다중 선택 분기 추가(시그니처·GRANT 그대로), `list_multi_select_question_ids()` 등 새 함수
+- **실행 순서**: `20260922_lenient_numeric_answers.sql` 이후. 다른 문제집 채점은 바뀌지 않고 여러 번 실행해도 안전하다
+- **확인용 샘플**: `sample_multi_select_questions.sql` ('테스트 구성치기' 문제집 + 문제 2개)
+
 ## 실행 방법
 
 ### Supabase 대시보드에서 실행
@@ -63,6 +69,9 @@ add_question_sets_metadata.sql
 
 # 5. 선생님 요금제·이용 코드 (이용 코드 등록을 쓰려면 필수)
 20261006_teacher_plans_and_promo_codes.sql
+
+# 6. 구성치기(다중 선택) 채점 (구성치기 문제집을 쓰려면 필수)
+20261012_multi_select_answers.sql
 ```
 
 ## 테이블 구조

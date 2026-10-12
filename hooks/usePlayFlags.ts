@@ -82,8 +82,11 @@ export function usePlayFlags(): DevPlayFlags {
   )
 }
 
-/** forceShortAnswer 가 켜져 있으면 객관식·OX 를 단답형으로 바꾼 목록을, 아니면 받은 목록을 그대로 돌려준다. */
-export function usePlayQuestions<T extends { type: string; options: string[] }>(questions: T[]): T[] {
+/**
+ * forceShortAnswer 가 켜져 있으면 객관식·OX 를 단답형으로 바꾼 목록을, 아니면 받은 목록을 그대로 돌려준다.
+ * 구성치기(다중 선택) 문제는 켜져 있어도 바꾸지 않는다(toShortAnswerQuestions 참고).
+ */
+export function usePlayQuestions<T extends { type: string; options: string[]; multiSelect?: boolean }>(questions: T[]): T[] {
   const { forceShortAnswer } = usePlayFlags()
   return useMemo(
     () => (forceShortAnswer ? toShortAnswerQuestions(questions) : questions),

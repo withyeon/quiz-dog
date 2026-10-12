@@ -13,6 +13,11 @@ export type GameQuestion = {
   image_url: string | null
   /** 해설(선택). 공부 모드 정답 확인과 결과 복습에 보인다. 없으면 null */
   explanation: string | null
+  /**
+   * 숨겨진 구성치기(다중 선택) 문제면 true. 정답을 안 받는 학생 화면 대신 서버가 판정해 붙인다
+   * (lib/quiz/multiSelect.ts). 일반 문제에는 이 키가 아예 없다.
+   */
+  multiSelect?: boolean
 }
 
 // 나중에 추가된 컬럼(image_url, explanation)이 아직 없는 DB(마이그레이션 전)에서도 게임이 멈추지 않게,
@@ -60,12 +65,39 @@ export function shuffleQuestions<T>(questions: T[]): T[] {
   return shuffled
 }
 
+let multiSelectRpcWarned = false
+
+/**
+ * 구성치기(다중 선택) 문제 id 목록. 서버가 lib/quiz/multiSelect.ts 와 같은 규칙으로 판정한다
+ * (sql/20261012_multi_select_answers.sql). 구성치기 문제집이 아니면 빈 목록이다.
+ * RPC 가 아직 없거나(SQL 미적용) 실패하면 빈 목록 — 그러면 모든 문제가 기존처럼 동작하고,
+ * 서버 채점도 아직 옛 함수라 화면과 채점이 서로 어긋나지 않는다.
+ */
+async function listMultiSelectQuestionIds(setId: string): Promise<Set<string>> {
+  try {
+    const { data, error } = await (supabase.rpc as any)('list_multi_select_question_ids', { p_set_id: setId })
+    if (error) throw error
+    return new Set(Array.isArray(data) ? data.map((id: unknown) => String(id)) : [])
+  } catch (error) {
+    if (!multiSelectRpcWarned) {
+      multiSelectRpcWarned = true
+      console.warn('구성치기 문제 목록을 못 읽어 모든 문제를 일반 문제로 보여줍니다:', error)
+    }
+    return new Set()
+  }
+}
+
 export async function listQuestionsForGame(
   setId: string,
   options: { shuffle?: boolean } = {},
 ): Promise<GameQuestion[]> {
   // 만든 순서로 읽는다. 게임은 어차피 섞어 내지만, 공부 모드의 "문제집 순서"는 이 순서를 그대로 쓴다.
-  const { data, error } = await selectQuestions(setId, 'id, type, question_text, options, image_url, explanation', true)
+  // 구성치기 표시는 문제 목록과 함께(병렬로) 읽어, 문제가 화면에 뜰 때 이미 붙어 있게 한다.
+  // (따로 읽으면 표시가 늦게 붙는 사이 다중 선택 문제가 일반 객관식처럼 잠깐 보일 수 있다)
+  const [{ data, error }, multiSelectIds] = await Promise.all([
+    selectQuestions(setId, 'id, type, question_text, options, image_url, explanation', true),
+    listMultiSelectQuestionIds(setId),
+  ])
 
   if (error) throw error
 
@@ -85,6 +117,7 @@ export async function listQuestionsForGame(
     answer: '',
     image_url: question.image_url ?? null,
     explanation: question.explanation ?? null,
+    ...(multiSelectIds.has(question.id) ? { multiSelect: true } : {}),
   }))
 
   // 객관식→단답식 전환(/dev 토글·닉네임 장난)은 여기서 하지 않는다. 닉네임은 문제를 다 불러온 뒤에야

@@ -20,13 +20,31 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+export type ExamExtractionOptions = {
+  /**
+   * 숨겨진 구성치기(다중 선택) 문제집이면 true (문제집 이름에 '구성치기', lib/quiz/multiSelect.ts).
+   * 정답이 여러 개인 문제를 options 에 보기 전체, answer 에 정답들을 쉼표로 이어 쓰게 한다.
+   */
+  multiSelect?: boolean
+}
+
+// 구성치기 문제집에서만 덧붙이는 규칙. 처방 구성(약재 목록)처럼 "모두 고르시오" 문제를 그대로 다중 선택으로 옮긴다.
+const MULTI_SELECT_EXTRACTION_RULES = `
+정답이 여러 개인 문제(구성치기):
+- "구성 약재를 모두 고르시오"처럼 정답이 여러 개인 문제는 type을 "CHOICE"로 두고, options에 보기 전체를 종이 순서대로, answer에 정답 보기 글들을 쉼표(,)로 이어 쓰세요. 예) "options": ["마황", "계지", "행인", "감초", "작약", "석고"], "answer": "마황, 계지, 행인, 감초"
+- 정답들은 options에 적은 보기 글과 완전히 같은 글자로 쓰세요. 정답을 나눌 때는 쉼표만 쓰고 | 나 줄바꿈은 쓰지 마세요.
+- "보기: 마황, 계지, 행인, …"처럼 보기가 한 줄에 쉼표로 나열돼 있으면 쉼표마다 끊어 options의 원소 하나씩으로 넣으세요. 보기 개수는 종이 그대로 두세요(20개까지).
+- 문제 아래에 "정답: 마황, 계지, 행인, 감초"처럼 적힌 줄은 답란이 아니라 정답입니다. 그 줄을 answer에 쓰고 question_text에는 넣지 마세요.
+- 정답이 하나뿐인 문제는 위 규칙 그대로 answer에 보기 글 하나만 쓰세요.`
+
 /**
  * Gemini Vision API를 사용해 이미지에서 문제를 직접 추출합니다.
  * 시험지/문제지 이미지를 넣으면 문제 구조를 파싱하여 JSON으로 반환합니다.
  */
 export async function extractQuestionsFromImage(
   file: File,
-  questionCount?: number
+  questionCount?: number,
+  options: ExamExtractionOptions = {},
 ): Promise<string> {
   const apiKey = process.env.GEMINI_API_KEY
   if (!apiKey) {
@@ -36,7 +54,7 @@ export async function extractQuestionsFromImage(
   const arrayBuffer = await file.arrayBuffer()
   const base64Data = Buffer.from(arrayBuffer).toString('base64')
   const mimeType = file.type || getMimeTypeFromName(file.name)
-  const prompt = buildExamExtractionPrompt(questionCount)
+  const prompt = buildExamExtractionPrompt(questionCount, options)
 
   const parts = [{ text: prompt }, { inlineData: { mimeType, data: base64Data } }]
 
@@ -103,7 +121,7 @@ function getMimeTypeFromName(filename: string): string {
   return mimeMap[ext || ''] || 'image/jpeg'
 }
 
-function buildExamExtractionPrompt(questionCount?: number): string {
+function buildExamExtractionPrompt(questionCount?: number, options: ExamExtractionOptions = {}): string {
   const countInstruction = questionCount
     ? `문서에 있는 문제를 앞에서부터 차례로 최대 ${questionCount}개까지 옮기세요.`
     : '문서에 있는 모든 문제를 차례로 옮기세요.'
@@ -140,5 +158,5 @@ ${countInstruction}
 - SHORT: options는 [], answer는 종이의 정답을 그대로 쓰세요(모르면 빈 문자열).
 - figure_box: 문제를 풀려면 꼭 봐야 하는 그림·도형·표·그래프·지도가 이미지 안에 있으면, 그 그림 영역만 [ymin, xmin, ymax, xmax] 형식(이미지 높이·너비를 각각 0~1000으로 본 비율)으로 적으세요. 문제 글자나 보기 글자는 상자에 넣지 말고 그림만 감싸세요. 그림이 없으면 null, 두 문제가 같은 그림을 공유하면 둘 다 같은 상자를 적으세요.
 - explanation: answer가 있을 때만 학생 눈높이로 1~2문장. 문제 글은 고치지 마세요.
-- JSON 외의 설명은 쓰지 마세요.`
+- JSON 외의 설명은 쓰지 마세요.${options.multiSelect ? `\n${MULTI_SELECT_EXTRACTION_RULES}` : ''}`
 }

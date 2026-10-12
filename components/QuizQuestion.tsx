@@ -5,6 +5,13 @@ import type { Database } from '@/types/database.types'
 import { getOptionLabel } from '@/lib/quiz/optionLabels'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 import { useQuestionTextFilter } from '@/components/prank/HanjaOnlyQuestion'
+import MultiSelectChoices from '@/components/quiz/MultiSelectChoices'
+import {
+  MULTI_SELECT_TIME_MULTIPLIER,
+  getMultiSelectOptionResults,
+  isMultiSelectQuestion,
+  joinMultiSelectAnswer,
+} from '@/lib/quiz/multiSelect'
 
 type Question = Database['public']['Tables']['questions']['Row']
 
@@ -13,20 +20,27 @@ interface QuizQuestionProps {
   onAnswer: (answer: string) => void
   isAnswered: boolean
   timeLimit?: number // 초 단위
+  /** 문제집 제목. 구성치기(다중 선택) 판정에 쓴다(lib/quiz/multiSelect.ts). 없으면 일반 문제로 본다. */
+  questionSetTitle?: string | null
 }
 
 export default function QuizQuestion({
   question,
   onAnswer,
   isAnswered,
-  timeLimit,
+  timeLimit: baseTimeLimit,
+  questionSetTitle = null,
 }: QuizQuestionProps) {
+  // 이 컴포넌트는 DB 행(정답 포함)을 그대로 받으므로 제목과 정답으로 직접 판정한다.
+  const isMultiSelect = isMultiSelectQuestion(question, questionSetTitle)
+  const timeLimit = isMultiSelect && baseTimeLimit ? baseTimeLimit * MULTI_SELECT_TIME_MULTIPLIER : baseTimeLimit
   const [selectedAnswer, setSelectedAnswer] = useState<string>('')
   const [timeLeft, setTimeLeft] = useState(timeLimit || 0)
+  const [multiSelected, setMultiSelected] = useState<ReadonlySet<number>>(() => new Set())
   const filterQuestionText = useQuestionTextFilter()
 
   // Json 타입을 string[]로 안전하게 변환
-  const options: string[] = Array.isArray(question.options) 
+  const options: string[] = Array.isArray(question.options)
     ? question.options.filter((opt): opt is string => typeof opt === 'string')
     : []
 
@@ -34,6 +48,16 @@ export default function QuizQuestion({
     if (isAnswered) return
     setSelectedAnswer(answer)
     onAnswer(answer)
+  }
+
+  const toggleMultiOption = (index: number) => {
+    if (isAnswered) return
+    setMultiSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(index)) next.delete(index)
+      else next.add(index)
+      return next
+    })
   }
 
   return (
@@ -46,7 +70,20 @@ export default function QuizQuestion({
       </div>
 
       <div className="space-y-3">
-        {question.type === 'CHOICE' && (
+        {isMultiSelect && (
+          <MultiSelectChoices
+            options={options}
+            selected={multiSelected}
+            onToggle={toggleMultiOption}
+            onSubmit={() => handleAnswerSelect(joinMultiSelectAnswer(options.filter((_, index) => multiSelected.has(index))))}
+            locked={isAnswered}
+            isSubmitting={false}
+            results={isAnswered ? getMultiSelectOptionResults(options, multiSelected, question.answer) : null}
+            variant="default"
+          />
+        )}
+
+        {question.type === 'CHOICE' && !isMultiSelect && (
           <>
             {options.map((option, index) => (
               <button

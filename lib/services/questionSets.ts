@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Database, Json } from '@/types/database.types'
+import { isMultiSelectQuestion, splitMultiSelectAnswer } from '@/lib/quiz/multiSelect'
 
 type QuestionSetRow = Database['public']['Tables']['question_sets']['Row']
 type QuestionSetInsert = Database['public']['Tables']['question_sets']['Insert']
@@ -90,7 +91,12 @@ export function normalizeQuestionOptions(options: QuestionDraft['options']): str
   return []
 }
 
-export function validateQuestionDraft(question: QuestionDraft): string[] {
+/**
+ * setTitle 은 저장할 문제집 이름이다. 구성치기 문제집의 다중 선택 문제(lib/quiz/multiSelect.ts)는
+ * answer 가 "마황, 계지, …"라 보기 하나와 같을 수 없으므로, 정답 항목이 모두 보기 안에 있는지로 본다.
+ * 세세한 규칙(보기 4~20개 등)은 검수 화면(lib/quiz/questionQuality.ts)이 먼저 걸러 준다.
+ */
+export function validateQuestionDraft(question: QuestionDraft, setTitle?: string | null): string[] {
   const errors: string[] = []
   const questionText = question.question_text?.trim() ?? ''
   const answer = question.answer?.trim() ?? ''
@@ -99,7 +105,20 @@ export function validateQuestionDraft(question: QuestionDraft): string[] {
   if (!questionText) errors.push('문제 내용을 입력해주세요.')
   if (!answer) errors.push('정답을 입력해주세요.')
 
-  if (question.type === 'CHOICE') {
+  if (isMultiSelectQuestion({ type: question.type, answer }, setTitle)) {
+    const options = normalizeQuestionOptions(question.options)
+    const answers = splitMultiSelectAnswer(answer)
+    if (options.length < 2) {
+      errors.push('객관식 문제는 보기가 2개 이상 필요합니다.')
+    }
+    if (answers.length < 2) {
+      errors.push('여러 개 고르기 문제는 정답이 2개 이상 필요합니다.')
+    }
+    const missing = answers.filter((item) => !options.includes(item))
+    if (missing.length > 0) {
+      errors.push(`정답 ${missing.join(', ')}이(가) 보기에 포함되어 있지 않습니다.`)
+    }
+  } else if (question.type === 'CHOICE') {
     const options = normalizeQuestionOptions(question.options)
     if (options.length < 2) {
       errors.push('객관식 문제는 보기가 2개 이상 필요합니다.')
@@ -116,8 +135,8 @@ export function validateQuestionDraft(question: QuestionDraft): string[] {
   return errors
 }
 
-export function normalizeQuestionDraft(question: QuestionDraft): Omit<QuestionInsert, 'set_id'> {
-  const errors = validateQuestionDraft(question)
+export function normalizeQuestionDraft(question: QuestionDraft, setTitle?: string | null): Omit<QuestionInsert, 'set_id'> {
+  const errors = validateQuestionDraft(question, setTitle)
   if (errors.length > 0) {
     throw new Error(errors.join('\n'))
   }
@@ -440,7 +459,7 @@ export async function createQuestionSetWithQuestions(input: {
     throw new Error('저장할 문제가 없습니다.')
   }
 
-  const normalizedQuestions = input.questions.map(normalizeQuestionDraft)
+  const normalizedQuestions = input.questions.map((question) => normalizeQuestionDraft(question, input.metadata.title))
   const setId = createQuestionSetId(input.idPrefix)
 
   await createQuestionSet({
@@ -502,8 +521,9 @@ export async function insertQuestions(questions: QuestionInsert[]): Promise<Ques
   return (data ?? []) as QuestionRow[]
 }
 
-export async function createQuestionInSet(setId: string, question: QuestionDraft): Promise<QuestionRow> {
-  const normalizedQuestion = normalizeQuestionDraft(question)
+/** setTitle: 문제집 이름(구성치기 다중 선택 검사용, validateQuestionDraft 참고) */
+export async function createQuestionInSet(setId: string, question: QuestionDraft, setTitle?: string | null): Promise<QuestionRow> {
+  const normalizedQuestion = normalizeQuestionDraft(question, setTitle)
   const { data, error } = await (supabase
     .from('questions') as any)
     .insert({
@@ -517,8 +537,9 @@ export async function createQuestionInSet(setId: string, question: QuestionDraft
   return data as QuestionRow
 }
 
-export async function updateQuestion(questionId: string, question: QuestionDraft): Promise<void> {
-  const normalizedQuestion = normalizeQuestionDraft(question)
+/** setTitle: 문제집 이름(구성치기 다중 선택 검사용, validateQuestionDraft 참고) */
+export async function updateQuestion(questionId: string, question: QuestionDraft, setTitle?: string | null): Promise<void> {
+  const normalizedQuestion = normalizeQuestionDraft(question, setTitle)
   const payload: QuestionUpdate = {
     type: normalizedQuestion.type,
     question_text: normalizedQuestion.question_text,
@@ -549,10 +570,11 @@ export async function deleteQuestion(questionId: string): Promise<void> {
   if (error) throw error
 }
 
-export async function copyQuestionsIntoSet(setId: string, questions: QuestionDraft[]): Promise<QuestionRow[]> {
+/** setTitle: 가져와 넣을 문제집 이름(구성치기 다중 선택 검사용, validateQuestionDraft 참고) */
+export async function copyQuestionsIntoSet(setId: string, questions: QuestionDraft[], setTitle?: string | null): Promise<QuestionRow[]> {
   if (questions.length === 0) return []
 
-  const normalizedQuestions = questions.map(normalizeQuestionDraft)
+  const normalizedQuestions = questions.map((question) => normalizeQuestionDraft(question, setTitle))
   return insertQuestions(
     normalizedQuestions.map((question) => ({
       ...question,

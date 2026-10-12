@@ -1,5 +1,6 @@
 // ⚠️ 이 파일은 서버 RPC(sql/20260922_lenient_numeric_answers.sql 의 normalize_quiz_answer /
-// quiz_answer_numeric_core / check_question_answer)와 규칙이 같아야 한다.
+// quiz_answer_numeric_core / check_question_answer, sql/20261012_multi_select_answers.sql 의
+// quiz_multi_select_answer_match)와 규칙이 같아야 한다.
 // 한쪽만 고치면 화면 표시(정답 하이라이트)와 실제 채점이 어긋난다.
 
 // 치환 순서가 의미 있다. 두 글자짜리(여덟·다섯·하나…)를 먼저 바꿔야 '한'·'두' 같은
@@ -119,4 +120,38 @@ export function isQuizAnswerMatch(submittedAnswer: string, correctAnswer: string
   return splitAcceptableAnswers(correctAnswer).some(
     (candidate) => isSingleAnswerMatch(submittedAnswer, candidate),
   )
+}
+
+// ─── 구성치기(다중 선택) 채점 ───
+// 어떤 문제가 다중 선택인지는 lib/quiz/multiSelect.ts 의 isMultiSelectQuestion 이 정한다.
+// 여기에는 "다중 선택이라면 어떻게 채점하는가"만 둔다(서버 quiz_multi_select_answer_match 와 같은 규칙).
+
+/**
+ * 다중 선택 정답("마황, 계지, 행인, 감초")·제출 답을 항목으로 나눈다. 구분자는 쉼표뿐이다.
+ * | 와 줄바꿈은 일반 문제의 "복수 정답 후보" 구분자라 여기서는 나누지 않는다.
+ */
+export function splitMultiSelectAnswer(answer: string | null | undefined): string[] {
+  return String(answer ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+/** 항목마다 normalizeQuizAnswer 를 거친 집합. 정규화 후 빈 항목(한자만 있는 항목 등)은 버린다. */
+export function toMultiSelectAnswerSet(answer: string | null | undefined): Set<string> {
+  return new Set(splitMultiSelectAnswer(answer).map(normalizeQuizAnswer).filter(Boolean))
+}
+
+/**
+ * 순서 무관 집합 비교. 고른 집합 = 정답 집합이면 정답, 하나라도 빠지거나 더 고르면 오답(부분 점수 없음).
+ */
+export function isMultiSelectAnswerMatch(submittedAnswer: string, correctAnswer: string): boolean {
+  const correct = toMultiSelectAnswerSet(correctAnswer)
+  if (correct.size === 0) return false
+  const submitted = toMultiSelectAnswerSet(submittedAnswer)
+  if (submitted.size !== correct.size) return false
+  for (const item of correct) {
+    if (!submitted.has(item)) return false
+  }
+  return true
 }

@@ -33,14 +33,38 @@ import { formatServiceError } from '@/lib/services/errors'
 import type { Database } from '@/types/database.types'
 import { displayBlankText } from '@/lib/quiz/blankText'
 import QuestionImageField from '@/components/teacher/QuestionImageField'
+import MultiSelectChoiceFields from '@/components/teacher/MultiSelectChoiceFields'
+import { isMultiSelectQuestion, isGusungchigiSet } from '@/lib/quiz/multiSelect'
+import { getQuestionErrors } from '@/lib/quiz/questionQuality'
 
 type Question = Database['public']['Tables']['questions']['Row']
+
+function toOptionList(options: Question['options'] | undefined): string[] {
+  return Array.isArray(options) ? options.map((option) => String(option ?? '')) : []
+}
+
+/**
+ * 구성치기 다중 선택 문제면 검수 화면과 같은 규칙(보기 4~20개·정답 2개 이상·정답이 모두 보기 안에)으로 본다.
+ * 다중 선택이 아니면 빈 목록 — 일반 문제는 지금처럼 저장할 때 서버 검증만 거친다.
+ */
+function getMultiSelectSaveErrors(question: Partial<Question>, setTitle: string): string[] {
+  if (!isMultiSelectQuestion({ type: question.type, answer: question.answer }, setTitle)) return []
+  return getQuestionErrors({
+    type: 'CHOICE',
+    question_text: question.question_text ?? '',
+    options: toOptionList(question.options),
+    answer: question.answer ?? '',
+  }, setTitle)
+}
 
 export default function EditQuestionSetPageClient({ setId }: { setId: string }) {
   const router = useRouter()
 
   const [questions, setQuestions] = useState<Question[]>([])
   const [setName, setSetName] = useState('')
+  // 저장된 문제집 이름. 구성치기(다중 선택) 판정은 고치는 중인 입력칸이 아니라 이 값으로 한다.
+  const [savedTitle, setSavedTitle] = useState('')
+  const isMultiSelectSet = isGusungchigiSet(savedTitle)
   const [subject, setSubject] = useState('')
   const [grade, setGrade] = useState('')
 
@@ -66,6 +90,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
         setSetName(setId.replace('set-', '').replace(/-/g, ' '))
       } else {
         setSetName(set.title)
+        setSavedTitle(set.title)
         setSubject(set.subject || '')
         setGrade(set.grade || '')
       }
@@ -93,6 +118,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
         subject,
         grade,
       })
+      setSavedTitle(setName.trim())
       setIsEditingInfo(false)
       toast.success('문제집 정보가 저장되었습니다.')
     } catch (e) {
@@ -105,8 +131,14 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
     const question = questions[index]
     if (!question) return
 
+    const multiSelectErrors = getMultiSelectSaveErrors(question, savedTitle)
+    if (multiSelectErrors.length > 0) {
+      toast.error(multiSelectErrors[0])
+      return
+    }
+
     try {
-      await updateQuestionRecord(question.id, question)
+      await updateQuestionRecord(question.id, question, savedTitle)
       setEditingIndex(null)
       toast.success('문제가 저장되었습니다.')
     } catch (error) {
@@ -137,8 +169,14 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
   const handleAddQuestion = async () => {
     if (!newQuestion) return
 
+    const multiSelectErrors = getMultiSelectSaveErrors(newQuestion, savedTitle)
+    if (multiSelectErrors.length > 0) {
+      toast.error(multiSelectErrors[0])
+      return
+    }
+
     try {
-      const createdQuestion = await createQuestionInSet(setId, newQuestion)
+      const createdQuestion = await createQuestionInSet(setId, newQuestion, savedTitle)
       setQuestions([...questions, createdQuestion])
       setNewQuestion(null)
       toast.success('문제가 추가되었습니다.')
@@ -150,7 +188,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
 
   const handleMergeQuestions = async (selectedQs: Question[]) => {
     try {
-      const copiedQuestions = await copyQuestionsIntoSet(setId, selectedQs)
+      const copiedQuestions = await copyQuestionsIntoSet(setId, selectedQs, savedTitle)
       setQuestions([...questions, ...copiedQuestions])
       setIsMergeModalOpen(false)
       toast.success(`${copiedQuestions.length}개의 문제를 성공적으로 가져왔습니다!`)
@@ -334,8 +372,21 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                         />
                       </div>
 
+                      {/* 보기·정답 — 구성치기 문제집의 객관식: 정답 여러 개 토글, 보기 4~20개 */}
+                      {question.type === 'CHOICE' && isMultiSelectSet && (
+                        <MultiSelectChoiceFields
+                          options={toOptionList(question.options)}
+                          answer={question.answer}
+                          onChange={(patch) => {
+                            const updated = [...questions]
+                            updated[index] = { ...updated[index], ...patch }
+                            setQuestions(updated)
+                          }}
+                        />
+                      )}
+
                       {/* 보기 (객관식일 때만) */}
-                      {question.type === 'CHOICE' && (
+                      {question.type === 'CHOICE' && !isMultiSelectSet && (
                         <div>
                           <label className="mb-2 block text-sm font-semibold text-slate-600">
                             보기 (쉼표로 구분)
@@ -353,7 +404,8 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                         </div>
                       )}
 
-                      {/* 정답 */}
+                      {/* 정답 (구성치기 문제집의 객관식은 위 보기 칸에서 토글로 고른다) */}
+                      {!(question.type === 'CHOICE' && isMultiSelectSet) && (
                       <div>
                         <label className="mb-2 block text-sm font-semibold text-slate-600">
                           정답
@@ -381,6 +433,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                           />
                         )}
                       </div>
+                      )}
 
                       {/* 저장/취소 버튼 */}
                       <div className="flex gap-2">
@@ -543,7 +596,16 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
               />
             </div>
 
-            {newQuestion.type === 'CHOICE' && (
+            {/* 구성치기 문제집의 객관식: 정답 여러 개 토글, 보기 4~20개 */}
+            {newQuestion.type === 'CHOICE' && isMultiSelectSet && (
+              <MultiSelectChoiceFields
+                options={toOptionList(newQuestion.options)}
+                answer={newQuestion.answer ?? ''}
+                onChange={(patch) => setNewQuestion({ ...newQuestion, ...patch })}
+              />
+            )}
+
+            {newQuestion.type === 'CHOICE' && !isMultiSelectSet && (
               <div>
                 <label className="mb-2 block text-sm font-semibold text-slate-600">
                   보기 (쉼표로 구분)
@@ -561,6 +623,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
               </div>
             )}
 
+            {!(newQuestion.type === 'CHOICE' && isMultiSelectSet) && (
             <div>
               <label className="mb-2 block text-sm font-semibold text-slate-600">
                 정답
@@ -589,6 +652,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
                 />
               )}
             </div>
+            )}
 
             <div className="flex gap-2">
               <Button
@@ -613,7 +677,8 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
             onClick={() => setNewQuestion({
               type: 'CHOICE',
               question_text: '',
-              options: [],
+              // 구성치기 문제집은 보기 칸을 하나씩 채우는 편집칸이라 빈 칸 4개로 시작한다
+              options: isMultiSelectSet ? ['', '', '', ''] : [],
               answer: '',
             })}
             className="w-full rounded-xl bg-sky-500 py-6 text-lg font-bold text-white shadow-sm shadow-sky-200 hover:bg-sky-600"

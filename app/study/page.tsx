@@ -431,6 +431,8 @@ export default function StudyPage() {
                 question_text: displayedQuestion.question_text,
                 options: displayedQuestion.options,
                 image_url: displayedQuestion.image_url,
+                // 구성치기(다중 선택) 표시. 서버가 문제집 제목·정답으로 판정해 붙인 값이다(lib/quiz/multiSelect.ts)
+                multiSelect: displayedQuestion.multiSelect,
               }}
               onAnswer={handleAnswer}
               onCorrectClick={phase === 'feedback' ? () => advance(current) : undefined}

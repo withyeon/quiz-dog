@@ -225,6 +225,11 @@ export default function CreateQuestionPage() {
     else if (sourceType === 'youtube') formData.append('youtubeUrl', youtubeUrl.trim())
     else if (sourceType === 'file' && file) formData.append('file', file)
     else if (sourceType === 'exam' && examFile) formData.append('file', examFile)
+    // 시험지 옮기기: 문제집 이름(비어 있으면 저장할 때 쓰일 파일 이름)을 같이 보낸다.
+    // 이름에 '구성치기'가 있으면 서버가 "정답 여러 개는 쉼표로 이어 쓰기" 규칙을 덧붙인다(lib/quiz/multiSelect.ts).
+    if (sourceType === 'exam' && examFile) {
+      formData.append('setName', (setName.trim() || stripExtension(examFile.name)).slice(0, 60))
+    }
 
     // 시험지 스캔의 그림을 잘라 붙이려면 서버가 "누구 그림인지" 알아야 한다 → 로그인 토큰 동봉
     const accessToken = await getTeacherAccessToken()
@@ -240,7 +245,7 @@ export default function CreateQuestionPage() {
       throw new Error('만들어진 문제가 없어요. 주제나 자료를 조금 더 구체적으로 넣고 다시 시도해 주세요.')
     }
     return { questions: data.questions as GeneratedQuestion[], figureCount: typeof data.figureCount === 'number' ? data.figureCount : 0 }
-  }, [sourceType, topic, youtubeUrl, file, examFile, userPrompt, subject, grade])
+  }, [sourceType, topic, youtubeUrl, file, examFile, userPrompt, subject, grade, setName])
 
   const handleGenerate = async () => {
     if (missing.length > 0) {

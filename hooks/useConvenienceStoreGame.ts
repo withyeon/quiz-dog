@@ -8,6 +8,7 @@ import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
 import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
+import { useRegisterQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
 import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
 import {
@@ -173,6 +174,8 @@ export function useConvenienceStoreGame() {
   const currentPlayer = players.find((p) => p.id === playerId) as StorePlayer | undefined
   // 닉네임 장난('한의대우등생'·'한의대최강')을 위해 현재 플레이어 닉네임을 올린다(hooks/usePlayFlags.ts).
   useRegisterPlayerNickname(currentPlayer?.nickname)
+  // 구성치기 문제집이면 QuizView 가 오답 때 해설을 보여주도록 지금 문제집 제목을 올린다(hooks/useQuestionSetTitle.ts).
+  useRegisterQuestionSetTitle(questionSetTitle)
   const isPaused = room?.status === 'paused'
 
   const forceFinishForStudent = useCallback((reason = 'forced_finish') => {
