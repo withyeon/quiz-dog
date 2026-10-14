@@ -480,7 +480,9 @@ export async function getQuestionSetWithQuestions(setId: string): Promise<Questi
     .from('questions') as any)
     .select('*')
     .eq('set_id', setId)
+    // 예전에 한 번에 넣어 created_at이 같은 문제들은 id로 순서를 고정한다 (stampAuthoredOrder 참고)
     .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
 
   if (questionError) throw questionError
 
@@ -568,12 +570,26 @@ export async function updateQuestionSetMetadata(
   if (error) throw error
 }
 
+/**
+ * 한 번에 넣는 문제마다 1ms씩 늘어나는 created_at을 붙인다.
+ * 문제 순서는 created_at으로만 정하는데(listQuestionsForGame 등), 한 번에 여러 줄을 넣으면 DB 기본값 NOW()가
+ * 모든 줄에 같은 시각을 넣어 순서가 정해지지 않는다. 그러면 문제를 고친(UPDATE) 뒤 첫 문제가 맨 뒤로 가는 식으로
+ * 공부 모드의 "문제집 순서"가 뒤섞인다. 기준 시각은 브라우저 시계지만, 한 묶음 안의 앞뒤만 맞으면 된다.
+ */
+function stampAuthoredOrder(questions: QuestionInsert[]): QuestionInsert[] {
+  const base = Date.now()
+  return questions.map((question, index) => ({
+    ...question,
+    created_at: new Date(base + index).toISOString(),
+  }))
+}
+
 export async function insertQuestions(questions: QuestionInsert[]): Promise<QuestionRow[]> {
   if (questions.length === 0) return []
 
   const { data, error } = await (supabase
     .from('questions') as any)
-    .insert(questions)
+    .insert(stampAuthoredOrder(questions))
     .select()
 
   if (error) throw error
@@ -651,10 +667,13 @@ export async function duplicateQuestionSet(setId: string, title?: string): Promi
 
   if (setError) throw setError
 
+  // 원본 순서대로 읽어야 사본도 같은 순서로 저장된다
   const { data: questions, error: questionError } = await (supabase
     .from('questions') as any)
     .select('*')
     .eq('set_id', setId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
 
   if (questionError) throw questionError
 
@@ -703,10 +722,13 @@ export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Pro
 
   if (setError) throw setError
 
+  // 원본 순서대로 읽어야 사본도 같은 순서로 저장된다
   const { data: questions, error } = await (supabase
     .from('questions') as any)
     .select('*')
     .eq('set_id', sourceSetId)
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true })
 
   if (error) throw error
   if (!questions || questions.length === 0) {

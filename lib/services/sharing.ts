@@ -179,7 +179,9 @@ export async function getSharedSetByCode(shareCode: string): Promise<SharedQuest
       // image_url 컬럼이 없는 DB(마이그레이션 전)에서도 공유 페이지가 죽지 않게 * 로 읽는다
       .select('*')
       .eq('set_id', row.id)
-      .order('created_at', { ascending: true }),
+      // created_at이 같은 문제(예전에 한 번에 넣은 문제집)는 id로 순서를 고정한다
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true }),
     (client.from('question_set_likes') as any)
       .select('*', { count: 'exact', head: true })
       .eq('set_id', row.id),

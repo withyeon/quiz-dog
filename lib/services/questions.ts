@@ -36,7 +36,9 @@ function findMissingOptionalColumn(error: unknown, columns: string): string | nu
 
 async function selectQuestions(setId: string, columns: string, order: boolean) {
   let query = (supabase.from('questions') as any).select(columns).eq('set_id', setId)
-  if (order) query = query.order('created_at', { ascending: true })
+  // 예전에 한 번에 넣어 created_at이 같은 문제들은 id로 순서를 고정한다
+  // (그러지 않으면 문제를 고칠 때마다 순서가 바뀐다. lib/services/questionSets.ts 의 stampAuthoredOrder 참고)
+  if (order) query = query.order('created_at', { ascending: true }).order('id', { ascending: true })
   const result = await query
   const missingColumn = result.error ? findMissingOptionalColumn(result.error, columns) : null
   if (missingColumn) {
