@@ -165,6 +165,38 @@ export function validateQuestionSetMetadata(input: QuestionSetMetadataInput): st
   return errors
 }
 
+// Supabase(PostgREST)는 select 한 번의 응답을 최대 1000행(max_rows)에서 에러 없이 잘라 버린다.
+// 문제가 1000개를 넘자 문항 수가 조용히 모자라게 나왔으므로(6문제 → 4문제), 행이 많을 수 있는
+// 조회는 range 로 1000행씩 나눠 짧은 페이지가 올 때까지 끝까지 읽는다.
+// 페이지 사이에 행이 겹치거나 빠지지 않도록, 넘기는 쿼리는 반드시 유일한 컬럼(id)까지 넣어 정렬해야 한다.
+// (한 번에 넣은 문제들은 created_at 이 같아서 created_at 만으로는 순서가 고정되지 않는다)
+const SELECT_PAGE_SIZE = 1000
+
+async function selectAllPages<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<{ data: unknown; error: unknown }>,
+): Promise<T[]> {
+  const rows: T[] = []
+  for (let from = 0; ; from += SELECT_PAGE_SIZE) {
+    const { data, error } = await fetchPage(from, from + SELECT_PAGE_SIZE - 1)
+    if (error) throw error
+    const page = (data ?? []) as T[]
+    rows.push(...page)
+    if (page.length < SELECT_PAGE_SIZE) return rows
+  }
+}
+
+// .in() 에 문제집 id 를 한꺼번에 넣으면 문제집이 늘수록 GET URL 이 길어져 요청이 거절될 수 있어
+// 이만큼씩 나눠 보낸다. (id 는 30자 남짓이라 100개면 URL 이 몇 KB 안에 머문다)
+const IN_FILTER_CHUNK_SIZE = 100
+
+function chunkIds(ids: string[]): string[][] {
+  const chunks: string[][] = []
+  for (let i = 0; i < ids.length; i += IN_FILTER_CHUNK_SIZE) {
+    chunks.push(ids.slice(i, i + IN_FILTER_CHUNK_SIZE))
+  }
+  return chunks
+}
+
 /**
  * "내 문제집" 목록. ownerId를 주면 해당 선생님 소유 문제집만 반환한다.
  * (ownerId 미지정 시 전체 — /dev 등 관리 용도)
@@ -184,15 +216,22 @@ export async function listQuestionSetsWithCounts(ownerId?: string | null): Promi
   if (rows.length === 0) return []
 
   const setIds = rows.map((set) => set.id)
-  const { data: questionRows, error: countError } = await supabase
-    .from('questions')
-    .select('set_id')
-    .in('set_id', setIds)
-
-  if (countError) throw countError
+  // 문항 수를 세려고 set_id 만 읽는데, 전체 문제 행 수가 1000을 넘으므로 페이지로 끝까지 읽는다.
+  const questionRowChunks = await Promise.all(
+    chunkIds(setIds).map((idChunk) =>
+      selectAllPages<Pick<QuestionRow, 'set_id'>>((from, to) =>
+        supabase
+          .from('questions')
+          .select('set_id')
+          .in('set_id', idChunk)
+          .order('id', { ascending: true })
+          .range(from, to),
+      ),
+    ),
+  )
 
   const countBySet = new Map<string, number>()
-  ;((questionRows ?? []) as Pick<QuestionRow, 'set_id'>[]).forEach((row) => {
+  questionRowChunks.flat().forEach((row) => {
     countBySet.set(row.set_id, (countBySet.get(row.set_id) ?? 0) + 1)
   })
 
@@ -204,14 +243,17 @@ export async function listQuestionSetIndexFromQuestions(
   options?: { onlyPublic?: boolean },
 ): Promise<QuestionSetIndexItem[]> {
   const onlyPublic = options?.onlyPublic ?? false
-  const { data, error } = await (supabase
-    .from('questions') as any)
-    .select('set_id, created_at')
-    .order('created_at', { ascending: false })
+  // 모든 문제 행을 읽어 문제집별로 묶으므로 1000행 제한에 걸리지 않게 페이지로 끝까지 읽는다.
+  const data = await selectAllPages<Pick<QuestionRow, 'set_id' | 'created_at'>>((from, to) =>
+    (supabase
+      .from('questions') as any)
+      .select('set_id, created_at')
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, to),
+  )
 
-  if (error) throw error
-
-  const grouped = ((data ?? []) as Pick<QuestionRow, 'set_id' | 'created_at'>[]).reduce(
+  const grouped = data.reduce(
     (acc, item) => {
       if (!acc[item.set_id]) {
         acc[item.set_id] = {
@@ -236,16 +278,21 @@ export async function listQuestionSetIndexFromQuestions(
 
   if (setIds.length === 0) return items
 
-  const { data: sets, error: setError } = await (supabase
-    .from('question_sets') as any)
-    .select('id, title, description, subject, grade, tags, is_public')
-    .in('id', setIds)
-
-  if (setError) throw setError
-
   type IndexSetMeta = Pick<QuestionSetRow, 'id' | 'title' | 'description' | 'subject' | 'grade' | 'tags' | 'is_public'>
+  // 문제집 수만큼 id 를 넣으므로 나눠 보낸다. 묶음마다 행이 100개 이하라 1000행 제한에도 걸리지 않는다.
+  const setChunks = await Promise.all(
+    chunkIds(setIds).map(async (idChunk) => {
+      const { data: sets, error: setError } = await (supabase
+        .from('question_sets') as any)
+        .select('id, title, description, subject, grade, tags, is_public')
+        .in('id', idChunk)
+
+      if (setError) throw setError
+      return (sets ?? []) as IndexSetMeta[]
+    }),
+  )
   const setById = new Map(
-    ((sets ?? []) as IndexSetMeta[]).map((set) => [set.id, set]),
+    setChunks.flat().map((set) => [set.id, set]),
   )
 
   // 자료실(onlyPublic)에서는 공개로 설정된 문제집만 노출한다.
@@ -303,17 +350,29 @@ export async function getQuestionSetLikeSummaries(
   const monthAgo = new Date(now)
   monthAgo.setMonth(now.getMonth() - 1)
 
-  const { data, error } = await (supabase
-    .from('question_set_likes') as any)
-    .select('set_id, client_id, created_at')
-    .in('set_id', setIds)
-
-  if (error) {
+  type LikeRow = { set_id: string; client_id: string; created_at: string }
+  // 좋아요도 문제집마다 쌓이는 행이라 언젠가 1000개를 넘는다. 문항 수와 같은 이유로 나눠서 끝까지 읽는다.
+  let likes: LikeRow[]
+  try {
+    const likeChunks = await Promise.all(
+      chunkIds(setIds).map((idChunk) =>
+        selectAllPages<LikeRow>((from, to) =>
+          (supabase
+            .from('question_set_likes') as any)
+            .select('set_id, client_id, created_at')
+            .in('set_id', idChunk)
+            .order('id', { ascending: true })
+            .range(from, to),
+        ),
+      ),
+    )
+    likes = likeChunks.flat()
+  } catch (error) {
     if (isMissingLikesTableError(error)) return summaries
     throw error
   }
 
-  ;((data ?? []) as Array<{ set_id: string; client_id: string; created_at: string }>).forEach((like) => {
+  likes.forEach((like) => {
     const summary = summaries.get(like.set_id)
     if (!summary) return
 
