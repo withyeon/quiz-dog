@@ -6,6 +6,7 @@ import { MENU_ITEMS, Customer, pickCopyCatMenu } from '@/lib/game/cafe'
 import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
 import { CAFE_ITEMS, getRandomItemChoices, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
 import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
+import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useAudioContext } from '@/components/AudioProvider'
 import type { Database } from '@/types/database.types'
 
@@ -48,6 +49,7 @@ export function useCafeView({
   consecutiveCorrect,
   onSendEvent,
   paused = false,
+  questionSetTitle = null,
 }: CafeViewProps) {
   const {
     status,
@@ -75,7 +77,9 @@ export function useCafeView({
 
   const [showQuiz, setShowQuiz] = useState(false)
   const [showWrong, setShowWrong] = useState(false)
-  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
+  const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
+  // 오답 화면 시간. 구성치기 문제집은 해설을 읽도록 5초, 그 외는 3초(lib/quiz/multiSelect.ts)
+  const wrongScreenMs = getWrongScreenMs(questionSetTitle, 3000)
   const [showShop, setShowShop] = useState(false)
   const [servingAnimations, setServingAnimations] = useState<
     Array<{ id: string; x: number; y: number; amount: number; isGolden?: boolean }>
@@ -263,12 +267,12 @@ export function useCafeView({
       playSFX('incorrect')
       setShowWrong(true)
       setShowQuiz(false)
-      revealAnswer(currentQuestion?.id)
+      revealAnswer(currentQuestion)
       setTimeout(() => {
         setShowWrong(false)
         clearRevealedAnswer()
         onNextQuestion()
-      }, 3000)
+      }, wrongScreenMs)
       return false
     }
 
@@ -289,12 +293,12 @@ export function useCafeView({
       playSFX('incorrect')
       setShowWrong(true)
       setShowQuiz(false)
-      revealAnswer(currentQuestion?.id)
+      revealAnswer(currentQuestion)
       setTimeout(() => {
         setShowWrong(false)
         clearRevealedAnswer()
         onNextQuestion()
-      }, 3000)
+      }, wrongScreenMs)
     }
     return correct
   }
@@ -411,6 +415,7 @@ export function useCafeView({
     setShowQuiz,
     showWrong,
     revealedAnswer,
+    revealedExplanation,
     showShop,
     setShowShop,
     servingAnimations,

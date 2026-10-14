@@ -37,6 +37,7 @@ export default function CafeView(props: CafeViewProps) {
     setShowQuiz,
     showWrong,
     revealedAnswer,
+    revealedExplanation,
     showShop,
     setShowShop,
     servingAnimations,
@@ -69,7 +70,7 @@ export default function CafeView(props: CafeViewProps) {
 
       <CafeNotice notice={notice} />
 
-      {showWrong && <CafeWrongPanel revealedAnswer={revealedAnswer} />}
+      {showWrong && <CafeWrongPanel revealedAnswer={revealedAnswer} revealedExplanation={revealedExplanation} />}
 
       {/* 카페 화면 */}
       <CustomerLine

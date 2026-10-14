@@ -7,11 +7,13 @@ import { formatMoney } from '@/lib/game/convenienceStore'
 
 type Props = {
   revealedAnswer: string | null
+  /** 구성치기 문제집이면 정답 아래에 보인다(AnswerReveal) */
+  revealedExplanation?: string | null
   wrongPenalty: number | null
 }
 
-/** 오답 화면: 정답 공개와 매출 패널티 안내. 3초 뒤 훅이 다음 문제로 넘긴다. */
-export default function StoreWrongPanel({ revealedAnswer, wrongPenalty }: Props) {
+/** 오답 화면: 정답 공개와 매출 패널티 안내. 3초(구성치기 문제집은 5초) 뒤 훅이 다음 문제로 넘긴다. */
+export default function StoreWrongPanel({ revealedAnswer, revealedExplanation = null, wrongPenalty }: Props) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -22,7 +24,7 @@ export default function StoreWrongPanel({ revealedAnswer, wrongPenalty }: Props)
         <PixelIcon name="wrong" size={96} />
       </div>
       <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다!</h2>
-      <AnswerReveal answer={revealedAnswer} />
+      <AnswerReveal answer={revealedAnswer} explanation={revealedExplanation} />
       {wrongPenalty ? (
         <motion.p
           initial={{ opacity: 0, y: 10 }}

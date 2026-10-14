@@ -19,6 +19,7 @@ import { formatServiceError } from '@/lib/services/errors'
 import { getQuestionSetTitle } from '@/lib/services/questionSets'
 import { updatePlayer } from '@/lib/services/players'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
+import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useRegisterQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
 import {
     applyPlayerDelta,
@@ -149,7 +150,7 @@ export function useGameBase(options: UseGameBaseOptions) {
     const [currentView, setCurrentView] = useState<string>('lobby')
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
     // 오답 시 보여줄 정답(학습용). handleWrongAnswer 에서 서버 조회 후 채운다.
-    const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
+    const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
     const [selectedAnswer, setSelectedAnswer] = useState<string>('')
     const [isCorrect, setIsCorrect] = useState(false)
     const [showCountdown, setShowCountdown] = useState(false)
@@ -765,11 +766,12 @@ export function useGameBase(options: UseGameBaseOptions) {
     const handleWrongAnswer = useCallback(() => {
         setCurrentView('wrong')
         // 오답 화면에 정답을 보여주기 위해 서버에서 정답을 조회한다(학습용).
-        revealAnswer(currentQuestion?.id)
+        revealAnswer(currentQuestion)
+        // 구성치기 문제집은 해설을 읽도록 5초, 그 외는 모드 기본값(lib/quiz/multiSelect.ts)
         setTimeout(() => {
             goToNextQuestion()
-        }, wrongAnswerDelay)
-    }, [wrongAnswerDelay, goToNextQuestion, currentQuestion, revealAnswer])
+        }, getWrongScreenMs(questionSetTitle, wrongAnswerDelay))
+    }, [wrongAnswerDelay, goToNextQuestion, currentQuestion, revealAnswer, questionSetTitle])
 
     // ─── 시작 전 퀴즈: 정답 보상 없이 제출 수만 카운트 ───
     const handlePreStartQuizAnswer = useCallback(async (answer: string): Promise<boolean> => {
@@ -809,12 +811,13 @@ export function useGameBase(options: UseGameBaseOptions) {
             },
         ])
 
+        // 틀렸으면 구성치기 문제집에서는 오답 배너(정답·해설)를 5초 보여 준 뒤 넘어간다
         window.setTimeout(() => {
             setPreStartSubmittedCount((prev) => Math.min(requiredPreStartQuizCount, prev + 1))
             setPreStartQuestionIndex((prev) => prev + 1)
             setIsPreStartAnswerLocked(false)
             questionStartTime.current = Date.now()
-        }, 650)
+        }, correct ? 650 : getWrongScreenMs(questionSetTitle, 650))
 
         return correct
     }, [
@@ -825,6 +828,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         questions.length,
         requiredPreStartQuizCount,
         roomStatus,
+        questionSetTitle,
     ])
 
     // ─── 게임 종료 (모든 문제 풀었을 때) ───
@@ -865,6 +869,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         currentQuestionIndex,
         setCurrentQuestionIndex,
         revealedAnswer,
+        revealedExplanation,
         selectedAnswer,
         isCorrect,
         showCountdown,

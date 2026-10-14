@@ -46,6 +46,7 @@ export default function FactoryPage() {
     speedBonusDisplay,
     wrongPenalty,
     revealedAnswer,
+    revealedExplanation,
     handleCountdownComplete,
     handlePreStartQuizAnswer,
     handleAnswerSubmit,
@@ -144,7 +145,7 @@ export default function FactoryPage() {
           )}
 
           {currentView === 'wrong' && (
-            <StoreWrongPanel revealedAnswer={revealedAnswer} wrongPenalty={wrongPenalty} />
+            <StoreWrongPanel revealedAnswer={revealedAnswer} revealedExplanation={revealedExplanation} wrongPenalty={wrongPenalty} />
           )}
 
           {/* 결과 */}

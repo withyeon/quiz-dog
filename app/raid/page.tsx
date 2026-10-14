@@ -27,6 +27,7 @@ export default function RaidPage() {
     playerId,
     currentView,
     revealedAnswer,
+    revealedExplanation,
     showCountdown,
     room,
     roomLoading,
@@ -150,7 +151,7 @@ export default function RaidPage() {
                       <PixelIcon name="wrong" size={96} />
                     </div>
                     <h2 className="text-3xl font-black text-slate-950">아쉬워요!</h2>
-                    <AnswerReveal answer={revealedAnswer} />
+                    <AnswerReveal answer={revealedAnswer} explanation={revealedExplanation} />
                     <p className="mt-2 font-semibold text-slate-500">펭귄은 그대로예요. 연속 정답만 처음부터 다시 세요.</p>
                   </motion.section>
                 )}

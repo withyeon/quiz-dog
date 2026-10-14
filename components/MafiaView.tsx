@@ -30,6 +30,7 @@ import PixelIcon from '@/components/ui/PixelIcon'
 import VaultIcon, { getVaultDisplay, VaultReveal } from '@/components/mafia/VaultIcon'
 import QuizSetName from '@/components/game/QuizSetName'
 import { getPlayerById } from '@/lib/services/players'
+import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type PlayerPatch = Partial<PlayerRow> & Record<string, unknown>
@@ -151,7 +152,7 @@ export default function MafiaView({
   questionSetTitle,
 }: MafiaViewProps) {
   const [currentView, setCurrentView] = useState<MafiaViewType>('quiz')
-  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
+  const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [currentVaults, setCurrentVaults] = useState<SafeVault[]>([])
   const [cheatVaultContents, setCheatVaultContents] = useState<SafeVault[] | null>(null)
   const [selectedVaultResult, setSelectedVaultResult] = useState<{ vault: SafeVault; log: string } | null>(null)
@@ -305,8 +306,9 @@ export default function MafiaView({
     } else {
       playSFX('incorrect')
       setCurrentView('wrong')
-      revealAnswer(currentQuestion?.id)
-      window.setTimeout(goToQuiz, 3000)
+      revealAnswer(currentQuestion)
+      // 구성치기 문제집은 해설을 읽도록 5초, 그 외는 3초(lib/quiz/multiSelect.ts)
+      window.setTimeout(goToQuiz, getWrongScreenMs(questionSetTitle, 3000))
     }
     return correct
   }
@@ -607,7 +609,7 @@ export default function MafiaView({
                 <PixelIcon name="wrong" size={112} />
               </div>
               틀렸습니다
-              <AnswerReveal answer={revealedAnswer} className="text-left" />
+              <AnswerReveal answer={revealedAnswer} explanation={revealedExplanation} className="text-left" />
             </motion.div>
           )}
         </AnimatePresence>

@@ -27,6 +27,7 @@ export default function GamePage() {
     currentView,
     currentQuestionIndex,
     revealedAnswer,
+    revealedExplanation,
     showCountdown,
     handleCountdownComplete,
     answerHistory,
@@ -169,7 +170,7 @@ export default function GamePage() {
             />
           )}
 
-          {currentView === 'wrong' && <WrongAnswerPanel revealedAnswer={revealedAnswer} />}
+          {currentView === 'wrong' && <WrongAnswerPanel revealedAnswer={revealedAnswer} revealedExplanation={revealedExplanation} />}
         </div>
 
         {/* 게임 결과 화면 */}

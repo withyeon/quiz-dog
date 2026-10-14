@@ -33,6 +33,7 @@ export default function BattlePage() {
     playerId,
     currentView,
     revealedAnswer,
+    revealedExplanation,
     showCountdown,
     players,
     room,
@@ -207,7 +208,7 @@ export default function BattlePage() {
                   <PixelIcon name="wrong" size={96} />
                 </div>
                 <h2 className="text-3xl font-black text-slate-950">틀렸습니다</h2>
-                <AnswerReveal answer={revealedAnswer} />
+                <AnswerReveal answer={revealedAnswer} explanation={revealedExplanation} />
                 <p className="mt-2 font-semibold text-slate-500">눈뭉치가 녹아버렸습니다.</p>
               </motion.section>
             )}

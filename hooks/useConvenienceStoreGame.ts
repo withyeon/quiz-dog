@@ -8,6 +8,7 @@ import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
 import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
+import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useRegisterQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
 import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
@@ -81,7 +82,7 @@ export function useConvenienceStoreGame() {
   const [lastAnswerSpeed, setLastAnswerSpeed] = useState<'fast' | 'normal' | 'slow'>('normal') // 마지막 정답 속도
   const [speedBonusDisplay, setSpeedBonusDisplay] = useState<number | null>(null) // 속도 보너스 표시용
   const [wrongPenalty, setWrongPenalty] = useState<number | null>(null) // 오답 패널티 표시
-  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
+  const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [preStartSubmittedCount, setPreStartSubmittedCount] = useState(0)
   const [preStartQuestionIndex, setPreStartQuestionIndex] = useState(0)
   const [preStartOrder, setPreStartOrder] = useState<number[]>([])
@@ -358,7 +359,7 @@ export function useConvenienceStoreGame() {
         setShowCountdown(true)
         setCurrentView('countdown')
       }
-    }, 650)
+    }, correct ? 650 : getWrongScreenMs(questionSetTitle, 650)) // 틀렸으면 구성치기는 정답·해설 배너를 5초
 
     return correct
   }
@@ -502,7 +503,7 @@ export function useConvenienceStoreGame() {
 
       setIsQuizMode(false)
       setCurrentView('wrong')
-      revealAnswer(currentQuestion?.id)
+      revealAnswer(currentQuestion)
       clearNextQuestionTimer()
       nextQuestionTimerRef.current = setTimeout(() => {
         nextQuestionTimerRef.current = null
@@ -513,7 +514,7 @@ export function useConvenienceStoreGame() {
         setIsCorrect(false)
         clearRevealedAnswer()
         questionStartTime.current = Date.now()
-      }, 3000)
+      }, getWrongScreenMs(questionSetTitle, 3000)) // 구성치기 문제집은 해설을 읽도록 5초
     }
     return correct
   }
@@ -663,6 +664,7 @@ export function useConvenienceStoreGame() {
     speedBonusDisplay,
     wrongPenalty,
     revealedAnswer,
+    revealedExplanation,
     // 핸들러
     handleCountdownComplete,
     handlePreStartQuizAnswer,

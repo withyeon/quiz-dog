@@ -9,7 +9,6 @@ import { isMultiSelectAnswerMatch, isQuizAnswerMatch, splitAcceptableAnswers } f
 import {
   MULTI_SELECT_TIME_MULTIPLIER,
   getMultiSelectOptionResults,
-  isGusungchigiSet,
   isMultiSelectGameQuestion,
   joinMultiSelectAnswer,
   splitMultiSelectAnswer,
@@ -21,7 +20,7 @@ import QuestionImage from '@/components/QuestionImage'
 import MultiSelectChoices from '@/components/quiz/MultiSelectChoices'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 import { useQuestionTextFilter } from '@/components/prank/HanjaOnlyQuestion'
-import { useCurrentQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
+import WrongAnswerExplanation, { useWrongAnswerExplanation } from '@/components/quiz/WrongAnswerExplanation'
 
 interface QuizViewProps {
   question: {
@@ -58,9 +57,8 @@ export default function QuizView({ question, onAnswer, timeLimit: baseTimeLimit,
   const [multiSelected, setMultiSelected] = useState<ReadonlySet<number>>(() => new Set())
   const { playSFX } = useAudioContext()
   const filterQuestionText = useQuestionTextFilter()
-  // 구성치기 문제집이면 오답 때 해설을 보여준다. 제목은 게임 훅이 올린 값을 읽는다(hooks/useQuestionSetTitle.ts).
-  const questionSetTitle = useCurrentQuestionSetTitle()
-  const wrongExplanation = isGusungchigiSet(questionSetTitle) ? question.explanation?.trim() ?? '' : ''
+  // 구성치기 문제집이면 오답 때 해설을 보여준다(components/quiz/WrongAnswerExplanation.tsx).
+  const wrongExplanation = useWrongAnswerExplanation(question.explanation)
 
   // 카운트다운이 참조하는 값들을 ref로 들고 있는다.
   //
@@ -501,34 +499,11 @@ export default function QuizView({ question, onAnswer, timeLimit: baseTimeLimit,
                   정답: {splitAcceptableAnswers(revealedAnswer).join(' / ')}
                 </span>
               )}
-              {wrongExplanation && <WrongAnswerExplanation text={wrongExplanation} />}
+              {wrongExplanation && <WrongAnswerExplanation text={wrongExplanation} tone="onDark" className="mt-1 max-w-xl" />}
             </div>
           )}
         </MotionDiv>
       )}
     </MotionDiv>
-  )
-}
-
-// 첫 줄이 이 말로 시작하면 그 줄만 눈에 띄게 보여준다(구성치기 해설에서 쓰는 외우기용 한 줄)
-const EXPLANATION_HIGHLIGHT_PREFIX = '말야마:'
-
-/** 구성치기 문제집의 오답 해설. 줄바꿈을 그대로 살리고, 첫 줄이 '말야마:'로 시작하면 그 줄만 굵게·다른 색으로. */
-function WrongAnswerExplanation({ text }: { text: string }) {
-  const [firstLine, ...restLines] = text.split('\n')
-  const highlightFirst = firstLine.trimStart().startsWith(EXPLANATION_HIGHLIGHT_PREFIX)
-  const rest = restLines.join('\n')
-
-  return (
-    <div className="mt-1 w-full max-w-xl whitespace-pre-wrap break-keep text-left text-sm font-medium leading-relaxed opacity-95 sm:text-base">
-      {highlightFirst ? (
-        <>
-          <div className="font-black text-yellow-200">{firstLine}</div>
-          {rest && <div>{rest}</div>}
-        </>
-      ) : (
-        text
-      )}
-    </div>
   )
 }

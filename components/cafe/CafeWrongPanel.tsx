@@ -4,8 +4,15 @@ import { motion } from 'framer-motion'
 import AnswerReveal from '@/components/AnswerReveal'
 import PixelIcon from '@/components/ui/PixelIcon'
 
-/** 오답 화면: 정답 공개 뒤 3초 후 훅이 다음 문제로 넘긴다. */
-export default function CafeWrongPanel({ revealedAnswer }: { revealedAnswer: string | null }) {
+/** 오답 화면: 정답 공개 뒤 3초(구성치기 문제집은 5초) 후 훅이 다음 문제로 넘긴다. */
+export default function CafeWrongPanel({
+  revealedAnswer,
+  revealedExplanation = null,
+}: {
+  revealedAnswer: string | null
+  /** 구성치기 문제집이면 정답 아래에 보인다(AnswerReveal) */
+  revealedExplanation?: string | null
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.8 }}
@@ -17,7 +24,7 @@ export default function CafeWrongPanel({ revealedAnswer }: { revealedAnswer: str
           <PixelIcon name="wrong" size={96} />
         </div>
         <h2 className="text-4xl font-bold text-red-600 mb-2">틀렸습니다.</h2>
-        <AnswerReveal answer={revealedAnswer} />
+        <AnswerReveal answer={revealedAnswer} explanation={revealedExplanation} />
         <p className="text-gray-700">다른 문제로 넘어갑니다.</p>
       </div>
     </motion.div>

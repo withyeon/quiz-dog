@@ -25,6 +25,7 @@ import type { ZombieAttackResult } from '@/lib/services/playerMutations'
 import type { Question } from '@/hooks/useGameBase'
 import PixelIcon from '@/components/ui/PixelIcon'
 import QuizSetName from '@/components/game/QuizSetName'
+import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 
 type ViewState = 'quiz' | 'actionSelect' | 'targetSelect' | 'scanResult' | 'attackResult' | 'wrong'
 
@@ -85,7 +86,7 @@ export default function ZombieView({
   }, [startedAtMs, totalDurationSec])
 
   const [currentView, setCurrentView] = useState<ViewState>('quiz')
-  const { revealedAnswer, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
+  const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [timeRemaining, setTimeRemaining] = useState(computeRemaining)
   const [gameLog, setGameLog] = useState<ZombieGameLog[]>([])
   const [lastScanResult, setLastScanResult] = useState<{ playerId: string; isZombie: boolean } | null>(null)
@@ -260,12 +261,13 @@ export default function ZombieView({
     })
     setScanCooldown((prev) => Math.max(0, prev - 1))
     setCurrentView('wrong')
-    revealAnswer(currentQuestion?.id)
+    revealAnswer(currentQuestion)
+    // 구성치기 문제집은 해설을 읽도록 5초, 그 외는 3초(lib/quiz/multiSelect.ts)
     window.setTimeout(() => {
       setCurrentView('quiz')
       clearRevealedAnswer()
       onNextQuestion()
-    }, 3000)
+    }, getWrongScreenMs(questionSetTitle, 3000))
     return false
   }
 
@@ -535,7 +537,7 @@ export default function ZombieView({
                 <PixelIcon name="wrong" size={96} />
               </div>
               <p className="text-4xl font-bold text-red-400">틀렸습니다!</p>
-              <AnswerReveal answer={revealedAnswer} />
+              <AnswerReveal answer={revealedAnswer} explanation={revealedExplanation} />
               {myPlayer?.role === 'human' && (
                 <p className="mt-2 text-xl text-gray-400">
                   {GAME_CONSTANTS.WRONG_PENALTY_HUMAN > 0 ? `체력 -${GAME_CONSTANTS.WRONG_PENALTY_HUMAN}` : '이번엔 행동할 수 없어요. 연속 정답도 처음부터!'}
