@@ -194,9 +194,10 @@ function TeacherPageContent() {
 
   const totalQuestions = questionSets.reduce((sum, set) => sum + set.question_count, 0)
 
-  const normalizedQuery = searchQuery.trim().toLowerCase()
+  // 제목·검색어 모두 NFC 로 맞춰 비교한다 — macOS 파일 이름(NFD)에서 온 옛 제목도 찾도록
+  const normalizedQuery = searchQuery.normalize('NFC').trim().toLowerCase()
   const visibleSets = questionSets
-    .filter((set) => !normalizedQuery || set.title.toLowerCase().includes(normalizedQuery))
+    .filter((set) => !normalizedQuery || set.title.normalize('NFC').toLowerCase().includes(normalizedQuery))
     .sort((a, b) => {
       if (sortKey === 'title') return a.title.localeCompare(b.title, 'ko')
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

@@ -54,8 +54,9 @@ export default function MergeQuestionsModal({ currentSetId, onClose, onMerge }: 
             setFilteredSets(sets)
             return
         }
-        const lowerQ = searchQuery.toLowerCase()
-        setFilteredSets(sets.filter(s => s.title.toLowerCase().includes(lowerQ)))
+        // 제목·검색어 모두 NFC 로 맞춰 비교한다 — macOS 파일 이름(NFD)에서 온 옛 제목도 찾도록
+        const lowerQ = searchQuery.normalize('NFC').toLowerCase()
+        setFilteredSets(sets.filter(s => s.title.normalize('NFC').toLowerCase().includes(lowerQ)))
     }, [searchQuery, sets])
 
     const handleSelectSet = async (set: QuestionSet) => {

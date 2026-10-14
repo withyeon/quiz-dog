@@ -48,8 +48,9 @@ const STAGES_BY_SOURCE: Record<SourceType, string[]> = {
 // 단계가 바뀌는 시각(초). 진짜 진행률은 없어서, 평균 소요 시간을 기준으로 넘긴다.
 const STAGE_SWITCH_SECONDS = [3, 12]
 
+// macOS 파일 이름은 NFD(자모 분리)라 그대로 문제집 이름이 되면, 똑같이 보여도 NFC 로 친 검색어에 안 걸린다 → NFC 로 맞춘다.
 function stripExtension(name: string): string {
-  return name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
+  return name.normalize('NFC').replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim()
 }
 
 type Progress = { title: string; stages: string[]; startedAt: number; elapsedSec: number }

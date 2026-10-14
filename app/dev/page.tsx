@@ -328,9 +328,10 @@ export default function DevPage() {
                 className="mb-2 w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {(() => {
-                const keyword = setSearch.trim().toLowerCase()
+                // 제목·검색어 모두 NFC 로 맞춰 비교한다 — macOS 파일 이름(NFD)에서 온 옛 제목도 찾도록
+                const keyword = setSearch.normalize('NFC').trim().toLowerCase()
                 const visibleSets = keyword
-                  ? questionSets.filter((set) => set.title.toLowerCase().includes(keyword))
+                  ? questionSets.filter((set) => set.title.normalize('NFC').toLowerCase().includes(keyword))
                   : questionSets
                 const selectedSet = questionSets.find((set) => set.id === selectedSetId)
                 return (

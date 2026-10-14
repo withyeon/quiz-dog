@@ -495,9 +495,11 @@ export async function getQuestionSetWithQuestions(setId: string): Promise<Questi
 export async function createQuestionSet(input: QuestionSetInsert): Promise<QuestionSetRow> {
   // owner_id가 명시되지 않았으면 현재 로그인한 선생님으로 자동 지정한다.
   const ownerId = input.owner_id ?? (await getCurrentUserId())
+  // 이름은 NFC 로 맞춰 저장한다. macOS 파일 이름(NFD, 자모 분리)에서 온 이름은 똑같이 보여도
+  // NFC 로 친 검색어(includes·ilike)에 안 걸린다. 새로 만들기·복사(duplicate·copy)가 모두 여기를 거친다.
   const { data, error } = await (supabase
     .from('question_sets') as any)
-    .insert({ ...input, owner_id: ownerId })
+    .insert({ ...input, title: input.title.normalize('NFC'), owner_id: ownerId })
     .select()
     .single()
 
@@ -556,7 +558,8 @@ export async function updateQuestionSetMetadata(
 ): Promise<void> {
   const payload: Database['public']['Tables']['question_sets']['Update'] = {}
 
-  if (input.title !== undefined) payload.title = input.title.trim()
+  // 이름 수정도 NFC 로 맞춘다(createQuestionSet 과 같은 이유)
+  if (input.title !== undefined) payload.title = input.title.normalize('NFC').trim()
   if (input.description !== undefined) payload.description = input.description
   if (input.subject !== undefined) payload.subject = input.subject
   if (input.grade !== undefined) payload.grade = input.grade

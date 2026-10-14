@@ -172,7 +172,8 @@ function LibraryPageContent() {
   }, [loadQuestionSets])
 
   const filteredSets = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase()
+    // 제목·검색어 모두 NFC 로 맞춰 비교한다 — macOS 파일 이름(NFD)에서 온 옛 제목도 찾도록
+    const query = searchQuery.normalize('NFC').trim().toLowerCase()
     const filtered = allQuestionSets.filter((set) => {
       // 학년 무관 문제집은 어떤 학교급·학년을 골라도 함께 보여준다.
       const isAnyGrade = set.grade === 'all'
@@ -181,7 +182,7 @@ function LibraryPageContent() {
         selectedSchoolLevel === 'all' || isAnyGrade || set.grade.startsWith(selectedSchoolLevel)
       const matchesGrade = selectedGrade === 'all' || isAnyGrade || set.grade === selectedGrade
       const matchesQuery = !query
-        || set.name.toLowerCase().includes(query)
+        || set.name.normalize('NFC').toLowerCase().includes(query)
         || getSubjectName(set.subject).toLowerCase().includes(query)
         || getGradeLabel(set.grade).toLowerCase().includes(query)
 
