@@ -767,7 +767,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         setCurrentView('wrong')
         // 오답 화면에 정답을 보여주기 위해 서버에서 정답을 조회한다(학습용).
         revealAnswer(currentQuestion)
-        // 구성치기 문제집은 해설을 읽도록 5초, 그 외는 모드 기본값(lib/quiz/multiSelect.ts)
+        // 구성치기 문제집은 해설을 읽도록 8초, 그 외는 모드 기본값(lib/quiz/multiSelect.ts)
         setTimeout(() => {
             goToNextQuestion()
         }, getWrongScreenMs(questionSetTitle, wrongAnswerDelay))
@@ -811,7 +811,7 @@ export function useGameBase(options: UseGameBaseOptions) {
             },
         ])
 
-        // 틀렸으면 구성치기 문제집에서는 오답 배너(정답·해설)를 5초 보여 준 뒤 넘어간다
+        // 틀렸으면 구성치기 문제집에서는 오답 배너(정답·해설)를 8초 보여 준 뒤 넘어간다
         window.setTimeout(() => {
             setPreStartSubmittedCount((prev) => Math.min(requiredPreStartQuizCount, prev + 1))
             setPreStartQuestionIndex((prev) => prev + 1)

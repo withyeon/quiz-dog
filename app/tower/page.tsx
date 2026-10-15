@@ -197,7 +197,7 @@ export default function TowerPage() {
                 setSkillToast('3문제 완료! 모두 정답이어야 아이템을 뽑을 수 있어요.')
                 window.setTimeout(() => setSkillToast(null), 1800)
             }
-            // 구성치기 문제집은 오답 배너의 해설을 읽도록 5초, 그 외는 2초(lib/quiz/multiSelect.ts)
+            // 구성치기 문제집은 오답 배너의 해설을 읽도록 8초, 그 외는 2초(lib/quiz/multiSelect.ts)
             scheduleReturnToPlaying(getWrongScreenMs(questionSetTitle, 2000))
         }
         return correct

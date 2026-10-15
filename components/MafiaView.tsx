@@ -307,7 +307,7 @@ export default function MafiaView({
       playSFX('incorrect')
       setCurrentView('wrong')
       revealAnswer(currentQuestion)
-      // 구성치기 문제집은 해설을 읽도록 5초, 그 외는 3초(lib/quiz/multiSelect.ts)
+      // 구성치기 문제집은 해설을 읽도록 8초, 그 외는 3초(lib/quiz/multiSelect.ts)
       window.setTimeout(goToQuiz, getWrongScreenMs(questionSetTitle, 3000))
     }
     return correct

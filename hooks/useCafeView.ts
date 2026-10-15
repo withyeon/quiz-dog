@@ -78,7 +78,7 @@ export function useCafeView({
   const [showQuiz, setShowQuiz] = useState(false)
   const [showWrong, setShowWrong] = useState(false)
   const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
-  // 오답 화면 시간. 구성치기 문제집은 해설을 읽도록 5초, 그 외는 3초(lib/quiz/multiSelect.ts)
+  // 오답 화면 시간. 구성치기 문제집은 해설을 읽도록 8초, 그 외는 3초(lib/quiz/multiSelect.ts)
   const wrongScreenMs = getWrongScreenMs(questionSetTitle, 3000)
   const [showShop, setShowShop] = useState(false)
   const [servingAnimations, setServingAnimations] = useState<

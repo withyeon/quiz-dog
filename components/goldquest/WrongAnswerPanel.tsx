@@ -6,7 +6,7 @@ import PixelIcon from '@/components/ui/PixelIcon'
 import { useCurrentQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
 import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 
-/** 오답 화면: 정답 공개 후 3초(구성치기 문제집은 5초) 뒤 다음 문제로 넘어간다(useGameBase). */
+/** 오답 화면: 정답 공개 후 3초(구성치기 문제집은 8초) 뒤 다음 문제로 넘어간다(useGameBase). */
 export default function WrongAnswerPanel({
   revealedAnswer,
   revealedExplanation = null,

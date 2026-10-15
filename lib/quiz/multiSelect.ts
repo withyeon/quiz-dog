@@ -49,10 +49,10 @@ export function isGusungchigiSet(setTitle: string | null | undefined): boolean {
 }
 
 /**
- * 오답 화면을 띄워 두는 시간(ms). 구성치기 문제집이면 해설(말야마)을 읽을 시간을 주려고 5초로 늘린다.
+ * 오답 화면을 띄워 두는 시간(ms). 구성치기 문제집이면 해설(말야마)을 읽을 시간을 주려고 8초로 늘린다.
  * 그 외 문제집은 모드마다 원래 시간(defaultMs) 그대로다.
  */
-export const GUSUNGCHIGI_WRONG_SCREEN_MS = 5000
+export const GUSUNGCHIGI_WRONG_SCREEN_MS = 8000
 
 export function getWrongScreenMs(setTitle: string | null | undefined, defaultMs: number): number {
   return isGusungchigiSet(setTitle) ? GUSUNGCHIGI_WRONG_SCREEN_MS : defaultMs
