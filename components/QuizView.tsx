@@ -21,6 +21,8 @@ import MultiSelectChoices from '@/components/quiz/MultiSelectChoices'
 import { displayBlankText, splitBlankText } from '@/lib/quiz/blankText'
 import { useQuestionTextFilter } from '@/components/prank/HanjaOnlyQuestion'
 import WrongAnswerExplanation, { useWrongAnswerExplanation } from '@/components/quiz/WrongAnswerExplanation'
+import MultiSelectMistakes from '@/components/quiz/MultiSelectMistakes'
+import { publishSubmittedMultiSelectAnswer } from '@/hooks/useSubmittedMultiSelectAnswer'
 
 interface QuizViewProps {
   question: {
@@ -87,6 +89,8 @@ export default function QuizView({ question, onAnswer, timeLimit: baseTimeLimit,
     setSubmittedAnswer(answer)
     setInputValue(answer)
     setIsSubmitting(true)
+    // 오답 화면(AnswerReveal)이 잘못 고른 것·골라야 할 것을 보이도록 낸 답을 올린다. 다중 선택이 아니면 null
+    publishSubmittedMultiSelectAnswer(isMultiSelect ? answer : null)
 
     try {
       const result = await onAnswer(answer)
@@ -500,6 +504,9 @@ export default function QuizView({ question, onAnswer, timeLimit: baseTimeLimit,
                 </span>
               )}
               {wrongExplanation && <WrongAnswerExplanation text={wrongExplanation} tone="onDark" className="mt-1 max-w-xl" />}
+              {revealedAnswer && isMultiSelect && (
+                <MultiSelectMistakes submittedAnswer={submittedAnswer} correctAnswer={revealedAnswer} tone="onDark" className="mt-1 max-w-xl" />
+              )}
             </div>
           )}
         </MotionDiv>

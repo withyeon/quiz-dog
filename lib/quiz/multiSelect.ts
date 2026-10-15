@@ -84,6 +84,22 @@ export function joinMultiSelectAnswer(items: string[]): string {
 export { splitMultiSelectAnswer }
 
 /**
+ * 틀린 다중 선택 답에서 잘못 고른 항목(정답이 아닌데 고름)과 골라야 할 항목(정답인데 안 고름)을 뽑는다.
+ * 오답 화면의 해설 아래에 보여 준다(components/quiz/MultiSelectMistakes.tsx). 비교는 채점과 같은 정규화로 한다.
+ */
+export function getMultiSelectMistakes(
+  submittedAnswer: string,
+  correctAnswer: string,
+): { wrongPicks: string[]; missed: string[] } {
+  const correct = toMultiSelectAnswerSet(correctAnswer)
+  const submitted = toMultiSelectAnswerSet(submittedAnswer)
+  return {
+    wrongPicks: splitMultiSelectAnswer(submittedAnswer).filter((item) => !correct.has(normalizeQuizAnswer(item))),
+    missed: splitMultiSelectAnswer(correctAnswer).filter((item) => !submitted.has(normalizeQuizAnswer(item))),
+  }
+}
+
+/**
  * 제출 후 보기마다 어떻게 보여줄지.
  * - correct: 맞게 고름 / wrong: 잘못 고름 / missed: 빠뜨린 정답 / idle: 안 골랐고 정답도 아님
  * 보기와 정답 항목은 채점과 같은 normalizeQuizAnswer 로 맞춘다.
