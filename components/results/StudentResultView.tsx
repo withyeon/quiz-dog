@@ -295,8 +295,8 @@ function ReviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-xl rounded-lg bg-white shadow-xl">
-        <div className="flex items-start justify-between border-b border-slate-200 p-5">
+      <div className="max-h-[85vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white shadow-xl">
+        <div className="sticky top-0 flex items-start justify-between border-b border-slate-200 bg-white p-5">
           <div>
             <h3 className="text-xl font-black">Q{question.index + 1}. 다시 보기</h3>
             <p className="mt-1 text-sm text-slate-500">정답과 내 답을 확인해요.</p>
