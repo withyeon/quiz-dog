@@ -1,18 +1,15 @@
 import { ReactNode } from 'react'
-import { AdminGate } from '@/components/admin/AdminGate'
-import { AdminHeader } from '@/components/admin/AdminHeader'
-import { AdminNav } from '@/components/admin/AdminNav'
+import { AdminGate } from '@/components/admin/shell/AdminGate'
+import { AdminShell } from '@/components/admin/shell/AdminShell'
 
+/**
+ * 관리자 영역 레이아웃. 관문(AdminGate)이 로그인·관리자 이메일·2차 비밀번호를 확인한 뒤
+ * 틀(AdminShell)이 사이드바와 헤더를 그린다.
+ */
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <AdminGate>
-      <div className="min-h-dvh bg-[#f7f8fa]">
-        <AdminHeader />
-        <div className="flex">
-          <AdminNav />
-          <main className="min-w-0 flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
-        </div>
-      </div>
+      <AdminShell>{children}</AdminShell>
     </AdminGate>
   )
 }

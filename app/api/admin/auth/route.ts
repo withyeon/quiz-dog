@@ -2,14 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   verifyAdminUser,
   ADMIN_SESSION_COOKIE,
-  ADMIN_SESSION_VALUE,
+  ADMIN_SESSION_TTL_MS,
+  issueAdminSession,
+  parseAdminSession,
 } from '@/lib/admin/auth'
 
 export const runtime = 'nodejs'
 
 /**
- * POST: 2차 비밀번호 검증 → admin-session 쿠키 발급
+ * POST: 2차 비밀번호 검증 → admin-session 쿠키 발급(만료 시각 포함)
  * GET:  현재 관리자 인증 상태 확인 (로그인 + 관리자 + 2차 인증)
+ * DELETE: 2차 인증 종료(쿠키 제거)
  */
 
 export async function POST(request: NextRequest) {
@@ -38,18 +41,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '비밀번호가 올바르지 않습니다.' }, { status: 401 })
   }
 
+  const session = issueAdminSession()
   const response = NextResponse.json({
     authenticated: true,
     success: true,
+    expiresAt: session.expiresAt,
     message: '관리자 인증이 완료되었습니다.',
   })
 
-  response.cookies.set(ADMIN_SESSION_COOKIE, ADMIN_SESSION_VALUE, {
+  response.cookies.set(ADMIN_SESSION_COOKIE, session.value, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 24 * 60 * 60, // 24시간
+    maxAge: Math.floor(ADMIN_SESSION_TTL_MS / 1000),
   })
 
   return response
@@ -62,12 +67,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ authenticated: false, reason: '권한 없음' })
   }
 
-  const adminSession = request.cookies.get(ADMIN_SESSION_COOKIE)
-  if (!adminSession || adminSession.value !== ADMIN_SESSION_VALUE) {
+  const expiresAt = parseAdminSession(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
+  if (!expiresAt) {
     return NextResponse.json({ authenticated: false, reason: '2차 인증 필요' })
   }
 
-  return NextResponse.json({ authenticated: true, user: user.email })
+  return NextResponse.json({ authenticated: true, user: user.email, expiresAt })
 }
 
 export async function DELETE() {

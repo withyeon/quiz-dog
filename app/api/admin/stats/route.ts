@@ -38,12 +38,16 @@ export async function GET(request: NextRequest) {
     const newTeachersThisWeek = users.filter((u) => new Date(u.created_at) >= weekStart).length
     const newTeachersThisMonth = users.filter((u) => new Date(u.created_at) >= monthStart).length
 
-    // 테이블 카운트 (RLS는 service role 이 우회)
-    const [setsCount, gamesCount, roomsActive, openFeedback] = await Promise.all([
+    const nowIso = new Date().toISOString()
+    // 테이블 카운트 (RLS는 service role 이 우회). 요금제 표는 아직 없을 수 있어 실패해도 0으로 본다.
+    const [setsCount, gamesCount, roomsActive, roomsTotal, openFeedback, proTeachers, pendingGrants] = await Promise.all([
       supabase.from('question_sets').select('*', { count: 'exact', head: true }),
       supabase.from('game_reports').select('*', { count: 'exact', head: true }),
       supabase.from('rooms').select('*', { count: 'exact', head: true }).in('status', ACTIVE_STATUSES),
+      supabase.from('rooms').select('*', { count: 'exact', head: true }),
       supabase.from('feedback').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+      (supabase.from('teacher_plans') as any).select('*', { count: 'exact', head: true }).gt('pro_until', nowIso).then((r: { count: number | null }) => r, () => ({ count: 0 })),
+      (supabase.from('pending_plan_grants') as any).select('*', { count: 'exact', head: true }).is('applied_at', null).then((r: { count: number | null }) => r, () => ({ count: 0 })),
     ])
 
     // 최근 14일 신규 가입 추이
@@ -69,9 +73,13 @@ export async function GET(request: NextRequest) {
       newTeachersThisMonth,
       totalQuestionSets: setsCount.count ?? 0,
       totalGames: gamesCount.count ?? 0,
+      totalRooms: roomsTotal.count ?? 0,
       activeRooms: roomsActive.count ?? 0,
       openFeedback: openFeedback.count ?? 0,
+      proTeachers: proTeachers.count ?? 0,
+      pendingGrants: pendingGrants.count ?? 0,
       trend,
+      timestamp: nowIso,
     })
   } catch (error) {
     console.error('관리자 통계 조회 오류:', error)
