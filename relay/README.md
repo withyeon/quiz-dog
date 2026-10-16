@@ -1,12 +1,27 @@
-# 방 실시간 중계 서버 (프로토타입)
+# 방 실시간 중계 서버
 
-Supabase Realtime의 `runtime:<방 코드>` 채널(broadcast + presence)을 대신하는 Node WebSocket 서버다.
-DB·인증·리포트와 DB 변경 구독(players INSERT/DELETE, rooms UPDATE)은 그대로 Supabase에 둔다.
+Supabase Realtime의 `runtime:<방 코드>` 채널(broadcast + presence)을 대신하는 서버다.
+DB·인증·리포트는 그대로 Supabase에 둔다. 중계 모드에서는 학생 탭이 Supabase Realtime 소켓을 열지 않는다.
 
-- 서버: [server.mjs](server.mjs) — 의존성은 `ws` 하나(루트 node_modules에 이미 있음)
-- 클라이언트: [lib/realtime/transport/relayTransport.ts](../lib/realtime/transport/relayTransport.ts)
+- **지금 쓰는 서버: [socket-server.mjs](socket-server.mjs)** — Socket.IO 4.8.4. WebSocket이 막힌 망에서는 HTTP long-polling으로 붙는다.
+  배포: [deploy-lightsail.sh](deploy-lightsail.sh) (Lightsail에서 `relay2.service`, 포트 8788. Caddy가 `/socket.io/`·`/v2/`를 보낸다)
+- 예전 서버: [server.mjs](server.mjs) — `ws` 기반. 새 앱으로 다 넘어오면 끈다(`relay.service`, 포트 8787). 아래 프로토콜·측정은 이 서버 기준이다.
+- 클라이언트: [lib/realtime/transport/relayTransport.ts](../lib/realtime/transport/relayTransport.ts) (socket.io-client)
 - 전송 선택: [lib/realtime/transport/index.ts](../lib/realtime/transport/index.ts), 훅은 [hooks/useRoomChannel.ts](../hooks/useRoomChannel.ts)
-- 부하 측정: [loadtest.mjs](loadtest.mjs)
+- 부하 측정: [loadtest.mjs](loadtest.mjs) (ws 서버용)
+
+## 접속 인증 (socket-server.mjs)
+
+- 방에 들어와 **받기만** 하는 건 누구나 된다(Origin 검사만): 로비 대기, 프로젝터 화면.
+- **이벤트를 보내려면** 둘 중 하나:
+  - 학생: 이벤트의 `playerId`가 그 방 players 행이고 강퇴되지 않았다. 서버가 Supabase REST(공개 키)로 확인하고 10분 캐시한다.
+    한 연결은 처음 확인된 playerId로 묶여, 다른 playerId를 단 이벤트는 거절한다.
+  - 교사: 접속 때 보낸 Supabase 세션 토큰이 유효하다(`/auth/v1/user`).
+- 거절되면 ack `{ err: 'unauthorized' }`, HTTP 예비 경로(`POST /v2/rooms/<방>/events`)는 401.
+- Supabase가 응답하지 않으면(네트워크·5xx) 수업을 멈추지 않도록 통과시킨다. "없음"이 확실할 때만 거절한다.
+- 한계: rooms에 주인 컬럼이 없어 교사는 "로그인한 사용자"까지만 확인한다. 학생은 다른 학생의 playerId를 알면 그 학생 이름으로 보낼 수 있다
+  (playerId는 목록 조회로 보인다). 막으려면 입장 때 학생별 비밀 토큰을 발급해야 한다.
+- 입장 직후처럼 playerId 상태가 아직 반영되기 전에 보낼 때는 `sendEvent(type, payload, { playerId })`로 보낸 사람을 밝힌다(로비).
 
 ## 켜기
 

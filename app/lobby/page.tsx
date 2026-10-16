@@ -255,7 +255,7 @@ function LobbyPage() {
             setPlayerId(existing.id)
             setIsJoined(true)
             saveLobbyPlayerId(roomCode, existing.id)
-            void sendRoomEvent('player:patch', { playerId: existing.id, patch: { avatar, is_online: true }, reason: 'player_resumed' })
+            void sendRoomEvent('player:patch', { playerId: existing.id, patch: { avatar, is_online: true }, reason: 'player_resumed' }, { playerId: existing.id })
             router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, existing.id))
             return
           }
@@ -276,9 +276,11 @@ function LobbyPage() {
       setPlayerId(playerData.id)
       setIsJoined(true)
       saveLobbyPlayerId(roomCode, playerData.id)
-      void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
+      // playerId 상태는 다음 렌더에 반영되므로, 보낸 사람을 직접 밝힌다(중계 서버가 그 방 학생인지 확인한다)
+      const asNewPlayer = { playerId: playerData.id }
+      void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' }, asNewPlayer)
       // 중계 서버 모드에서는 players INSERT 구독이 없으므로 새 행을 직접 알린다
-      void sendRoomEvent('player:joined', { player: playerData } satisfies PlayerJoinedPayload)
+      void sendRoomEvent('player:joined', { player: playerData } satisfies PlayerJoinedPayload, asNewPlayer)
 
       if (roomData.status === 'playing') {
         router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, playerData.id))

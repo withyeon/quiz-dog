@@ -71,6 +71,11 @@ export function useRoomChannel({
   const sendEvent = useCallback(async <TPayload,>(
     type: RoomEventType,
     payload?: TPayload,
+    /**
+     * 보낸 사람 playerId를 직접 정한다. 입장 직후처럼 playerId 상태가 아직 반영되기 전에 보낼 때 쓴다.
+     * 중계 서버는 이 playerId가 그 방 학생인지 확인한 뒤에만 이벤트를 중계한다.
+     */
+    options?: { playerId?: string | null },
   ): Promise<SendEventResult> => {
     const channel = channelRef.current
     if (!channel) {
@@ -83,7 +88,7 @@ export function useRoomChannel({
       type,
       roomCode,
       clientId: eventClientId,
-      playerId: playerIdRef.current,
+      playerId: options?.playerId !== undefined ? options.playerId : playerIdRef.current,
       sentAt: new Date().toISOString(),
       seq: seqRef.current,
       payload,
