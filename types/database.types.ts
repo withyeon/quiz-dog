@@ -171,6 +171,32 @@ export interface Database {
           updated_at?: string
         }
       }
+      pending_plan_grants: {
+        Row: {
+          email: string
+          pro_interval: string
+          note: string | null
+          created_at: string
+          applied_at: string | null
+          applied_user_id: string | null
+        }
+        Insert: {
+          email: string
+          pro_interval: string
+          note?: string | null
+          created_at?: string
+          applied_at?: string | null
+          applied_user_id?: string | null
+        }
+        Update: {
+          email?: string
+          pro_interval?: string
+          note?: string | null
+          created_at?: string
+          applied_at?: string | null
+          applied_user_id?: string | null
+        }
+      }
       promo_code_redemptions: {
         Row: {
           code: string
