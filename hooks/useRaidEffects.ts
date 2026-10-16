@@ -1,7 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { RAID, type RaidFrenzyState, type RaidPlayerLike, type RaidState } from '@/lib/game/raid'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { RAID, getRaidSkillState, type RaidPlayerLike, type RaidSkillState, type RaidState } from '@/lib/game/raid'
 import { withJosa } from '@/lib/utils/korean'
 
 /** 보스 위에 잠깐 떠오르는 타격 숫자. 내 것과 친구 것을 함께 띄운다 */
@@ -11,8 +11,11 @@ export type RaidHitPopup = {
   /** 친구 타격이면 이름, 내 타격이면 null */
   nickname: string | null
   mine: boolean
-  frenzy: boolean
+  /** 펭귄이 기절해 있을 때(데미지 2배) 들어간 타격 */
+  groggy: boolean
   comboBonus: number
+  /** 때린 친구의 역할 (숫자 색). 모르면 null */
+  role: string | null
 }
 
 export type RaidEventKind =
@@ -20,7 +23,10 @@ export type RaidEventKind =
   | 'boss_appeared'
   | 'shield_up'
   | 'shield_broken'
-  | 'frenzy_start'
+  | 'skill_charge'
+  | 'skill_interrupted'
+  | 'skill_blizzard'
+  | 'boss_enraged'
   | 'victory'
 
 export type RaidEvent = {
@@ -63,7 +69,7 @@ export function useRaidHitPopups(
         if (before === undefined) return
         const diff = (player.score ?? 0) - before
         if (diff > 0) {
-          pushHit({ damage: diff, nickname: player.nickname, mine: false, frenzy: false, comboBonus: 0 })
+          pushHit({ damage: diff, nickname: player.nickname, mine: false, groggy: false, comboBonus: 0, role: player.player_class ?? null })
         }
       })
     }
@@ -74,12 +80,12 @@ export function useRaidHitPopups(
 }
 
 /**
- * 사건 배너 — 보스 처치·다음 보스 등장·방패 올라옴·방패 깨짐·집중 공격 시작.
+ * 사건 배너 — 보스 처치·다음 보스 등장·방패 올라옴·방패 깨짐·황제 분노·필살기 예고·끊기·눈보라.
  * 유도 상태의 "이전 값과의 차이"로 감지하므로 학생·선생님 화면이 같은 순간에 같은 배너를 본다.
  */
 export function useRaidEvents(
   raidState: RaidState,
-  frenzy: RaidFrenzyState,
+  skill: RaidSkillState,
   isPlaying: boolean,
   onEvent?: (kind: RaidEventKind) => void,
 ) {
@@ -102,6 +108,7 @@ export function useRaidEvents(
     bossIndex: number
     shieldActive: boolean
     shieldBroken: boolean
+    enraged: boolean
   } | null>(null)
 
   useEffect(() => {
@@ -111,6 +118,7 @@ export function useRaidEvents(
       bossIndex: current?.def.index ?? -1,
       shieldActive: current?.shield.active ?? false,
       shieldBroken: current?.shield.broken ?? false,
+      enraged: current?.enraged ?? false,
     }
     const previous = previousRef.current
     previousRef.current = snapshot
@@ -135,36 +143,51 @@ export function useRaidEvents(
       if (snapshot.shieldBroken && !previous.shieldBroken && previous.shieldActive) {
         pushEvent('shield_broken', '방패가 깨졌다! 마음껏 공격!')
       }
+      if (snapshot.enraged && !previous.enraged && current) {
+        pushEvent('boss_enraged', `${withJosa(current.def.name, '이/가')} 분노했다! 마지막 힘을 모아요`)
+      }
     }
   }, [isPlaying, pushEvent, raidState])
 
-  const previousFrenzyRef = useRef(false)
+  // 필살기: 예고 시작 · 끊기 성공 · 눈보라. 주기 번호와 단계가 바뀌는 순간만 본다
+  const previousSkillRef = useRef<{ cycle: number; phase: RaidSkillState['phase'] } | null>(null)
   useEffect(() => {
-    if (frenzy.active && !previousFrenzyRef.current && isPlaying) {
-      pushEvent('frenzy_start', `집중 공격! ${RAID.FRENZY_DURATION}초 동안 데미지 ${RAID.FRENZY_MULTIPLIER}배`)
+    const previous = previousSkillRef.current
+    previousSkillRef.current = { cycle: skill.cycle, phase: skill.phase }
+    if (!previous || !isPlaying || !raidState.current) return
+    if (skill.phase === previous.phase && skill.cycle === previous.cycle) return
+    if (skill.phase === 'charging' && previous.phase !== 'charging') {
+      pushEvent('skill_charge', `필살기 '${skill.skillName}' 예고! 친구 ${skill.required}명이 맞히면 끊어요`)
+    } else if (skill.phase === 'groggy' && previous.phase !== 'groggy') {
+      pushEvent('skill_interrupted', `필살기를 끊었다! 펭귄 기절 · 데미지 ${RAID.GROGGY_MULTIPLIER}배`)
+    } else if (skill.phase === 'blizzard' && previous.phase !== 'blizzard') {
+      pushEvent('skill_blizzard', '눈보라가 지나가요! 다음 필살기는 꼭 끊어 봐요')
     }
-    previousFrenzyRef.current = frenzy.active
-  }, [frenzy.active, isPlaying, pushEvent])
+  }, [isPlaying, pushEvent, raidState, skill.cycle, skill.phase, skill.required, skill.skillName])
 
   return events
 }
 
-/** 1초마다 갱신되는 집중 공격 시계. 게임 중이 아니면 멈춘 상태를 돌려준다 */
-export function useRaidFrenzyClock(
+/**
+ * 필살기 상태. 시간표는 0.5초마다, 끊기 게이지는 players 가 바뀔 때마다 다시 계산한다.
+ * 게임 중이 아니면 멈춘 상태(대기)를 돌려준다.
+ */
+export function useRaidSkill(
   startedAt: string | null | undefined,
   isPlaying: boolean,
-  compute: (startedAt: string | null | undefined) => RaidFrenzyState,
-): RaidFrenzyState {
-  const [frenzy, setFrenzy] = useState<RaidFrenzyState>(() => compute(null))
+  activePlayers: RaidPlayerLike[],
+  raidState: RaidState,
+): RaidSkillState {
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    if (!isPlaying) {
-      setFrenzy(compute(null))
-      return
-    }
-    const tick = () => setFrenzy(compute(startedAt))
-    tick()
-    const id = window.setInterval(tick, 1000)
+    if (!isPlaying) return
+    setNow(Date.now())
+    const id = window.setInterval(() => setNow(Date.now()), 500)
     return () => window.clearInterval(id)
-  }, [compute, isPlaying, startedAt])
-  return frenzy
+  }, [isPlaying])
+  const sprite = raidState.current?.def.sprite ?? null
+  return useMemo(
+    () => getRaidSkillState(isPlaying ? startedAt : null, activePlayers, sprite, now),
+    [activePlayers, isPlaying, now, sprite, startedAt],
+  )
 }

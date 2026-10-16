@@ -7,8 +7,11 @@
 //   players.defense      = 마지막으로 기여한 방패 번호(보스 순번 + 1, 단조 증가). 방패를 깬 "서로 다른 친구 수"를 센다
 //   players.combo_count  = 현재 연속 정답 수 (연출용. 본인 행만 쓴다)
 //   players.player_class = 역할(RaidRole)
+//   players.revival_streak = 마지막으로 끊기에 기여한 필살기 번호(주기 순번 + 1, 단조 증가)
+//   players.position     = 필살기 끊기에 기여한 횟수 (결과 화면 칭호용)
 // 데미지 누적은 apply_player_delta(원자적 증분)로만 쓴다 — 동시 정답이 유실되지 않는다.
-// 시간 이벤트(집중 공격)는 room.started_at 기준 시각표라 서버 없이 전원이 같은 순간에 본다.
+// 펭귄의 필살기 예고는 room.started_at 기준 시각표라 서버 없이 전원이 같은 순간에 본다.
+// 예고 중 서로 다른 친구가 충분히 맞히면 필살기가 끊기고 펭귄이 기절(데미지 2배)한다. 못 끊어도 손해는 없다.
 //
 // 낙인 방지: 보스는 틀린 학생 때문에 공격하지 않는다(시간표대로만). 화면에는 기여(데미지)만 보이고,
 // 방패가 안 깨질 때도 "누가 안 때렸는지"가 아니라 "친구 N명이 더 때리면 깨져요"로만 알린다.
@@ -32,6 +35,8 @@ export type RaidRoleInfo = {
   comboMultiplier: number
   /** 방패를 깎는 칸 수 (한 방패에 한 번만 기여) */
   shieldPower: number
+  /** 필살기 끊기 게이지를 채우는 칸 수 (한 필살기에 한 번만 기여) */
+  interruptPower: number
 }
 
 export const RAID_ROLES: Record<RaidRole, RaidRoleInfo> = {
@@ -44,16 +49,18 @@ export const RAID_ROLES: Record<RaidRole, RaidRoleInfo> = {
     damageMultiplier: 1.2,
     comboMultiplier: 1,
     shieldPower: 1,
+    interruptPower: 1,
   },
   mage: {
     id: 'mage',
     name: '오로라 마법사',
     shortName: '마법사',
-    tagline: '연속 정답',
-    description: '연속으로 맞히면 보너스 데미지가 2배로 커져요.',
+    tagline: '연속 정답 · 필살기 끊기',
+    description: '연속 정답 보너스가 2배! 펭귄의 필살기도 2칸씩 끊어요.',
     damageMultiplier: 1,
     comboMultiplier: 2,
     shieldPower: 1,
+    interruptPower: 2,
   },
   guardian: {
     id: 'guardian',
@@ -64,6 +71,7 @@ export const RAID_ROLES: Record<RaidRole, RaidRoleInfo> = {
     damageMultiplier: 1,
     comboMultiplier: 1,
     shieldPower: 2,
+    interruptPower: 1,
   },
 }
 
@@ -84,11 +92,21 @@ export const RAID = {
     { streak: 5, bonus: 10 },
     { streak: 8, bonus: 15 },
   ],
-  /** 집중 공격: 시작 60초 뒤 처음, 그 뒤 90초마다 15초 동안 데미지 2배 */
-  FRENZY_FIRST_AT: 60,
-  FRENZY_PERIOD: 90,
-  FRENZY_DURATION: 15,
-  FRENZY_MULTIPLIER: 2,
+  /**
+   * 펭귄의 필살기: 시작 45초 뒤 처음, 그 뒤 80초마다 20초 동안 기를 모은다(예고).
+   * 예고 중 서로 다른 친구가 충분히 맞히면 끊기고, 끊긴 순간부터 예고 끝 + 15초까지 기절(데미지 2배).
+   * 못 끊으면 4초 동안 눈보라 연출만 지나간다 — 점수·체력 손해는 없다.
+   */
+  SKILL_FIRST_AT: 45,
+  SKILL_PERIOD: 80,
+  SKILL_CHARGE: 20,
+  GROGGY_DURATION: 15,
+  GROGGY_MULTIPLIER: 2,
+  BLIZZARD_DURATION: 4,
+  /** 필살기를 끊는 데 필요한 "서로 다른 친구" 비율 (참가자 수 × 비율, 올림, 최소 1) */
+  INTERRUPT_REQUIRED_RATIO: 0.4,
+  /** 마지막 황제 펭귄이 이 체력 비율 아래로 떨어지면 분노한다 (연출만) */
+  ENRAGE_HP_RATIO: 0.25,
   /** 보스 체력이 이 비율 이하로 떨어지면 얼음 방패가 올라온다 */
   SHIELD_HP_RATIO: 0.5,
   /** 방패를 깨는 데 필요한 "서로 다른 친구" 비율 (참가자 수 × 비율, 올림, 최소 1) */
@@ -229,6 +247,8 @@ export type RaidPlayerLike = {
   defense?: number | null
   combo_count?: number | null
   player_class?: string | null
+  revival_streak?: number | null
+  position?: number | null
   is_kicked?: boolean | null
 }
 
@@ -254,6 +274,8 @@ export type RaidBossState = {
   hpRatio: number
   shield: RaidShieldState
   defeated: boolean
+  /** 마지막 황제 펭귄이 체력 ENRAGE_HP_RATIO 아래에서 분노한 상태 (연출만) */
+  enraged: boolean
 }
 
 export type RaidState = {
@@ -269,6 +291,8 @@ export type RaidState = {
   /** 지금 싸우는 보스. 전부 쓰러뜨렸으면 null */
   current: RaidBossState | null
   activePlayerCount: number
+  /** 펭귄 군단 전체 체력 중 깎은 비율 0~1 (시간이 끝났을 때 "얼마나 막았는지") */
+  progressRatio: number
 }
 
 export function getRaidRole(player: Pick<RaidPlayerLike, 'player_class'> | null | undefined): RaidRole | null {
@@ -310,6 +334,7 @@ export function computeRaidState(players: RaidPlayerLike[], settings: RaidSettin
         hpRatio: 1,
         shield: { active: false, broken: false, points: 0, required, remaining: required },
         defeated: false,
+        enraged: false,
       })
       continue
     }
@@ -342,6 +367,7 @@ export function computeRaidState(players: RaidPlayerLike[], settings: RaidSettin
         remaining: Math.max(0, required - points),
       },
       defeated,
+      enraged: def.isFinal && !defeated && hp / Math.max(1, def.maxHp) <= RAID.ENRAGE_HP_RATIO,
     }
     bosses.push(state)
 
@@ -354,47 +380,148 @@ export function computeRaidState(players: RaidPlayerLike[], settings: RaidSettin
   }
 
   const defeatedCount = bosses.filter((boss) => boss.defeated).length
+  const totalMaxHp = roster.reduce((sum, boss) => sum + boss.maxHp, 0)
+  const dealt = bosses.reduce((sum, boss) => sum + (boss.defeated ? boss.def.maxHp : Math.min(boss.damage, boss.def.maxHp - 1)), 0)
   return {
     roster,
     bosses,
     totalDamage,
     totalHits,
-    totalMaxHp: roster.reduce((sum, boss) => sum + boss.maxHp, 0),
+    totalMaxHp,
     defeatedCount,
     allDefeated: defeatedCount >= roster.length,
     current,
     activePlayerCount: active.length,
+    progressRatio: totalMaxHp > 0 ? Math.min(1, dealt / totalMaxHp) : 0,
   }
 }
 
-// ─── 집중 공격 (시간표) ───
+// ─── 펭귄의 필살기 (시간표 + 끊기) ───
 
-export type RaidFrenzyState = {
-  active: boolean
-  /** 진행 중이면 남은 초, 아니면 0 */
+export type RaidSkillPhase = 'idle' | 'charging' | 'groggy' | 'blizzard'
+
+export type RaidSkillState = {
+  /** idle: 다음 예고 대기 · charging: 기를 모으는 중(끊을 수 있음) · groggy: 끊겨서 기절(데미지 2배) · blizzard: 못 끊어 눈보라 연출 */
+  phase: RaidSkillPhase
+  /** 몇 번째 필살기인지 (0부터). 아직 한 번도 없었으면 -1 */
+  cycle: number
+  /** 지금 정답을 맞히면 끊기에 기여할 수 있는 예고 구간인지 (끊긴 뒤에도 예고 시간 동안은 참) */
+  inChargeWindow: boolean
+  /** 예고 진행도 0~1 (charging 동안만 의미) */
+  chargeRatio: number
+  /** charging·groggy·blizzard 가 끝날 때까지 남은 초 */
   secondsLeft: number
-  /** 다음 집중 공격까지 남은 초 (진행 중이면 0) */
+  /** idle 일 때 다음 예고까지 남은 초 (그 밖에는 0) */
   nextIn: number
-  /** 몇 번째 집중 공격인지 (0부터). 아직 한 번도 없었으면 -1 */
-  index: number
+  /** 이번 필살기 끊기 게이지 */
+  points: number
+  required: number
+  remaining: number
+  interrupted: boolean
+  /** 연출용 필살기 이름 (지금 싸우는 펭귄에 따라) */
+  skillName: string
 }
 
-export function getRaidFrenzyState(startedAt: string | null | undefined, now: number = Date.now()): RaidFrenzyState {
+const SKILL_NAMES: Record<RaidBossSprite, string> = {
+  guard: '눈덩이 폭격',
+  knight: '얼음 창 돌진',
+  general: '눈보라 호령',
+  emperor: '절대영도 브레스',
+}
+
+export function getRaidSkillName(sprite: RaidBossSprite | null | undefined): string {
+  return sprite ? SKILL_NAMES[sprite] : SKILL_NAMES.emperor
+}
+
+/** 참가자 수 기준으로 필살기를 끊는 데 필요한 칸 수 */
+export function getInterruptRequired(activePlayerCount: number): number {
+  return Math.max(1, Math.ceil(activePlayerCount * RAID.INTERRUPT_REQUIRED_RATIO))
+}
+
+/** 시작 시각 기준 시간표만 본 필살기 주기. 선수 행과 무관해 모든 화면이 같은 순간에 같은 값을 얻는다 */
+export function getRaidSkillClock(startedAt: string | null | undefined, now: number = Date.now()) {
   const startedMs = startedAt ? new Date(startedAt).getTime() : NaN
-  if (!Number.isFinite(startedMs)) {
-    return { active: false, secondsLeft: 0, nextIn: RAID.FRENZY_FIRST_AT, index: -1 }
-  }
+  if (!Number.isFinite(startedMs)) return { cycle: -1, offset: -1, nextIn: RAID.SKILL_FIRST_AT }
   const elapsed = (now - startedMs) / 1000
-  if (elapsed < RAID.FRENZY_FIRST_AT) {
-    return { active: false, secondsLeft: 0, nextIn: Math.ceil(RAID.FRENZY_FIRST_AT - elapsed), index: -1 }
+  if (elapsed < RAID.SKILL_FIRST_AT) return { cycle: -1, offset: -1, nextIn: Math.ceil(RAID.SKILL_FIRST_AT - elapsed) }
+  const since = elapsed - RAID.SKILL_FIRST_AT
+  const cycle = Math.floor(since / RAID.SKILL_PERIOD)
+  const offset = since - cycle * RAID.SKILL_PERIOD
+  return { cycle, offset, nextIn: Math.ceil(RAID.SKILL_PERIOD - offset) }
+}
+
+/**
+ * 필살기 상태. 끊기 게이지는 revival_streak 가 정확히 이번 주기 번호(+1)인 친구만 센다 —
+ * 주기가 겹치지 않으니(예고 20초 + 기절 15초 < 주기 80초) 지난 주기의 기여가 섞이지 않는다.
+ * 끊겼는지는 게이지로 판단하므로, 늦게 도착한 기여는 다음 스냅샷에서 저절로 반영된다.
+ */
+export function getRaidSkillState(
+  startedAt: string | null | undefined,
+  players: RaidPlayerLike[],
+  currentSprite: RaidBossSprite | null,
+  now: number = Date.now(),
+): RaidSkillState {
+  const active = players.filter((player) => !player.is_kicked)
+  const required = getInterruptRequired(active.length)
+  const clock = getRaidSkillClock(startedAt, now)
+  const skillName = getRaidSkillName(currentSprite)
+  const idle: RaidSkillState = {
+    phase: 'idle',
+    cycle: clock.cycle,
+    inChargeWindow: false,
+    chargeRatio: 0,
+    secondsLeft: 0,
+    nextIn: clock.nextIn,
+    points: 0,
+    required,
+    remaining: required,
+    interrupted: false,
+    skillName,
   }
-  const sinceFirst = elapsed - RAID.FRENZY_FIRST_AT
-  const index = Math.floor(sinceFirst / RAID.FRENZY_PERIOD)
-  const offset = sinceFirst - index * RAID.FRENZY_PERIOD
-  if (offset < RAID.FRENZY_DURATION) {
-    return { active: true, secondsLeft: Math.ceil(RAID.FRENZY_DURATION - offset), nextIn: 0, index }
+  if (clock.cycle < 0) return idle
+
+  const points = active.reduce((sum, player) => {
+    if (toNumber(player.revival_streak) !== clock.cycle + 1) return sum
+    const role = getRaidRole(player)
+    return sum + (role ? RAID_ROLES[role].interruptPower : 1)
+  }, 0)
+  const interrupted = points >= required
+  const gauge = { points: Math.min(points, required), required, remaining: Math.max(0, required - points), interrupted }
+  const inChargeWindow = clock.offset < RAID.SKILL_CHARGE
+
+  if (interrupted && clock.offset < RAID.SKILL_CHARGE + RAID.GROGGY_DURATION) {
+    return {
+      ...idle,
+      ...gauge,
+      phase: 'groggy',
+      inChargeWindow,
+      chargeRatio: Math.min(1, clock.offset / RAID.SKILL_CHARGE),
+      secondsLeft: Math.ceil(RAID.SKILL_CHARGE + RAID.GROGGY_DURATION - clock.offset),
+      nextIn: 0,
+    }
   }
-  return { active: false, secondsLeft: 0, nextIn: Math.ceil(RAID.FRENZY_PERIOD - offset), index }
+  if (inChargeWindow) {
+    return {
+      ...idle,
+      ...gauge,
+      phase: 'charging',
+      inChargeWindow,
+      chargeRatio: clock.offset / RAID.SKILL_CHARGE,
+      secondsLeft: Math.ceil(RAID.SKILL_CHARGE - clock.offset),
+      nextIn: 0,
+    }
+  }
+  if (!interrupted && clock.offset < RAID.SKILL_CHARGE + RAID.BLIZZARD_DURATION) {
+    return {
+      ...idle,
+      ...gauge,
+      phase: 'blizzard',
+      chargeRatio: 1,
+      secondsLeft: Math.ceil(RAID.SKILL_CHARGE + RAID.BLIZZARD_DURATION - clock.offset),
+      nextIn: 0,
+    }
+  }
+  return idle
 }
 
 // ─── 데미지 ───
@@ -418,12 +545,13 @@ export type RaidHitBreakdown = {
 export function computeHitDamage(input: {
   role: RaidRole | null
   streak: number
-  frenzyActive: boolean
+  /** 펭귄이 기절해 있는지 (필살기를 끊은 보상) */
+  groggy: boolean
 }): RaidHitBreakdown {
   const role = input.role ? RAID_ROLES[input.role] : null
   const base = Math.round(RAID.BASE_DAMAGE * (role?.damageMultiplier ?? 1))
   const comboBonus = getComboBonus(input.streak) * (role?.comboMultiplier ?? 1)
-  const multiplier = input.frenzyActive ? RAID.FRENZY_MULTIPLIER : 1
+  const multiplier = input.groggy ? RAID.GROGGY_MULTIPLIER : 1
   return {
     damage: Math.max(1, Math.round((base + comboBonus) * multiplier)),
     base,
@@ -436,8 +564,71 @@ export function computeHitDamage(input: {
 export function getBossMoodLine(boss: RaidBossState | null): string {
   if (!boss) return '펭귄 군단을 모두 물리쳤어요!'
   if (boss.shield.active) return '얼음 방패가 올라왔어요! 더 많은 친구가 때려야 깨져요'
+  if (boss.enraged) return `${boss.def.name}이(가) 분노했어요! 마지막 힘을 모아요`
   if (boss.hpRatio > 0.75) return `${boss.def.name}이(가) 여유를 부리고 있어요`
   if (boss.hpRatio > 0.5) return `${boss.def.name}이(가) 조금 당황했어요`
   if (boss.hpRatio > 0.25) return `${boss.def.name}이(가) 비틀거려요!`
   return '거의 다 왔어요! 마지막 한 방!'
+}
+
+// ─── 결과: 팀 별 등급 · 칭호 ───
+
+/** 팀 별 0~3. 3 = 전부 처치, 2 = 60% 이상, 1 = 25% 이상. 0이어도 결과 화면은 "도전 도장"을 준다 */
+export function getRaidTeamStars(state: Pick<RaidState, 'allDefeated' | 'progressRatio'>): 0 | 1 | 2 | 3 {
+  if (state.allDefeated) return 3
+  if (state.progressRatio >= 0.6) return 2
+  if (state.progressRatio >= 0.25) return 1
+  return 0
+}
+
+export type RaidTitleId = 'top_damage' | 'top_hits' | 'top_interrupt' | 'role' | 'together'
+
+export type RaidTitle = {
+  id: RaidTitleId
+  name: string
+  description: string
+}
+
+const ROLE_TITLES: Record<RaidRole, string> = {
+  warrior: '용감한 얼음 전사',
+  mage: '빛나는 오로라 마법사',
+  guardian: '든든한 빙하 수호자',
+}
+
+/**
+ * 모든 참가자에게 칭호를 하나 이상 준다. 순위가 아니라 "무엇을 잘했는지"만 말한다.
+ * 특별 칭호(최다 데미지·최다 명중·필살기 끊기)는 공동 1등이면 모두 받는다. 나머지는 역할 칭호,
+ * 아직 한 번도 못 맞힌 친구도 "함께한 용사"를 받는다 — 결과 화면에서 빈손인 학생이 없게.
+ */
+export function getRaidTitles(players: RaidPlayerLike[]): Map<string, RaidTitle[]> {
+  const active = players.filter((player) => !player.is_kicked)
+  const maxOf = (pick: (player: RaidPlayerLike) => number) =>
+    active.reduce((max, player) => Math.max(max, pick(player)), 0)
+  const maxDamage = maxOf((player) => toNumber(player.score))
+  const maxHits = maxOf((player) => toNumber(player.gold))
+  const maxInterrupts = maxOf((player) => toNumber(player.position))
+
+  const titles = new Map<string, RaidTitle[]>()
+  for (const player of active) {
+    const list: RaidTitle[] = []
+    if (maxDamage > 0 && toNumber(player.score) === maxDamage) {
+      list.push({ id: 'top_damage', name: '최강의 일격', description: `가장 많은 데미지 ${maxDamage.toLocaleString()}` })
+    }
+    if (maxHits > 0 && toNumber(player.gold) === maxHits) {
+      list.push({ id: 'top_hits', name: '명중왕', description: `가장 많이 맞힌 친구 · ${maxHits}번` })
+    }
+    if (maxInterrupts > 0 && toNumber(player.position) === maxInterrupts) {
+      list.push({ id: 'top_interrupt', name: '필살기 저지왕', description: `펭귄의 필살기를 ${maxInterrupts}번 끊었어요` })
+    }
+    const role = getRaidRole(player)
+    if (toNumber(player.gold) > 0) {
+      list.push(role
+        ? { id: 'role', name: ROLE_TITLES[role], description: RAID_ROLES[role].tagline }
+        : { id: 'role', name: '펭귄 사냥꾼', description: '펭귄 군단과 맞섰어요' })
+    } else {
+      list.push({ id: 'together', name: '함께한 용사', description: '반 친구들과 끝까지 함께했어요' })
+    }
+    titles.set(player.id, list)
+  }
+  return titles
 }

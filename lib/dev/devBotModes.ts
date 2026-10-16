@@ -58,7 +58,7 @@ import {
   RAID_ROLE_ORDER,
   computeHitDamage,
   computeRaidState,
-  getRaidFrenzyState,
+  getRaidSkillState,
   getRaidRole,
   parseRaidSettings,
 } from '@/lib/game/raid'
@@ -621,7 +621,7 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
     },
   },
 
-  // 펭귄 레이드: 보스 체력은 전원의 score 합에서 깎인다. 방패가 올라오면 절반이 기여해야 깨지므로 봇도 기여한다.
+  // 펭귄 레이드: 보스 체력은 전원의 score 합에서 깎인다. 방패·필살기 끊기는 여럿이 기여해야 하므로 봇도 기여한다.
   raid: {
     cycleSeconds: 6,
     onStart: async (ctx) => {
@@ -636,16 +636,24 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
       if (!self) return
       ctx.memory.streak = (ctx.memory.streak ?? 0) + 1
       const room = ctx.room()
+      const players = ctx.players()
+      const boss = computeRaidState(players, parseRaidSettings(room?.settings)).current
+      const skill = getRaidSkillState(room?.started_at, players, boss?.def.sprite ?? null)
       const hit = computeHitDamage({
         role: getRaidRole(self),
         streak: ctx.memory.streak,
-        frenzyActive: getRaidFrenzyState(room?.started_at).active,
+        groggy: skill.phase === 'groggy',
       })
       const deltas: PlayerDeltas = { score: hit.damage, gold: 1 }
-      const boss = computeRaidState(ctx.players(), parseRaidSettings(room?.settings)).current
       const myDefense = Math.max(0, self.defense ?? 0)
       if (boss && boss.shield.active && !boss.shield.broken && myDefense < boss.def.index + 1) {
         deltas.defense = boss.def.index + 1 - myDefense
+      }
+      // 필살기 예고 중이면 끊기에도 기여한다 (학생 화면과 같은 규칙)
+      const myInterrupt = Math.max(0, self.revival_streak ?? 0)
+      if (skill.inChargeWindow && skill.cycle >= 0 && myInterrupt < skill.cycle + 1) {
+        deltas.revival_streak = skill.cycle + 1 - myInterrupt
+        deltas.position = 1
       }
       await ctx.addDelta(deltas)
     },

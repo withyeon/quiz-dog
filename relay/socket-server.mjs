@@ -6,12 +6,15 @@
 //   PORT=8788 ALLOWED_ORIGINS=https://quizdog.kr SUPABASE_URL=… SUPABASE_ANON_KEY=… node relay/socket-server.mjs
 //
 // 인증: 방에 들어와 받기만 하는 건 누구나(Origin 검사만) 된다(로비 대기, 프로젝터 화면).
-// 이벤트를 보내려면 둘 중 하나여야 한다.
-//   - 학생: 이벤트의 playerId가 그 방 players 행이고 강퇴되지 않았다(Supabase REST로 확인, 결과 캐시).
+// 이벤트를 보내려면 둘 중 하나여야 한다(sql/20261016_relay_auth.sql 적용 기준).
+//   - 교사: 접속 때 보낸 Supabase 세션 토큰의 사용자가 rooms.owner_id 와 같다. owner_id가 없는 예전 방은 로그인 사용자면 된다.
+//   - 학생: 이벤트에 붙은 학생 비밀 토큰의 SHA-256이 그 playerId의 players.secret_hash 와 같고, 강퇴되지 않았다.
+//     secret_hash가 없는 예전 학생은 RELAY_LEGACY_PLAYERS_UNTIL까지 playerId만으로 통과시킨다(호환 모드).
 //     한 연결은 처음 확인된 playerId로 묶이고, 다른 playerId를 단 이벤트는 거절한다.
-//   - 교사: 접속 때 보낸 Supabase 세션 토큰이 유효하다(/auth/v1/user). rooms에 주인 컬럼이 없어 방 주인까지는 못 본다.
-// Supabase가 응답하지 않으면(네트워크·5xx) 수업을 멈추지 않도록 통과시키고, "없음"이 확실할 때만 거절한다.
+// SQL 적용 전(컬럼 없음)이면 교사는 로그인 사용자, 학생은 그 방 playerId로 확인한다(이전 규칙).
+// Supabase가 응답하지 않으면(네트워크·5xx) 수업을 멈추지 않도록 통과시키고, "아님"이 확실할 때만 거절한다.
 
+import { createHash } from 'node:crypto'
 import http from 'node:http'
 import { monitorEventLoopDelay } from 'node:perf_hooks'
 import { Server } from 'socket.io'
@@ -37,7 +40,10 @@ const MAX_PAYLOAD_BYTES = 64 * 1024
 const PLAYER_OK_TTL_MS = 10 * 60_000
 const PLAYER_DENY_TTL_MS = 15_000
 const TOKEN_TTL_MS = 5 * 60_000
+const OWNER_TTL_MS = 60_000
 const AUTH_TIMEOUT_MS = 4000
+/** secret_hash 없는 예전 학생(이 변경 전에 입장한 탭)을 playerId만으로 받아 주는 마지막 시각 */
+const LEGACY_PLAYERS_UNTIL_MS = Date.parse(process.env.RELAY_LEGACY_PLAYERS_UNTIL || '2026-11-16T00:00:00+09:00')
 
 const ROOM_CODE_RE = /^[0-9A-Za-z_-]{4,32}$/
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -64,10 +70,16 @@ const stats = { msgsIn: 0, msgsOut: 0, rateLimited: 0, unauthorized: 0, httpEven
 
 // ─── 인증 ─────────────────────────────────────────────────────────────────────
 
-/** @type {Map<string, { ok: boolean, until: number }>} room|playerId → 결과 */
+/** Supabase가 응답하지 않아 모름 */
+const UNKNOWN = Symbol('unknown')
+/** @type {Map<string, { row: { kicked: boolean, hash: string | null } | null, until: number }>} 방|playerId → 행(없으면 null) */
 const playerCache = new Map()
-/** @type {Map<string, { ok: boolean, until: number }>} token → 결과 */
+/** @type {Map<string, { userId: string | null, until: number }>} 세션 토큰 → 사용자 id(무효면 null) */
 const tokenCache = new Map()
+/** @type {Map<string, { owner: string | null, until: number }>} 방 → owner_id */
+const ownerCache = new Map()
+/** SQL 적용 전이라 컬럼이 없으면 true가 되고, 그 뒤로는 그 컬럼 없이 읽는다 */
+const missingColumn = { secret_hash: false, owner_id: false }
 
 async function supabaseGet(path, headers = {}) {
   const controller = new AbortController()
@@ -83,63 +95,123 @@ async function supabaseGet(path, headers = {}) {
   }
 }
 
-/** 이 방의 학생(강퇴 안 됨)인가. Supabase가 응답하지 않으면 true(수업을 멈추지 않는다) */
-async function isRoomPlayer(roomCode, playerId) {
-  if (!AUTH_ENABLED) return true
-  if (!UUID_RE.test(playerId)) return false
+/** 컬럼이 없어서 난 400인가. 맞으면 표시해 두고 true */
+async function markIfMissingColumn(res, column) {
+  if (res.status !== 400 || missingColumn[column]) return false
+  const text = await res.text().catch(() => '')
+  if (!text.includes(column)) return false
+  missingColumn[column] = true
+  console.warn(`[relay] ${column} 컬럼이 없다: sql/20261016_relay_auth.sql 적용 전 규칙으로 확인한다`)
+  return true
+}
+
+/** 그 방의 학생 행. 없으면 null, Supabase가 응답하지 않으면 UNKNOWN */
+async function getRoomPlayer(roomCode, playerId) {
   const key = `${roomCode}|${playerId}`
   const cached = playerCache.get(key)
-  if (cached && cached.until > Date.now()) return cached.ok
+  if (cached && cached.until > Date.now()) return cached.row
   try {
+    const columns = missingColumn.secret_hash ? 'id,is_kicked' : 'id,is_kicked,secret_hash'
     const res = await supabaseGet(
-      `/rest/v1/players?select=id,is_kicked&id=eq.${playerId}&room_code=eq.${encodeURIComponent(roomCode)}`,
+      `/rest/v1/players?select=${columns}&id=eq.${playerId}&room_code=eq.${encodeURIComponent(roomCode)}`,
     )
-    if (!res.ok) return true
+    if (await markIfMissingColumn(res, 'secret_hash')) return getRoomPlayer(roomCode, playerId)
+    if (!res.ok) return UNKNOWN
     const rows = await res.json()
-    const ok = Array.isArray(rows) && rows.length === 1 && rows[0].is_kicked !== true
-    playerCache.set(key, { ok, until: Date.now() + (ok ? PLAYER_OK_TTL_MS : PLAYER_DENY_TTL_MS) })
-    return ok
+    const found = Array.isArray(rows) && rows.length === 1 ? rows[0] : null
+    const row = found ? { kicked: found.is_kicked === true, hash: typeof found.secret_hash === 'string' ? found.secret_hash : null } : null
+    playerCache.set(key, { row, until: Date.now() + (row && !row.kicked ? PLAYER_OK_TTL_MS : PLAYER_DENY_TTL_MS) })
+    return row
   } catch {
-    return true
+    return UNKNOWN
   }
 }
 
-/** 유효한 Supabase 세션 토큰인가(교사). 토큰이 없으면 false, Supabase가 응답하지 않으면 true */
-async function isValidUserToken(token) {
-  if (!AUTH_ENABLED) return true
-  if (typeof token !== 'string' || token.length < 20 || token.length > 4096) return false
+/** 세션 토큰의 사용자 id. 무효면 null, Supabase가 응답하지 않으면 UNKNOWN */
+async function getTokenUser(token) {
+  if (typeof token !== 'string' || token.length < 20 || token.length > 4096) return null
   const cached = tokenCache.get(token)
-  if (cached && cached.until > Date.now()) return cached.ok
+  if (cached && cached.until > Date.now()) return cached.userId
   try {
     const res = await supabaseGet('/auth/v1/user', { Authorization: `Bearer ${token}` })
-    if (res.status >= 500) return true
-    const ok = res.ok
-    tokenCache.set(token, { ok, until: Date.now() + (ok ? TOKEN_TTL_MS : PLAYER_DENY_TTL_MS) })
-    return ok
+    if (res.status >= 500) return UNKNOWN
+    const userId = res.ok ? ((await res.json())?.id ?? null) : null
+    tokenCache.set(token, { userId, until: Date.now() + (userId ? TOKEN_TTL_MS : PLAYER_DENY_TTL_MS) })
+    return userId
   } catch {
-    return true
+    return UNKNOWN
+  }
+}
+
+/** 방 주인(owner_id). 주인 없는 예전 방·컬럼 없음이면 null, Supabase가 응답하지 않으면 UNKNOWN */
+async function getRoomOwner(roomCode) {
+  if (missingColumn.owner_id) return null
+  const cached = ownerCache.get(roomCode)
+  if (cached && cached.until > Date.now()) return cached.owner
+  try {
+    const res = await supabaseGet(`/rest/v1/rooms?select=owner_id&room_code=eq.${encodeURIComponent(roomCode)}`)
+    if (await markIfMissingColumn(res, 'owner_id')) return null
+    if (!res.ok) return UNKNOWN
+    const rows = await res.json()
+    const owner = Array.isArray(rows) && rows[0] && typeof rows[0].owner_id === 'string' ? rows[0].owner_id : null
+    ownerCache.set(roomCode, { owner, until: Date.now() + OWNER_TTL_MS })
+    return owner
+  } catch {
+    return UNKNOWN
   }
 }
 
 setInterval(() => {
   const now = Date.now()
-  for (const cache of [playerCache, tokenCache]) {
+  for (const cache of [playerCache, tokenCache, ownerCache]) {
     for (const [key, value] of cache) if (value.until <= now) cache.delete(key)
   }
 }, 60_000).unref()
 
+function sha256Hex(text) {
+  return createHash('sha256').update(text).digest('hex')
+}
+
+/** 이 세션 토큰으로 이 방에 교사로서 보낼 수 있는가(방 주인, 또는 주인 없는 예전 방의 로그인 사용자) */
+async function isRoomTeacher(roomCode, sessionToken) {
+  if (!sessionToken) return false
+  const userId = await getTokenUser(sessionToken)
+  if (userId === UNKNOWN) return true
+  if (!userId) return false
+  const owner = await getRoomOwner(roomCode)
+  if (owner === UNKNOWN || owner === null) return true
+  return owner === userId
+}
+
+/** 이 playerId로 보낼 수 있는가(그 방 학생, 강퇴 아님, 비밀 토큰 일치 또는 예전 학생 호환) */
+async function isPlayerSender(roomCode, playerId, playerToken) {
+  if (!UUID_RE.test(playerId)) return false
+  const row = await getRoomPlayer(roomCode, playerId)
+  if (row === UNKNOWN) return true
+  if (!row || row.kicked) return false
+  if (row.hash) {
+    return typeof playerToken === 'string' && playerToken.length > 0 && playerToken.length <= 256
+      && sha256Hex(playerToken) === row.hash
+  }
+  // 해시 없는 학생: SQL 적용 전이면 이전 규칙 그대로, 적용 후엔 예전 탭 호환 기한까지만
+  return missingColumn.secret_hash || Date.now() < LEGACY_PLAYERS_UNTIL_MS
+}
+
 /**
- * 이 이벤트를 보낼 자격이 있는가. 교사 토큰이 유효하면 통과, 아니면 이벤트의 playerId가 그 방 학생이어야 한다.
+ * 이 이벤트를 보낼 자격이 있는가.
  * @param {{ teacher: Promise<boolean> | null, playerId: string | null } | null} conn HTTP 예비 경로는 null
+ * @param {{ sessionToken?: string | null, playerToken?: unknown }} auth HTTP 예비 경로의 세션 토큰, 이벤트에 붙은 학생 토큰
  */
-async function canSend(roomCode, event, conn, httpToken) {
-  const teacher = conn ? conn.teacher : (httpToken ? isValidUserToken(httpToken) : null)
+async function canSend(roomCode, event, conn, auth) {
+  if (!AUTH_ENABLED) return true
+  const teacher = conn ? conn.teacher : (auth.sessionToken ? isRoomTeacher(roomCode, auth.sessionToken) : null)
   if (teacher && await teacher) return true
   const playerId = typeof event.playerId === 'string' ? event.playerId : ''
   if (!playerId) return false
-  if (conn?.playerId && conn.playerId !== playerId) return false
-  if (!await isRoomPlayer(roomCode, playerId)) return false
-  if (conn && !conn.playerId) conn.playerId = playerId
+  // 이 연결은 이미 그 학생으로 확인됐다(토큰은 처음 한 번만 본다)
+  if (conn?.playerId) return conn.playerId === playerId
+  if (!await isPlayerSender(roomCode, playerId, auth.playerToken)) return false
+  if (conn) conn.playerId = playerId
   return true
 }
 
@@ -320,7 +392,7 @@ function corsHeaders(origin) {
   return {
     'Access-Control-Allow-Origin': origin || '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Player-Token',
     Vary: 'Origin',
   }
 }
@@ -354,7 +426,8 @@ function makeHttpHandler(getIo) {
         return
       }
       const code = decodeURIComponent(match[1])
-      const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || null
+      const sessionToken = (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || null
+      const playerToken = req.headers['x-player-token'] || null
       let body = ''
       req.setEncoding('utf8')
       req.on('data', (chunk) => {
@@ -373,7 +446,7 @@ function makeHttpHandler(getIo) {
           res.writeHead(400, corsHeaders(origin)).end()
           return
         }
-        if (!await canSend(code, event, null, token)) {
+        if (!await canSend(code, event, null, { sessionToken, playerToken })) {
           stats.unauthorized += 1
           res.writeHead(401, corsHeaders(origin)).end()
           return
@@ -426,7 +499,7 @@ io.on('connection', (socket) => {
     tokens: RATE_BURST,
     tokensAt: Date.now(),
     // 교사 토큰은 접속할 때 한 번 확인을 시작해 두고, 처음 보내는 이벤트에서 결과를 기다린다
-    teacher: auth.token ? isValidUserToken(auth.token) : null,
+    teacher: auth.token ? isRoomTeacher(code, auth.token) : null,
     playerId: null,
   }
   socket.join(code)
@@ -443,8 +516,11 @@ io.on('connection', (socket) => {
     setPresence(io, conn, meta)
   })
 
-  socket.on('ev', async (event, ack) => {
+  // 새 클라이언트는 ('ev', event, { playerToken }, ack), 이 변경 전 클라이언트는 ('ev', event, ack)로 보낸다
+  socket.on('ev', async (event, metaOrAck, maybeAck) => {
     stats.msgsIn += 1
+    const ack = typeof metaOrAck === 'function' ? metaOrAck : maybeAck
+    const meta = metaOrAck && typeof metaOrAck === 'object' ? metaOrAck : {}
     const reply = typeof ack === 'function' ? ack : () => {}
     if (!takeToken(conn)) {
       stats.rateLimited += 1
@@ -455,7 +531,7 @@ io.on('connection', (socket) => {
       reply({ err: 'bad_event' })
       return
     }
-    if (!await canSend(code, event, conn, null)) {
+    if (!await canSend(code, event, conn, { playerToken: meta.playerToken })) {
       stats.unauthorized += 1
       reply({ err: 'unauthorized' })
       return

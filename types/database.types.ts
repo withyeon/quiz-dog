@@ -49,6 +49,8 @@ export interface Database {
           answer_history?: Json[] | null
           started_at?: string | null
           attempts?: Json | null
+          /** 학생 비밀 토큰의 SHA-256(hex). 원문은 그 탭 sessionStorage에만 있다 (sql/20261016_relay_auth.sql) */
+          secret_hash?: string | null
         }
         Insert: {
           id?: string
@@ -89,6 +91,8 @@ export interface Database {
           answer_history?: Json[] | null
           started_at?: string | null
           attempts?: Json | null
+          /** 학생 비밀 토큰의 SHA-256(hex). 원문은 그 탭 sessionStorage에만 있다 (sql/20261016_relay_auth.sql) */
+          secret_hash?: string | null
         }
         Update: {
           id?: string
@@ -129,6 +133,8 @@ export interface Database {
           answer_history?: Json[] | null
           started_at?: string | null
           attempts?: Json | null
+          /** 학생 비밀 토큰의 SHA-256(hex). 원문은 그 탭 sessionStorage에만 있다 (sql/20261016_relay_auth.sql) */
+          secret_hash?: string | null
         }
       }
       profiles: {
@@ -311,6 +317,8 @@ export interface Database {
           is_homework?: boolean
           due_at?: string | null
           settings?: Json | null
+          /** 방을 만든 교사(auth uid). 넣을 때 DB 트리거가 auth.uid()로 채우고 바꿀 수 없다 */
+          owner_id?: string | null
           created_at: string
           updated_at: string
         }

@@ -2,13 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGameBase } from '@/hooks/useGameBase'
-import { useRaidEvents, useRaidFrenzyClock, useRaidHitPopups } from '@/hooks/useRaidEffects'
+import { useRaidEvents, useRaidHitPopups, useRaidSkill } from '@/hooks/useRaidEffects'
 import type { PlayerDeltas } from '@/lib/services/playerMutations'
 import {
   RAID,
   computeHitDamage,
   computeRaidState,
-  getRaidFrenzyState,
   getRaidRole,
   parseRaidSettings,
   type RaidHitBreakdown,
@@ -25,7 +24,7 @@ function streakStorageKey(roomCode: string, playerId: string, startedAt: string 
  * 황제 펭귄을 막아라!의 게임 로직 훅.
  *
  * 방·플레이어·퀴즈 흐름은 useGameBase 가 맡고, 이 훅은 그 위에 레이드 고유의 상태를 얹는다:
- * 역할 선택, 정답 → 데미지 계산 → 원자적 증분, 연속 정답, 집중 공격 시계, 방패 기여,
+ * 역할 선택, 정답 → 데미지 계산 → 원자적 증분, 연속 정답, 필살기 예고·끊기, 방패 기여,
  * 사건 배너와 타격 팝업(useRaidEffects). 보스 상태 자체는 lib/game/raid.ts 가 players 행에서
  * 유도하므로 여기서 따로 들고 있지 않다 — 선생님 대시보드도 같은 함수로 같은 보스를 본다.
  */
@@ -105,13 +104,13 @@ export function useRaidGame() {
     }
   }, [streak, streakKey])
 
-  // ─── 집중 공격 시계 · 타격 팝업 · 사건 배너 ───
-  const frenzy = useRaidFrenzyClock(startedAt, isPlaying, getRaidFrenzyState)
-  const frenzyRef = useRef(frenzy)
-  frenzyRef.current = frenzy
+  // ─── 필살기 · 타격 팝업 · 사건 배너 ───
+  const skill = useRaidSkill(startedAt, isPlaying, activePlayers, raidState)
+  const skillRef = useRef(skill)
+  skillRef.current = skill
   const { hits, pushHit } = useRaidHitPopups(activePlayers, isPlaying, playerId)
-  const events = useRaidEvents(raidState, frenzy, isPlaying, (kind) => {
-    if (kind === 'boss_defeated' || kind === 'shield_broken' || kind === 'frenzy_start') playSFX('item')
+  const events = useRaidEvents(raidState, skill, isPlaying, (kind) => {
+    if (kind === 'boss_defeated' || kind === 'shield_broken' || kind === 'skill_interrupted' || kind === 'skill_charge') playSFX('item')
   })
 
   // ─── 전부 쓰러뜨리면 내 화면은 결과로 (방의 finished 기록은 선생님 화면이 담당) ───
@@ -123,6 +122,8 @@ export function useRaidGame() {
 
   // ─── 정답 → 데미지 ───
   const [lastHit, setLastHit] = useState<RaidHitBreakdown | null>(null)
+  /** 직전 정답이 필살기 끊기에 기여했는지 (정답 연출용) */
+  const [lastInterrupt, setLastInterrupt] = useState(false)
   const nextQuestionTimerRef = useRef<number | null>(null)
   useEffect(() => () => {
     if (nextQuestionTimerRef.current) window.clearTimeout(nextQuestionTimerRef.current)
@@ -134,6 +135,7 @@ export function useRaidGame() {
       nextQuestionTimerRef.current = null
     }
     setLastHit(null)
+    setLastInterrupt(false)
     goToNextQuestion()
   }, [goToNextQuestion])
 
@@ -152,8 +154,18 @@ export function useRaidGame() {
     const nextStreak = streak + 1
     setStreak(nextStreak)
 
-    const hit = computeHitDamage({ role, streak: nextStreak, frenzyActive: frenzyRef.current.active })
+    const currentSkill = skillRef.current
+    const hit = computeHitDamage({ role, streak: nextStreak, groggy: currentSkill.phase === 'groggy' })
     const deltas: PlayerDeltas = { score: hit.damage, gold: 1 }
+
+    // 필살기 예고 중이고 이번 필살기에 아직 기여하지 않았으면 끊기 기여 (revival_streak = 주기 번호 + 1)
+    const myInterrupt = Math.max(0, currentPlayer?.revival_streak ?? 0)
+    let interruptedNow = false
+    if (currentSkill.inChargeWindow && currentSkill.cycle >= 0 && myInterrupt < currentSkill.cycle + 1) {
+      deltas.revival_streak = currentSkill.cycle + 1 - myInterrupt
+      deltas.position = 1
+      interruptedNow = true
+    }
 
     // 방패가 올라와 있고 아직 이 방패에 기여하지 않았으면 기여 표시 (defense = 보스 순번 + 1)
     const boss = raidStateRef.current.current
@@ -163,7 +175,8 @@ export function useRaidGame() {
     }
 
     setLastHit(hit)
-    pushHit({ damage: hit.damage, nickname: null, mine: true, frenzy: hit.multiplier > 1, comboBonus: hit.comboBonus })
+    setLastInterrupt(interruptedNow)
+    pushHit({ damage: hit.damage, nickname: null, mine: true, groggy: hit.multiplier > 1, comboBonus: hit.comboBonus, role })
 
     try {
       await commitPlayerDelta(playerId, deltas, { reason: 'raid_hit' })
@@ -176,7 +189,7 @@ export function useRaidGame() {
       goToNextQuiz()
     }, RAID.NEXT_QUESTION_DELAY_MS)
     return true
-  }, [checkAnswer, commitPlayerDelta, currentPlayer?.defense, goToNextQuiz, handleWrongAnswer, playSFX, playerId, pushHit, role, streak])
+  }, [checkAnswer, commitPlayerDelta, currentPlayer?.defense, currentPlayer?.revival_streak, goToNextQuiz, handleWrongAnswer, playSFX, playerId, pushHit, role, streak])
 
   const handleRaidCountdownComplete = useCallback(() => {
     handleCountdownComplete()
@@ -189,13 +202,14 @@ export function useRaidGame() {
     settings,
     activePlayers,
     raidState,
-    frenzy,
+    skill,
     role,
     needsRole,
     streak,
     hits,
     events,
     lastHit,
+    lastInterrupt,
     handleRoleSelect,
     handleRaidCountdownComplete,
     handleAnswerSubmit,

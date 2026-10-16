@@ -5,23 +5,41 @@ DB·인증·리포트는 그대로 Supabase에 둔다. 중계 모드에서는 �
 
 - **지금 쓰는 서버: [socket-server.mjs](socket-server.mjs)** — Socket.IO 4.8.4. WebSocket이 막힌 망에서는 HTTP long-polling으로 붙는다.
   배포: [deploy-lightsail.sh](deploy-lightsail.sh) (Lightsail에서 `relay2.service`, 포트 8788. Caddy가 `/socket.io/`·`/v2/`를 보낸다)
-- 예전 서버: [server.mjs](server.mjs) — `ws` 기반. 새 앱으로 다 넘어오면 끈다(`relay.service`, 포트 8787). 아래 프로토콜·측정은 이 서버 기준이다.
+- 예전 서버: [server.mjs](server.mjs) — `ws` 기반. 2026-10-16에 껐다(`relay.service` 비활성, Caddy도 더는 보내지 않음). 아래 프로토콜·측정은 이 서버 기준이다.
 - 클라이언트: [lib/realtime/transport/relayTransport.ts](../lib/realtime/transport/relayTransport.ts) (socket.io-client)
 - 전송 선택: [lib/realtime/transport/index.ts](../lib/realtime/transport/index.ts), 훅은 [hooks/useRoomChannel.ts](../hooks/useRoomChannel.ts)
 - 부하 측정: [loadtest.mjs](loadtest.mjs) (ws 서버용)
 
 ## 접속 인증 (socket-server.mjs)
 
+DB 쪽은 [sql/20261016_relay_auth.sql](../sql/20261016_relay_auth.sql)(Supabase에서 직접 적용)이 준비한다.
+
 - 방에 들어와 **받기만** 하는 건 누구나 된다(Origin 검사만): 로비 대기, 프로젝터 화면.
 - **이벤트를 보내려면** 둘 중 하나:
-  - 학생: 이벤트의 `playerId`가 그 방 players 행이고 강퇴되지 않았다. 서버가 Supabase REST(공개 키)로 확인하고 10분 캐시한다.
-    한 연결은 처음 확인된 playerId로 묶여, 다른 playerId를 단 이벤트는 거절한다.
-  - 교사: 접속 때 보낸 Supabase 세션 토큰이 유효하다(`/auth/v1/user`).
-- 거절되면 ack `{ err: 'unauthorized' }`, HTTP 예비 경로(`POST /v2/rooms/<방>/events`)는 401.
-- Supabase가 응답하지 않으면(네트워크·5xx) 수업을 멈추지 않도록 통과시킨다. "없음"이 확실할 때만 거절한다.
-- 한계: rooms에 주인 컬럼이 없어 교사는 "로그인한 사용자"까지만 확인한다. 학생은 다른 학생의 playerId를 알면 그 학생 이름으로 보낼 수 있다
-  (playerId는 목록 조회로 보인다). 막으려면 입장 때 학생별 비밀 토큰을 발급해야 한다.
+  - 교사: 접속 때 보낸 Supabase 세션 토큰의 사용자가 `rooms.owner_id`와 같다.
+    `owner_id`는 방을 만들 때 DB 트리거가 `auth.uid()`로 채우고 바꿀 수 없다(클라이언트가 보낸 값은 무시).
+    `owner_id`가 없는 예전 방(SQL 적용 전에 만든 방)은 로그인 사용자면 된다.
+  - 학생: 이벤트에 붙은 **학생 비밀 토큰**의 SHA-256이 그 playerId의 `players.secret_hash`와 같고, 강퇴되지 않았다.
+    토큰은 입장할 때(`createPlayerForRoom`) 만들어 그 탭의 sessionStorage에만 둔다([playerSecret.ts](../lib/realtime/playerSecret.ts)).
+    DB에는 해시만 있고 한 번 정해지면 트리거가 바꾸지 못하게 막아서, 다른 학생의 playerId를 알아도 그 학생 이름으로 보낼 수 없다.
+    과제 방(`is_homework`)의 '이어하기'만 다른 기기에서 토큰을 새로 정할 수 있다(과제는 닉네임이 곧 신원이라서).
+  - 한 연결은 처음 확인된 playerId로 묶이고(토큰은 처음 한 번만 본다), 다른 playerId를 단 이벤트는 거절한다.
+- **호환 모드**: `secret_hash`가 없는 예전 학생(이 변경 전에 입장한 탭)은 `RELAY_LEGACY_PLAYERS_UNTIL`(기본 2026-11-16 00:00 KST)까지
+  playerId만으로 통과시킨다. 이전 버전 클라이언트가 보내는 `('ev', event, ack)` 형식도 그대로 받는다.
+- **SQL 적용 전**(컬럼 없음): 서버가 400 응답으로 알아채고, 이전 규칙(교사는 로그인 사용자, 학생은 그 방 playerId)으로 확인한다.
+  클라이언트는 `secret_hash` 없이 다시 넣는다. 그래서 순서와 상관없이 배포할 수 있다.
+- 거절되면 ack `{ err: 'unauthorized' }`, HTTP 예비 경로(`POST /v2/rooms/<방>/events`, 헤더 `Authorization`·`X-Player-Token`)는 401.
+- Supabase가 응답하지 않으면(네트워크·5xx) 수업을 멈추지 않도록 통과시킨다. "아님"이 확실할 때만 거절한다.
 - 입장 직후처럼 playerId 상태가 아직 반영되기 전에 보낼 때는 `sendEvent(type, payload, { playerId })`로 보낸 사람을 밝힌다(로비).
+- 남은 한계: 중계 서버 인증은 실시간 이벤트만 막는다. players·rooms를 직접 고치는 DB 쓰기(점수 RPC 등)는 여전히 비로그인 키로 열려 있다.
+  같은 사람이 여러 탭·기기로 각각 입장하는 것(새 학생 만들기)도 막지 않는다.
+
+### 배포 순서
+
+1. 중계 서버(`deploy-lightsail.sh`): 새 규칙을 알지만 컬럼이 없으면 이전 규칙으로 동작한다.
+2. 앱(Vercel): 입장 때 토큰을 만들고 이벤트에 붙인다. 컬럼이 없으면 해시 없이 넣는다.
+3. SQL(`sql/20261016_relay_auth.sql`)을 Supabase SQL 편집기에서 실행: 이때부터 새 방·새 학생에 주인·해시가 생기고 확인이 켜진다.
+   예전 학생 호환 기한은 서버 환경 변수 `RELAY_LEGACY_PLAYERS_UNTIL`로 바꾼다(`relay2.service`).
 
 ## 켜기
 

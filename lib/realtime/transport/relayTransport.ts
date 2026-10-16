@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client'
 import { supabase } from '@/lib/supabase/client'
+import { loadPlayerSecret } from '@/lib/realtime/playerSecret'
 import {
   flattenPresenceState,
   type RoomChannelEvent,
@@ -18,11 +19,12 @@ import type {
  *
  * 접속(handshake auth): { room, clientId, meta, token? } — token은 로그인한 교사의 Supabase 세션 토큰.
  *   ← 'joined' { c, presence }        방 입장 완료. c는 이 연결 번호
- *   → 'ev' event (ack)                ← ack { ok } | { err: 'rate_limited' | 'bad_event' | 'unauthorized' }
+ *   → 'ev' event, { playerToken } (ack)  ← ack { ok } | { err: 'rate_limited' | 'bad_event' | 'unauthorized' }
  *   ← 'ev' event                      다른 클라이언트가 보낸 room_event (보낸 연결은 제외)
  *   → 'track' meta                    ← 'p' { k, m } presence 키 하나의 최신 목록(빈 배열이면 나감)
  *   ← 'pos' { at, items }             점프점프 좌표 묶음(200ms마다)
- * 이벤트는 교사 토큰이 유효하거나, 이벤트의 playerId가 그 방 학생일 때만 중계된다(서버가 Supabase로 확인).
+ * 이벤트는 교사 토큰의 사용자가 방 주인이거나, playerToken(이 탭에만 있는 학생 비밀 토큰)이 그 playerId의 것일 때만
+ * 중계된다(서버가 Supabase로 확인, lib/realtime/playerSecret.ts).
  * WebSocket이 막힌 망에서는 Socket.IO가 HTTP long-polling으로 붙는다.
  * 소켓이 안 붙어 있으면 POST <주소>/v2/rooms/<방>/events 로 보낸다.
  */
@@ -195,7 +197,8 @@ class RelayConnection implements RoomConnection {
   private sendOverSocket(event: RoomChannelEvent): Promise<string> {
     if (!this.joined || !this.socket.connected) return Promise.resolve('not_joined')
     return new Promise((resolve) => {
-      this.socket.timeout(ACK_TIMEOUT_MS).emit('ev', event, (error: Error | null, reply?: AckReply) => {
+      const auth = { playerToken: loadPlayerSecret(event.playerId) }
+      this.socket.timeout(ACK_TIMEOUT_MS).emit('ev', event, auth, (error: Error | null, reply?: AckReply) => {
         if (error) resolve('timed out')
         else resolve(reply?.err ?? 'ok')
       })
@@ -215,6 +218,7 @@ class RelayConnection implements RoomConnection {
 
     try {
       const token = await getSessionToken()
+      const playerToken = loadPlayerSecret(event.playerId)
       const response = await fetch(
         `${toHttpBase(RELAY_URL)}/v2/rooms/${encodeURIComponent(this.options.roomCode)}/events`,
         {
@@ -222,6 +226,7 @@ class RelayConnection implements RoomConnection {
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(playerToken ? { 'X-Player-Token': playerToken } : {}),
           },
           body: JSON.stringify(event),
         },

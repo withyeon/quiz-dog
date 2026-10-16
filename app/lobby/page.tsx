@@ -22,6 +22,7 @@ import type { PlayerJoinedPayload, RoomChannelEvent } from '@/lib/realtime/roomC
 import { createPlayerForRoom, findPlayerByNickname, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
 import { getPlayerById, updatePlayer } from '@/lib/services/players'
+import { loadPlayerSecret, rekeyPlayerSecret } from '@/lib/realtime/playerSecret'
 import { clearLobbyPlayerId, loadLobbyPlayerId, saveLobbyPlayerId } from '@/lib/utils/lobbySession'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import {
@@ -252,6 +253,8 @@ function LobbyPage() {
           })
           if (resume) {
             await updatePlayer(existing.id, { avatar, is_online: true })
+            // 다른 기기·탭에서 이어 풀면 이 탭엔 학생 토큰이 없다: 새로 정해야 중계 서버가 이 학생 이벤트를 받는다
+            if (!loadPlayerSecret(existing.id)) await rekeyPlayerSecret(existing.id)
             setPlayerId(existing.id)
             setIsJoined(true)
             saveLobbyPlayerId(roomCode, existing.id)

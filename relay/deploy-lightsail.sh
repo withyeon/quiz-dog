@@ -6,7 +6,7 @@
 #     | sudo bash -s -- <커밋> <SUPABASE_URL> <SUPABASE_ANON_KEY>
 #
 # SUPABASE_ANON_KEY는 앱 화면에도 들어가는 공개(publishable) 키다. 이벤트 보낸 사람이 그 방 학생인지 확인할 때만 쓴다.
-# Caddy는 /socket.io/ 와 /v2/ 를 새 서버로, 나머지는 예전 ws 서버(8787)로 보낸다.
+# Caddy는 /socket.io/ 와 /v2/ 만 이 서버로 보내고 나머지는 404다. 예전 ws 서버(relay.service, 8787)는 끈다.
 set -euo pipefail
 
 REF="${1:?git ref}"
@@ -46,6 +46,7 @@ UNIT
 systemctl daemon-reload
 systemctl enable relay2
 systemctl restart relay2
+systemctl disable --now relay 2>/dev/null || true
 
 cat > /usr/local/bin/relay-caddyfile <<'GEN'
 #!/bin/bash
@@ -61,11 +62,8 @@ rt.quizdog.kr, $HOST {
     respond @metrics 404
     reverse_proxy 127.0.0.1:8788
   }
-  handle /metrics {
-    respond 404
-  }
   handle {
-    reverse_proxy 127.0.0.1:8787
+    respond 404
   }
 }
 CADDY
@@ -78,5 +76,5 @@ systemctl reload caddy
 
 sleep 2
 curl -fsS http://127.0.0.1:8788/v2/healthz && echo
-systemctl is-active relay2 relay caddy
+systemctl is-active relay2 caddy
 echo RELAY2_DEPLOYED

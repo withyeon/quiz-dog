@@ -482,7 +482,7 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
     ],
   },
   // 숫자는 모두 lib/game/raid.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
-  // 화면에 실제로 뜨는 낱말(펭귄 · 체력 · 데미지 · 얼음 방패 · 집중 공격 · 역할)만 씁니다.
+  // 화면에 실제로 뜨는 낱말(펭귄 · 체력 · 데미지 · 얼음 방패 · 필살기 · 기절 · 역할)만 씁니다.
   raid: {
     gameMode: 'raid',
     title: '황제 펭귄을 막아라!',
@@ -516,12 +516,12 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
         ],
       },
       {
-        title: '집중 공격 시간을 놓치지 마세요',
-        body: `시작 ${RAID.FRENZY_FIRST_AT}초 뒤부터 ${RAID.FRENZY_PERIOD}초마다 ${RAID.FRENZY_DURATION}초 동안 집중 공격 시간이 와요. 이때 맞히면 데미지가 ${RAID.FRENZY_MULTIPLIER}배! 모든 화면에 동시에 떠서 반 전체가 같이 외치는 순간이에요.`,
+        title: '펭귄의 필살기를 다 같이 끊어요',
+        body: `시작 ${RAID.SKILL_FIRST_AT}초 뒤부터 ${RAID.SKILL_PERIOD}초마다 펭귄이 ${RAID.SKILL_CHARGE}초 동안 필살기를 모아요. 그동안 반의 ${toPercent(RAID.INTERRUPT_REQUIRED_RATIO)}% 넘는 친구가 한 번씩 맞히면 필살기가 끊기고 펭귄이 기절해요. 기절한 동안은 데미지 ${RAID.GROGGY_MULTIPLIER}배!`,
         points: [
-          `${RAID.FRENZY_DURATION}초 동안 데미지 ${RAID.FRENZY_MULTIPLIER}배`,
-          '선생님 화면에서 카운트다운을 볼 수 있어요',
-          '결과는 쓰러뜨린 펭귄 수와 반 전체 데미지',
+          `빨리 끊을수록 기절이 길어요 (예고 끝 + ${RAID.GROGGY_DURATION}초까지)`,
+          `${RAID_ROLES.mage.name}는 한 번에 2칸`,
+          '못 끊어도 눈보라만 지나가요. 손해는 없어요',
         ],
       },
     ],

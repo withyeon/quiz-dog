@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase/client'
 import { generateRoomCode } from '@/lib/utils/gameCode'
 import { DEFAULT_GAME_MODE, getModeInitialPlayerState, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { createLateJoinerPatch, createRoleAssignmentPatches } from '@/lib/game/zombie'
+import { createPlayerSecret, isMissingSecretColumnError, savePlayerSecret } from '@/lib/realtime/playerSecret'
 import type { Database, Json } from '@/types/database.types'
 
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -115,10 +116,10 @@ export async function startRoom({ roomCode, gameMode, durationSeconds, settings 
 
   if (gameMode === 'raid') {
     // 보스 체력·방패·역할은 전부 players 행에서 유도하므로(lib/game/raid.ts) 시작할 때 깨끗이 비운다.
-    // resetRoom 은 defense/player_class 를 건드리지 않아 다시 시작하면 옛 방패 기여가 남는다.
+    // resetRoom 은 defense/player_class/revival_streak 를 건드리지 않아 다시 시작하면 옛 방패·필살기 기여가 남는다.
     const { error: raidResetError } = await (supabase
       .from('players') as any)
-      .update({ score: 0, gold: 0, defense: 0, combo_count: 0, player_class: null })
+      .update({ score: 0, gold: 0, defense: 0, combo_count: 0, player_class: null, revival_streak: 0, position: 0 })
       .eq('room_code', roomCode)
 
     if (raidResetError) throw raidResetError
@@ -265,13 +266,24 @@ export async function createPlayerForRoom(input: {
     ...lateJoinState,
   }
 
-  const { data, error } = await (supabase
+  // 학생 비밀 토큰: 해시만 DB에, 원문은 이 탭에만 (중계 서버가 "이 학생이 보낸 이벤트"인지 확인한다)
+  const secret = await createPlayerSecret()
+  const insertPlayer = (row: PlayerInsert) => (supabase
     .from('players') as any)
-    .insert(payload)
+    .insert(row)
     .select('*')
     .single()
 
+  let { data, error } = await insertPlayer({ ...payload, secret_hash: secret.hash })
+  let storedSecret = true
+  if (error && isMissingSecretColumnError(error)) {
+    // sql/20261016_relay_auth.sql 적용 전: 해시 없이 만든다(중계 서버는 예전 규칙으로 확인)
+    ;({ data, error } = await insertPlayer(payload))
+    storedSecret = false
+  }
+
   if (error) throw error
+  if (storedSecret) savePlayerSecret((data as PlayerRow).id, secret.token)
   // 행 전체를 돌려준다: 중계 서버 모드에서는 이걸 player:joined로 보내 다른 화면 목록에 바로 넣는다
   return data as PlayerRow
 }
