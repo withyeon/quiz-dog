@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Ticket } from 'lucide-react'
 import { toast } from '@/components/ui/Toaster'
 import { getTeacherAccessToken } from '@/lib/services/questionImages'
+import { notifyTeacherPlanChanged } from '@/hooks/useTeacherPlan'
 
 type PlanInfo = { plan: 'free' | 'pro'; proUntil: string | null }
 
@@ -68,7 +69,10 @@ export default function PlanSection({
         return
       }
       setCode('')
-      if (data.proUntil) setPlanInfo({ plan: 'pro', proUntil: data.proUntil })
+      if (data.proUntil) {
+        setPlanInfo({ plan: 'pro', proUntil: data.proUntil })
+        notifyTeacherPlanChanged({ plan: 'pro', proUntil: data.proUntil })
+      }
       toast.success(data.proUntil ? `등록했어요. ${formatDate(data.proUntil)}까지 프로를 이용할 수 있어요.` : '등록했어요.')
     } catch {
       toast.error('등록하지 못했어요. 잠시 후 다시 시도해 주세요.')

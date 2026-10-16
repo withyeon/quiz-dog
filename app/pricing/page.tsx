@@ -7,6 +7,8 @@ import { Check } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import KakaoChannelButton from '@/components/KakaoChannelButton'
+import { useAuth } from '@/contexts/AuthContext'
+import { useTeacherPlan } from '@/hooks/useTeacherPlan'
 
 /* ─── 버튼 ─── */
 function PlanButton({
@@ -39,6 +41,24 @@ function PlanButton({
         {children}
       </motion.div>
     </Link>
+  )
+}
+
+/* ─── 지금 쓰는 플랜 표시 (버튼 대신) ─── */
+function CurrentPlanMark({ accentColor, proUntil }: { accentColor: string; proUntil: string | null }) {
+  const until = proUntil ? new Date(proUntil).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : null
+  return (
+    <div
+      className="w-full rounded-xl border-2 px-6 py-3 text-center"
+      style={{ borderColor: accentColor, background: 'rgba(255,255,255,0.7)' }}
+      aria-current="true"
+    >
+      <div className="flex items-center justify-center gap-2 text-base font-black" style={{ color: accentColor, fontFamily: "'DNFBitBitv2', sans-serif" }}>
+        <Check className="h-5 w-5" strokeWidth={3} />
+        현재 플랜입니다
+      </div>
+      {until && <div className="mt-0.5 text-xs font-bold text-slate-500">{until}까지</div>}
+    </div>
   )
 }
 
@@ -160,6 +180,10 @@ const FAQS = [
 ]
 
 export default function PricingPage() {
+  const { user } = useAuth()
+  const teacherPlan = useTeacherPlan()
+  // 로그인한 선생님이 이미 쓰는 플랜이면 버튼 대신 '현재 플랜입니다'. Pro 는 월/연간을 따로 저장하지 않아 둘 다 표시한다.
+  const isCurrentPlan = (name: string) => Boolean(user) && !teacherPlan.loading && (teacherPlan.plan === 'pro' ? name.startsWith('Pro') : name === 'Free')
   return (
     <div
       className="min-h-dvh font-bitbit"
@@ -281,9 +305,13 @@ export default function PricingPage() {
                   </ul>
 
                   {/* CTA 버튼 */}
-                  <PlanButton href={plan.href} color={plan.buttonColor} className="w-full text-base">
-                    {plan.cta}
-                  </PlanButton>
+                  {isCurrentPlan(plan.name) ? (
+                    <CurrentPlanMark accentColor={plan.accentColor} proUntil={teacherPlan.plan === 'pro' ? teacherPlan.proUntil : null} />
+                  ) : (
+                    <PlanButton href={plan.href} color={plan.buttonColor} className="w-full text-base">
+                      {plan.cta}
+                    </PlanButton>
+                  )}
                 </div>
                 </div>
               </motion.div>

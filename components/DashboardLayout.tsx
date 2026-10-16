@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import ProBadge from '@/components/ProBadge'
 import { useMyDisplayName } from '@/hooks/useMyDisplayName'
 import { isAdminEmail } from '@/lib/admin/admins'
 
@@ -146,7 +147,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 {userInitial}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-black text-black">{displayName}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate text-sm font-black text-black">{displayName}</span>
+                  <ProBadge size="xs" />
+                </div>
                 <div className="mt-0.5 truncate text-xs font-medium text-slate-500">{userEmail}</div>
               </div>
             </Link>
@@ -242,7 +246,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     {userInitial}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-black text-black">{displayName}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-sm font-black text-black">{displayName}</span>
+                      <ProBadge size="xs" />
+                    </div>
                     <div className="mt-0.5 truncate text-xs font-medium text-slate-500">{userEmail}</div>
                   </div>
                 </div>

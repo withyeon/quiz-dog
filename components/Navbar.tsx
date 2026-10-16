@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Menu, X, LogIn, LogOut, ChevronDown } from 'lucide-react'
 import { gameAssets } from '@/assets/game-assets'
 import { useAuth } from '@/contexts/AuthContext'
+import ProBadge from '@/components/ProBadge'
 
 export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
@@ -147,6 +148,7 @@ export default function Navbar() {
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-sky-500 text-xs font-black text-white">
                       {userInitial}
                     </span>
+                    <ProBadge size="xs" />
                     <span className="max-w-[100px] truncate">{userEmail}</span>
                     <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
                   </button>
@@ -238,7 +240,7 @@ export default function Navbar() {
                       {userInitial}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-sm">선생님 대시보드</span>
+                      <span className="flex items-center gap-1.5 text-sm">선생님 대시보드<ProBadge size="xs" /></span>
                       <span className="block truncate text-xs font-bold text-slate-400">{userEmail}</span>
                     </span>
                   </Link>
