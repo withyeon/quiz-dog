@@ -26,7 +26,6 @@ import {
   type Team,
 } from '@/lib/game/battleRoyale'
 import type { Database } from '@/types/database.types'
-import { updatePlayer } from '@/lib/services/players'
 import { emitRoomRuntimeEvent, subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 
 /** 눈싸움에서 쓰는 플레이어 행. 체력·장비·팀·부활 연속 정답 수가 붙는다. */
@@ -71,6 +70,7 @@ export function useSnowBattleGame() {
     consecutiveCorrect,
     sendRoomEvent,
     commitPlayerDelta,
+    commitPlayerPatch,
   } = base
 
   const [attackResult, setAttackResult] = useState<AttackResult | null>(null)
@@ -129,10 +129,10 @@ export function useSnowBattleGame() {
     try {
       const classInfo = PLAYER_CLASSES[playerClass]
       // 직업별 초기 체력 설정
-      await updatePlayer(playerId, {
+      await commitPlayerPatch(playerId, {
         player_class: playerClass,
         health: classInfo.maxHealth,
-      })
+      }, 'battle_class_select')
     } catch (error) {
       console.error('Error updating class:', error)
     }
@@ -222,7 +222,7 @@ export function useSnowBattleGame() {
 
     Promise.all(
       Array.from(assignments.entries()).map(([playerId, team]) =>
-        updatePlayer(playerId, { team, revival_streak: 0 }),
+        commitPlayerPatch(playerId, { team, revival_streak: 0 }, 'battle_team_assign'),
       ),
     ).catch((error) => {
       // 재시도하지 않는다. players가 바뀔 때마다 이 effect가 다시 도는데
@@ -230,7 +230,7 @@ export function useSnowBattleGame() {
       // 팀 없이 개인전으로 그대로 진행한다.
       console.error('팀 배정 실패 — 개인전으로 진행합니다:', error)
     })
-  }, [isPreStartQuizComplete, isRoomHost, players, room?.status])
+  }, [commitPlayerPatch, isPreStartQuizComplete, isRoomHost, players, room?.status])
 
   // 게임 도중 들어온 학생은 시작 때의 팀 배정을 놓친다. 팀전이 이미 진행 중이면
   // 생존자가 적은 팀(같으면 인원이 적은 팀)에 스스로 합류한다.
@@ -256,11 +256,11 @@ export function useSnowBattleGame() {
     }
 
     lateTeamRequestedRef.current = true
-    updatePlayer(playerId, { team: pick(), revival_streak: 0 }).catch((error) => {
+    commitPlayerPatch(playerId, { team: pick(), revival_streak: 0 }, 'battle_late_team').catch((error) => {
       lateTeamRequestedRef.current = false
       console.error('도중 입장 팀 배정 실패:', error)
     })
-  }, [currentPlayer, currentPlayerTeam, playerId, players, room?.status])
+  }, [commitPlayerPatch, currentPlayer, currentPlayerTeam, playerId, players, room?.status])
 
   // 팀 배정이 완료되면 reveal 표시 (모든 플레이어가 보게 됨)
   useEffect(() => {
@@ -425,11 +425,11 @@ export function useSnowBattleGame() {
         const revivedHealth = checkRevival(nextRevivalStreak, selectedClass || undefined)
         try {
           if (revivedHealth !== null) {
-            await updatePlayer(playerId, { health: revivedHealth, revival_streak: 0 })
+            await commitPlayerPatch(playerId, { health: revivedHealth, revival_streak: 0 }, 'battle_revive')
             setIsEliminated(false)
             playSFX('item')
           } else {
-            await updatePlayer(playerId, { revival_streak: nextRevivalStreak })
+            await commitPlayerPatch(playerId, { revival_streak: nextRevivalStreak }, 'battle_revival_streak')
           }
         } catch (error) {
           console.error('Error processing revival:', error)
@@ -497,7 +497,7 @@ export function useSnowBattleGame() {
       const me = currentPlayer as BattlePlayer | null
       if (me && (me.health ?? 100) <= 0 && (me.revival_streak ?? 0) > 0) {
         try {
-          await updatePlayer(playerId, { revival_streak: 0 })
+          await commitPlayerPatch(playerId, { revival_streak: 0 }, 'battle_revival_reset')
         } catch (error) {
           console.error('Error resetting revival streak:', error)
         }

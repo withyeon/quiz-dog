@@ -514,6 +514,8 @@ export function useTeacherPlayRoom() {
         durationSeconds: timedDurationMinutes * 60,
         ...(startSettings ? { settings: startSettings } : {}),
       })
+      // startRoom이 모드별로 players를 일괄 초기화한다(체력·역할 등). 이 변경은 broadcast로 안 나가므로 바로 다시 읽는다.
+      void refreshPlayers({ silent: true })
       broadcastRoomPatch({
         status: 'playing',
         game_mode: gameMode,
@@ -640,6 +642,7 @@ export function useTeacherPlayRoom() {
 
     try {
       await resetRoom(roomCode)
+      void refreshPlayers({ silent: true })
       broadcastRoomPatch({
         status: 'waiting',
         current_q_index: 0,

@@ -269,7 +269,7 @@ export default function MafiaView({
     })
   }, [addLog, playerId, roomCode, showCaughtNotice])
 
-  // 최후 폴백: broadcast(mafia:caught·player:patch)가 모두 유실돼도 DB(postgres_changes·3초 재동기화)로
+  // 최후 폴백: broadcast(mafia:caught·player:patch)가 모두 유실돼도 3초 재동기화(DB)로
   // 내 수상함 플래그가 '남에 의해' 해제된 것을 감지하면 발각 경고를 띄운다.
   // 내가 금고를 열거나 친구를 조사해 스스로 해제한 경우(selfFlagClearAtRef)는 제외한다.
   const isCheatingNow = player?.isCheating ?? null

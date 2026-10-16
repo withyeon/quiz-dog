@@ -15,7 +15,6 @@ type PlayerPatch = Partial<Player> & Record<string, unknown>
 interface UsePlayersRealtimeOptions {
   roomCode: string
   enabled?: boolean
-  onPlayerUpdate?: (player: Player) => void
   onPlayerInsert?: (player: Player) => void
   onPlayerDelete?: (player: Player) => void
   /**
@@ -38,8 +37,8 @@ function normalizePlayer(player: Player): Player {
 }
 
 /**
- * 같은 점수 변화가 세 경로로 중복 도착한다:
- *   (1) player:patch broadcast  (2) postgres_changes UPDATE  (3) 3초 주기 재동기화 SELECT
+ * 같은 점수 변화가 두 경로로 중복 도착한다:
+ *   (1) player:patch broadcast  (2) 3초 주기 재동기화 SELECT
  * 매번 새 배열을 만들면 내용이 똑같아도 참조가 바뀌어 참가자 목록을 쓰는 화면 전체가
  * 다시 그려진다. 학생 30명 방에서는 이게 초당 여러 번 일어나 저사양 태블릿에서 끊긴다.
  * 내용이 같으면 이전 배열을 그대로 돌려줘서 리렌더를 건너뛴다.
@@ -72,7 +71,6 @@ function isTransientFetchFailure(error: unknown): boolean {
 export function usePlayersRealtime({
   roomCode,
   enabled = true,
-  onPlayerUpdate,
   onPlayerInsert,
   onPlayerDelete,
   reconcileIntervalMs = DEFAULT_RECONCILE_INTERVAL_MS,
@@ -85,13 +83,8 @@ export function usePlayersRealtime({
   // 비-silent 조회가 loading=true를 켠 뒤, silent 재동기화가 seq를 앞질러도 마지막에 끝나는
   // 조회가 loading을 꺼주도록 한다. (안 그러면 초기 조회가 silent에 추월당해 '로딩 중'에 영원히 갇힘)
   const loadingPendingRef = useRef(false)
-  const onPlayerUpdateRef = useRef(onPlayerUpdate)
   const onPlayerInsertRef = useRef(onPlayerInsert)
   const onPlayerDeleteRef = useRef(onPlayerDelete)
-
-  useEffect(() => {
-    onPlayerUpdateRef.current = onPlayerUpdate
-  }, [onPlayerUpdate])
 
   useEffect(() => {
     onPlayerInsertRef.current = onPlayerInsert
@@ -195,9 +188,11 @@ export function usePlayersRealtime({
 
     void refreshPlayers()
 
-    // player:patch broadcast는 낙관적 반영을 위한 가장 빠른 경로다. 동시에 DB의
-    // UPDATE/DELETE도 구독해 직접 updatePlayer를 사용하는 게임과 방송 누락까지
-    // 권위 있는 행 기준으로 즉시 수렴시킨다.
+    // 점수·상태 변경(UPDATE)은 postgres_changes로 받지 않는다. 행 하나가 바뀔 때마다 방 전체
+    // 구독자 수만큼 Realtime 메시지가 나가서(답 하나에 broadcast와 합쳐 약 3N개) 메시지 한도를
+    // 가장 먼저 잡아먹던 경로다. 대신 player:patch broadcast가 즉시 반영을, 3초 재동기화가
+    // 누락분을 맡는다. 그래서 players를 바꾸는 코드는 commitPlayerPatch처럼 반드시 broadcast해야 한다.
+    // 입장(INSERT)과 퇴장(DELETE)은 드물어서 그대로 구독한다.
     const channel = supabase
       .channel(`players:${roomCode}`)
       .on(
@@ -218,28 +213,6 @@ export function usePlayersRealtime({
             })
             onPlayerInsertRef.current?.(newPlayer)
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'players',
-          filter: `room_code=eq.${roomCode}`,
-        },
-        (payload) => {
-          if (!payload.new) return
-          const updatedPlayer = normalizePlayer(payload.new as Player)
-          setPlayers((prev) => {
-            const current = prev.find((player) => player.id === updatedPlayer.id)
-            if (isSamePlayer(current, updatedPlayer)) return prev
-            const next = current
-              ? prev.map((player) => player.id === updatedPlayer.id ? updatedPlayer : player)
-              : [...prev, updatedPlayer]
-            return sortPlayersByScore(next)
-          })
-          onPlayerUpdateRef.current?.(updatedPlayer)
         }
       )
       .on(

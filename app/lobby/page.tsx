@@ -217,7 +217,7 @@ function LobbyPage() {
       if (avatarSyncTimer.current) clearTimeout(avatarSyncTimer.current)
       avatarSyncTimer.current = setTimeout(() => {
         updatePlayer(targetPlayerId, { avatar })
-          .then(() => sendRoomEvent('room:snapshot-hint', { reason: 'player_updated' }))
+          .then(() => sendRoomEvent('player:patch', { playerId: targetPlayerId, patch: { avatar }, reason: 'lobby_avatar' }))
           .catch((err) => console.error('캐릭터 변경 실패:', formatServiceError(err)))
       }, 300)
       return
@@ -255,7 +255,7 @@ function LobbyPage() {
             setPlayerId(existing.id)
             setIsJoined(true)
             saveLobbyPlayerId(roomCode, existing.id)
-            void sendRoomEvent('room:snapshot-hint', { reason: 'player_resumed' })
+            void sendRoomEvent('player:patch', { playerId: existing.id, patch: { avatar, is_online: true }, reason: 'player_resumed' })
             router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, existing.id))
             return
           }

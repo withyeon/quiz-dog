@@ -99,6 +99,9 @@ export function useConvenienceStoreGame() {
   const answerHistoryRef = useRef<AnswerRecord[]>([])
   const syncedHistoryLengthRef = useRef(0)
   const hasRestoredHistoryRef = useRef(false)
+  // 게임 중에는 내 돈·상품의 원본이 로컬 상태다. DB 행은 처음 불러올 때와 대기실(초기화 반영)에서만 따른다.
+  // 매번 따르면 3초 재동기화가 아직 저장 전인 옛 행을 읽어 와 돈이 되돌아가고, 그 위에 다음 수익이 쌓여 영영 사라진다.
+  const hasRestoredStoreRef = useRef(false)
   const canSyncAnswerHistoryRef = useRef(true)
 
   // URL에서 roomCode와 playerId 가져오기
@@ -112,7 +115,7 @@ export function useConvenienceStoreGame() {
     }
   }, [])
 
-  const { players, loading: playersLoading } = usePlayersRealtime({ roomCode })
+  const { players, loading: playersLoading, applyPlayerPatch } = usePlayersRealtime({ roomCode })
   const { room, loading: roomLoading } = useRoomRealtime({ roomCode })
   const { sendEvent: sendRoomEvent } = useRoomChannel({
     roomCode,
@@ -128,13 +131,15 @@ export function useConvenienceStoreGame() {
   ) => {
     if (!playerId) return
 
+    // broadcast는 self:false라 내 탭에는 안 돌아온다. 내 행은 여기서 바로 반영한다.
+    applyPlayerPatch(playerId, patch)
     void sendRoomEvent('player:patch', {
       playerId,
       patch,
       reason,
     })
     await updatePlayer(playerId, patch)
-  }, [playerId, sendRoomEvent])
+  }, [applyPlayerPatch, playerId, sendRoomEvent])
 
   // ─── 정답 기록 DB 동기화 ───
   // flushAnswerHistory: 지금까지 쌓인 기록을 바로 저장. 게임 종료 직전에 호출해 마지막 답이 누락되지 않게 한다.
@@ -270,11 +275,14 @@ export function useConvenienceStoreGame() {
   // 저장된 데이터 불러오기
   useEffect(() => {
     if (currentPlayer) {
-      if (currentPlayer.convenience_money !== undefined) {
-        setMoney(currentPlayer.convenience_money)
-      }
-      if (currentPlayer.convenience_products) {
-        setProducts(normalizeSavedProducts(currentPlayer.convenience_products as unknown as Product[]))
+      if (currentView === 'lobby' || !hasRestoredStoreRef.current) {
+        hasRestoredStoreRef.current = true
+        if (currentPlayer.convenience_money !== undefined) {
+          setMoney(currentPlayer.convenience_money)
+        }
+        if (currentPlayer.convenience_products) {
+          setProducts(normalizeSavedProducts(currentPlayer.convenience_products as unknown as Product[]))
+        }
       }
       // 새로고침 방어: DB에 남은 기록을 한 번만 복구 (이후엔 로컬 기록이 원본)
       if (!hasRestoredHistoryRef.current) {
@@ -288,7 +296,7 @@ export function useConvenienceStoreGame() {
         }
       }
     }
-  }, [currentPlayer])
+  }, [currentPlayer, currentView])
 
   // 연속 답변을 묶어 DB 쓰기 횟수를 줄인다 (2초 debounce).
   useEffect(() => {

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGameBase } from '@/hooks/useGameBase'
 import { useRaidEvents, useRaidFrenzyClock, useRaidHitPopups } from '@/hooks/useRaidEffects'
-import { updatePlayer } from '@/lib/services/players'
 import type { PlayerDeltas } from '@/lib/services/playerMutations'
 import {
   RAID,
@@ -51,6 +50,7 @@ export function useRaidGame() {
     handleCountdownComplete,
     goToNextQuestion,
     commitPlayerDelta,
+    commitPlayerPatch,
   } = base
 
   const settings = useMemo(() => parseRaidSettings(room?.settings), [room?.settings])
@@ -78,11 +78,11 @@ export function useRaidGame() {
     setSelectedRole(next)
     playSFX('click')
     try {
-      await updatePlayer(playerId, { player_class: next })
+      await commitPlayerPatch(playerId, { player_class: next }, 'raid_role_select')
     } catch (error) {
       console.error('역할 저장 실패:', error)
     }
-  }, [playSFX, playerId])
+  }, [commitPlayerPatch, playSFX, playerId])
 
   // ─── 연속 정답 (새로고침해도 이어지도록 sessionStorage) ───
   const [streak, setStreak] = useState(0)

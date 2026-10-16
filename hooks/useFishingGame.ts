@@ -21,7 +21,6 @@ import {
   type SpecialItemType,
   normalizeSavedDolls,
 } from '@/lib/game/fishing'
-import { updatePlayer } from '@/lib/services/players'
 import type { SFXType } from '@/hooks/useAudio'
 import type { Database } from '@/types/database.types'
 
@@ -39,6 +38,8 @@ interface UseFishingGameParams {
   getElapsedSeconds: () => number
   playSFX: (sound: SFXType) => void
   setCurrentView: (view: string) => void
+  /** 내 행 로컬 반영 + player:patch broadcast + DB 쓰기 (useGameBase.commitPlayerPatch) */
+  commitPlayerPatch: (playerId: string, patch: Record<string, unknown>, reason?: string) => Promise<void>
 }
 
 type PendingPull = {
@@ -70,6 +71,7 @@ export function useFishingGame({
   getElapsedSeconds,
   playSFX,
   setCurrentView,
+  commitPlayerPatch,
 }: UseFishingGameParams) {
   const [fishingState, setFishingState] = useState<FishingState>('idle')
   const [caughtItem, setCaughtItem] = useState<Doll | null>(null)
@@ -180,16 +182,16 @@ export function useFishingGame({
     setCaughtDolls(newDolls)
     const totalPoints = calculateTotalPoints(newDolls)
     try {
-      await updatePlayer(playerId, {
+      await commitPlayerPatch(playerId, {
         caught_dolls: newDolls,
         claw_points: totalPoints,
         score: totalPoints,
-      })
+      }, 'fishing_catch')
       playSFX('item')
     } catch (error) {
       console.error('Error updating doll data:', error)
     }
-  }, [playerId, playSFX])
+  }, [commitPlayerPatch, playerId, playSFX])
 
   const runFishingSequence = useCallback((result: FishingResult) => {
     queueTimer(() => {

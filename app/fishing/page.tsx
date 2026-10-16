@@ -45,14 +45,14 @@ export default function FishingPage() {
     playSFX, handlePreStartQuizAnswer,
     checkAnswer, handleWrongAnswer, handleCountdownComplete,
     goToNextQuestion, getElapsedSeconds,
-    sendRoomEvent,
+    sendRoomEvent, commitPlayerPatch,
   } = gameBase
 
   const fishing = useFishingGame({
     playerId,
     currentPlayer: currentPlayer as FishingPlayer | null | undefined,
     checkAnswer, handleWrongAnswer, goToNextQuestion,
-    getElapsedSeconds, playSFX, setCurrentView,
+    getElapsedSeconds, playSFX, setCurrentView, commitPlayerPatch,
   })
 
   const {
