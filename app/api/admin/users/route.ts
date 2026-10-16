@@ -156,7 +156,8 @@ export async function POST(request: NextRequest) {
     }
     const userId = data.user.id
 
-    if (proUntil) await setProUntil(supabase, userId, proUntil)
+    // 가입 트리거가 체험 14일을 먼저 넣는다. 관리자가 정한 기간(무료 포함)이 우선이라 그 값으로 덮어쓴다.
+    await setProUntil(supabase, userId, proUntil)
 
     // 같은 이메일에 걸어 둔 가입 전 예약이 있으면 트리거가 이미 적용했거나, 여기서 직접 만든 기간이 우선이다.
     // 둘 다 남지 않게 예약은 적용된 것으로 표시해 둔다.
