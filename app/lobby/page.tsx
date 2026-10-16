@@ -18,7 +18,7 @@ import GameStartTutorialModal from '@/components/GameStartTutorialModal'
 import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getRoomJoinBlockReason } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
-import type { RoomChannelEvent } from '@/lib/realtime/roomChannel'
+import type { PlayerJoinedPayload, RoomChannelEvent } from '@/lib/realtime/roomChannel'
 import { createPlayerForRoom, findPlayerByNickname, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
 import { getPlayerById, updatePlayer } from '@/lib/services/players'
@@ -277,6 +277,8 @@ function LobbyPage() {
       setIsJoined(true)
       saveLobbyPlayerId(roomCode, playerData.id)
       void sendRoomEvent('room:snapshot-hint', { reason: 'player_joined' })
+      // 중계 서버 모드에서는 players INSERT 구독이 없으므로 새 행을 직접 알린다
+      void sendRoomEvent('player:joined', { player: playerData } satisfies PlayerJoinedPayload)
 
       if (roomData.status === 'playing') {
         router.replace(getGameModeUrl(roomData.game_mode || DEFAULT_GAME_MODE, roomCode, playerData.id))

@@ -19,6 +19,7 @@ export type RoomEventType =
   | 'room:patch'
   | 'game:finished'
   | 'player:patch'
+  | 'player:joined'
   | 'game:effect'
   | 'tutorial:show'
   | 'tutorial:slide'
@@ -53,6 +54,11 @@ export type PlayerPatchPayload = {
   playerId: string
   patch: Partial<PlayerRow> & Record<string, unknown>
   reason?: string
+}
+
+/** 새로 입장한 학생의 행 전체. 중계 서버 모드에서는 players INSERT 구독 대신 이걸로 목록에 넣는다 */
+export type PlayerJoinedPayload = {
+  player: PlayerRow
 }
 
 export type RoomPatchPayload = {

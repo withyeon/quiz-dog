@@ -5,6 +5,7 @@ import {
   subscribeRoomRuntimeEvent,
   type RoomPatchPayload,
 } from '@/lib/realtime/roomChannel'
+import { isRelayRoomTransport } from '@/lib/realtime/transport'
 import type { Database } from '@/types/database.types'
 
 type Room = Database['public']['Tables']['rooms']['Row']
@@ -20,6 +21,14 @@ type RefreshOptions = {
   silent?: boolean
 }
 
+/**
+ * 방 재조회 간격. Supabase 모드는 rooms UPDATE 구독이 있어 이건 보조라 2초 그대로 둔다.
+ * 중계 서버 모드는 교사 화면의 room:patch가 주 경로고, 학생마다 쿼리가 방 수만큼 곱해지므로 5초로 둔다.
+ */
+const ROOM_RECONCILE_INTERVAL_MS = isRelayRoomTransport ? 5000 : 2000
+/** 평소에는 updated_at이 바뀌었을 때만 행을 받고, 이 간격마다 한 번은 그냥 다시 읽는다(삭제·놓친 변경 대비) */
+const ROOM_FULL_READ_INTERVAL_MS = 30_000
+
 function getLoadErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message
   if (error && typeof error === 'object' && 'message' in error) {
@@ -34,7 +43,7 @@ function isTransientFetchFailure(error: unknown): boolean {
 }
 
 /**
- * 방 정보는 2초마다 다시 읽고(누락 대비 안전망) postgres_changes로도 들어온다.
+ * 방 정보는 주기적으로 다시 읽고(누락 대비 안전망) postgres_changes(또는 중계 서버의 room:patch)로도 들어온다.
  * 내용이 그대로여도 setRoom에 새 객체를 넣으면 참조가 바뀌어 게임 화면 전체가
  * 다시 그려진다 — 아무 일도 없는데 모든 기기가 2초마다 리렌더되던 원인이다.
  * 내용이 같으면 이전 객체를 유지해 리렌더를 건너뛴다.
@@ -61,6 +70,9 @@ export function useRoomRealtime({
   // 비-silent 조회가 loading=true를 켠 뒤, silent 재동기화가 seq를 앞질러도 마지막에 끝나는
   // 조회가 loading을 꺼주도록 한다. (안 그러면 초기 조회가 silent에 추월당해 '로딩 중'에 영원히 갇힘)
   const loadingPendingRef = useRef(false)
+  /** DB에서 마지막으로 받은 방 행의 updated_at 원문. 바뀐 경우에만 행을 받는 재조회의 기준 */
+  const serverUpdatedAtRef = useRef<string | null>(null)
+  const lastFullReadAtRef = useRef(0)
   const onRoomUpdateRef = useRef(onRoomUpdate)
 
   useEffect(() => {
@@ -124,6 +136,8 @@ export function useRoomRealtime({
 
       if (seq === loadSeqRef.current) {
         commitRoom(data)
+        serverUpdatedAtRef.current = (data as Room | null)?.updated_at ?? null
+        lastFullReadAtRef.current = Date.now()
       }
     } catch (err) {
       if (seq === loadSeqRef.current) {
@@ -162,7 +176,12 @@ export function useRoomRealtime({
       return
     }
 
+    serverUpdatedAtRef.current = null
+    lastFullReadAtRef.current = 0
     void refreshRoom()
+
+    // 중계 서버 모드: Supabase Realtime 소켓을 열지 않는다. 방 상태 변경은 room:patch 이벤트와 재조회로 받는다.
+    if (isRelayRoomTransport) return
 
     const channel = supabase
       .channel(`room:${roomCode}`)
@@ -189,7 +208,7 @@ export function useRoomRealtime({
     return () => {
       releaseRealtimeChannel(channel)
     }
-  }, [enabled, refreshRoom, roomCode])
+  }, [commitRoom, enabled, refreshRoom, roomCode])
 
   useEffect(() => {
     if (!enabled || !roomCode) return
@@ -218,25 +237,58 @@ export function useRoomRealtime({
   // Realtime은 가장 빠른 경로지만, 모바일 절전·교실 Wi-Fi 전환·DB publication
   // 지연으로 이벤트 하나가 빠질 수 있다. 짧은 스냅샷 재조정을 함께 두어 모든
   // 클라이언트가 종료/일시정지 같은 권위 상태로 빠르게 수렴하게 한다.
+  // 재조회는 마지막으로 본 updated_at보다 새로울 때만 행을 받는다(안 바뀌었으면 빈 응답).
+  // 학생 수 × 방 수만큼 도는 쿼리라 응답 크기를 줄이는 게 egress에 크다.
+  const reconcileRoom = useCallback(async () => {
+    if (!enabled || !roomCode || !checkSupabaseConfig().isValid) return
+    const since = serverUpdatedAtRef.current
+    if (!since || Date.now() - lastFullReadAtRef.current >= ROOM_FULL_READ_INTERVAL_MS) {
+      await refreshRoom({ silent: true })
+      return
+    }
+
+    const seq = loadSeqRef.current
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('rooms')
+        .select('*')
+        .eq('room_code', roomCode)
+        .gt('updated_at', since)
+        .maybeSingle()
+      if (fetchError) throw fetchError
+      if (!data || seq !== loadSeqRef.current) return
+      commitRoom(data as Room)
+      serverUpdatedAtRef.current = (data as Room).updated_at ?? since
+    } catch (err) {
+      console.warn('방 재조회 실패:', getLoadErrorMessage(err))
+    }
+  }, [commitRoom, enabled, refreshRoom, roomCode])
+
   useEffect(() => {
     if (!enabled || !roomCode || typeof window === 'undefined') return
 
     const reconcile = () => {
       if (document.visibilityState === 'visible') {
+        void reconcileRoom()
+      }
+    }
+    // 탭으로 돌아오면 그냥 다시 읽는다
+    const onReturn = () => {
+      if (document.visibilityState === 'visible') {
         void refreshRoom({ silent: true })
       }
     }
 
-    const intervalId = window.setInterval(reconcile, 2000)
-    window.addEventListener('focus', reconcile)
-    document.addEventListener('visibilitychange', reconcile)
+    const intervalId = window.setInterval(reconcile, ROOM_RECONCILE_INTERVAL_MS)
+    window.addEventListener('focus', onReturn)
+    document.addEventListener('visibilitychange', onReturn)
 
     return () => {
       window.clearInterval(intervalId)
-      window.removeEventListener('focus', reconcile)
-      document.removeEventListener('visibilitychange', reconcile)
+      window.removeEventListener('focus', onReturn)
+      document.removeEventListener('visibilitychange', onReturn)
     }
-  }, [enabled, refreshRoom, roomCode])
+  }, [enabled, reconcileRoom, refreshRoom, roomCode])
 
   return {
     room,

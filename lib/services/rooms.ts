@@ -247,7 +247,7 @@ export async function createPlayerForRoom(input: {
   gameMode?: string | null
   /** 입장 시점의 방 상태. 게임이 이미 시작된 뒤(도중 입장)면 시작 때 받았을 초기 역할을 함께 넣는다 */
   roomStatus?: RoomRow['status'] | null
-}): Promise<{ id: string }> {
+}): Promise<PlayerRow> {
   const mode = isGameModeId(input.gameMode) ? input.gameMode : DEFAULT_GAME_MODE
   const normalizedNickname = input.nickname.trim()
   // 좀비 모드는 역할을 startRoom 이 한 번에 배정한다. 시작 뒤에 들어온 학생은 그 배정을 놓치므로
@@ -268,11 +268,12 @@ export async function createPlayerForRoom(input: {
   const { data, error } = await (supabase
     .from('players') as any)
     .insert(payload)
-    .select('id')
+    .select('*')
     .single()
 
   if (error) throw error
-  return data as { id: string }
+  // 행 전체를 돌려준다: 중계 서버 모드에서는 이걸 player:joined로 보내 다른 화면 목록에 바로 넣는다
+  return data as PlayerRow
 }
 
 export async function ensureRoomExists(roomCode: string): Promise<RoomRow> {

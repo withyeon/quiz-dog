@@ -27,6 +27,7 @@ import {
 } from '@/lib/game/battleRoyale'
 import type { Database } from '@/types/database.types'
 import { emitRoomRuntimeEvent, subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import { listPlayersInRoom } from '@/lib/services/players'
 
 /** 눈싸움에서 쓰는 플레이어 행. 체력·장비·팀·부활 연속 정답 수가 붙는다. */
 export type BattlePlayer = Database['public']['Tables']['players']['Row'] & {
@@ -208,29 +209,36 @@ export function useSnowBattleGame() {
     }
 
     hasAssignedTeamsRef.current = true
-    const assignments = assignTeams(players, {
-      accuracyOf: (player) => {
-        const history = (player as BattlePlayer).answer_history
-        if (!Array.isArray(history) || history.length === 0) return null
-        const correct = history.filter(
-          (rec: unknown) =>
-            typeof rec === 'object' && rec !== null && (rec as { isCorrect?: boolean }).isCorrect,
-        ).length
-        return correct / history.length
-      },
-    })
+    const roster = players
+    void (async () => {
+      // 정답률은 answer_history로 잰다. 주기 재동기화는 이 큰 컬럼을 읽지 않아(usePlayersRealtime)
+      // 목록의 값은 처음 불러온 때 것이라, 시작 전 퀴즈 기록이 반영되도록 여기서 한 번 새로 읽는다.
+      const fresh = roomCode ? await listPlayersInRoom(roomCode).catch(() => null) : null
+      const historyById = new Map((fresh ?? []).map((player) => [player.id, player.answer_history]))
+      const assignments = assignTeams(roster, {
+        accuracyOf: (player) => {
+          const history = historyById.get(player.id) ?? (player as BattlePlayer).answer_history
+          if (!Array.isArray(history) || history.length === 0) return null
+          const correct = history.filter(
+            (rec: unknown) =>
+              typeof rec === 'object' && rec !== null && (rec as { isCorrect?: boolean }).isCorrect,
+          ).length
+          return correct / history.length
+        },
+      })
 
-    Promise.all(
-      Array.from(assignments.entries()).map(([playerId, team]) =>
-        commitPlayerPatch(playerId, { team, revival_streak: 0 }, 'battle_team_assign'),
-      ),
-    ).catch((error) => {
+      await Promise.all(
+        Array.from(assignments.entries()).map(([playerId, team]) =>
+          commitPlayerPatch(playerId, { team, revival_streak: 0 }, 'battle_team_assign'),
+        ),
+      )
+    })().catch((error) => {
       // 재시도하지 않는다. players가 바뀔 때마다 이 effect가 다시 도는데
       // (팀 컬럼 누락 같은) 영구적인 실패면 실패한 update를 게임 내내 쏟아붓게 된다.
       // 팀 없이 개인전으로 그대로 진행한다.
       console.error('팀 배정 실패 — 개인전으로 진행합니다:', error)
     })
-  }, [commitPlayerPatch, isPreStartQuizComplete, isRoomHost, players, room?.status])
+  }, [commitPlayerPatch, isPreStartQuizComplete, isRoomHost, players, room?.status, roomCode])
 
   // 게임 도중 들어온 학생은 시작 때의 팀 배정을 놓친다. 팀전이 이미 진행 중이면
   // 생존자가 적은 팀(같으면 인원이 적은 팀)에 스스로 합류한다.
