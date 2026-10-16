@@ -3,7 +3,7 @@ import { generateQuestions, parseExamVisionResponse, type QuestionInput, type So
 
 export const maxDuration = 60
 export const runtime = 'nodejs'
-import { getYouTubeTranscript } from '@/lib/utils/youtube'
+import { getYouTubeTranscript, normalizeYouTubeUrl, YouTubeTranscriptError } from '@/lib/utils/youtube'
 import { extractTextFromPDF } from '@/lib/utils/pdf'
 import { extractTextFromDOCX } from '@/lib/extractors/docx'
 import { extractTextFromPPT, extractTextFromPPTX } from '@/lib/extractors/ppt'
@@ -172,9 +172,45 @@ export async function POST(request: NextRequest) {
       const youtubeUrl = formData.get('youtubeUrl') as string
       if (!youtubeUrl) return NextResponse.json({ error: '유튜브 URL을 입력해주세요.' }, { status: 400 })
 
-      const transcript = await getYouTubeTranscript(youtubeUrl)
-      const questions = await generateQuestions({ sourceType, text: transcript, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
-      return NextResponse.json({ questions })
+      const videoUrl = normalizeYouTubeUrl(youtubeUrl)
+      if (!videoUrl) return NextResponse.json({ error: '유효하지 않은 YouTube URL입니다. 영상 링크를 다시 확인해 주세요.' }, { status: 400 })
+
+      // 1차: 자막(글)으로 만든다 — 싸고 빠르다. 서버 IP 가 유튜브 봇 확인에 걸리거나(Vercel 에서 흔함) 자막이 없는 영상이면
+      // 2차: Gemini 에 영상 URL 을 직접 넘겨 영상을 보고 만들게 한다(공개 영상만, 앞 20분).
+      let transcript: string | null = null
+      try {
+        transcript = await getYouTubeTranscript(videoUrl)
+      } catch (error) {
+        const code = error instanceof YouTubeTranscriptError ? error.code : 'fetch_failed'
+        console.warn(`[generate-questions] youtube transcript unavailable (${code}), falling back to Gemini video input`, error instanceof Error ? error.message : error)
+      }
+
+      const base = { sourceType, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }
+      if (transcript) {
+        const questions = await generateQuestions({ ...base, text: transcript }, questionCount)
+        return NextResponse.json({ questions })
+      }
+
+      try {
+        const questions = await generateQuestions({ ...base, videoUrl }, questionCount)
+        return NextResponse.json({ questions })
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : ''
+        // Gemini 가 영상을 못 받는 경우: 비공개/일부 공개/삭제/연령 제한 영상, 또는 너무 긴 영상
+        if (/not (be )?(accessible|found|supported)|private|unavailable|unlisted|permission|403|404|INVALID_ARGUMENT|400/i.test(msg)) {
+          return NextResponse.json(
+            { error: '이 영상은 읽을 수 없습니다. 공개(전체 공개) 영상인지, 삭제·연령 제한 영상이 아닌지 확인해 주세요.' },
+            { status: 422 },
+          )
+        }
+        if (/timeout|timed out|deadline|504/i.test(msg)) {
+          return NextResponse.json(
+            { error: '영상을 읽는 데 시간이 너무 오래 걸렸습니다. 더 짧은 영상이나 자막이 있는 영상으로 다시 시도해 주세요.' },
+            { status: 504 },
+          )
+        }
+        throw error
+      }
     }
 
     // === 텍스트 직접 입력 ===

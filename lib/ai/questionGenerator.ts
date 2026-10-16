@@ -1,10 +1,15 @@
-import { GoogleGenerativeAI, SchemaType, type ResponseSchema } from '@google/generative-ai'
+import { GoogleGenerativeAI, SchemaType, type Part, type ResponseSchema } from '@google/generative-ai'
 
 export type SourceType = 'topic' | 'youtube' | 'text' | 'pdf' | 'file' | 'exam'
 
 export interface QuestionInput {
   topic?: string
   text?: string
+  /**
+   * Gemini 가 직접 보는 유튜브 영상 URL(공개 영상만). 자막을 못 가져왔을 때 text 대신 쓴다.
+   * 앞 VIDEO_MAX_SECONDS 초만, 낮은 프레임·해상도로 넣어 비용을 묶는다.
+   */
+  videoUrl?: string
   sourceType: SourceType
   grade?: string
   subject?: string
@@ -52,6 +57,12 @@ const PRIMARY_MODEL = 'gemini-3.6-flash'
 const FALLBACK_MODEL = 'gemini-3.5-flash-lite'
 // SDK(@google/generative-ai) 타입에는 아직 없어 spread 로 넘긴다. 2.5 계열은 이 옵션을 400 으로 거부한다.
 const THINKING_CONFIG: Record<string, unknown> = { thinkingConfig: { thinkingLevel: 'low' } }
+
+// 유튜브 영상 직접 입력(자막을 못 가져왔을 때). 2026-10-16 실측: 4분 영상이 fps 0.25·저해상도로 약 1만 토큰(음성 포함)
+// → 20분 상한이면 5만 토큰 안팎. 서버 함수 제한(60초) 안에 끝나야 하므로 길이와 응답 대기 시간을 함께 묶는다.
+const VIDEO_MAX_SECONDS = 1200
+const VIDEO_FPS = 0.25
+const VIDEO_REQUEST_TIMEOUT_MS = 50_000
 
 // 구조화 출력 스키마 — 모델이 형식을 어기는 일(유형 오타, options 누락, 마크다운 감싸기)을
 // API 단계에서 막는다. 스키마를 거부하는 모델/버전이면 스키마 없이 한 번 더 부른다.
@@ -210,6 +221,24 @@ ${jsonFormat}
 ${qualityRules}${userRequest}`
   }
 
+  const materialRules = `
+- 자료에 있는 사실만 사용하고, 자료에 없는 세부 사실을 지어내지 마세요. 자료가 부족하면 일반 상식으로 채우지 말고 확인 가능한 핵심 내용에 집중하세요.
+- 자료의 핵심 개념·주요 사실을 우선하고, 지엽적인 숫자·이름 나열이나 자료의 형식(쪽 번호, 제목, 작성자)에 관한 문제는 내지 마세요.
+- 문제는 자료 없이도 풀 수 있게 독립적으로 쓰세요. 학생은 자료를 보지 못합니다.`
+
+  if (input.videoUrl) {
+    return `${contextHeader}
+
+함께 넣은 유튜브 영상의 내용을 바탕으로 문제를 만들어 주세요. 영상에서 말하는 내용(음성)과 화면에 보이는 글·그림을 모두 자료로 삼되, 설명하는 지식·개념이 중심입니다.
+${repairSection}${avoidSection}
+
+${jsonFormat}
+
+${qualityRules}${materialRules}
+- 영상의 인사말·광고·구독 요청·잡담은 무시하고 가르치는 내용만 보세요.
+- "영상에서", "화면에" 같은 표현을 문제에 쓰지 마세요. 학생은 영상을 보지 않고 풉니다.${userRequest}`
+  }
+
   const text = truncateText(input.text || '')
   return `${contextHeader}
 
@@ -220,11 +249,8 @@ ${repairSection}${avoidSection}
 
 ${jsonFormat}
 
-${qualityRules}
-- 자료에 있는 사실만 사용하고, 자료에 없는 세부 사실을 지어내지 마세요. 자료가 부족하면 일반 상식으로 채우지 말고 확인 가능한 핵심 내용에 집중하세요.
-- 자료의 핵심 개념·주요 사실을 우선하고, 지엽적인 숫자·이름 나열이나 자료의 형식(쪽 번호, 제목, 작성자)에 관한 문제는 내지 마세요.
-- 자료가 자막·발표 자료라면 인사말·광고·오타·반복 같은 군더더기는 무시하고 내용만 보세요.
-- 문제는 자료 없이도 풀 수 있게 독립적으로 쓰세요. 학생은 자료를 보지 못합니다.${userRequest}`
+${qualityRules}${materialRules}
+- 자료가 자막·발표 자료라면 인사말·광고·오타·반복 같은 군더더기는 무시하고 내용만 보세요.${userRequest}`
 }
 
 function parseQuestionsFromJSON(text: string): GeneratedQuestion[] {
@@ -545,28 +571,44 @@ async function callGeminiModel(
   modelName: string,
   prompt: string,
   useSchema: boolean,
+  videoUrl?: string,
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    generationConfig: {
-      responseMimeType: 'application/json',
-      ...THINKING_CONFIG,
-      ...(useSchema ? { responseSchema: RESPONSE_SCHEMA } : {}),
-      // 너무 낮으면 오답 보기가 뻔해지고, 너무 높으면 형식을 어긴다
-      temperature: 0.5,
+  const model = genAI.getGenerativeModel(
+    {
+      model: modelName,
+      generationConfig: {
+        responseMimeType: 'application/json',
+        ...THINKING_CONFIG,
+        ...(useSchema ? { responseSchema: RESPONSE_SCHEMA } : {}),
+        // 영상은 글·말만 알아보면 되므로 저해상도(프레임당 토큰 1/4). SDK 타입에 없어 spread.
+        ...(videoUrl ? { mediaResolution: 'MEDIA_RESOLUTION_LOW' } : {}),
+        // 너무 낮으면 오답 보기가 뻔해지고, 너무 높으면 형식을 어긴다
+        temperature: 0.5,
+      },
     },
-  })
-  const result = await model.generateContent(prompt)
+    videoUrl ? { timeout: VIDEO_REQUEST_TIMEOUT_MS } : undefined,
+  )
+  if (!videoUrl) {
+    const result = await model.generateContent(prompt)
+    return result.response.text()
+  }
+  // 유튜브 URL 은 fileData.fileUri 로 넘기면 Gemini 가 직접 받아 본다(mimeType 불필요, 공개 영상만).
+  // videoMetadata(구간·fps)도 SDK 타입에 없어 Part 로 캐스팅한다.
+  const videoPart = {
+    fileData: { fileUri: videoUrl, mimeType: 'video/*' },
+    videoMetadata: { startOffset: '0s', endOffset: `${VIDEO_MAX_SECONDS}s`, fps: VIDEO_FPS },
+  } as unknown as Part
+  const result = await model.generateContent([videoPart, { text: prompt }])
   return result.response.text()
 }
 
-async function callGeminiWithRetry(apiKey: string, prompt: string): Promise<string> {
+async function callGeminiWithRetry(apiKey: string, prompt: string, videoUrl?: string): Promise<string> {
   const delays = [1000, 2000]
   let useSchema = true
   for (let i = 0; i <= delays.length; i++) {
     try {
-      return await callGeminiModel(apiKey, PRIMARY_MODEL, prompt, useSchema)
+      return await callGeminiModel(apiKey, PRIMARY_MODEL, prompt, useSchema, videoUrl)
     } catch (error) {
       // 스키마를 못 받는 경우(400) → 스키마 없이 바로 다시
       if (useSchema && isBadRequestError(error) && !isQuotaError(error) && !isOverloadedError(error)) {
@@ -581,10 +623,10 @@ async function callGeminiWithRetry(apiKey: string, prompt: string): Promise<stri
       // 과부하가 지속되거나 쿼터 초과면 경량 모델로 폴백 (별도 쿼터 버킷)
       if (isOverloadedError(error) || isQuotaError(error)) {
         try {
-          return await callGeminiModel(apiKey, FALLBACK_MODEL, prompt, useSchema)
+          return await callGeminiModel(apiKey, FALLBACK_MODEL, prompt, useSchema, videoUrl)
         } catch (fallbackError) {
           if (useSchema && isBadRequestError(fallbackError) && !isQuotaError(fallbackError)) {
-            return callGeminiModel(apiKey, FALLBACK_MODEL, prompt, false)
+            return callGeminiModel(apiKey, FALLBACK_MODEL, prompt, false, videoUrl)
           }
           if (isQuotaError(fallbackError)) {
             throw new Error('AI 사용량 한도를 초과했습니다. 잠시 후 다시 시도하거나 Gemini API 결제를 활성화해주세요.')
@@ -610,7 +652,7 @@ async function generateQuestionsWithGemini(
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const prompt = buildGenerationPrompt(input, questionCount, repairNote)
-    const text = await callGeminiWithRetry(apiKey, prompt)
+    const text = await callGeminiWithRetry(apiKey, prompt, input.videoUrl)
     const questions = validateQuestions(parseQuestionsFromJSON(text), questionCount, { shuffleChoices: true })
     if (questions.length > bestQuestions.length) bestQuestions = questions
     if (questions.length >= questionCount) return questions
@@ -734,6 +776,9 @@ export async function generateQuestions(
 ): Promise<GeneratedQuestion[]> {
   if (process.env.GEMINI_API_KEY) {
     return generateQuestionsWithGemini(input, questionCount)
+  }
+  if (input.videoUrl) {
+    throw new Error('영상을 직접 읽어 문제를 만들려면 GEMINI_API_KEY 가 필요합니다.')
   }
   if (process.env.OPENAI_API_KEY) {
     return generateQuestionsWithOpenAI(input, questionCount)

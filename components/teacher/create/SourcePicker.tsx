@@ -18,7 +18,7 @@ type SourceOption = {
 export const SOURCE_OPTIONS: SourceOption[] = [
   { id: 'topic', title: '주제', caption: '배울 단원이나 내용을 적어요', icon: Pencil, iconClass: 'bg-sky-100 text-sky-600', badge: null },
   { id: 'file', title: '수업 자료', caption: 'PDF · PPT · DOCX · TXT 파일', icon: FileText, iconClass: 'bg-emerald-100 text-emerald-600', badge: null },
-  { id: 'youtube', title: '유튜브 영상', caption: '자막이 있는 영상 링크', icon: Youtube, iconClass: 'bg-rose-100 text-rose-600', badge: '베타' },
+  { id: 'youtube', title: '유튜브 영상', caption: '공개 영상 링크', icon: Youtube, iconClass: 'bg-rose-100 text-rose-600', badge: '베타' },
   { id: 'exam', title: '종이 시험지', caption: '사진 · 스캔 PDF 속 문제를 옮겨요', icon: ScanLine, iconClass: 'bg-amber-100 text-amber-600', badge: null },
 ]
 
@@ -184,7 +184,7 @@ export default function SourcePicker({
               autoComplete="off"
             />
             <p className="mt-2 break-keep text-xs font-medium leading-5 text-slate-500">
-              자막(자동 생성 포함)이 있는 공개 영상만 돼요. 영상 속 설명을 바탕으로 문제를 만들고, 영상 화면은 쓰지 않아요.
+              전체 공개 영상이면 돼요(비공개·일부 공개 영상은 안 돼요). 자막이 있으면 자막으로, 없으면 AI 가 영상을 직접 보고 앞 20분 내용으로 문제를 만들어요.
             </p>
           </div>
         )}
