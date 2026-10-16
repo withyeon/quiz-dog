@@ -1,11 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase, checkSupabaseConfig } from '@/lib/supabase/client'
-import { ensureRealtimeSocketConnected, releaseRealtimeChannel } from '@/lib/supabase/realtimeLifecycle'
 import {
   emitRoomRuntimeEvent,
-  flattenPresenceState,
   getRoomClientId,
   notifyOutgoingRoomEvent,
   type RoomChannelEvent,
@@ -14,14 +11,8 @@ import {
   type RoomPresenceRole,
   type RoomResyncReason,
 } from '@/lib/realtime/roomChannel'
-
-type RoomChannelStatus =
-  | 'idle'
-  | 'subscribing'
-  | 'subscribed'
-  | 'closed'
-  | 'timed_out'
-  | 'channel_error'
+import { roomTransport, type RoomChannelStatus, type SendEventResult } from '@/lib/realtime/transport'
+import type { RoomConnection } from '@/lib/realtime/transport/types'
 
 type UseRoomChannelOptions = {
   roomCode: string
@@ -34,11 +25,6 @@ type UseRoomChannelOptions = {
 
 /** 구독이 안 된 채널을 이 간격으로 살펴 소켓 재연결·채널 재생성을 한다 */
 const WATCHDOG_INTERVAL_MS = 3000
-
-type SendEventResult = {
-  ok: boolean
-  reason?: string
-}
 
 export function useRoomChannel({
   roomCode,
@@ -54,7 +40,7 @@ export function useRoomChannel({
   // 버려진 채널(teardown)을 새로 만들어야 할 때 올려서 구독 효과를 다시 돌린다
   const [generation, setGeneration] = useState(0)
 
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const channelRef = useRef<RoomConnection | null>(null)
   const statusRef = useRef<RoomChannelStatus>('idle')
   const seqRef = useRef(0)
   const wasSubscribedRef = useRef(false)
@@ -105,27 +91,8 @@ export function useRoomChannel({
     // self:false 라 이 탭으로는 안 돌아오는 이벤트를, 같은 탭에서 들어야 하는 쪽(/dev 봇)에 알린다
     notifyOutgoingRoomEvent(event as RoomChannelEvent)
 
-    // 1) 채널이 살아 있으면 웹소켓으로 보낸다(ack 대기).
-    //    예전에는 채널이 '구독됨'이 아니면 여기서 조용히 포기했다. 교실 와이파이가 흔들려
-    //    소켓이 재연결 중(1~10초)일 때 뽑은 공격 아이템이 그대로 증발하던 원인.
-    let wsResult: string | null = null
-    if (statusRef.current === 'subscribed') {
-      try {
-        wsResult = await channel.send({ type: 'broadcast', event: 'room_event', payload: event })
-      } catch (error) {
-        wsResult = String(error)
-      }
-      if (wsResult === 'ok') return { ok: true }
-    }
-
-    // 2) 소켓이 끊겼거나 push가 실패/타임아웃이면 REST 브로드캐스트로 한 번 더 보낸다.
-    //    서버가 같은 채널 구독자에게 뿌려 주므로 내 소켓 상태와 무관하게 전달된다.
-    try {
-      await channel.httpSend('room_event', event as unknown as Record<string, unknown>)
-      return { ok: true, reason: wsResult ? `rest_after_${wsResult}` : 'rest_fallback' }
-    } catch (error) {
-      return { ok: false, reason: wsResult ?? (error instanceof Error ? error.message : String(error)) }
-    }
+    // 구독돼 있으면 소켓(ack 대기)으로, 아니면 바로 예비 경로(HTTP)로 보낸다. 자세한 건 각 전송 구현 참고.
+    return channel.send(event as RoomChannelEvent, statusRef.current === 'subscribed')
   }, [clientId, roomCode])
 
   const requestResync = useCallback((reason: RoomResyncReason = 'manual') => {
@@ -148,8 +115,7 @@ export function useRoomChannel({
       return
     }
 
-    const configCheck = checkSupabaseConfig()
-    if (!configCheck.isValid) {
+    if (!roomTransport.isConfigured()) {
       setChannelStatus('channel_error')
       return
     }
@@ -160,26 +126,13 @@ export function useRoomChannel({
     setClientId(nextClientId)
     setChannelStatus('subscribing')
 
-    const channel = supabase
-      .channel(`runtime:${roomCode}`, {
-        config: {
-          broadcast: {
-            ack: true,
-            self: false,
-          },
-          presence: {
-            key: nextClientId,
-          },
-        },
-      })
-      .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState() as Record<string, unknown[]>
+    const channel = roomTransport.connect({ roomCode, clientId: nextClientId }, {
+      onPresence: (nextPresence) => {
         if (mountedRef.current) {
-          setPresence(flattenPresenceState(state))
+          setPresence(nextPresence)
         }
-      })
-      .on('broadcast', { event: 'room_event' }, ({ payload }) => {
-        const event = payload as RoomChannelEvent
+      },
+      onEvent: (event) => {
         if (!event || event.roomCode !== roomCode || event.clientId === nextClientId) return
 
         emitRoomRuntimeEvent(event)
@@ -188,45 +141,40 @@ export function useRoomChannel({
         if (event.type === 'game:finished') {
           void onResyncNeededRef.current?.('broadcast_hint')
         }
-      })
-      .subscribe((nextStatus) => {
-        if (nextStatus === 'SUBSCRIBED') {
-          setChannelStatus('subscribed')
-          void channel.track({
-            clientId: nextClientId,
-            role,
-            playerId: playerIdRef.current,
-            onlineAt: onlineAtRef.current,
-            lastSeenAt: new Date().toISOString(),
-          } satisfies RoomPresenceMeta)
-
-          const reason: RoomResyncReason = wasSubscribedRef.current ? 'reconnected' : 'subscribed'
-          wasSubscribedRef.current = true
-          void onResyncNeededRef.current?.(reason)
+      },
+      onStatus: (nextStatus) => {
+        if (nextStatus !== 'subscribed') {
+          setChannelStatus(nextStatus)
           return
         }
 
-        if (nextStatus === 'CHANNEL_ERROR') {
-          setChannelStatus('channel_error')
-        } else if (nextStatus === 'TIMED_OUT') {
-          setChannelStatus('timed_out')
-        } else if (nextStatus === 'CLOSED') {
-          setChannelStatus('closed')
-        }
-      })
+        setChannelStatus('subscribed')
+        channel.track({
+          clientId: nextClientId,
+          role,
+          playerId: playerIdRef.current,
+          onlineAt: onlineAtRef.current,
+          lastSeenAt: new Date().toISOString(),
+        } satisfies RoomPresenceMeta)
+
+        const reason: RoomResyncReason = wasSubscribedRef.current ? 'reconnected' : 'subscribed'
+        wasSubscribedRef.current = true
+        void onResyncNeededRef.current?.(reason)
+      },
+    })
 
     channelRef.current = channel
 
     // 안전망: 구독이 안 된 채로 멈춰 있으면 소켓을 다시 연결하고, 채널이 통째로 버려졌으면
-    // (소켓 teardown → state 'closed') 새로 만든다. realtime-js는 소켓이 닫힌 채 남으면 스스로
+    // (Supabase: 소켓 teardown → state 'closed') 새로 만든다. realtime-js는 소켓이 닫힌 채 남으면 스스로
     // connect()를 다시 부르지 않아 join이 영원히 묻힌다(로비 → 게임 전환에서 실제로 일어났던 일).
     const watchdog = window.setInterval(() => {
       if (channelRef.current !== channel || statusRef.current === 'subscribed') return
-      if (channel.state === 'closed') {
+      if (channel.isAbandoned()) {
         setGeneration((value) => value + 1)
         return
       }
-      ensureRealtimeSocketConnected()
+      channel.ensureConnected()
     }, WATCHDOG_INTERVAL_MS)
 
     return () => {
@@ -234,8 +182,7 @@ export function useRoomChannel({
       channelRef.current = null
       clientIdRef.current = ''
       setPresence([])
-      // removeChannel이 아니라 unsubscribe: 마지막 채널이라고 소켓까지 끊지 않는다(이유는 helper 주석).
-      releaseRealtimeChannel(channel)
+      channel.close()
     }
   }, [enabled, generation, role, roomCode, setChannelStatus])
 
@@ -243,7 +190,7 @@ export function useRoomChannel({
     const channel = channelRef.current
     if (!channel || status !== 'subscribed') return
 
-    void channel.track({
+    channel.track({
       clientId,
       role,
       playerId,
@@ -257,7 +204,7 @@ export function useRoomChannel({
     if (!channel || status !== 'subscribed' || !clientId) return
 
     const heartbeat = window.setInterval(() => {
-      void channel.track({
+      channel.track({
         clientId,
         role,
         playerId: playerIdRef.current,
