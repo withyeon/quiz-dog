@@ -20,7 +20,7 @@ export interface Character {
 // 캐릭터 목록
 // public/character/ 폴더에 이미지를 넣고 여기에 추가하세요
 export const CHARACTERS: Character[] = [
-  // 강아지 캐릭터 (1.webp ~ 30.webp)
+  // 강아지 캐릭터 (1.webp ~ 31.webp)
   { id: 'blook_1', name: '시바견', imagePath: '/character/1.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_2', name: '비숑 프리제', imagePath: '/character/2.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_3', name: '사모예드', imagePath: '/character/3.webp', emoji: '🐶', category: 'default' },
@@ -51,6 +51,7 @@ export const CHARACTERS: Character[] = [
   { id: 'blook_28', name: '미니어처 슈나우저', imagePath: '/character/28.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_29', name: '바셋 하운드', imagePath: '/character/29.webp', emoji: '🐶', category: 'default' },
   { id: 'blook_30', name: '세인트 버나드', imagePath: '/character/30.webp', emoji: '🐶', category: 'default' },
+  { id: 'blook_31', name: '버니두들', imagePath: '/character/31.webp', emoji: '🐶', category: 'default' },
 ]
 
 /**

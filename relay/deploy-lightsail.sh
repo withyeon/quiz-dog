@@ -15,9 +15,9 @@ SUPABASE_ANON_KEY="${3:?supabase anon key}"
 RAW="https://raw.githubusercontent.com/withyeon/quiz-dog/${REF}/relay"
 
 mkdir -p /opt/relay2
-curl -fsSL "${RAW}/socket-server.mjs" -o /opt/relay2/socket-server.mjs.new
-node --check /opt/relay2/socket-server.mjs.new
-mv /opt/relay2/socket-server.mjs.new /opt/relay2/socket-server.mjs
+curl -fsSL "${RAW}/socket-server.mjs" -o /opt/relay2/socket-server.next.mjs
+node --check /opt/relay2/socket-server.next.mjs
+mv /opt/relay2/socket-server.next.mjs /opt/relay2/socket-server.mjs
 cat > /opt/relay2/package.json <<'PKG'
 { "name": "quizdog-relay2", "private": true, "type": "module", "dependencies": { "socket.io": "4.8.4" } }
 PKG
