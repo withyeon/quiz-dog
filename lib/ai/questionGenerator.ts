@@ -44,10 +44,14 @@ const QUESTION_TYPES = ['CHOICE', 'SHORT', 'OX', 'BLANK'] as const
 const BLANK_PLACEHOLDER = '[            ]'
 const MAX_AVOID_QUESTIONS = 40
 
-const PRIMARY_MODEL = 'gemini-2.5-flash'
-// 폴백은 별도 쿼터 버킷을 쓰는 경량 모델. gemini-1.5/2.0-flash는 무료 등급에서
-// 제거됐거나 쿼터가 0이라 폴백으로 못 씀(404/429). flash-lite는 무료 쿼터가 있고 가벼움.
-const FALLBACK_MODEL = 'gemini-2.5-flash-lite'
+// 2026-10-16 교체: 2.5-flash 는 legacy(limited access)가 됐고 생각 토큰을 못 줄여 10문제에 ~20초·~15원이 들었다.
+// 3.6-flash + thinkingLevel low 는 같은 프롬프트에서 ~7초·~7원(2027-01-01 단가 2배 뒤에도 지금 수준), 품질은 더 낫다.
+// 3.8-flash 는 품질은 가장 좋지만 503(high demand)이 잦아 보류. 폴백은 별도 쿼터 버킷의 3.5-flash-lite(2.5-lite 는
+// 요청한 유형 개수를 어겼다). 생각 토큰은 출력 단가로 과금되므로 low 가 비용의 핵심이다(minimal 은 거부됨).
+const PRIMARY_MODEL = 'gemini-3.6-flash'
+const FALLBACK_MODEL = 'gemini-3.5-flash-lite'
+// SDK(@google/generative-ai) 타입에는 아직 없어 spread 로 넘긴다. 2.5 계열은 이 옵션을 400 으로 거부한다.
+const THINKING_CONFIG: Record<string, unknown> = { thinkingConfig: { thinkingLevel: 'low' } }
 
 // 구조화 출력 스키마 — 모델이 형식을 어기는 일(유형 오타, options 누락, 마크다운 감싸기)을
 // API 단계에서 막는다. 스키마를 거부하는 모델/버전이면 스키마 없이 한 번 더 부른다.
@@ -547,6 +551,7 @@ async function callGeminiModel(
     model: modelName,
     generationConfig: {
       responseMimeType: 'application/json',
+      ...THINKING_CONFIG,
       ...(useSchema ? { responseSchema: RESPONSE_SCHEMA } : {}),
       // 너무 낮으면 오답 보기가 뻔해지고, 너무 높으면 형식을 어긴다
       temperature: 0.5,
