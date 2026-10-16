@@ -71,12 +71,13 @@ NEXT_PUBLIC_ROOM_RELAY_URL=ws://localhost:8787
 ## 운영 배포 (AWS Lightsail 서울)
 
 - 인스턴스 `quizdog-relay`: ap-northeast-2a, Ubuntu 24.04, $7 플랜(1GB, vCPU 2, 기준 성능 10%), 고정 IP `quizdog-relay-ip` = 43.202.205.147
-- 주소: `wss://43-202-205-147.sslip.io` (sslip.io가 IP를 그대로 풀어 주는 이름). Caddy가 인증서를 자동 발급하고 `/metrics`는 막는다.
-  quizdog.kr DNS(가비아)에 `rt.quizdog.kr` A 레코드를 만들면 그 이름으로 바꾸는 게 좋다(Caddyfile과 Vercel 환경 변수 둘 다).
+- 주소: `wss://rt.quizdog.kr` (가비아 DNS의 A 레코드 `rt` → 43.202.205.147). Caddy가 Let's Encrypt 인증서를 자동 발급·갱신하고 `/metrics`는 막는다.
+  처음에 쓰던 `43-202-205-147.sslip.io`(IP를 그대로 풀어 주는 이름)도 같은 사이트 블록에 남아 있다.
 - 방화벽: 22, 80, 443만 연다. 8787은 밖에서 안 보인다.
 - 처음 켤 때 시작 스크립트가 Node 22, `/opt/relay/server.mjs`, systemd `relay.service`, Caddy를 설치한다.
-  부팅할 때마다 `relay-caddyfile.service`가 현재 공인 IP로 Caddyfile을 다시 쓴다(고정 IP를 바꾸면 재부팅만 하면 된다).
+  부팅할 때마다 `relay-caddyfile.service`(`/usr/local/bin/relay-caddyfile`)가 `rt.quizdog.kr`과 현재 공인 IP의 sslip 이름으로 Caddyfile을 다시 쓴다.
+  고정 IP를 바꾸면 가비아 A 레코드를 고치고 재부팅하면 된다.
 - `ALLOWED_ORIGINS=https://quizdog.kr,https://www.quizdog.kr,http://localhost:3000` (systemd 유닛의 Environment)
 - 서버 코드 갱신: Lightsail 브라우저 SSH로 `/opt/relay/server.mjs`를 바꾸고 `sudo systemctl restart relay`. 클라이언트는 1초 안에 다시 붙는다.
-- 앱 연결: Vercel 운영 환경 변수 `NEXT_PUBLIC_ROOM_TRANSPORT=relay`, `NEXT_PUBLIC_ROOM_RELAY_URL=wss://43-202-205-147.sslip.io`.
+- 앱 연결: Vercel 운영 환경 변수 `NEXT_PUBLIC_ROOM_TRANSPORT=relay`, `NEXT_PUBLIC_ROOM_RELAY_URL=wss://rt.quizdog.kr`.
   빌드 때 들어가는 값이라 바꾸면 다시 배포해야 한다. 되돌리려면 `NEXT_PUBLIC_ROOM_TRANSPORT`를 지우고 다시 배포하면 Supabase Realtime으로 돌아간다.
