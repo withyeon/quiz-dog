@@ -35,6 +35,11 @@
 - **실행 순서**: `20260922_lenient_numeric_answers.sql` 이후. 다른 문제집 채점은 바뀌지 않고 여러 번 실행해도 안전하다
 - **확인용 샘플**: `sample_multi_select_questions.sql` ('테스트 구성치기' 문제집 + 문제 2개)
 
+### 7. `20261017_decimal_answers.sql`
+- **용도**: 소수 정답 채점 바로잡기. 정답이 "4.05"인데 "40.5"·"405"도 맞던 문제(정규화가 소수점을 지웠다)를 고친다
+- **내용**: `quiz_answer_numeric_core`가 숫자 사이의 소수점을 지키고, `quiz_single_answer_match`가 두 답이 모두 숫자 답이면 값부터 비교한다(`check_question_answer` 시그니처·GRANT 그대로). 숫자 답이 아닌 정답("3·1 운동" 등)과 구성치기 채점은 그대로다
+- **실행 순서**: `20260922_lenient_numeric_answers.sql` 이후. 여러 번 실행해도 안전하다. 파일 끝의 확인용 SELECT 가 모두 true 여야 한다
+
 ## 실행 방법
 
 ### Supabase 대시보드에서 실행
