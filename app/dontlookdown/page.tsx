@@ -87,6 +87,7 @@ export default function DontLookDownPage() {
         playSFX,
         handlePreStartQuizAnswer,
         checkAnswer,
+        isAnswerLocked,
         goToNextQuestion,
         commitPlayerPatch,
         sessionStartedAt,
@@ -571,6 +572,7 @@ export default function DontLookDownPage() {
                             onCollectPowerUp={handleCollectPowerUp}
                             currentQuestion={currentQuestion}
                             onAnswerQuestion={handleAnswer}
+                            quizLocked={isAnswerLocked}
                             remainingTime={remainingTime}
                         />
                     </motion.div>

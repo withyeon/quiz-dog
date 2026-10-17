@@ -38,6 +38,7 @@ export default function CafePage() {
     shouldShowPreStartQuiz,
     isPreStartQuizComplete,
     checkAnswer,
+    isAnswerLocked,
     handlePreStartQuizAnswer,
     goToNextQuestion,
     consecutiveCorrect,
@@ -340,6 +341,7 @@ export default function CafePage() {
               roomCode={roomCode}
               currentQuestion={currentQuestion}
               onAnswer={handleAnswer}
+              answerLocked={isAnswerLocked}
               onNextQuestion={handleNextQuestion}
               players={players}
               currentPlayerId={playerId}

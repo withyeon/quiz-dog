@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
     DB_THROTTLE_MS,
     POWERUP_COLLECT_RADIUS,
@@ -74,6 +74,11 @@ interface DontLookDownGameProps {
     onCollectPowerUp: (powerUpId: string) => void
     currentQuestion: DontLookDownQuestion | null
     onAnswerQuestion: (answer: string) => boolean | Promise<boolean>
+    /**
+     * 방금 낸 답이 아직 채점 잠금 중인지(useGameBase 의 isAnswerLocked). 페이지가 다음 문제로 넘겨야 풀린다.
+     * 잠긴 동안 퀴즈를 열면 이전 문제가 다시 뜨고, 무엇을 골라도 채점 없이 오답이 된다.
+     */
+    quizLocked?: boolean
     remainingTime?: number
     questionSetTitle?: string | null
 }
@@ -101,6 +106,7 @@ export default function DontLookDownGame({
     onCollectPowerUp,
     currentQuestion,
     onAnswerQuestion,
+    quizLocked = false,
     remainingTime,
 }: DontLookDownGameProps) {
     // ============ Refs (게임 권위 상태) ============
@@ -166,11 +172,19 @@ export default function DontLookDownGame({
     const [showSummitAlert, setShowSummitAlert] = useState<number | null>(null)
     const [combo, setCombo] = useState(0)
     const [quizFeedback, setQuizFeedback] = useState<QuizFeedback | null>(null)
+    // 답을 낸 뒤 페이지가 다음 문제로 넘기기 전(채점 잠금 중)에는 퀴즈를 열지 않는다.
+    // 입력 훅이 핸들러를 오래 들고 있을 수 있어 ref 로 최신 값을 본다.
+    const quizLockedRef = useRef(quizLocked)
+    quizLockedRef.current = quizLocked
+    const openQuiz = useCallback(() => {
+        if (quizLockedRef.current) return
+        setShowQuiz(true)
+    }, [])
 
     const { isTouch, pressGameKey, releaseGameKey } = useGameInput({
         keysRef,
         jumpBufferRef,
-        onQuizKey: () => setShowQuiz(true),
+        onQuizKey: openQuiz,
         onPowerUpKey: (slotIndex) => {
             const current = playerRef.current
             if (current && (current.powerUps?.length ?? 0) > slotIndex) {
@@ -669,10 +683,10 @@ export default function DontLookDownGame({
                     <TouchControls
                         onPress={pressGameKey}
                         onRelease={releaseGameKey}
-                        onOpenQuiz={() => setShowQuiz(true)}
+                        onOpenQuiz={openQuiz}
                     />
                 ) : (
-                    <KeyboardControls onOpenQuiz={() => setShowQuiz(true)} />
+                    <KeyboardControls onOpenQuiz={openQuiz} />
                 )}
             </div>
 

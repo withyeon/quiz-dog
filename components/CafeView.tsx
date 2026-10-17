@@ -34,7 +34,7 @@ export default function CafeView(props: CafeViewProps) {
     badReviewActive,
     badReviewSeconds,
     showQuiz,
-    setShowQuiz,
+    openQuiz,
     showWrong,
     revealedAnswer,
     revealedExplanation,
@@ -83,7 +83,7 @@ export default function CafeView(props: CafeViewProps) {
         onCustomerClick={handleCustomerClick}
       />
       <MenuShelf unlockedMenus={unlockedMenus} menuStock={menuStock} customers={customers} />
-      <FillFoodBar onFill={() => setShowQuiz(true)} />
+      <FillFoodBar onFill={openQuiz} />
 
       <CafeQuizOverlay
         open={showQuiz}

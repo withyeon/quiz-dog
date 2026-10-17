@@ -32,6 +32,11 @@ export interface CafeViewProps {
   onSendEvent: (type: 'cafe:item_attack', payload: unknown) => Promise<unknown> | void
   questionSetTitle?: string | null
   paused?: boolean
+  /**
+   * 방금 낸 답이 아직 채점 잠금 중인지(useGameBase 의 isAnswerLocked). 다음 문제로 넘어가야 풀린다.
+   * 잠긴 동안 퀴즈를 다시 열면 이전 문제가 그대로 뜨고, 무엇을 골라도 채점 없이 오답이 된다.
+   */
+  answerLocked?: boolean
 }
 
 /**
@@ -50,6 +55,7 @@ export function useCafeView({
   onSendEvent,
   paused = false,
   questionSetTitle = null,
+  answerLocked = false,
 }: CafeViewProps) {
   const {
     status,
@@ -183,6 +189,14 @@ export function useCafeView({
     }
   }, [effectiveStatus, customers.length, addCustomer, hasActiveBuff])
 
+  // 음식 채우기(버튼·스페이스). 오답 화면이 떠 있거나 직전 답이 아직 잠겨 있으면(다음 문제로 넘어가기 전)
+  // 열지 않는다. 열면 이전 문제가 다시 뜨고, 정답을 골라도 채점 없이 오답이 된 뒤 문제가 바뀐다.
+  const canOpenQuiz = !showQuiz && !showItemModal && !showWrong && !answerLocked
+  const openQuiz = useCallback(() => {
+    if (!canOpenQuiz) return
+    setShowQuiz(true)
+  }, [canOpenQuiz])
+
   const closeQuizAndAdvance = useCallback(() => {
     setShowQuiz(false)
     setShowItemModal(false)
@@ -194,6 +208,9 @@ export function useCafeView({
     setShowItemModal(false)
     setShowQuiz(false)
     setItemChoices([])
+    // 공격 전송(await)보다 먼저 넘긴다. 전송을 기다리는 동안 퀴즈를 열면 잠긴 이전 문제가 떠서
+    // 정답을 골라도 오답이 됐다.
+    onNextQuestion()
 
     const item = CAFE_ITEMS[itemId]
 
@@ -242,8 +259,6 @@ export function useCafeView({
         duration: item.duration,
       })
     }
-
-    onNextQuestion()
   }, [
     activateGoldenSpatula,
     applyBuff,
@@ -306,15 +321,15 @@ export function useCafeView({
   // 스페이스 키로 음식 채우기 버튼 클릭
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && effectiveStatus === 'playing' && !showQuiz && !showItemModal) {
+      if (e.code === 'Space' && effectiveStatus === 'playing' && canOpenQuiz) {
         e.preventDefault()
-        setShowQuiz(true)
+        openQuiz()
       }
     }
 
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [effectiveStatus, showQuiz, showItemModal])
+  }, [effectiveStatus, canOpenQuiz, openQuiz])
 
   // 손님 클릭으로 서빙 (Blooket 스타일)
   const handleCustomerClick = (customer: Customer, event: React.MouseEvent) => {
@@ -412,7 +427,7 @@ export function useCafeView({
     badReviewSeconds,
     // 화면 상태
     showQuiz,
-    setShowQuiz,
+    openQuiz,
     showWrong,
     revealedAnswer,
     revealedExplanation,
