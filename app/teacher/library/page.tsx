@@ -10,6 +10,7 @@ import {
   Play,
   Plus,
   SlidersHorizontal,
+  Eye,
 } from 'lucide-react'
 import { formatServiceError } from '@/lib/services/errors'
 import {
@@ -30,6 +31,7 @@ import {
   setLocalQuestionSetLiked,
 } from '@/lib/utils/libraryClientId'
 import { toast } from '@/components/ui/Toaster'
+import QuestionSetPreviewModal from '@/components/teacher/QuestionSetPreviewModal'
 import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 import PixelIcon from '@/components/ui/PixelIcon'
 
@@ -129,8 +131,11 @@ function LibraryPageContent() {
   const [selectedSchoolLevel, setSelectedSchoolLevel] = useState<string>('all')
   const [selectedGrade, setSelectedGrade] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [sortType, setSortType] = useState<SortType>('likes')
+  // 기본은 최신순(2026-10-18 사용자 결정) — 새로 올라온 문제집이 먼저 보이게
+  const [sortType, setSortType] = useState<SortType>('recent')
   const [previewSetId, setPreviewSetId] = useState<string | null>(null)
+  // 담기 전에 문제를 훑어보는 모달(선택한 문제집 패널의 '문제 미리보기')
+  const [questionPreviewOpen, setQuestionPreviewOpen] = useState(false)
 
   const loadQuestionSets = useCallback(async () => {
     try {
@@ -233,7 +238,7 @@ function LibraryPageContent() {
     setSelectedSchoolLevel('all')
     setSelectedGrade('all')
     setSearchQuery('')
-    setSortType('likes')
+    setSortType('recent')
   }
 
   const handleToggleLike = async (setId: string) => {
@@ -333,8 +338,8 @@ function LibraryPageContent() {
               onChange={(event) => setSortType(event.target.value as SortType)}
               className="h-12 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 outline-none transition focus:border-sky-400"
             >
-              <option value="likes">좋아요순</option>
               <option value="recent">최신순</option>
+              <option value="likes">좋아요순</option>
             </select>
             {activeFilterCount > 0 && (
               <button
@@ -501,6 +506,14 @@ function LibraryPageContent() {
 
                 <div className="mt-5 space-y-2">
                   <button
+                    onClick={() => setQuestionPreviewOpen(true)}
+                    disabled={selectedSet.question_count === 0}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-slate-900 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  >
+                    <Eye className="h-4 w-4" />
+                    문제 미리보기
+                  </button>
+                  <button
                     onClick={() => handleCopySet(selectedSet.set_id)}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
                   >
@@ -535,6 +548,33 @@ function LibraryPageContent() {
           </div>
         </aside>
       </section>
+      {questionPreviewOpen && selectedSet && (
+        <QuestionSetPreviewModal
+          setId={selectedSet.set_id}
+          title={selectedSet.name}
+          onClose={() => setQuestionPreviewOpen(false)}
+          actions={(
+            <>
+              <button
+                type="button"
+                onClick={() => { setQuestionPreviewOpen(false); void handleCopySet(selectedSet.set_id) }}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                <Plus className="h-4 w-4" />
+                내 문제집에 담기
+              </button>
+              <button
+                type="button"
+                onClick={() => { setQuestionPreviewOpen(false); handleStartGame(selectedSet.set_id) }}
+                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-500 px-5 text-sm font-black text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+              >
+                <Play className="h-4 w-4 fill-current" />
+                게임 시작
+              </button>
+            </>
+          )}
+        />
+      )}
     </div>
   )
 }

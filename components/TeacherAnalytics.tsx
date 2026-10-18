@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Database } from '@/types/database.types'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
-import { CheckCircle2, XCircle, Users, Target, Trophy, AlertTriangle, TrendingDown, ChevronDown, ChevronUp, Download } from 'lucide-react'
+import { CheckCircle2, XCircle, Users, Target, Trophy, AlertTriangle, TrendingDown, ChevronDown, ChevronUp, Download, FileSpreadsheet } from 'lucide-react'
 import { useRef } from 'react'
 import { toPng } from 'html-to-image'
 import download from 'downloadjs'
@@ -12,6 +12,10 @@ import StudentDetailModal from './StudentDetailModal'
 import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import { formatServiceError } from '@/lib/services/errors'
 import { displayBlankText } from '@/lib/quiz/blankText'
+import { useTeacherPlan } from '@/hooks/useTeacherPlan'
+import { getTeacherAccessToken } from '@/lib/services/questionImages'
+import { toast } from '@/components/ui/Toaster'
+import ProGate from '@/components/teacher/ProGate'
 
 type Player = Database['public']['Tables']['players']['Row']
 type AnswerRecord = { questionIndex: number, isCorrect: boolean, selectedAnswer?: string }
@@ -36,6 +40,10 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
     const [selectedStudent, setSelectedStudent] = useState<PlayerSummary | null>(null)
     const [errorMessage, setErrorMessage] = useState<string | null>(null)
     const reportRef = useRef<HTMLDivElement>(null)
+    const [exporting, setExporting] = useState(false)
+    // 문항별 정답률·오답 분석·학생별 문항 기록·엑셀은 프로만(요금제 페이지 약속). 요약 카드·학생별 순위표는 무료도 본다.
+    const { plan } = useTeacherPlan()
+    const isPro = plan === 'pro'
 
     // 문제 불러오기
     useEffect(() => {
@@ -158,6 +166,52 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
         }
     }, [players, questions])
 
+    const handleExportToExcel = async () => {
+        if (!isPro) {
+            toast.info('엑셀 내보내기는 Pro 요금제에서 쓸 수 있어요.')
+            return
+        }
+        if (!stats || exporting) return
+        setExporting(true)
+        try {
+            const token = await getTeacherAccessToken()
+            if (!token) throw new Error('로그인이 필요해요.')
+            const payload = {
+                title: `퀴즈 결과 ${new Date().toISOString().slice(0, 10)}`,
+                questions: stats.questionStats.map((q) => {
+                    const topWrong = Object.entries(q.wrongAnswers).sort((a, b) => b[1] - a[1])[0]
+                    return { index: q.index, text: q.text, type: q.type, answer: q.answer, correctCount: q.correctCount, incorrectCount: q.incorrectCount, accuracy: q.accuracy, topWrongAnswer: topWrong ? `${topWrong[0]} (${topWrong[1]}명)` : null }
+                }),
+                students: stats.playerStats.map((p, idx) => ({
+                    rank: idx + 1,
+                    nickname: p.nickname,
+                    score: p.score,
+                    correctAnswers: p.correctAnswers,
+                    totalAnswered: p.totalAnswered,
+                    accuracy: p.accuracy,
+                    answers: ((players.find((row) => row.id === p.id)?.answer_history as AnswerRecord[]) || []).map((a) => ({
+                        questionIndex: a.questionIndex, isCorrect: a.isCorrect, selectedAnswer: a.selectedAnswer ? String(a.selectedAnswer) : null,
+                    })),
+                })),
+            }
+            const res = await fetch('/api/teacher/export-report', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                body: JSON.stringify(payload),
+            })
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}))
+                throw new Error(data.error || '엑셀 파일을 만들지 못했어요.')
+            }
+            const blob = await res.blob()
+            download(blob, `${payload.title}.xlsx`, blob.type)
+        } catch (err) {
+            toast.error(formatServiceError(err))
+        } finally {
+            setExporting(false)
+        }
+    }
+
     const handleExportToImage = async () => {
         if (!reportRef.current) return
         try {
@@ -197,14 +251,27 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                         <p className="mt-2 text-sm text-red-500">{errorMessage}</p>
                     )}
                 </div>
-                <Button
-                    onClick={handleExportToImage}
-                    className="bg-gray-900 hover:bg-gray-800 text-white"
-                    size="sm"
-                >
-                    <Download className="w-4 h-4 mr-2" />
-                    이미지로 저장
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Button
+                        onClick={handleExportToExcel}
+                        disabled={exporting}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        size="sm"
+                        title={isPro ? undefined : 'Pro 요금제에서 쓸 수 있어요'}
+                    >
+                        <FileSpreadsheet className="w-4 h-4 mr-2" />
+                        {exporting ? '만드는 중' : '엑셀 내보내기'}
+                        {!isPro && <span className="ml-1.5 rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-black">PRO</span>}
+                    </Button>
+                    <Button
+                        onClick={handleExportToImage}
+                        className="bg-gray-900 hover:bg-gray-800 text-white"
+                        size="sm"
+                    >
+                        <Download className="w-4 h-4 mr-2" />
+                        이미지로 저장
+                    </Button>
+                </div>
             </div>
 
             {/* 요약 카드 4개 */}
@@ -252,6 +319,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
 
             {/* 취약 문제 Top 3 */}
             {stats.hardestQuestions.length > 0 && (
+                <ProGate feature="오답 분석">
                 <div className="bg-white rounded-xl shadow-sm border border-red-100 overflow-hidden">
                     <div className="px-6 py-4 bg-red-50 border-b border-red-100 flex items-center gap-2">
                         <AlertTriangle className="w-5 h-5 text-red-500" />
@@ -293,11 +361,13 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                         ))}
                     </div>
                 </div>
+                </ProGate>
             )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 문항별 정답률 차트 */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <ProGate feature="문항별 정답률">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-full">
                     <h3 className="text-lg font-bold text-gray-800 mb-6">📝 문항별 정답률</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
@@ -338,6 +408,8 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                     </div>
                 </div>
 
+                </ProGate>
+
                 {/* 학생별 성취도 표 */}
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col">
                     <h3 className="text-lg font-bold text-gray-800 mb-4">👨‍🎓 학생별 성취도</h3>
@@ -356,7 +428,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                                 {stats.playerStats.map((player, idx) => (
                                     <tr
                                         key={player.id}
-                                        onClick={() => setSelectedStudent(player)}
+                                        onClick={() => (isPro ? setSelectedStudent(player) : toast.info('학생별 문항 기록은 Pro 요금제에서 볼 수 있어요.'))}
                                         className="hover:bg-purple-50 transition-colors cursor-pointer"
                                     >
                                         <td className="py-3 px-4">
@@ -389,6 +461,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
             </div>
 
             {/* 전체 문제 목록 (접기/펼치기) */}
+            <ProGate feature="전체 문제별 상세">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <button
                     onClick={() => setShowAllQuestions(!showAllQuestions)}
@@ -455,6 +528,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                     </div>
                 )}
             </div>
+            </ProGate>
 
             {selectedStudent && (
                 <StudentDetailModal

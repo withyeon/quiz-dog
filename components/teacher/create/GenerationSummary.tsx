@@ -11,13 +11,15 @@ interface GenerationSummaryProps {
   actionLabel: string
   isGenerating: boolean
   onGenerate: () => void
+  /** 버튼 아래 한 줄(이번 달 AI 사용량 등) */
+  note?: React.ReactNode
 }
 
 /**
  * 설정 요약 + 만들기 버튼. 데스크톱에서는 오른쪽에 따라다니는 카드,
  * 폰에서는 화면 아래 고정 바로 보여서 어느 화면 크기에서도 버튼을 찾으러 스크롤하지 않는다.
  */
-export default function GenerationSummary({ rows, missing, actionLabel, isGenerating, onGenerate }: GenerationSummaryProps) {
+export default function GenerationSummary({ rows, missing, actionLabel, isGenerating, onGenerate, note }: GenerationSummaryProps) {
   const blocked = missing.length > 0 || isGenerating
 
   const button = (
@@ -61,6 +63,7 @@ export default function GenerationSummary({ rows, missing, actionLabel, isGenera
           )}
 
           <div className="mt-5">{button}</div>
+          {note && <div className="mt-3 text-center text-xs font-bold leading-5 text-slate-500">{note}</div>}
           <p className="mt-3 text-center text-xs font-medium leading-5 text-slate-400">
             보통 10~30초 걸려요. 만든 뒤 검수 화면에서 자유롭게 고칠 수 있어요.
           </p>

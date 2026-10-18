@@ -19,7 +19,8 @@ import { DEFAULT_GAME_MODE, getGameModeConfig, getGameModeUrl, isGameModeId, typ
 import { getRoomJoinBlockReason } from '@/lib/game/roomStatus'
 import { formatServiceError } from '@/lib/services/errors'
 import type { PlayerJoinedPayload, RoomChannelEvent } from '@/lib/realtime/roomChannel'
-import { createPlayerForRoom, findPlayerByNickname, getRoomByCode, isNicknameConflictError, nicknameExists } from '@/lib/services/rooms'
+import { createPlayerForRoom, findPlayerByNickname, getRoomByCode, isNicknameConflictError, isPlayerLimitError, nicknameExists } from '@/lib/services/rooms'
+import { FREE_PLAYER_LIMIT } from '@/lib/plans'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
 import { getPlayerById, updatePlayer } from '@/lib/services/players'
 import { loadPlayerSecret, rekeyPlayerSecret } from '@/lib/realtime/playerSecret'
@@ -291,6 +292,10 @@ function LobbyPage() {
     } catch (err) {
       if (isNicknameConflictError(err)) {
         setNicknameError('이미 같은 닉네임이 있어요! 다른 닉네임을 사용해주세요.')
+        setStep('nickname')
+      } else if (isPlayerLimitError(err)) {
+        // 무료 요금제 방은 30명까지. 학생 화면이라 요금제 이야기는 하지 않고 선생님께 알리게만 한다.
+        setNicknameError(`이 방은 ${FREE_PLAYER_LIMIT}명까지 들어갈 수 있어서 지금은 자리가 없어요. 선생님께 말씀드려 주세요.`)
         setStep('nickname')
       } else {
         console.warn('방 입장 실패:', formatServiceError(err))

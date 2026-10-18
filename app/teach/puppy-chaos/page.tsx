@@ -82,7 +82,7 @@ export default function PuppyChaosTeacherPage() {
       }
       await assertQuestionSetHasQuestions(room?.set_id ?? null)
       const startedAt = new Date().toISOString()
-      await startRoom({ roomCode, gameMode: 'poop_dodge', durationSeconds: durationMinutes * 60 })
+      await startRoom({ roomCode, gameMode: 'poop_dodge', durationSeconds: durationMinutes * 60, startedAt })
       broadcastRoomPatch({
         status: 'playing',
         game_mode: 'poop_dodge',
@@ -153,7 +153,7 @@ export default function PuppyChaosTeacherPage() {
     if (!roomCode) return
     const resumedDurationSeconds = room?.duration_seconds ?? durationMinutes * 60
     const startedAt = new Date().toISOString()
-    await startRoom({ roomCode, gameMode: 'poop_dodge', durationSeconds: resumedDurationSeconds })
+    await startRoom({ roomCode, gameMode: 'poop_dodge', durationSeconds: resumedDurationSeconds, startedAt })
     broadcastRoomPatch({
       status: 'playing',
       started_at: startedAt,

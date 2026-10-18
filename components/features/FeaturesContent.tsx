@@ -257,7 +257,7 @@ const AI_SOURCES = [
     icon: '/zombie/log.webp',
     title: '수업 자료에서',
     description: '학습지, 안내문, 발표 자료에서 낼 만한 문제를 골라요.',
-    helper: 'PDF · DOCX · PPTX · PPT · TXT · CSV',
+    helper: 'PDF · HWP · HWPX · DOCX · PPTX · PPT · TXT · CSV',
     color: '#14B8A6',
   },
   {

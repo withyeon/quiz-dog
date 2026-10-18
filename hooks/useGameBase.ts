@@ -273,10 +273,22 @@ export function useGameBase(options: UseGameBaseOptions) {
     const preStartQuizQuestion = questions.length > 0
         ? questions[preStartQuestionIndex % questions.length]
         : null
+    // started_at 은 교사 방송(room:patch, "…Z")과 DB 재조회("…+00:00") 표기가 달라 문자열 그대로 쓰면
+    // 같은 시각인데도 키가 바뀐다. 시각값(ms)으로 정규화해서 키를 만든다.
     const preStartQuizSessionKey = useMemo(() => {
         if (!roomCode || !playerId || !room?.started_at) return null
-        return `pre_start_quiz_${expectedGameMode}_${roomCode}_${playerId}_${room.started_at}`
+        const startedAtMs = Date.parse(room.started_at)
+        const startedAtKey = Number.isFinite(startedAtMs) ? String(startedAtMs) : room.started_at
+        return `pre_start_quiz_${expectedGameMode}_${roomCode}_${playerId}_${startedAtKey}`
     }, [expectedGameMode, playerId, room?.started_at, roomCode])
+    /**
+     * sessionStorage 복구는 '이번 판에서 처음 키가 생겼을 때' 한 번만 한다.
+     * 게임 도중 started_at 이 바뀌어(교사 방송값 → DB값 수백 ms 차이, 일시정지 → 재개) 키가
+     * 달라져도 메모리의 진행도를 유지하고, 아래 저장 효과가 새 키 아래 다시 적어 둔다.
+     * 예전에는 키가 바뀔 때마다 새 키로 0을 읽어 2문제 풀던 게이트가 처음으로 돌아가거나
+     * 본 게임 도중 게이트가 다시 떴다.
+     */
+    const hasRestoredPreStartRef = useRef(false)
     const isPreStartQuizComplete = requiredPreStartQuizCount === 0
         || preStartSubmittedCount >= requiredPreStartQuizCount
     const shouldShowPreStartQuiz = roomStatus === 'playing' && !isPreStartQuizComplete && isCountdownComplete
@@ -491,6 +503,8 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
 
         if (roomStatus === 'waiting') {
+            // 새 판: 진행도를 비우고, 다음에 playing 이 되면 새 키로 한 번 복구한다.
+            hasRestoredPreStartRef.current = false
             setPreStartSubmittedCount(0)
             setPreStartQuestionIndex(0)
             setIsPreStartAnswerLocked(false)
@@ -498,14 +512,17 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
 
         if (roomStatus !== 'playing' || !preStartQuizSessionKey || typeof window === 'undefined') return
+        if (hasRestoredPreStartRef.current) return
+        hasRestoredPreStartRef.current = true
 
         const savedCount = Number(window.sessionStorage.getItem(preStartQuizSessionKey) ?? '0')
         const restoredCount = Number.isFinite(savedCount)
             ? Math.min(requiredPreStartQuizCount, Math.max(0, savedCount))
             : 0
 
-        setPreStartSubmittedCount(restoredCount)
-        setPreStartQuestionIndex(restoredCount)
+        // 복구값이 메모리 진행도보다 작으면(이미 풀기 시작한 뒤 키가 생긴 경우) 진행도를 되돌리지 않는다.
+        setPreStartSubmittedCount((prev) => Math.max(prev, restoredCount))
+        setPreStartQuestionIndex((prev) => Math.max(prev, restoredCount))
         setIsPreStartAnswerLocked(false)
     }, [preStartQuizSessionKey, requiredPreStartQuizCount, roomStatus])
 

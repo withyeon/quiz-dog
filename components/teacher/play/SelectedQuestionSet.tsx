@@ -1,9 +1,11 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Library } from 'lucide-react'
+import { Library, Eye } from 'lucide-react'
 import type { QuestionSetSummary } from '@/lib/services/questionSets'
+import QuestionSetPreviewModal from '@/components/teacher/QuestionSetPreviewModal'
 
 /**
  * 게임 시작 화면에서 "지금 어떤 문제집으로 게임을 만드는지" 보여준다.
@@ -22,6 +24,8 @@ export default function SelectedQuestionSet({
   loading: boolean
   error: string | null
 }) {
+  // 시작 버튼을 누르기 전에 어떤 문제가 나가는지 확인할 수 있게(읽기 전용)
+  const [previewOpen, setPreviewOpen] = useState(false)
   if (loading) {
     return (
       <div className="mx-auto mb-8 max-w-xl rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
@@ -67,12 +71,26 @@ export default function SelectedQuestionSet({
           <p className="text-sm font-semibold text-slate-500">{set.question_count}문제</p>
         </div>
       </div>
-      <Link
-        href="/teacher/library"
-        className="shrink-0 rounded-lg border-2 border-slate-200 px-4 py-2 text-center text-sm font-black text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
-      >
-        다른 문제집 고르기
-      </Link>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPreviewOpen(true)}
+          disabled={set.question_count === 0}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-sm font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+        >
+          <Eye className="h-4 w-4" />
+          문제 보기
+        </button>
+        <Link
+          href="/teacher/library"
+          className="rounded-lg border-2 border-slate-200 px-4 py-2 text-center text-sm font-black text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+        >
+          다른 문제집 고르기
+        </Link>
+      </div>
+      {previewOpen && (
+        <QuestionSetPreviewModal setId={set.id} title={set.title} onClose={() => setPreviewOpen(false)} />
+      )}
     </div>
   )
 }

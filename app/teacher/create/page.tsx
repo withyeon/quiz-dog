@@ -25,6 +25,8 @@ import { formatServiceError } from '@/lib/services/errors'
 import { remapSubjectToLevel, schoolLevelFromGrade } from '@/lib/constants/subjects'
 import { createBlankQuestion, type QuestionType } from '@/lib/quiz/questionQuality'
 import { toast } from '@/components/ui/Toaster'
+import Link from 'next/link'
+import { AI_MONTHLY_LIMIT } from '@/lib/plans'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
 
 type Mode = 'ai' | 'manual'
@@ -103,6 +105,21 @@ export default function CreateQuestionPage() {
   const [typeCounts, setTypeCounts] = useState<TypeCounts>(DEFAULT_TYPE_COUNTS)
   const [examCount, setExamCount] = useState(10)
   const [userPrompt, setUserPrompt] = useState('')
+  // 이번 달 AI 만들기 사용량(무료 10회·프로 300회). 요약 레일에 보여 주고, 다 썼으면 버튼을 막는다.
+  const [aiUsage, setAiUsage] = useState<{ plan: 'free' | 'pro'; used: number; limit: number } | null>(null)
+  const refreshAiUsage = useCallback(async () => {
+    try {
+      const token = await getTeacherAccessToken()
+      if (!token) return
+      const res = await fetch('/api/teacher/ai-usage', { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (typeof data.used === 'number' && typeof data.limit === 'number') setAiUsage({ plan: data.plan === 'pro' ? 'pro' : 'free', used: data.used, limit: data.limit })
+    } catch {
+      // 사용량은 안내용이라 못 읽어도 만들기는 그대로 둔다(서버가 한도를 본다)
+    }
+  }, [])
+  useEffect(() => { void refreshAiUsage() }, [refreshAiUsage])
 
   // 검수 · 저장
   const [questions, setQuestions] = useState<ReviewQuestion[]>([])
@@ -177,8 +194,21 @@ export default function CreateQuestionPage() {
     if (!grade) items.push('학년을 골라 주세요')
     if (!subject) items.push('과목을 골라 주세요')
     if (!isExam && totalTypeCount < 1) items.push('문항 유형 개수를 정해 주세요')
+    if (aiUsage && aiUsage.used >= aiUsage.limit) items.push('이번 달 AI 만들기 횟수를 다 썼어요')
     return items
-  }, [sourceType, topic, file, youtubeUrl, examFile, grade, subject, isExam, totalTypeCount])
+  }, [sourceType, topic, file, youtubeUrl, examFile, grade, subject, isExam, totalTypeCount, aiUsage])
+
+  const aiUsageNote = aiUsage ? (
+    <span>
+      이번 달 AI 만들기 {aiUsage.used}/{aiUsage.limit}회
+      {aiUsage.plan === 'free' && (
+        <>
+          {' · '}
+          <Link href="/pricing" className="text-sky-600 underline-offset-2 hover:underline">Pro는 월 {AI_MONTHLY_LIMIT.pro}회</Link>
+        </>
+      )}
+    </span>
+  ) : null
 
   const examNamePlaceholder = examFile ? stripExtension(examFile.name).slice(0, 60) : ''
 
@@ -241,12 +271,14 @@ export default function CreateQuestionPage() {
       signal: opts.signal,
     })
     const data = await response.json().catch(() => ({}))
+    // 새로 만들기였으면 한 번 쓴 것이므로 사용량을 다시 읽는다(한도에 걸린 경우도 숫자를 맞춘다)
+    if (!opts.avoid || opts.avoid.length === 0) void refreshAiUsage()
     if (!response.ok) throw new Error(data.error || '문제 생성에 실패했습니다.')
     if (!Array.isArray(data.questions) || data.questions.length === 0) {
       throw new Error('만들어진 문제가 없어요. 주제나 자료를 조금 더 구체적으로 넣고 다시 시도해 주세요.')
     }
     return { questions: data.questions as GeneratedQuestion[], figureCount: typeof data.figureCount === 'number' ? data.figureCount : 0 }
-  }, [sourceType, topic, youtubeUrl, file, examFile, userPrompt, subject, grade, setName])
+  }, [sourceType, topic, youtubeUrl, file, examFile, userPrompt, subject, grade, setName, refreshAiUsage])
 
   const handleGenerate = async () => {
     if (missing.length > 0) {
@@ -703,6 +735,7 @@ export default function CreateQuestionPage() {
               rows={summaryRows}
               missing={missing}
               actionLabel={actionLabel}
+              note={aiUsageNote}
               isGenerating={!!progress}
               onGenerate={() => void handleGenerate()}
             />

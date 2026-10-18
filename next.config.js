@@ -5,7 +5,7 @@ const nextConfig = {
   devIndicators: false,
   // pdf-parse / mammoth는 CommonJS·동적 require를 쓰므로 서버 번들에 포함하면
   // 서버리스(Vercel)에서 모듈 해석이 깨진다. 외부 패키지로 빼서 런타임에 로드.
-  serverExternalPackages: ['pdf-parse', 'mammoth'],
+  serverExternalPackages: ['pdf-parse', 'mammoth', 'hwp.js'],
 
   // www.quizdog.kr 로 들어온 요청을 대표 주소(quizdog.kr)로 넘긴다.
   // 같은 사이트가 주소 두 개로 잡히면 검색엔진이 평가를 나눠 갖게 되므로 하나로 모은다.

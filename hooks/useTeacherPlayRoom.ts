@@ -512,6 +512,7 @@ export function useTeacherPlayRoom() {
         roomCode,
         gameMode,
         durationSeconds: timedDurationMinutes * 60,
+        startedAt,
         ...(startSettings ? { settings: startSettings } : {}),
       })
       // startRoom이 모드별로 players를 일괄 초기화한다(체력·역할 등). 이 변경은 broadcast로 안 나가므로 바로 다시 읽는다.
@@ -622,7 +623,7 @@ export function useTeacherPlayRoom() {
 
     try {
       const startedAt = new Date().toISOString()
-      await resumeRoom(roomCode, room.duration_seconds)
+      await resumeRoom(roomCode, room.duration_seconds, startedAt)
       broadcastRoomPatch({
         status: 'playing',
         started_at: startedAt,

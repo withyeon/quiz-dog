@@ -23,6 +23,12 @@ export type StartRoomInput = {
   durationSeconds?: number | null
   /** 시작 시점에 확정하는 방 옵션(rooms.settings). 좀비 모드 옵션 등. 없으면 건드리지 않는다 */
   settings?: Json
+  /**
+   * 방송(room:patch)과 DB 가 같은 started_at 을 갖도록 호출자가 만든 시각을 그대로 쓴다.
+   * 예전에는 여기서 따로 new Date() 를 만들어 교사 방송값과 수백 ms 어긋났고, 학생 훅의
+   * 시작 전 퀴즈 세션 키(started_at 포함)가 재조회 때 바뀌어 진행도가 0으로 리셋됐다.
+   */
+  startedAt?: string
 }
 
 export async function getRoomByCode(roomCode: string): Promise<RoomRow | null> {
@@ -82,7 +88,7 @@ export async function assertQuestionSetHasQuestions(setId: string | null): Promi
   }
 }
 
-export async function startRoom({ roomCode, gameMode, durationSeconds, settings }: StartRoomInput): Promise<void> {
+export async function startRoom({ roomCode, gameMode, durationSeconds, settings, startedAt }: StartRoomInput): Promise<void> {
   if (gameMode === 'battle_royale') {
     const { error: healthResetError } = await (supabase
       .from('players') as any)
@@ -127,7 +133,7 @@ export async function startRoom({ roomCode, gameMode, durationSeconds, settings 
 
   const updatePayload: Record<string, unknown> = {
     status: 'playing',
-    started_at: new Date().toISOString(),
+    started_at: startedAt ?? new Date().toISOString(),
     duration_seconds: null,
   }
   if (durationSeconds) {
@@ -168,10 +174,14 @@ export async function pauseRoom(roomCode: string, durationSeconds?: number | nul
   if (error) throw error
 }
 
-export async function resumeRoom(roomCode: string, durationSeconds?: number | null): Promise<void> {
+export async function resumeRoom(
+  roomCode: string,
+  durationSeconds?: number | null,
+  startedAt?: string,
+): Promise<void> {
   const patch: Record<string, unknown> = {
     status: 'playing',
-    started_at: new Date().toISOString(),
+    started_at: startedAt ?? new Date().toISOString(),
   }
   if (durationSeconds != null) {
     patch.duration_seconds = durationSeconds
@@ -340,6 +350,13 @@ export async function findPlayerByNickname(roomCode: string, nickname: string): 
   return ((data ?? []) as PlayerRow[]).find((player) => (
     player.nickname.trim().toLocaleLowerCase('ko-KR') === normalizedNickname
   )) ?? null
+}
+
+/** 무료 요금제 방의 인원 한도(sql/20261018_pro_gates.sql players_enforce_limit, SQLSTATE QD001)에 걸린 오류인가 */
+export function isPlayerLimitError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; message?: unknown }
+  return candidate.code === 'QD001' || String(candidate.message ?? '').includes('PLAYER_LIMIT')
 }
 
 export function isNicknameConflictError(error: unknown): boolean {

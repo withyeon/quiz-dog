@@ -140,6 +140,25 @@ function getGradeGuide(grade?: string): string {
   return `학습 대상: ${grade}. 이 대상의 어휘 수준과 인지 능력에 맞춰 난이도를 조절하세요.`
 }
 
+/**
+ * 만들기 화면의 추천 문구(PROMPT_SUGGESTIONS)는 짧아서 모델이 제멋대로 해석한다.
+ * "실생활 예시를 넣어 주세요"를 속담 뜻풀이쯤으로 읽는 식. 짧은 문구가 보이면 구체적인 지시로 풀어 준다.
+ * 선생님이 직접 같은 말을 적어도 똑같이 풀린다.
+ */
+const REQUEST_SHORTCUTS: Array<[RegExp, string]> = [
+  [/실생활\s*예시/, '모든 문제를 학생이 실제로 겪을 법한 상황 이야기로 만드세요. 학생 이름(민준, 서연, 지후, 하은 같은 흔한 이름)을 넣고, 급식·체육 시간·마트·놀이터·버스·생일 파티처럼 구체적인 장면을 한 문장으로 그린 뒤 그 상황에서 개념을 적용해야 풀리는 문제를 내세요. 개념 정의를 그대로 묻는 문제는 금지입니다.'],
+  [/쉬운\s*낱말/, '한 학년 낮은 학생도 읽을 수 있게 쓰세요. 한자어·전문 용어는 일상어로 풀어 쓰고(예: "증발" → "물이 날아가서 없어지는 것"), 한 문장은 짧게, 문장당 생각할 거리는 하나만 두세요.'],
+  [/오답\s*보기를?\s*(더\s*)?헷갈리/, '객관식 오답 보기는 정답과 같은 범주·비슷한 길이로, 학생이 실제로 자주 틀리는 오개념·비슷한 용어·계산 실수 결과를 쓰세요. 한눈에 엉뚱해 보이는 보기는 금지이며, 정답만 눈에 띄게 길거나 자세하면 안 됩니다.'],
+  [/계산\s*문제\s*위주/, '대부분의 문제에 실제 숫자를 넣어 계산해야 답이 나오게 하세요. 숫자는 암산이나 간단한 필산으로 20초 안에 풀 수 있는 크기로 하고, 정답은 숫자(단위 없이)로 쓰세요.'],
+  [/낱말\s*뜻을?\s*묻는\s*문제\s*위주/, '대부분의 문제를 핵심 낱말·용어의 뜻을 묻거나, 뜻을 보여 주고 그 낱말을 맞히게 하는 문제로 만드세요. 한 문제에 낱말 하나만 다루고, 교과서에서 실제로 쓰는 용어를 고르세요.'],
+]
+
+function expandRequestShortcuts(request: string): string {
+  if (!request) return request
+  const expansions = REQUEST_SHORTCUTS.filter(([pattern]) => pattern.test(request)).map(([, text]) => `- ${text}`)
+  return expansions.length > 0 ? `${request}\n${expansions.join('\n')}` : request
+}
+
 function buildGenerationPrompt(input: QuestionInput, questionCount: number, repairNote?: string): string {
   const counts = input.typeCounts
     ? (Object.entries(input.typeCounts) as Array<[GeneratedQuestion['type'], number]>)
@@ -159,9 +178,15 @@ function buildGenerationPrompt(input: QuestionInput, questionCount: number, repa
     typeRestriction = '- CHOICE(객관식) 위주로 하되 OX, SHORT를 적절히 섞어 다양하게 출제하세요.'
   }
 
-  // 교사 추가 요청은 품질 규칙보다 우선 (단, 형식·개수·유형 규칙은 유지)
-  const userRequest = input.userPrompt && input.userPrompt.trim()
-    ? `\n\n[교사의 추가 요청 — 최대한 반영하되 아래 형식·개수·유형 규칙은 반드시 지킬 것]\n${input.userPrompt.trim()}`
+  // 교사 추가 요청은 품질 규칙보다 우선 (단, 형식·개수·유형 규칙은 유지).
+  // 2026-10-18: 긴 규칙 목록 맨 끝에 "최대한 반영" 정도로 붙이면 thinking low 모델이 자주 흘려보냈다.
+  // 조건 머리말 바로 다음에 강한 지시로 먼저 보여 주고, 끝에서 한 번 더 짚는다.
+  const trimmedRequest = expandRequestShortcuts(input.userPrompt?.trim() ?? '')
+  const userRequest = trimmedRequest
+    ? `\n\n[선생님의 요청 — 반드시 따르세요]\n${trimmedRequest}\n(이 요청은 아래 출제 품질 규칙보다 우선합니다. 다만 문제 개수·유형별 개수·JSON 형식과 어긋나는 부분만 규칙을 따르고, 나머지는 모두 이 요청대로 만드세요.)`
+    : ''
+  const userRequestReminder = trimmedRequest
+    ? `\n- 위 [선생님의 요청]을 모든 문제에 적용했는지 마지막으로 확인하세요: ${trimmedRequest.replace(/\s+/g, ' ')}`
     : ''
 
   // 이미 있는 문제와 겹치지 않게 (한 문제 다시 만들기 · 몇 개 더 만들기)
@@ -213,12 +238,12 @@ ${typeRestriction}
 
 주제: ${input.topic}
 - 주제가 단원명이면 그 단원의 핵심 개념·용어·대표 사례를 고르게 다루고, 한 개념에 몰리지 않게 하세요.
-- 주제에 학년·학교급이 적혀 있으면 그 수준을 우선합니다.
+- 주제에 학년·학교급이 적혀 있으면 그 수준을 우선합니다.${userRequest}
 ${repairSection}${avoidSection}
 
 ${jsonFormat}
 
-${qualityRules}${userRequest}`
+${qualityRules}${userRequestReminder}`
   }
 
   const materialRules = `
@@ -229,20 +254,21 @@ ${qualityRules}${userRequest}`
   if (input.videoUrl) {
     return `${contextHeader}
 
-함께 넣은 유튜브 영상의 내용을 바탕으로 문제를 만들어 주세요. 영상에서 말하는 내용(음성)과 화면에 보이는 글·그림을 모두 자료로 삼되, 설명하는 지식·개념이 중심입니다.
+함께 넣은 유튜브 영상의 내용을 바탕으로 문제를 만들어 주세요. 영상에서 말하는 내용(음성)과 화면에 보이는 글·그림을 모두 자료로 삼되, 설명하는 지식·개념이 중심입니다.${userRequest}
 ${repairSection}${avoidSection}
 
 ${jsonFormat}
 
 ${qualityRules}${materialRules}
 - 영상의 인사말·광고·구독 요청·잡담은 무시하고 가르치는 내용만 보세요.
-- "영상에서", "화면에" 같은 표현을 문제에 쓰지 마세요. 학생은 영상을 보지 않고 풉니다.${userRequest}`
+- "영상에서", "화면에" 같은 표현을 문제에 쓰지 마세요. 학생은 영상을 보지 않고 풉니다.${userRequestReminder}`
   }
 
   const text = truncateText(input.text || '')
   return `${contextHeader}
 
-다음 자료를 바탕으로 문제를 만들어 주세요.
+다음 자료를 바탕으로 문제를 만들어 주세요.${userRequest}
+
 자료:
 ${text}
 ${repairSection}${avoidSection}
@@ -250,7 +276,7 @@ ${repairSection}${avoidSection}
 ${jsonFormat}
 
 ${qualityRules}${materialRules}
-- 자료가 자막·발표 자료라면 인사말·광고·오타·반복 같은 군더더기는 무시하고 내용만 보세요.${userRequest}`
+- 자료가 자막·발표 자료라면 인사말·광고·오타·반복 같은 군더더기는 무시하고 내용만 보세요.${userRequestReminder}`
 }
 
 function parseQuestionsFromJSON(text: string): GeneratedQuestion[] {
@@ -315,8 +341,10 @@ function asVerbatimString(value: unknown): string {
 
 // 비교용 키. 글자·숫자·한글(자모 ㄱ·ㄴ·ㄷ 포함)만 남긴다.
 // "ㄱ, ㄷ" 같은 조합형 보기나 "+", "×" 같은 기호 보기는 키가 비어 서로 같은 보기로 오해되므로 원문을 그대로 키로 쓴다.
+// 글자·숫자만 남긴다(모든 문자 체계). 예전엔 한글·영문·숫자만 남겨서 "(家)의 뜻은?"과 "(歌)의 뜻은?"이
+// 같은 키가 되어 한자 문제가 중복으로 버려졌다(2026-10-18, hwp 한자 자료 5문제 → 1문제).
 function normalizeForCompare(value: string): string {
-  const key = value.normalize('NFKC').toLowerCase().replace(/[^0-9a-z가-힣ㄱ-ㆎ]/g, '')
+  const key = value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
   return key || value.normalize('NFKC').replace(/\s+/g, '')
 }
 

@@ -158,8 +158,8 @@ export default function SourcePicker({
             <FileDropzone
               file={file}
               onSelect={setFile}
-              accept=".pdf,.txt,.csv,.docx,.ppt,.pptx"
-              hint="PDF · DOCX · PPTX · PPT · TXT · CSV"
+              accept=".pdf,.hwp,.hwpx,.txt,.csv,.docx,.ppt,.pptx"
+              hint="PDF · HWP · HWPX · DOCX · PPTX · PPT · TXT · CSV"
               tone="sky"
               disabled={disabled}
               onError={(msg) => toast.error(msg)}

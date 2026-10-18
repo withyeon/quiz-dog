@@ -6,12 +6,15 @@ export const runtime = 'nodejs'
 import { getYouTubeTranscript, normalizeYouTubeUrl, YouTubeTranscriptError } from '@/lib/utils/youtube'
 import { extractTextFromPDF } from '@/lib/utils/pdf'
 import { extractTextFromDOCX } from '@/lib/extractors/docx'
+import { extractTextFromHWP } from '@/lib/extractors/hwp'
 import { extractTextFromPPT, extractTextFromPPTX } from '@/lib/extractors/ppt'
 import { extractTextFromFile } from '@/lib/extractors/text'
 import { extractQuestionsFromImage, isLikelyScannedPDF } from '@/lib/extractors/image'
 import { parseExamVisionResponseWithFigures } from '@/lib/ai/questionGenerator'
 import { attachExamFigures } from '@/lib/ai/examFigures'
 import { resolveTeacherUserId } from '@/lib/server/teacherAuth'
+import { getAiUsage, recordAiGeneration } from '@/lib/server/aiUsage'
+import { AI_QUOTA_ERROR_CODE } from '@/lib/plans'
 import { isGusungchigiSet } from '@/lib/quiz/multiSelect'
 
 const VALID_SOURCE_TYPES: SourceType[] = ['topic', 'youtube', 'text', 'pdf', 'file', 'exam']
@@ -82,6 +85,10 @@ export async function POST(request: NextRequest) {
         { status: 429 },
       )
     }
+
+    // AI 생성은 로그인한 선생님만(달마다 횟수를 세야 하므로). 만들기 화면은 항상 토큰을 보낸다.
+    const teacherId = await resolveTeacherUserId(request)
+    if (!teacherId) return NextResponse.json({ error: '로그인이 필요해요. 다시 로그인한 뒤 시도해 주세요.' }, { status: 401 })
 
     const formData = await request.formData()
     const sourceType = formData.get('sourceType') as SourceType
@@ -154,6 +161,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 월 한도(무료 10·프로 300). "새로 만들기"만 세고, 한 문제 다시 만들기·더 만들기(avoidQuestions 동봉)는 안 센다.
+    const countsUsage = (avoidQuestions ?? []).length === 0
+    if (countsUsage) {
+      const usage = await getAiUsage(teacherId)
+      if (usage.used >= usage.limit) {
+        const upgrade = usage.plan === 'pro' ? '' : ' Pro 요금제로 올리면 달마다 300회까지 만들 수 있어요.'
+        return NextResponse.json(
+          { error: `이번 달 AI 문제 만들기 ${usage.limit}회를 모두 썼어요.${upgrade}`, code: AI_QUOTA_ERROR_CODE, usage },
+          { status: 402 },
+        )
+      }
+    }
+    const finish = async (body: { questions: unknown[]; figureCount?: number }) => {
+      if (countsUsage) await recordAiGeneration(teacherId, sourceType, body.questions.length)
+      return NextResponse.json(body)
+    }
+
     if (!VALID_SOURCE_TYPES.includes(sourceType)) {
       return NextResponse.json({ error: `지원하지 않는 소스 타입입니다: ${sourceType}` }, { status: 400 })
     }
@@ -164,7 +188,7 @@ export async function POST(request: NextRequest) {
       if (!topic) return NextResponse.json({ error: '주제를 입력해주세요.' }, { status: 400 })
 
       const questions = await generateQuestions({ sourceType, topic, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
-      return NextResponse.json({ questions })
+      return finish({ questions })
     }
 
     // === 유튜브 ===
@@ -188,12 +212,12 @@ export async function POST(request: NextRequest) {
       const base = { sourceType, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }
       if (transcript) {
         const questions = await generateQuestions({ ...base, text: transcript }, questionCount)
-        return NextResponse.json({ questions })
+        return finish({ questions })
       }
 
       try {
         const questions = await generateQuestions({ ...base, videoUrl }, questionCount)
-        return NextResponse.json({ questions })
+        return finish({ questions })
       } catch (error) {
         const msg = error instanceof Error ? error.message : ''
         // Gemini 가 영상을 못 받는 경우: 비공개/일부 공개/삭제/연령 제한 영상, 또는 너무 긴 영상
@@ -219,7 +243,7 @@ export async function POST(request: NextRequest) {
       if (!text) return NextResponse.json({ error: '텍스트를 입력해주세요.' }, { status: 400 })
 
       const questions = await generateQuestions({ sourceType, text, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
-      return NextResponse.json({ questions })
+      return finish({ questions })
     }
 
     // === 시험지/문제지 (이미지 또는 스캔 PDF) ===
@@ -240,9 +264,8 @@ export async function POST(request: NextRequest) {
         const items = parseExamVisionResponseWithFigures(visionText, examOptions).slice(0, questionCount)
         // 그림이 있는 문제는 그 영역을 잘라 Storage에 올리고 image_url로 붙인다.
         // 로그인 토큰이 없으면(올릴 주인이 없으면) 그림 없이 문제만 돌려준다.
-        const teacherId = await resolveTeacherUserId(request)
         const { questions, figureCount } = await attachExamFigures(file, items, teacherId)
-        return NextResponse.json({ questions, figureCount })
+        return finish({ questions, figureCount })
       }
 
       if (ext === 'pdf') {
@@ -251,7 +274,7 @@ export async function POST(request: NextRequest) {
         // (PDF는 페이지를 이미지로 못 만들어 그림 첨부만 생략).
         const visionText = await extractQuestionsFromImage(file, questionCount, examOptions)
         const questions = parseExamVisionResponse(visionText, examOptions).slice(0, questionCount)
-        return NextResponse.json({ questions })
+        return finish({ questions })
       }
 
       return NextResponse.json({ error: '시험지는 이미지(JPG, PNG) 또는 PDF 파일만 지원합니다.' }, { status: 400 })
@@ -274,11 +297,15 @@ export async function POST(request: NextRequest) {
             // 스캔 PDF인 경우 Vision으로 텍스트 추출 후 문제 생성
             const visionText = await extractQuestionsFromImage(file, questionCount)
             const questions = parseExamVisionResponse(visionText).slice(0, questionCount)
-            return NextResponse.json({ questions })
+            return finish({ questions })
           }
           break
         case 'docx':
           text = await extractTextFromDOCX(file)
+          break
+        case 'hwp':
+        case 'hwpx':
+          text = await extractTextFromHWP(file)
           break
         case 'pptx':
           text = await extractTextFromPPTX(file)
@@ -292,7 +319,7 @@ export async function POST(request: NextRequest) {
           break
         default:
           return NextResponse.json(
-            { error: `지원하지 않는 파일 형식입니다: .${ext}\n지원 형식: PDF, DOCX, PPTX, PPT, TXT, CSV` },
+            { error: `지원하지 않는 파일 형식입니다: .${ext}\n지원 형식: PDF, HWP, HWPX, DOCX, PPTX, PPT, TXT, CSV` },
             { status: 400 }
           )
       }
@@ -302,7 +329,7 @@ export async function POST(request: NextRequest) {
       }
 
       const questions = await generateQuestions({ sourceType: 'text', text, subject, grade, allowedTypes, typeCounts, userPrompt, avoidQuestions }, questionCount)
-      return NextResponse.json({ questions })
+      return finish({ questions })
     }
 
     return NextResponse.json({ error: '처리할 수 없는 요청입니다.' }, { status: 400 })

@@ -31,6 +31,7 @@ import { formatServiceError } from '@/lib/services/errors'
 import { getLocalLikedQuestionSetIds, getLibraryClientId } from '@/lib/utils/libraryClientId'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/components/ui/Toaster'
+import QuestionSetPreviewModal from '@/components/teacher/QuestionSetPreviewModal'
 import ShareSetModal from '@/components/share/ShareSetModal'
 import { setLibraryListing } from '@/lib/services/sharing'
 import { EmptyState, LoadingState } from '@/components/ui/StateViews'
@@ -75,6 +76,8 @@ function TeacherPageContent() {
 
   // 공유 모달을 띄울 문제집 (null 이면 닫힘)
   const [sharingSet, setSharingSet] = useState<{ id: string; title: string } | null>(null)
+  // 제목을 누르면 문제를 읽기 전용으로 훑어본다(수정 화면까지 안 가고)
+  const [previewSet, setPreviewSet] = useState<{ id: string; title: string } | null>(null)
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([])
   const [likedQuestionSets, setLikedQuestionSets] = useState<LikedQuestionSet[]>([])
   const [loading, setLoading] = useState(true)
@@ -408,7 +411,14 @@ function TeacherPageContent() {
                         <Image src="/zombie/quiz.webp" alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
                       </div>
                       <div className="min-w-0">
-                        <h3 className="truncate text-base font-bold text-slate-900">{set.title}</h3>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewSet({ id: set.id, title: set.title })}
+                          title="문제 미리보기"
+                          className="block max-w-full truncate text-left text-base font-bold text-slate-900 underline-offset-4 transition hover:text-sky-700 hover:underline"
+                        >
+                          {set.title}
+                        </button>
                         <div className="mt-1 flex flex-wrap gap-2 text-sm font-medium text-slate-500">
                           <span>{set.question_count}문항</span>
                           <span>·</span>
@@ -524,6 +534,31 @@ function TeacherPageContent() {
         </div>
       )}
 
+      {previewSet && (
+        <QuestionSetPreviewModal
+          setId={previewSet.id}
+          title={previewSet.title}
+          onClose={() => setPreviewSet(null)}
+          actions={(
+            <>
+              <button
+                type="button"
+                onClick={() => { const id = previewSet.id; setPreviewSet(null); router.push(`/teacher/sets/${encodeURIComponent(id)}/edit`) }}
+                className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                수정하기
+              </button>
+              <button
+                type="button"
+                onClick={() => { const id = previewSet.id; setPreviewSet(null); handleStartGame(id) }}
+                className="flex h-11 items-center justify-center rounded-xl bg-sky-500 px-5 text-sm font-black text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+              >
+                게임 시작
+              </button>
+            </>
+          )}
+        />
+      )}
       {sharingSet && (
         <ShareSetModal
           setId={sharingSet.id}
