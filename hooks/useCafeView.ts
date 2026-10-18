@@ -94,6 +94,9 @@ export function useCafeView({
   const [showItemModal, setShowItemModal] = useState(false)
   const [restockedMenuName, setRestockedMenuName] = useState('')
   const [showGoldenEffect, setShowGoldenEffect] = useState(false)
+  // 정답 뒤 아이템 고르기(또는 건너뛰기)는 한 번만. 퀴즈 창이 사라지는 동안에도 아이템 버튼이 눌려서
+  // 예전엔 빠르게 여러 번 누르면 버프·공격이 여러 번 들어가고 문제도 그만큼 넘어갔다. state 는 그 버튼에 안 보이므로 ref 로 막는다.
+  const itemChoiceDoneRef = useRef(true)
   // 아이템 결과 안내 (카피캣으로 무엇을 가져왔는지 등). 2.5초 뒤 사라진다.
   const [notice, setNotice] = useState<{ id: number; text: string; tone: 'good' | 'bad' } | null>(null)
   const [currentTime, setCurrentTime] = useState(Date.now())
@@ -198,6 +201,8 @@ export function useCafeView({
   }, [canOpenQuiz])
 
   const closeQuizAndAdvance = useCallback(() => {
+    if (itemChoiceDoneRef.current) return
+    itemChoiceDoneRef.current = true
     setShowQuiz(false)
     setShowItemModal(false)
     setItemChoices([])
@@ -205,6 +210,8 @@ export function useCafeView({
   }, [onNextQuestion])
 
   const handleItemSelect = useCallback(async (itemId: ItemId, targetPlayerId?: string) => {
+    if (itemChoiceDoneRef.current) return
+    itemChoiceDoneRef.current = true
     setShowItemModal(false)
     setShowQuiz(false)
     setItemChoices([])
@@ -303,6 +310,7 @@ export function useCafeView({
       }
 
       setItemChoices(getRandomItemChoices(consecutiveCorrect + 1))
+      itemChoiceDoneRef.current = false
       setShowItemModal(true)
     } else {
       playSFX('incorrect')

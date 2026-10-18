@@ -104,6 +104,9 @@ export default function ZombieView({
   const selfHealthDropGuardRef = useRef(0)
   const prevSelfRef = useRef<{ role: string; health: number; shield: number } | null>(null)
   const finishingRef = useRef(false)
+  // 정답 한 번에 행동(회복·방어막·공격·탐지)은 한 번만. 화면이 바뀌는 동안(AnimatePresence)에도 이전 화면 버튼이 눌려서
+  // 예전엔 빠르게 여러 번 누르면 회복·방어막·공격이 그만큼 더 들어가고 문제도 넘어갔다. 다음 정답 때 다시 풀린다.
+  const actionDoneRef = useRef(true)
   const { playSFX } = useAudioContext()
 
   // 방 플레이어 목록은 점수순으로 들어온다. 좀비 모드에서는 점수가 역할과 묶여 있어
@@ -239,6 +242,7 @@ export default function ZombieView({
           'success',
         ))
       })
+      actionDoneRef.current = false
       window.setTimeout(() => setCurrentView('actionSelect'), 700)
       return true
     }
@@ -272,7 +276,8 @@ export default function ZombieView({
   }
 
   const handleHumanAction = (action: 'heal' | 'shield') => {
-    if (!myPlayer) return
+    if (!myPlayer || actionDoneRef.current) return
+    actionDoneRef.current = true
     reportAction(action, (after) => {
       setGameLog((logs) => addLog(
         logs,
@@ -289,9 +294,10 @@ export default function ZombieView({
   }
 
   const handleTargetSelect = (targetId: string, action: Extract<ZombieActionType, 'attack' | 'scan'>) => {
-    if (!myPlayer) return
+    if (!myPlayer || actionDoneRef.current) return
     const target = players.find((player) => player.id === targetId)
     if (!target) return
+    actionDoneRef.current = true
 
     if (action === 'scan') {
       const result = scanPlayer(myPlayer, target)

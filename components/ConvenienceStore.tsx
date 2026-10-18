@@ -229,9 +229,12 @@ export default function ConvenienceStore({
   }
 
   // 상품 판매
+  // 판매 창이 사라지는 동안(AnimatePresence)에도 '판매하기'가 눌리고, 그 버튼은 판매 전 매대를 들고 있다.
+  // 그래서 매대는 렌더 값이 아니라 ref 로 확인하고 팔자마자 ref 에서 뺀다. 예전엔 빠르게 여러 번 누르면 판매 금액이 그만큼 더 들어왔다.
   const handleSellProduct = (product: Product) => {
-    const result = sellProduct(product, products)
+    const result = sellProduct(product, productsRef.current)
     if (result.success) {
+      productsRef.current = result.newProducts
       onMoneyDelta(result.money)
       onProductsChange(result.newProducts)
       setSelectedProductToSell(null)

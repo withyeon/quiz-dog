@@ -166,6 +166,11 @@ export default function MafiaView({
   // 내가 스스로 수상함을 해제한 시각(금고 열기·친구 조사). DB 폴백이 이를 '발각'으로 오인하지 않게 한다.
   const selfFlagClearAtRef = useRef(0)
   const wasCheatingRef = useRef<boolean | null>(null)
+  // 이번 정답으로 고른 행동. 한 문제에 행동은 한 번만(금고 하나 열기 또는 친구 하나 조사) 하고, 다음 문제에서 풀린다.
+  // 화면 전환(AnimatePresence)이 끝날 때까지 이전 화면의 버튼이 눌리므로 state 가 아닌 ref 로 막는다.
+  // 예전엔 금고를 빠르게 여러 번 누르면 보상이 그만큼 더 기록되고 문제도 여러 개 넘어갔다.
+  const roundActionRef = useRef<'none' | 'vault' | 'investigate' | 'done'>('none')
+  const cheatUsedRef = useRef(false)
   const logEndRef = useRef<HTMLDivElement>(null)
 
   const mafiaPlayers = useMemo(() => players.map(toMafiaPlayer), [players])
@@ -288,6 +293,8 @@ export default function MafiaView({
   }, [gameLog])
 
   const goToQuiz = useCallback(() => {
+    roundActionRef.current = 'none'
+    cheatUsedRef.current = false
     setCurrentView('quiz')
     setCurrentVaults([])
     setCheatVaultContents(null)
@@ -314,6 +321,8 @@ export default function MafiaView({
   }
 
   const handleOpenVaultChoice = () => {
+    if (roundActionRef.current !== 'none') return
+    roundActionRef.current = 'vault'
     setCurrentVaults(generateSafeVaults())
     setCheatVaultContents(null)
     setSelectedVaultResult(null)
@@ -322,9 +331,10 @@ export default function MafiaView({
   }
 
   const handleVaultSelect = async (vaultId: string) => {
-    if (!player) return
+    if (!player || roundActionRef.current !== 'vault') return
     const vault = currentVaults.find((v) => v.id === vaultId)
     if (!vault) return
+    roundActionRef.current = 'done'
     const result = openSafeVault(vault, player)
     // 라운드 기반 수상함 처리:
     // - 방금 몰래본 그 라운드의 금고 열기(cheatPendingVault)는 수상함을 해제하지 않는다.
@@ -352,6 +362,8 @@ export default function MafiaView({
 
   const handleCheat = async () => {
     if (!player || currentVaults.length === 0) return
+    if (roundActionRef.current !== 'vault' || cheatUsedRef.current) return
+    cheatUsedRef.current = true
     const result = applyCheat(currentVaults, player, Date.now())
     setCheatVaultContents(result.vaultContents)
     // 몰래보기는 보통 자금 변화 없이 플래그만 바뀌지만, 변화가 있으면 원자 delta로 처리.
@@ -369,6 +381,8 @@ export default function MafiaView({
   }
 
   const handleInvestigate = () => {
+    if (roundActionRef.current !== 'none') return
+    roundActionRef.current = 'investigate'
     setCurrentView('investigation')
     setInvestigationResult(null)
     setInvestigatingPlayer(null)
@@ -376,9 +390,10 @@ export default function MafiaView({
   }
 
   const handleStartInvestigation = async (targetId: string) => {
-    if (!player) return
+    if (!player || roundActionRef.current !== 'investigate') return
     const target = mafiaPlayers.find((p) => p.id === targetId)
     if (!target) return
+    roundActionRef.current = 'done'
 
     setInvestigatingPlayer(targetId)
     setInvestigationResult(null)

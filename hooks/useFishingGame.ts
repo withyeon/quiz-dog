@@ -99,6 +99,9 @@ export function useFishingGame({
   const pendingPullRef = useRef<PendingPull | null>(null)
   const activeItemsRef = useRef<SpecialItemType[]>([])
   const consecutiveCorrectRef = useRef(0)
+  // 결과 카드는 뜰 때마다 한 번만 닫힌다. 카드가 사라지는 동안(AnimatePresence)에도 눌려서
+  // 예전엔 빠르게 여러 번 누르면 문제가 그만큼 넘어갔다.
+  const resultClosedRef = useRef(true)
 
   const machineRank: MachineRank = getMachineRank(correctAnswers)
 
@@ -332,6 +335,7 @@ export function useFishingGame({
     setActiveItems((prev) => prev.filter((type) => !consumedItems.has(type)))
     setPendingPull(null)
     setLastAccuracy(accuracy)
+    resultClosedRef.current = false
     setFishingResult(result)
     setCaughtItem(result.doll)
     setFishingState('down')
@@ -373,6 +377,8 @@ export function useFishingGame({
   }
 
   const handleResultCardClick = () => {
+    if (resultClosedRef.current) return
+    resultClosedRef.current = true
     setFishingResult(null)
     setCaughtItem(null)
     setFishingState('idle')

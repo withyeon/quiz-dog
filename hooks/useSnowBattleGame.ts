@@ -66,6 +66,7 @@ export function useSnowBattleGame() {
     handleWrongAnswer,
     handleCountdownComplete,
     goToNextQuestion,
+    currentQuestionIndex,
     isRoomHost,
     questionStartTime,
     consecutiveCorrect,
@@ -101,6 +102,11 @@ export function useSnowBattleGame() {
   const hasAssignedTeamsRef = useRef(false)
   const lastAttackTargetRef = useRef<string | null>(null)
   const nextQuestionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 한 문제에서 다음 문제로는 한 번만 넘어간다. 탈락 화면이 사라지는 동안(AnimatePresence)에도 '정답' 배너가 눌려서
+  // 예전엔 빠르게 여러 번 누르면 문제가 그만큼 넘어갔다. 그 배너는 옛 문제 번호를 들고 있으니 번호로 막는다.
+  const advancedFromIndexRef = useRef(-1)
+  // 아이템은 받은 것마다 한 번만 쓴다. 예전엔 전송을 기다리는 동안 칩을 또 누르면 난로·눈보라가 그만큼 더 들어갔다.
+  const usingItemRef = useRef(false)
   const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const incomingAttackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const blizzardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -397,6 +403,8 @@ export function useSnowBattleGame() {
 
   // 정답 후 다음 문제로 (클릭 시 즉시 이동)
   const goToNextQuiz = () => {
+    if (advancedFromIndexRef.current === currentQuestionIndex) return
+    advancedFromIndexRef.current = currentQuestionIndex
     if (nextQuestionTimerRef.current) {
       clearTimeout(nextQuestionTimerRef.current)
       nextQuestionTimerRef.current = null
@@ -487,6 +495,7 @@ export function useSnowBattleGame() {
       // 랜덤 아이템 획득 (20% 확률)
       if (Math.random() < 0.2) {
         const item = generateItem()
+        usingItemRef.current = false
         setCurrentItem(item)
         playSFX('item')
       }
@@ -622,36 +631,43 @@ export function useSnowBattleGame() {
 
   // 아이템 사용 (눈보라·휴대 난로만 수동 사용. 왕눈덩이는 다음 공격에 자동 적용)
   const handleUseItem = async () => {
-    if (!currentItem || !playerId) return
+    if (!currentItem || !playerId || usingItemRef.current) return
     if (currentItem.type === 'giant_ball') return // 자동 적용 아이템 — 칩 클릭으로 폐기되지 않도록
+    usingItemRef.current = true
 
-    if (currentItem.type === 'blizzard') {
-      // 상대팀에서 가장 잘 버티고 있는 생존자의 화면을 가린다.
-      // (눈싸움은 score를 쓰지 않아 전원 0이었고, 팀·탈락 여부도 안 걸러서
-      //  같은 팀이나 이미 탈락한 학생에게 날아가곤 했다.)
-      const topPlayer = players
-        .filter((p) => canAttackTarget(currentPlayer as BattlePlayer, p as BattlePlayer))
-        .sort((a, b) => (b.health ?? 0) - (a.health ?? 0))[0]
+    try {
+      if (currentItem.type === 'blizzard') {
+        // 상대팀에서 가장 잘 버티고 있는 생존자의 화면을 가린다.
+        // (눈싸움은 score를 쓰지 않아 전원 0이었고, 팀·탈락 여부도 안 걸러서
+        //  같은 팀이나 이미 탈락한 학생에게 날아가곤 했다.)
+        const topPlayer = players
+          .filter((p) => canAttackTarget(currentPlayer as BattlePlayer, p as BattlePlayer))
+          .sort((a, b) => (b.health ?? 0) - (a.health ?? 0))[0]
 
-      if (topPlayer) {
-        await sendRoomEvent('battle:blizzard', { targetId: topPlayer.id })
-        playSFX('item')
+        if (topPlayer) {
+          await sendRoomEvent('battle:blizzard', { targetId: topPlayer.id })
+          playSFX('item')
+        }
+      } else if (currentItem.type === 'heater') {
+        // 체온 회복 — 원자적 증분(+30, 최대 체력 상한)
+        if (currentPlayer) {
+          const maxHealth = selectedClass
+            ? PLAYER_CLASSES[selectedClass].maxHealth
+            : 100
+          await commitPlayerDelta(playerId, { health: HEATER_HEAL_AMOUNT }, {
+            reason: 'battle_heater',
+            maxes: { health: maxHealth },
+          })
+          playSFX('item')
+        }
       }
-    } else if (currentItem.type === 'heater') {
-      // 체온 회복 — 원자적 증분(+30, 최대 체력 상한)
-      if (currentPlayer) {
-        const maxHealth = selectedClass
-          ? PLAYER_CLASSES[selectedClass].maxHealth
-          : 100
-        await commitPlayerDelta(playerId, { health: HEATER_HEAL_AMOUNT }, {
-          reason: 'battle_heater',
-          maxes: { health: maxHealth },
-        })
-        playSFX('item')
-      }
+
+      setCurrentItem(null)
+    } catch (error) {
+      // 못 썼으면 아이템이 그대로 남으니 다시 쓸 수 있게 푼다. 썼으면 새 아이템을 받을 때 푼다.
+      usingItemRef.current = false
+      throw error
     }
-
-    setCurrentItem(null)
   }
 
   return {

@@ -207,7 +207,6 @@ export default function StudentResultView({
           ) : (
             <div className="space-y-2">
               {wrongQuestions.map((question) => {
-                const answer = reviewAnswerForQuestion(student, question.index)
                 const attempts = attemptsForQuestion(student, question.index)
                 const correct = attempts.filter((attempt) => attempt.isCorrect).length
                 return (
@@ -222,8 +221,9 @@ export default function StudentResultView({
                       <img src={question.imageUrl} alt="" className="mt-2 max-h-24 w-auto rounded-md border border-slate-200 object-contain" />
                     )}
                     <div className="mt-1 font-bold text-slate-900">{question.text}</div>
+                    {/* 목록에는 정답을 보여준다. 내가 낸 답은 눌러서 여는 다시 보기 창에 있다. */}
                     <div className="mt-2 text-sm text-slate-500">
-                      내 답: {answer?.selectedAnswer || '시간 초과'}
+                      <span className="font-black text-emerald-700">정답: {question.answer}</span>
                       {attempts.length > 1 && <span className="ml-2">· {attempts.length}번 중 {correct}번 맞혔어요</span>}
                     </div>
                   </button>

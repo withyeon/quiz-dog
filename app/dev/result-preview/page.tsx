@@ -3,6 +3,7 @@
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import TeacherEndSequence from '@/components/results/TeacherEndSequence'
+import StudentResultView from '@/components/results/StudentResultView'
 import { isGameModeId, DEFAULT_GAME_MODE } from '@/lib/game/modes'
 import type { AnalyticsQuestion } from '@/lib/services/questions'
 import type { Player, Room } from '@/components/results/resultAnalytics'
@@ -15,6 +16,7 @@ import type { Player, Room } from '@/components/results/resultAnalytics'
  *   /dev/result-preview?players=2       참가자 수 바꾸기 (1~40, 관중석·단체 사진 확인용)
  *   /dev/result-preview?game=tower      게임 모드별 점수 표기 확인
  *   /dev/result-preview?stage=4         Top 3 시상대부터 바로 (0 발표대기 · 1~3 등수공개 · 4 시상대 · 5 다시볼문제 · 6 마무리)
+ *   /dev/result-preview?view=student    학생 결과 화면(복습할 문제), 2등 학생 기준
  *
  * 프로덕션에서는 proxy.ts가 /dev/* 를 막는다.
  */
@@ -74,13 +76,20 @@ function ResultPreview() {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   } as Room
+  const players = Array.from({ length: playerCount }, (_, index) => buildPlayer(index, playerCount))
+
+  if (params.get('view') === 'student') {
+    // 2등(preview-1)은 1·3번을 틀려 복습할 문제가 두 개 뜬다
+    const studentId = players[Math.min(1, players.length - 1)].id
+    return <StudentResultView room={room} players={players} questions={QUESTIONS} playerId={studentId} />
+  }
 
   return (
     <TeacherEndSequence
       key={`${gameMode}-${playerCount}-${stage}`}
       initialStage={stage}
       room={room}
-      players={Array.from({ length: playerCount }, (_, index) => buildPlayer(index, playerCount))}
+      players={players}
       questions={QUESTIONS}
       onRestart={() => alert('다시 시작 (미리보기)')}
     />

@@ -175,7 +175,9 @@ export default function GansikRunGame({
   }, [])
 
   const handleAnswer = useCallback(async (answer: string) => {
-    if (!currentQ || isAnsweringRef.current) return
+    // showQuizRef 는 답을 처리하면 꺼지고 다음 퀴즈가 열려야 켜진다. 퀴즈 창이 사라지는 동안(AnimatePresence)에도
+    // 보기 버튼이 눌려서, 예전엔 빠르게 여러 번 누르면 점수·정답 기록이 그만큼 더 들어갔다.
+    if (!currentQ || isAnsweringRef.current || !showQuizRef.current) return
     isAnsweringRef.current = true
 
     const submittedAnswer = answer.trim()

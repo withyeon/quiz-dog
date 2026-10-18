@@ -155,6 +155,9 @@ export default function StudyPage() {
   }, [persist])
 
   const startNewAttempt = useCallback(() => {
+    // 끝나지 않은 시도가 있으면 새로 만들지 않는다. 끝 화면이 사라지는 동안에도 '처음부터 다시 풀기'가 눌려서
+    // 예전엔 두 번 누르면 시도가 두 개 생기고, 새로고침하면 버려진 첫 시도로 돌아갔다.
+    if (attemptsRef.current.some((attempt) => attempt.finishedAt === null)) return
     const ids = questions.map((question) => question.id)
     const order = settings.questionOrder === 'shuffle' ? shuffle(ids) : ids
     setLastResult(null)

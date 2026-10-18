@@ -72,6 +72,9 @@ export default function TowerPage() {
     // 같은 'quiz' 뷰를 쓰므로 이 ref로 "시작 신호"와 "퀴즈 열기"를 구분한다.
     const runStartedRef = useRef(false)
     const [showSkillModal, setShowSkillModal] = useState(false)
+    // 아이템 뽑기는 창이 뜰 때마다 한 번만. 창이 사라지는 동안(AnimatePresence)에도 버튼이 눌려서
+    // 예전엔 빠르게 여러 번 누르면 아이템이 그만큼 더 들어왔다.
+    const skillPickedRef = useRef(true)
     const [skillChoices, setSkillChoices] = useState<Skill[]>([])
     const [pendingGoldReward, setPendingGoldReward] = useState(0)
     const [pendingComboCount, setPendingComboCount] = useState(0)
@@ -181,6 +184,7 @@ export default function TowerPage() {
 
             if (quizProgress.completed && quizProgress.allCorrect) {
                 setSkillChoices(getSkillChoices(nextCombo))
+                skillPickedRef.current = false
                 setShowSkillModal(true)
             } else {
                 scheduleReturnToPlaying(900)
@@ -205,6 +209,8 @@ export default function TowerPage() {
 
     // 아이템은 뽑는 순간 쓰이지 않고 보관함(TowerItemBar)에 들어간다. 학생이 원할 때 쓴다.
     const handleSkillSelect = useCallback((skillId: SkillId) => {
+        if (skillPickedRef.current) return
+        skillPickedRef.current = true
         const selectedSkill = SKILLS[skillId]
         setShowSkillModal(false)
         addItem(skillId)
