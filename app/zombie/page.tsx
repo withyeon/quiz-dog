@@ -301,7 +301,9 @@ export default function ZombiePage() {
           </motion.div>
         )}
 
-        {room?.status === 'playing' && currentView !== 'lobby' && !showRoleReveal && (
+        {/* 일시정지 중에도 화면을 내리지 않는다(ZombieView 가 isPaused 덮개를 그린다). 예전엔 playing 일 때만 그려서
+            선생님이 멈추면 학생 화면이 검게 비었다 (2026-10-18 25명 검수) */}
+        {(room?.status === 'playing' || room?.status === 'paused') && currentView !== 'lobby' && !showRoleReveal && (
           hasAssignedRoles && !isLateJoiner ? (
             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-dvh w-full">
               <ZombieView
