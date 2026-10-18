@@ -161,14 +161,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 월 한도(무료 10·프로 300). 검수 중인 한 문제를 다시 만드는 것(avoidQuestions 동봉 + 1문제)만 무료다.
+    // 월 한도(무료 10·프로 무제한). 검수 중인 한 문제를 다시 만드는 것(avoidQuestions 동봉 + 1문제)만 무료다.
     // 전에는 avoidQuestions 만 있으면 안 셌는데, 그 값은 클라이언트가 보내는 것이라 한도를 다 쓴 뒤에도
     // '더 만들기'나 폼 값 하나로 무제한 생성이 됐다 (2026-10-18).
     const countsUsage = !((avoidQuestions ?? []).length > 0 && questionCount <= 1)
     if (countsUsage) {
       const usage = await getAiUsage(teacherId)
-      if (usage.used >= usage.limit) {
-        const upgrade = usage.plan === 'pro' ? '' : ' Pro 요금제로 올리면 달마다 300회까지 만들 수 있어요.'
+      if (usage.limit !== null && usage.used >= usage.limit) {
+        const upgrade = usage.plan === 'pro' ? '' : ' Pro 요금제로 올리면 횟수 제한 없이 만들 수 있어요.'
         return NextResponse.json(
           { error: `이번 달 AI 문제 만들기 ${usage.limit}회를 모두 썼어요.${upgrade}`, code: AI_QUOTA_ERROR_CODE, usage },
           { status: 402 },

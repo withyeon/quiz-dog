@@ -6,8 +6,8 @@ export type AiUsage = {
   plan: PlanName
   /** 이번 달(KST) 쓴 횟수 */
   used: number
-  /** 이번 달 한도 */
-  limit: number
+  /** 이번 달 한도. null 이면 무제한(프로) */
+  limit: number | null
   /** 다음 달 1일(KST) ISO — 한도가 다시 차는 때 */
   resetsAt: string
 }
