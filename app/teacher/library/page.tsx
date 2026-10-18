@@ -451,7 +451,21 @@ function LibraryPageContent() {
                         </span>
                       ))}
                     </div>
-                    <h3 className="truncate text-lg font-bold text-slate-900">{set.name}</h3>
+                    <h3 className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          // 카드 클릭(선택)과 같이 문제집을 고르고 바로 문제 미리보기를 연다
+                          event.stopPropagation()
+                          setPreviewSetId(set.set_id)
+                          if (set.question_count > 0) setQuestionPreviewOpen(true)
+                        }}
+                        title="문제 미리보기"
+                        className="block max-w-full truncate text-left text-lg font-bold text-slate-900 underline-offset-4 transition hover:text-sky-700 hover:underline"
+                      >
+                        {set.name}
+                      </button>
+                    </h3>
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-sm font-medium text-slate-500">
                       <span>{set.creator}</span>
                       <span>·</span>
@@ -496,7 +510,17 @@ function LibraryPageContent() {
                   <div className="text-sm font-bold text-slate-500">선택한 문제집</div>
                 </div>
 
-                <h2 className="mt-5 text-xl font-extrabold leading-snug text-slate-900">{selectedSet.name}</h2>
+                <h2 className="mt-5">
+                  <button
+                    type="button"
+                    onClick={() => setQuestionPreviewOpen(true)}
+                    disabled={selectedSet.question_count === 0}
+                    title="문제 미리보기"
+                    className="text-left text-xl font-extrabold leading-snug text-slate-900 underline-offset-4 transition enabled:hover:text-sky-700 enabled:hover:underline"
+                  >
+                    {selectedSet.name}
+                  </button>
+                </h2>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <InfoTile label="문항 수" value={`${selectedSet.question_count}개`} icon="/zombie/log.webp" />
                   <InfoTile label="좋아요" value={`${selectedSet.like_count.toLocaleString()}개`} icon="/icons/streak.webp" />
