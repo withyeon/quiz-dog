@@ -35,6 +35,14 @@ const RELAY_URL = process.env.NEXT_PUBLIC_ROOM_RELAY_URL ?? ''
 const JOIN_TIMEOUT_MS = 10_000
 /** ack를 이만큼 못 받으면 실패로 보고 HTTP 예비 경로로 보낸다 */
 const ACK_TIMEOUT_MS = 10_000
+/**
+ * 서버가 어느 보내기 형식에 답하는지 아직 모를 때(연결 뒤 첫 이벤트) 쓰는 짧은 ack 대기.
+ * 2026-10-16 이전 중계 서버는 ('ev', event, ack) 형식만 알아서, 새 형식 ('ev', event, { playerToken }, ack) 을 받으면
+ * ack 를 영원히 주지 않았다. 그러면 모든 이벤트가 10초씩 기다렸다 예비 경로로 갔고, 학생 예비 경로는 옛 서버의
+ * CORS 허용 목록에 X-Player-Token 이 없어 전부 막혔다(2026-10-18 25명 검수에서 발견). 서버·앱 배포 순서가 어긋나도
+ * 수업이 멈추지 않도록, 새 형식에 답이 없으면 옛 형식으로 한 번 더 보내 보고 그 연결에서는 그 형식을 계속 쓴다.
+ */
+const PROBE_ACK_TIMEOUT_MS = 4_000
 
 type PositionItem = [
   conn: number,
@@ -194,15 +202,48 @@ class RelayConnection implements RoomConnection {
     this.handlers.onPresence(flattenPresenceState(Object.fromEntries(this.presence)))
   }
 
-  private sendOverSocket(event: RoomChannelEvent): Promise<string> {
-    if (!this.joined || !this.socket.connected) return Promise.resolve('not_joined')
+  /**
+   * 서버가 답하는 보내기 형식. null 이면 아직 모른다(연결마다 첫 이벤트로 알아낸다).
+   * 'auth' = ('ev', event, { playerToken }, ack) — 2026-10-16 이후 서버. 'legacy' = ('ev', event, ack) — 그 전 서버.
+   */
+  private ackForm: 'auth' | 'legacy' | null = null
+
+  private emitWithAck(event: RoomChannelEvent, form: 'auth' | 'legacy', timeoutMs: number): Promise<string> {
     return new Promise((resolve) => {
-      const auth = { playerToken: loadPlayerSecret(event.playerId) }
-      this.socket.timeout(ACK_TIMEOUT_MS).emit('ev', event, auth, (error: Error | null, reply?: AckReply) => {
+      const done = (error: Error | null, reply?: AckReply) => {
         if (error) resolve('timed out')
         else resolve(reply?.err ?? 'ok')
-      })
+      }
+      if (form === 'auth') {
+        this.socket.timeout(timeoutMs).emit('ev', event, { playerToken: loadPlayerSecret(event.playerId) }, done)
+      } else {
+        this.socket.timeout(timeoutMs).emit('ev', event, done)
+      }
     })
+  }
+
+  private async sendOverSocket(event: RoomChannelEvent): Promise<string> {
+    if (!this.joined || !this.socket.connected) return 'not_joined'
+    if (this.ackForm) return this.emitWithAck(event, this.ackForm, ACK_TIMEOUT_MS)
+
+    // 아직 모른다: 새 형식을 짧게 기다려 보고, 답이 없으면 옛 형식으로 한 번 더
+    const viaAuth = await this.emitWithAck(event, 'auth', PROBE_ACK_TIMEOUT_MS)
+    if (viaAuth !== 'timed out') {
+      this.ackForm = 'auth'
+      return viaAuth
+    }
+    if (!this.joined || !this.socket.connected) return 'not_joined'
+    const viaLegacy = await this.emitWithAck(event, 'legacy', PROBE_ACK_TIMEOUT_MS)
+    if (viaLegacy === 'ok') {
+      this.ackForm = 'legacy'
+      console.warn('[relay] 중계 서버가 옛 버전이라 옛 보내기 형식으로 보냅니다. relay/deploy-lightsail.sh 로 서버를 갱신하세요.')
+      return viaLegacy
+    }
+    if (viaLegacy !== 'timed out') {
+      // 옛 형식에 거절(unauthorized 등)로 답했다 = 새 서버다. 첫 전송이 그저 느렸던 것이니 새 형식을 계속 쓴다.
+      this.ackForm = 'auth'
+    }
+    return 'timed out'
   }
 
   async send(event: RoomChannelEvent, canUseSocket: boolean): Promise<SendEventResult> {
@@ -219,18 +260,28 @@ class RelayConnection implements RoomConnection {
     try {
       const token = await getSessionToken()
       const playerToken = loadPlayerSecret(event.playerId)
-      const response = await fetch(
+      const post = (withPlayerToken: boolean) => fetch(
         `${toHttpBase(RELAY_URL)}/v2/rooms/${encodeURIComponent(this.options.roomCode)}/events`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...(playerToken ? { 'X-Player-Token': playerToken } : {}),
+            ...(withPlayerToken && playerToken ? { 'X-Player-Token': playerToken } : {}),
           },
           body: JSON.stringify(event),
         },
       )
+      let response: Response
+      try {
+        response = await post(true)
+      } catch (error) {
+        // 네트워크 오류 또는 CORS 거절(fetch 는 둘을 구분하지 않고 TypeError 를 던진다).
+        // 2026-10-16 이전 중계 서버는 X-Player-Token 헤더를 CORS 허용 목록에 넣지 않아 학생 예비 전송이 전부 막혔다.
+        // 그 헤더를 빼고 한 번 더 보낸다(옛 서버는 playerId 만으로 확인한다). 진짜 네트워크 오류면 이것도 실패해 그대로 돌려준다.
+        if (!playerToken) throw error
+        response = await post(false)
+      }
       if (!response.ok) throw new Error(response.status === 401 ? 'unauthorized' : `HTTP ${response.status}`)
       return { ok: true, reason: socketResult ? `rest_after_${socketResult}` : 'rest_fallback' }
     } catch (error) {

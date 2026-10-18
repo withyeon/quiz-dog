@@ -373,6 +373,18 @@ export function useTeacherPlayRoom() {
     const combatants = activePlayers.filter((player) => player.player_class)
     if (combatants.length < 2) return
 
+    // 팀 배정이 끝나기 전에는 판정하지 않는다. 호스트의 팀 패치가 차례로 도착하는 몇 초 동안은
+    // "팀이 있는 학생이 전부 파랑"인 순간이 생기고, 그때 전멸 규칙(빨강 생존 0)이 참이 되어
+    // 시작 18초 만에 게임이 끝났다 (2026-10-18 25명 검수). 팀전이면 전원이 팀을 받았고 양 팀 모두
+    // 한 명 이상 있을 때만 판정한다. 시작 직후 20초도 건너뛴다.
+    const teamed = combatants.filter((player) => player.team === 'red' || player.team === 'blue')
+    if (teamed.length > 0) {
+      if (teamed.length < combatants.length) return
+      const reds = teamed.filter((player) => player.team === 'red').length
+      if (reds === 0 || reds === teamed.length) return
+    }
+    if (room.started_at && Date.now() - Date.parse(room.started_at) < 20_000) return
+
     if (!isBattleGameOver(combatants)) return
 
     void finishAutomatically('battle_royale_decided', '눈싸움 조기 종료 실패:', 'Error saving battle game report snapshot:')

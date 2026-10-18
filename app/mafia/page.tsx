@@ -15,6 +15,7 @@ import { Users } from 'lucide-react'
 import { formatTime } from '@/lib/game/mafia'
 import { useGameBase } from '@/hooks/useGameBase'
 import PixelIcon from '@/components/ui/PixelIcon'
+import PausedOverlay from '@/components/PausedOverlay'
 
 // 방에 제한 시간이 없을 때(/dev 로 만든 방 등) 보여 주는 게임 시간. 이 시간이 지나면 결과로 넘어간다(useGameBase).
 const MAFIA_FALLBACK_DURATION_SECONDS = 420
@@ -173,7 +174,8 @@ export default function MafiaPage() {
           </motion.div>
         )}
 
-        {currentView !== 'lobby' && currentView !== 'result' && !showCountdown && room?.status === 'playing' && (
+        {/* 일시정지 중에도 화면을 내리지 않는다: 예전에는 playing 일 때만 그려서 선생님이 멈추면 학생 화면이 검게 비었다 (2026-10-18 25명 검수) */}
+        {currentView !== 'lobby' && currentView !== 'result' && !showCountdown && (room?.status === 'playing' || room?.status === 'paused') && (
           <motion.div
             key="playing"
             initial={{ opacity: 0 }}
@@ -221,6 +223,8 @@ export default function MafiaPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <PausedOverlay show={room?.status === 'paused' && currentView !== 'lobby' && currentView !== 'result'} dark />
     </div>
   )
 }

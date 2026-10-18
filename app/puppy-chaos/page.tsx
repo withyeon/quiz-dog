@@ -161,7 +161,7 @@ export default function PuppyChaosPage() {
 
         {isPaused && phase !== 'waiting' && phase !== 'finalResult' && (
           <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/50 p-6">
-            <div className="rounded-[28px] border-4 border-slate-900 bg-white px-8 py-6 text-center text-4xl font-black shadow-[6px_6px_0_#0f172a]">
+            <div className="rounded-[28px] border-4 border-slate-900 bg-white px-8 py-6 text-center text-4xl font-black break-keep shadow-[6px_6px_0_#0f172a]">
               선생님이 잠깐 멈췄어요
             </div>
           </div>

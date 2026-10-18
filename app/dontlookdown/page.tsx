@@ -35,6 +35,7 @@ import {
 } from '@/lib/game/dontlookdown'
 import { useGameBase } from '@/hooks/useGameBase'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
+import PausedOverlay from '@/components/PausedOverlay'
 import type { Database } from '@/types/database.types'
 
 type Player = Database['public']['Tables']['players']['Row']
@@ -589,6 +590,7 @@ export default function DontLookDownPage() {
                     </div>
                 )}
             </AnimatePresence>
+            <PausedOverlay show={room?.status === 'paused' && currentView !== 'result'} />
         </main>
     )
 }

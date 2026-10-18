@@ -16,6 +16,7 @@ import { isMultiSelectGameQuestion } from '@/lib/quiz/multiSelect'
 import type { Json } from '@/types/database.types'
 import ItemGlyph from '@/components/ItemGlyph'
 import PixelIcon from '@/components/ui/PixelIcon'
+import PausedOverlay from '@/components/PausedOverlay'
 
 const DUMMY_QUESTIONS: GansikRunQuestion[] = [
   { id: '1', question_text: '한국의 수도는?', options: ['서울', '부산', '대구', '인천'], answer: '서울' },
@@ -441,6 +442,7 @@ export default function GansikRunPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <PausedOverlay show={room?.status === 'paused' && pageView !== 'result'} dark />
     </div>
   )
 }

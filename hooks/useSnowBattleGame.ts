@@ -249,12 +249,34 @@ export function useSnowBattleGame() {
   // 게임 도중 들어온 학생은 시작 때의 팀 배정을 놓친다. 팀전이 이미 진행 중이면
   // 생존자가 적은 팀(같으면 인원이 적은 팀)에 스스로 합류한다.
   // 팀이 없는 채로 두면 canAttackTarget 이 양쪽 모두를 공격 가능하게 봐서 팀전이 깨진다.
+  //
+  // 시작 때부터 있던 학생은 호스트가 전원을 한꺼번에 배정하므로 스스로 고르면 안 된다. 예전에는 "팀이 있는 친구가
+  // 한 명이라도 보이면" 바로 스스로 골랐는데, 호스트의 패치 25개가 차례로 도착하는 사이 아직 자기 것을 못 받은
+  // 학생 23명이 전부 (첫 배정이 빨강이라) 파랑을 골라 호스트 배정을 덮어썼다 → 파랑 24 : 빨강 1 (2026-10-18 25명 검수).
+  // 그래서 (1) 게임 시작 뒤에 들어온 학생(created_at > started_at)만 바로 합류하고,
+  //        (2) 시작 때 있던 학생은 호스트 배정을 기다리다가, 팀이 보인 지 15초가 지나도 내 팀이 없을 때만 스스로 합류한다
+  //            (호스트가 중간에 나가 배정이 끊긴 경우의 안전망).
   const lateTeamRequestedRef = useRef(false)
+  const teamsFirstSeenAtRef = useRef<number | null>(null)
+  const [lateTeamRetryTick, setLateTeamRetryTick] = useState(0)
   useEffect(() => {
     if (room?.status !== 'playing' || !playerId || !currentPlayer) return
     if (currentPlayerTeam || lateTeamRequestedRef.current) return
     const teamed = players.filter((p) => (p as BattlePlayer).team && !p.is_kicked)
     if (teamed.length === 0) return // 개인전이거나 호스트가 아직 배정 중
+
+    const startedAtMs = room?.started_at ? Date.parse(room.started_at) : NaN
+    const createdAtMs = currentPlayer.created_at ? Date.parse(currentPlayer.created_at) : NaN
+    const joinedAfterStart = Number.isFinite(startedAtMs) && Number.isFinite(createdAtMs) && createdAtMs > startedAtMs
+    if (!joinedAfterStart) {
+      const WAIT_FOR_HOST_MS = 15_000
+      if (teamsFirstSeenAtRef.current === null) teamsFirstSeenAtRef.current = Date.now()
+      const waited = Date.now() - teamsFirstSeenAtRef.current
+      if (waited < WAIT_FOR_HOST_MS) {
+        const timer = window.setTimeout(() => setLateTeamRetryTick((tick) => tick + 1), WAIT_FOR_HOST_MS - waited + 50)
+        return () => window.clearTimeout(timer)
+      }
+    }
 
     const count = (team: Team, aliveOnly: boolean) => teamed.filter((p) =>
       (p as BattlePlayer).team === team && (!aliveOnly || (p.health ?? 100) > 0)
@@ -274,7 +296,7 @@ export function useSnowBattleGame() {
       lateTeamRequestedRef.current = false
       console.error('도중 입장 팀 배정 실패:', error)
     })
-  }, [commitPlayerPatch, currentPlayer, currentPlayerTeam, playerId, players, room?.status])
+  }, [commitPlayerPatch, currentPlayer, currentPlayerTeam, lateTeamRetryTick, playerId, players, room?.started_at, room?.status])
 
   // 팀 배정이 완료되면 reveal 표시 (모든 플레이어가 보게 됨)
   useEffect(() => {
