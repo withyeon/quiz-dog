@@ -11,6 +11,8 @@ import type { Database } from '@/types/database.types'
  *
  * 어떻게 판정하나 (2026-10-18 결정):
  *   1) 만든 지 2시간이 지난 방은 종료한다. 수업 한 타임은 길어야 50분이라 2시간이면 충분하다.
+ *      게임을 시작(started_at)한 방은 시작 시각부터 2시간을 다시 센다 — 종료 화면의 '다시 시작'은
+ *      같은 방을 재사용하고, 미리 만들어 둔 방도 시작하면 새 판이기 때문이다.
  *   2) 단, 최근 5분 안에 학생 행(players)이 갱신된 방은 실제로 진행 중일 수 있으므로
  *      이번 스윕에서는 건너뛰고 다음 스윕(15분 뒤)에 다시 본다. 살아있는 수업을 끊지 않기 위한 유예다.
  *   3) 과제 방은 며칠 열려 있는 게 정상이므로 마감 시각(due_at)이 지났을 때만 종료한다.
@@ -87,7 +89,9 @@ export function isRoomStale(room: RoomCandidate, now: number): boolean {
     return due > 0 && now >= due
   }
 
-  return now - toTime(room.created_at) >= ROOM_MAX_AGE_MS
+  // 시작한 방은 시작 시각 기준(다시 시작·재개가 started_at 을 새로 찍는다). 둘 중 늦은 쪽에서 2시간.
+  const anchor = Math.max(toTime(room.created_at), toTime(room.started_at))
+  return now - anchor >= ROOM_MAX_AGE_MS
 }
 
 function chunk<T>(items: T[], size: number): T[][] {

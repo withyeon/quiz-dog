@@ -89,6 +89,7 @@ export function usePuppyChaosGame() {
     applyPlayerPatch,
     sendRoomEvent,
     sessionStartedAt,
+    recordAnswer,
   } = useGameBase({ expectedGameMode: 'poop_dodge', preStartQuizTotal: 0 })
   const [phase, setPhase] = useState<Phase>('waiting')
   const [combo, setCombo] = useState(0)
@@ -269,6 +270,15 @@ export function usePuppyChaosGame() {
         console.error('강아지 대소동 채점 오류, 오답 처리함:', error)
       }
     }
+
+    // 문제를 직접 고르는(randomQuestionIndex) 게임이라 훅의 checkAnswer를 안 거친다.
+    // 그래서 여기서 기록에 넣어야 players.answer_history로 동기화되고, 학생 결과·선생님 리포트에
+    // 정답률이 잡힌다. 안 넣으면 10문제를 풀어도 "0번 풀어서 0번 정답"으로 나온다.
+    recordAnswer({
+      questionIndex: questionCount > 0 ? randomQuestionIndex % questionCount : 0,
+      isCorrect: correct,
+      selectedAnswer: submittedAnswer,
+    })
 
     const comboAfter = correct ? combo + 1 : 0
     setCombo(comboAfter)

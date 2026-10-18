@@ -9,6 +9,7 @@ import { usePlayersRealtime } from '@/hooks/usePlayersRealtime'
 import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useRoomResync } from '@/hooks/useRoomResync'
+import { isTerminalRoomStatus, type RoomStatus } from '@/lib/game/roomStatus'
 import { useAudioContext } from '@/components/AudioProvider'
 import type { HostMode } from '@/components/teacher/play/HomeworkPanel'
 import { DEFAULT_STUDY_SETTINGS, buildRoomSettings, type StudySettings } from '@/lib/game/studySettings'
@@ -78,6 +79,9 @@ export function useTeacherPlayRoom() {
   const [hideTutorialNextTime, setHideTutorialNextTime] = useState(false)
   const [timerDisplaySeconds, setTimerDisplaySeconds] = useState<number | null>(null)
   const autoFinishRequestedRef = useRef(false)
+  /** 이 화면이 직접 끝낸 방이면 true — 밖에서(2시간 자동 종료) 끝난 방과 구분한다 */
+  const selfFinishRef = useRef(false)
+  const prevRoomStatusRef = useRef<string | undefined>(undefined)
   const tutorialStateRef = useRef({
     isOpen: false,
     gameMode: DEFAULT_GAME_MODE,
@@ -212,6 +216,36 @@ export function useTeacherPlayRoom() {
     }
   }, [roomStatus])
 
+  // 방이 밖에서 닫힌 경우(만든 지 2시간 자동 종료 등). 전에는 시작 버튼만 사라진 채 참가코드가 남아
+  // 선생님이 새로고침 말고는 할 게 없었다 (2026-10-18).
+  //  - 대기방이었다면: 안내하고 방을 비워 새 게임을 만들 수 있게 한다.
+  //  - 게임 중이었다면: 자동 종료가 기록을 남겼으니 종료 화면으로 간다.
+  useEffect(() => {
+    const previous = prevRoomStatusRef.current
+    prevRoomStatusRef.current = roomStatus
+    if (!roomCode || !isTerminalRoomStatus(roomStatus as RoomStatus | undefined) || !previous || isTerminalRoomStatus(previous as RoomStatus)) return
+    if (selfFinishRef.current) {
+      selfFinishRef.current = false
+      return
+    }
+    if (previous === 'waiting') {
+      stopBGM()
+      setIsGameStarted(false)
+      setRoomCode('')
+      setShowGameCodeModal(false)
+      const url = new URL(window.location.href)
+      if (url.searchParams.has('room')) {
+        url.searchParams.delete('room')
+        window.history.replaceState(null, '', url.toString())
+      }
+      toast.info('이 방은 만든 지 2시간이 지나 자동으로 종료됐어요. 새 게임을 만들어주세요.')
+      return
+    }
+    stopBGM()
+    toast.info('방이 자동으로 종료되어 결과 화면으로 이동해요.')
+    router.push(`/teacher/game/${roomCode}/end`)
+  }, [roomCode, roomStatus, router, stopBGM])
+
   useEffect(() => {
     if (!roomCode) {
       stopBGM()
@@ -249,6 +283,7 @@ export function useTeacherPlayRoom() {
     autoFinishRequestedRef.current = true
 
     try {
+      selfFinishRef.current = true
       const finishPromise = finishRoom(roomCode)
       broadcastRoomPatch({ status: 'finished' }, reason)
       void sendRoomEvent('game:finished', {
@@ -265,6 +300,7 @@ export function useTeacherPlayRoom() {
       router.push(`/teacher/game/${roomCode}/end`)
     } catch (error) {
       autoFinishRequestedRef.current = false
+      selfFinishRef.current = false
       console.error(failLabel, error)
     }
   }, [ownerId, broadcastRoomPatch, players, room, roomCode, router, sendRoomEvent, stopBGM])
@@ -585,6 +621,7 @@ export function useTeacherPlayRoom() {
     playSFX('click')
 
     try {
+      selfFinishRef.current = true
       const finishPromise = finishRoom(roomCode)
       broadcastRoomPatch({ status: 'finished' }, 'teacher_finish')
       void sendRoomEvent('game:finished', {
@@ -604,6 +641,7 @@ export function useTeacherPlayRoom() {
       stopBGM()
       router.push(`/teacher/game/${roomCode}/end`)
     } catch (error) {
+      selfFinishRef.current = false
       console.error('Error ending game:', error)
       toast.error('게임 종료에 실패했습니다: ' + formatServiceError(error))
     }

@@ -62,6 +62,8 @@ interface MafiaViewProps {
   sendRoomEvent: (type: RoomEventType, payload?: unknown) => Promise<unknown> | { ok: boolean; reason?: string }
   playSFX: (sound: 'correct' | 'incorrect' | 'item' | 'click') => void
   questionSetTitle?: string | null
+  /** 방 상태. 'paused' 면 퀴즈 타이머를 멈추고 덮개를 띄운다 (2026-10-18: 멈춤 중 타이머가 돌아 오답이 쌓이던 버그) */
+  roomStatus?: string | null
 }
 
 type MafiaViewType = 'quiz' | 'actionSelect' | 'vaultSelection' | 'vaultResult' | 'investigation' | 'wrong'
@@ -150,7 +152,9 @@ export default function MafiaView({
   sendRoomEvent,
   playSFX,
   questionSetTitle,
+  roomStatus,
 }: MafiaViewProps) {
+  const isPaused = roomStatus === 'paused'
   const [currentView, setCurrentView] = useState<MafiaViewType>('quiz')
   const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
   const [currentVaults, setCurrentVaults] = useState<SafeVault[]>([])
@@ -306,6 +310,8 @@ export default function MafiaView({
   }, [goToNextQuestion, clearRevealedAnswer])
 
   const handleAnswerSubmit = async (answer: string) => {
+    // 선생님이 멈춘 동안 들어온 제출(시간 초과 빈 답 등)은 채점하지 않는다
+    if (isPaused) return false
     const correct = await checkAnswer(answer)
     if (correct) {
       playSFX('correct')
@@ -510,7 +516,7 @@ export default function MafiaView({
         <AnimatePresence mode="wait">
           {currentView === 'quiz' && currentQuestion && (
             <motion.div key="quiz" initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.96 }} className="w-full max-w-4xl">
-              <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} onCorrectClick={() => setCurrentView('actionSelect')} timeLimit={30} variant="glass" />
+              <QuizView question={currentQuestion} onAnswer={handleAnswerSubmit} onCorrectClick={() => setCurrentView('actionSelect')} timeLimit={30} paused={isPaused} variant="glass" />
             </motion.div>
           )}
 
@@ -713,6 +719,14 @@ export default function MafiaView({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {isPaused && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/55 p-6 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white px-8 py-6 text-center text-3xl font-black break-keep text-slate-900 shadow-2xl">
+            선생님이 잠깐 멈췄어요
+          </div>
+        </div>
+      )}
     </div>
   )
 }

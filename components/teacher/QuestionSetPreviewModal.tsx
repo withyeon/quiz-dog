@@ -19,7 +19,8 @@ const TYPE_TONE: Record<QuestionRow['type'], string> = {
 }
 const PAGE_SIZE = 20
 
-// 같은 세션에서 한 번 연 문제집은 다시 읽지 않는다(자료실에서 여러 개 훑어볼 때 빠르게)
+// 한 번 연 문제집은 캐시를 먼저 보여 주고(자료실에서 여러 개 훑어볼 때 빠르게) 뒤에서 다시 읽어 바꿔 끼운다.
+// 전에는 다시 읽지 않아서, 미리보기 → 수정 → 미리보기를 하면 옛 문제가 그대로 보였다 (2026-10-18).
 const cache = new Map<string, QuestionRow[]>()
 
 interface QuestionSetPreviewModalProps {
@@ -46,11 +47,8 @@ export default function QuestionSetPreviewModal({ setId, title, onClose, actions
 
   useEffect(() => {
     let cancelled = false
-    if (cache.has(setId)) {
-      setQuestions(cache.get(setId)!)
-      return
-    }
-    setQuestions(null)
+    const cached = cache.get(setId) ?? null
+    setQuestions(cached)
     setError(null)
     getQuestionSetWithQuestions(setId)
       .then(({ questions: rows }) => {

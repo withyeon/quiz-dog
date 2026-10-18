@@ -127,7 +127,15 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                 totalAnswered: pTotal,
                 accuracy: pTotal > 0 ? Math.round((pCorrect / pTotal) * 100) : 0
             }
-        }).sort((a, b) => b.score - a.score)
+        }).sort((a, b) => b.score - a.score || b.correctAnswers - a.correctAnswers || a.nickname.localeCompare(b.nickname, 'ko'))
+            // 같은 점수면 같은 등수(1·2·2·4)
+            .map((p, idx, sorted) => ({ ...p, rank: idx > 0 && sorted[idx - 1].score === p.score ? -1 : idx + 1 }))
+            .map((p, idx, ranked) => {
+                if (p.rank !== -1) return p
+                let i = idx
+                while (i > 0 && ranked[i].rank === -1) i -= 1
+                return { ...p, rank: ranked[i].rank }
+            })
 
         // 문제별 정답률 계산
         questionStats.forEach(q => {
@@ -182,8 +190,8 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                     const topWrong = Object.entries(q.wrongAnswers).sort((a, b) => b[1] - a[1])[0]
                     return { index: q.index, text: q.text, type: q.type, answer: q.answer, correctCount: q.correctCount, incorrectCount: q.incorrectCount, accuracy: q.accuracy, topWrongAnswer: topWrong ? `${topWrong[0]} (${topWrong[1]}명)` : null }
                 }),
-                students: stats.playerStats.map((p, idx) => ({
-                    rank: idx + 1,
+                students: stats.playerStats.map((p) => ({
+                    rank: p.rank,
                     nickname: p.nickname,
                     score: p.score,
                     correctAnswers: p.correctAnswers,
@@ -432,7 +440,7 @@ export default function TeacherAnalytics({ setId, players }: TeacherAnalyticsPro
                                         className="hover:bg-purple-50 transition-colors cursor-pointer"
                                     >
                                         <td className="py-3 px-4">
-                                            {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}`}
+                                            {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : player.rank === 3 ? '🥉' : `${player.rank}`}
                                         </td>
                                         <td className="py-3 px-4 font-medium text-gray-900">{player.nickname}</td>
                                         <td className="py-3 px-4 text-gray-600 font-mono">{player.score.toLocaleString()}</td>

@@ -575,6 +575,7 @@ export default function DontLookDownPage() {
                             onAnswerQuestion={handleAnswer}
                             quizLocked={isAnswerLocked}
                             remainingTime={remainingTime}
+                            paused={room?.status === 'paused'}
                         />
                     </motion.div>
                 )}

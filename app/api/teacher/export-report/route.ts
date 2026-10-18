@@ -20,6 +20,7 @@ function isPayload(value: unknown): value is ExportPayload {
   const v = value as Partial<ExportPayload>
   return typeof v.title === 'string' && Array.isArray(v.questions) && Array.isArray(v.students)
     && v.questions.length <= MAX_ROWS && v.students.length <= MAX_ROWS
+    && v.students.every((s) => s && typeof s === 'object' && Array.isArray(s.answers) && s.answers.length <= MAX_ROWS)
 }
 
 const HEADER_FILL: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE0ECFF' } }

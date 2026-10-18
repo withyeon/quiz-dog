@@ -314,17 +314,11 @@ export default function GameStartTutorialModal({
             </div>
           )}
 
+          {/* 버튼 구성은 데모가 있는 게임의 모달과 같게: [이전] [다음] [게임 시작].
+              전에는 여기만 "바로 시작"이라 데모 없는 게임(레이드)에서 시작 버튼 이름이 달랐다. */}
           <div className="flex flex-wrap gap-2">
             {isTeacher && (
               <>
-                <button
-                  type="button"
-                  onClick={onStart}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 hover:text-black"
-                >
-                  <Play className="h-4 w-4" />
-                  바로 시작
-                </button>
                 <button
                   type="button"
                   onClick={() => goToStep(safeStepIndex - 1)}
@@ -334,25 +328,23 @@ export default function GameStartTutorialModal({
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
-                {isLast ? (
-                  <button
-                    type="button"
-                    onClick={onStart}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-black px-5 text-sm font-black text-white transition hover:bg-neutral-800"
-                  >
-                    <Check className="h-4 w-4" />
-                    게임 시작
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => goToStep(safeStepIndex + 1)}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-black px-5 text-sm font-black text-white transition hover:bg-neutral-800"
-                  >
-                    다음
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => goToStep(safeStepIndex + 1)}
+                  disabled={isLast}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition hover:bg-slate-50 hover:text-black disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  다음
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onStart}
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-black px-5 text-sm font-black text-white transition hover:bg-neutral-800"
+                >
+                  <Play className="h-4 w-4" />
+                  게임 시작
+                </button>
               </>
             )}
           </div>

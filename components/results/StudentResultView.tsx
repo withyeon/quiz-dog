@@ -114,7 +114,7 @@ export default function StudentResultView({
             />
           </div>
           <p className="mt-5 rounded-md bg-white/80 px-4 py-3 text-base font-bold text-slate-700">
-            {isTopThree ? '멋진 집중력이었어요. 오늘 배운 것도 한 번 더 확인해볼까요?' : '좋아요. 틀린 문제를 다시 한 번 확인해 봅시다.'}
+            {getResultMessage(student)}
           </p>
         </section>
 
@@ -255,6 +255,24 @@ export default function StudentResultView({
       )}
     </main>
   )
+}
+
+/**
+ * 결과 카드 한 줄 문구. 등수만 보고 정하지 않고 정답률도 함께 본다.
+ * 전에는 등수만 봐서 정답률 0%인 1~3등에게도 "멋진 집중력이었어요"가 떴다.
+ * 학생에게 보이는 문구라 판정하는 말("부족")은 쓰지 않고, 다음에 할 행동만 말한다.
+ */
+function getResultMessage(student: PlayerAnalysis): string {
+  const isTopThree = student.rankByScore <= 3
+  if (student.answeredCount === 0) {
+    return isTopThree
+      ? '순위가 높아요! 다음 게임에서는 문제도 함께 풀어보면 더 든든할 거예요.'
+      : '이번엔 푼 문제가 없어요. 다음 게임에서는 문제도 함께 풀어봐요.'
+  }
+  if (isTopThree && student.accuracy >= 70) return '멋진 집중력이었어요. 오늘 배운 것도 한 번 더 확인해볼까요?'
+  if (isTopThree) return '순위가 높아요! 틀린 문제도 다시 보면 다음 게임이 더 쉬워져요.'
+  if (student.accuracy >= 80) return '정답률이 높았어요. 이 감각 그대로 다음 게임도 가봅시다.'
+  return '좋아요. 틀린 문제를 다시 한 번 확인해 봅시다.'
 }
 
 /** 한 문항을 푼 모든 시도. 제한 시간 동안 문제가 반복되는 게임에서는 2회 이상일 수 있다. */

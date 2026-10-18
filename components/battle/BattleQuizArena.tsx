@@ -96,7 +96,11 @@ export default function BattleQuizArena({
           className="h-[clamp(300px,48dvh,480px)] xl:h-[clamp(320px,calc(100dvh_-_330px),640px)]"
         />
 
-        <div className="relative xl:sticky xl:top-4">
+        {/*
+          xl에서는 퀴즈가 sticky라 페이지를 내려도 따라온다. 그래서 퀴즈 자체가 화면보다 길면(1440x900에서
+          긴 문제 + 보기 4개) 3·4번 보기가 영영 안 보였다. 화면 높이 안에서 퀴즈 칸이 스스로 스크롤되게 한다.
+        */}
+        <div className="relative xl:sticky xl:top-4 xl:max-h-[calc(100dvh-2rem)] xl:overflow-y-auto">
           <AnimatePresence>
             {attackResult && (
               <motion.div

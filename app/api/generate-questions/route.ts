@@ -161,8 +161,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 월 한도(무료 10·프로 300). "새로 만들기"만 세고, 한 문제 다시 만들기·더 만들기(avoidQuestions 동봉)는 안 센다.
-    const countsUsage = (avoidQuestions ?? []).length === 0
+    // 월 한도(무료 10·프로 300). 검수 중인 한 문제를 다시 만드는 것(avoidQuestions 동봉 + 1문제)만 무료다.
+    // 전에는 avoidQuestions 만 있으면 안 셌는데, 그 값은 클라이언트가 보내는 것이라 한도를 다 쓴 뒤에도
+    // '더 만들기'나 폼 값 하나로 무제한 생성이 됐다 (2026-10-18).
+    const countsUsage = !((avoidQuestions ?? []).length > 0 && questionCount <= 1)
     if (countsUsage) {
       const usage = await getAiUsage(teacherId)
       if (usage.used >= usage.limit) {
@@ -174,7 +176,8 @@ export async function POST(request: NextRequest) {
       }
     }
     const finish = async (body: { questions: unknown[]; figureCount?: number }) => {
-      if (countsUsage) await recordAiGeneration(teacherId, sourceType, body.questions.length)
+      // 문제가 하나도 안 나온 호출(자막 실패 등)은 교사가 오류만 보므로 횟수를 깎지 않는다
+      if (countsUsage && body.questions.length > 0) await recordAiGeneration(teacherId, sourceType, body.questions.length)
       return NextResponse.json(body)
     }
 

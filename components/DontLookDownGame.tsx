@@ -81,6 +81,8 @@ interface DontLookDownGameProps {
     quizLocked?: boolean
     remainingTime?: number
     questionSetTitle?: string | null
+    /** 선생님이 멈춘 동안 true. 덮개가 입력만 막고 물리는 계속 돌아 떨어지던 버그 수정 (2026-10-18) */
+    paused?: boolean
 }
 
 /**
@@ -108,6 +110,7 @@ export default function DontLookDownGame({
     onAnswerQuestion,
     quizLocked = false,
     remainingTime,
+    paused = false,
 }: DontLookDownGameProps) {
     // ============ Refs (게임 권위 상태) ============
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -123,6 +126,8 @@ export default function DontLookDownGame({
     // 항상 같아 늘어나 보이지 않고, 어떤 기기에서도 요소가 같은 크기로 보인다.
     const viewRef = useRef<{ w: number; h: number }>({ w: WORLD.VIEW_WIDTH, h: WORLD.VIEW_HEIGHT })
     const showQuizRef = useRef(false)
+    const pausedRef = useRef(paused)
+    pausedRef.current = paused
 
     // 외부 상태 스냅샷 (props → ref, 게임 루프는 항상 최신 ref를 읽음)
     const otherPlayersRef = useRef<DLDPlayer[]>([])
@@ -405,7 +410,7 @@ export default function DontLookDownGame({
             const dt = Math.min((now - lastT) / 1000, 0.05)
             lastFrameTimeRef.current = now
 
-            if (showQuizRef.current) {
+            if (showQuizRef.current || pausedRef.current) {
                 drawScene()
                 return
             }

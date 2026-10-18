@@ -154,7 +154,8 @@ function LibraryPageContent() {
           name: isGeneratedLibraryTitle(title, item.set_id) ? `문제집 ${index + 1}` : title,
           subject,
           grade,
-          creator: '퀴즈독 자료실',
+          // 만든 선생님 이름 — 주인이 없는(퀴즈독이 올린) 문제집만 '퀴즈독 자료실'
+          creator: item.creator_name ? `${item.creator_name} 선생님` : '퀴즈독 자료실',
           tags: normalizeTags(item.tags, grade, subject),
           like_count: item.like_count,
           weekly_like_count: item.weekly_like_count,

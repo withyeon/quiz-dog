@@ -138,10 +138,26 @@ export function buildResultAnalytics(
   room?: Room | null,
 ): ResultAnalytics {
   const totalQuestions = questions.length
+  // 같은 점수면 같은 등수(1·2·2·4). 전에는 정렬 순서(index + 1)를 등수로 써서 좀비·공부·카페처럼
+  // 동점이 흔한 게임에서 300점 6명이 3등부터 8등까지 임의로 갈렸다.
+  // 동점 안의 줄 세우기(화면에 나오는 순서)는 맞힌 수 → 들어온 순서 → 이름으로 고정해 새로 고칠 때마다 안 바뀌게 한다.
+  const correctCountById = new Map(
+    players.map((player) => [player.id, toAnswerHistory(player.answer_history).filter((answer) => answer.isCorrect).length]),
+  )
   const rankedPlayers = [...players]
-    .sort((a, b) => getDisplayScore(b, room) - getDisplayScore(a, room))
+    .sort((a, b) =>
+      getDisplayScore(b, room) - getDisplayScore(a, room)
+      || (correctCountById.get(b.id) ?? 0) - (correctCountById.get(a.id) ?? 0)
+      || (a.created_at ?? '').localeCompare(b.created_at ?? '')
+      || a.nickname.localeCompare(b.nickname, 'ko'))
 
-  const playerRank = new Map(rankedPlayers.map((player, index) => [player.id, index + 1]))
+  const playerRank = new Map<string, number>()
+  rankedPlayers.forEach((player, index) => {
+    const score = getDisplayScore(player, room)
+    const previous = index > 0 ? rankedPlayers[index - 1] : null
+    const sharesRank = previous !== null && getDisplayScore(previous, room) === score
+    playerRank.set(player.id, sharesRank ? (playerRank.get(previous.id) ?? index + 1) : index + 1)
+  })
 
   const playerAnalyses = rankedPlayers.map((player, index) => {
     const history = toAnswerHistory(player.answer_history)

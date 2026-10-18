@@ -66,12 +66,13 @@ export type SpriteSet = Partial<Record<SpriteKey, HTMLImageElement>>
 /** 기본 그림(dog/cat)이 있을 때만 추가로 찾아보는 변형들 */
 const DOG_VARIANT_KEYS: SpriteKey[] = ['dogJump', 'dogSlide', 'dog2', 'dog3', 'dog4']
 const CAT_VARIANT_KEYS: SpriteKey[] = ['cat2', 'cat3', 'cat4']
-const TREE_VARIANT_KEYS: SpriteKey[] = ['tree2', 'tree3']
+// tree-3 그림은 없다. 목록에 두면 학생마다 .webp·.png 404가 두 번 나가서 뺐다. 파일을 넣으면 다시 추가.
+const TREE_VARIANT_KEYS: SpriteKey[] = ['tree2']
 const PROP_VARIANT_KEYS: SpriteKey[] = ['prop2', 'prop3']
 
-/** 길가에 번갈아 세울 나무들 (tree-2·3이 없으면 tree 한 종류만) */
+/** 길가에 번갈아 세울 나무들 (tree-2가 없으면 tree 한 종류만) */
 export function treeSprites(set: SpriteSet | undefined): HTMLImageElement[] {
-  return framesOf(set, ['tree', 'tree2', 'tree3'])
+  return framesOf(set, ['tree', 'tree2'])
 }
 
 /** 길가 소품들(가로등·표지판·덤불). 나무 네 자리에 한 번꼴로 섞인다. */

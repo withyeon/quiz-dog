@@ -68,22 +68,28 @@ export default function GameResult({
 }: GameResultProps) {
   const showFullResults = audience === 'teacher'
   // Battle Royale 모드일 경우 체력 기반 정렬, 그 외에는 점수 기반
-  const sortedPlayers = gameMode === 'battle_royale'
-    ? [...players].sort((a, b) => {
-      const healthA = (a as any).health || 0
-      const healthB = (b as any).health || 0
-      return healthB - healthA // 체력 높은 순
-    })
-    : gameMode === 'gold_quest'
-      ? [...players].sort((a, b) =>
-        ((b.gold ?? 0) - (a.gold ?? 0)) || ((b.score ?? 0) - (a.score ?? 0))
-      )
-      : [...players].sort((a, b) => b.score - a.score)
+  const compareForLeaderboard = (a: Player, b: Player): number => {
+    if (gameMode === 'battle_royale') {
+      return ((b as any).health || 0) - ((a as any).health || 0) // 체력 높은 순
+    }
+    if (gameMode === 'gold_quest') {
+      return ((b.gold ?? 0) - (a.gold ?? 0)) || ((b.score ?? 0) - (a.score ?? 0))
+    }
+    return b.score - a.score
+  }
+  const sortedPlayers = [...players].sort(compareForLeaderboard)
+  // 같은 점수면 같은 등수(1·2·2·4). 정렬 순서를 등수로 쓰면 동점자가 임의로 갈린다.
+  const rankByPlayerId = new Map<string, number>()
+  sortedPlayers.forEach((player, index) => {
+    const previous = index > 0 ? sortedPlayers[index - 1] : null
+    const sharesRank = previous !== null && compareForLeaderboard(previous, player) === 0
+    rankByPlayerId.set(player.id, sharesRank ? (rankByPlayerId.get(previous.id) ?? index + 1) : index + 1)
+  })
   const isGoldQuest = gameMode === 'gold_quest'
   const isDontLookDown = gameMode === 'dontlookdown'
   const top3 = sortedPlayers.slice(0, 3)
   const currentPlayer = players.find((p) => p.id === currentPlayerId)
-  const currentPlayerRank = sortedPlayers.findIndex((p) => p.id === currentPlayerId) + 1
+  const currentPlayerRank = currentPlayer ? rankByPlayerId.get(currentPlayer.id) ?? 0 : 0
 
   // 배틀로얄 팀전 승리 팀
   const winningTeam: Team | null =
@@ -423,7 +429,7 @@ export default function GameResult({
                     >
                       <div className="flex items-center gap-3">
                         <div className="w-8 text-center font-bold text-gray-600">
-                          #{index + 1}
+                          #{rankByPlayerId.get(player.id) ?? index + 1}
                         </div>
                         <PlayerAvatarDisplay
                           avatar={player.avatar}

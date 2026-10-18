@@ -296,7 +296,7 @@ export default function GansikRunPage() {
                     <li className="flex items-start gap-2"><span>⬇️</span><span>아래 키 또는 아래 스와이프로 슬라이드! (공중 장애물 회피)</span></li>
                     <li className="flex items-start gap-2"><span>🦴</span><span>뼈다귀를 모아 점수를 올려요 (황금 뼈다귀는 10점!)</span></li>
                     <li className="flex items-start gap-2"><span>🚧</span><span>장애물에 부딪히면 -{GAME.HIT_PENALTY}점, 뒤의 고양이가 가까워져요</span></li>
-                    <li className="flex items-start gap-2"><span>📝</span><span>{GAME.QUIZ_INTERVAL}초마다 퀴즈 등장! 정답 시 +50점과 아이템 박스!</span></li>
+                    <li className="flex items-start gap-2"><span>📝</span><span>{GAME.QUIZ_INTERVAL}초마다 퀴즈 등장! 정답 시 +{GAME.QUIZ_CORRECT_SCORE}점과 아이템 박스!</span></li>
                     <li className="flex items-start gap-2"><span>❓</span><span>박스에서 부스터, 방어막, 자석 등 {ITEM_COUNT}가지 아이템 획득!</span></li>
                   </ul>
                 </div>
@@ -359,6 +359,7 @@ export default function GansikRunPage() {
               onItemActivated={handleGansikRunItem}
               onScoreSnapshot={syncGansikRunScore}
               onQuizAnswered={handleQuizAnswered}
+              paused={room?.status === 'paused'}
             />
           </motion.div>
         )}

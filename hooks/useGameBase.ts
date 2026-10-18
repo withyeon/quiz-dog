@@ -289,6 +289,8 @@ export function useGameBase(options: UseGameBaseOptions) {
      * 본 게임 도중 게이트가 다시 떴다.
      */
     const hasRestoredPreStartRef = useRef(false)
+    /** 게이트 효과가 마지막으로 본 방 상태 — finished 에서 곧장 playing 으로 넘어온 재시작을 알아보는 데 쓴다 */
+    const lastGateStatusRef = useRef<string | undefined>(undefined)
     const isPreStartQuizComplete = requiredPreStartQuizCount === 0
         || preStartSubmittedCount >= requiredPreStartQuizCount
     const shouldShowPreStartQuiz = roomStatus === 'playing' && !isPreStartQuizComplete && isCountdownComplete
@@ -495,6 +497,8 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 게임 시작 전 3문제 제출 게이트 ───
     useEffect(() => {
+        const previousStatus = lastGateStatusRef.current
+        lastGateStatusRef.current = roomStatus
         if (requiredPreStartQuizCount === 0) {
             setPreStartSubmittedCount(0)
             setPreStartQuestionIndex(0)
@@ -512,6 +516,14 @@ export function useGameBase(options: UseGameBaseOptions) {
         }
 
         if (roomStatus !== 'playing' || !preStartQuizSessionKey || typeof window === 'undefined') return
+        // 종료 화면의 '다시 시작'은 waiting 을 거치지만 학생(특히 화면이 그대로 남는 좀비)은 그 사이 상태를
+        // 못 보고 finished → playing 만 볼 수 있다. 그 경우도 새 판이므로 진행도를 비운다 (2026-10-18).
+        if (isTerminalRoomStatus(previousStatus as RoomStatus | undefined)) {
+            hasRestoredPreStartRef.current = false
+            setPreStartSubmittedCount(0)
+            setPreStartQuestionIndex(0)
+            setIsPreStartAnswerLocked(false)
+        }
         if (hasRestoredPreStartRef.current) return
         hasRestoredPreStartRef.current = true
 

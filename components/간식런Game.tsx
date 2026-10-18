@@ -53,6 +53,8 @@ interface GansikRunGameProps {
   questionSetTitle?: string | null
   /** 퀴즈를 풀 때마다 (정답 기록용) */
   onQuizAnswered?: (question: GansikRunQuestion, correct: boolean, answer: string) => void
+  /** 선생님이 멈춘 동안 true. 덮개가 입력만 막고 장애물·시계는 계속 돌아 점수가 깎이던 버그 수정 (2026-10-18) */
+  paused?: boolean
 }
 
 type ScreenAttackType = 'screen_flip' | 'screen_shrink'
@@ -85,9 +87,11 @@ const OPTION_COLORS = [
 
 export default function GansikRunGame({
   questions, onGameEnd, playerId, durationSeconds, initialScore = 0, onItemActivated, onScoreSnapshot, onQuizAnswered,
-  questionSetTitle,
+  questionSetTitle, paused = false,
 }: GansikRunGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
   const containerRef = useRef<HTMLDivElement>(null)
   // 초기 상태는 한 번만 만든다 (createInitialState는 id 카운터를 리셋한다).
   const [initialState] = useState(() => {
@@ -407,6 +411,8 @@ export default function GansikRunGame({
     const loop = (now: number) => {
       accumulator += Math.min(250, now - lastTime)
       lastTime = now
+      // 선생님이 멈춘 동안은 틱을 돌리지 않는다(장애물·추격자·시계 정지). 화면은 마지막 상태로 계속 그린다.
+      if (pausedRef.current) accumulator = 0
       const events: string[] = []
       let steps = 0
       while (accumulator >= STEP_MS && steps < MAX_STEPS && !stateRef.current.gameOver) {

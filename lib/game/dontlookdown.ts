@@ -154,7 +154,9 @@ export function pickPlatformImageId(type: Platform['type'], seed: number, width?
 
 // 발판 위 장식 이미지 (선택). public/dontlookdown/props/{name}.webp 가 있으면 쓰고, 없으면 코드로 그린다.
 export type PlatformPropName = 'checkpoint_flag' | 'peak_flag' | 'spikes'
-export const PLATFORM_PROP_NAMES: readonly PlatformPropName[] = ['checkpoint_flag', 'peak_flag', 'spikes']
+// 실제로 파일이 있는 것만 적는다. 깃발(checkpoint_flag·peak_flag)은 그림이 없어 코드로 그리는데,
+// 목록에 넣어 두면 학생마다 404 요청이 두 번씩 나간다(10명 검수에서 전원 404).
+export const PLATFORM_PROP_NAMES: readonly PlatformPropName[] = ['spikes']
 export const getPlatformPropPath = (name: PlatformPropName) => `/dontlookdown/props/${name}.webp`
 
 // 배경 그림 (선택). public/dontlookdown/bg/{name}.webp 가 있으면 쓰고, 없으면 코드로 그린다.

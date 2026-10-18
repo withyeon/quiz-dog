@@ -13,6 +13,9 @@ export const GAME = {
   LANE_COUNT: 3,
   QUIZ_INTERVAL: 30,    // 30초마다 퀴즈
   QUIZ_TIMEOUT: 10,     // 퀴즈 제한시간 10초
+  // 퀴즈 정답 점수. 50이었을 때는 2분 동안 정답 0개인 학생이 1~5등, 60% 맞힌 학생이 7~9등이었다(2026-10-18 10명 검수).
+  // 뼈다귀(1점)·시간(초당 1점)에 비해 퀴즈가 전체 점수의 절반쯤 되도록 올렸다.
+  QUIZ_CORRECT_SCORE: 100,
   SLOWMO_RATE: 0.3,     // 퀴즈 중 슬로우모션
   SPEED_STAGES: [
     { time: 0, speed: 1.0 },
@@ -679,10 +682,11 @@ export function handleQuizResult(state: GansikRunState, correct: boolean): Gansi
 
   if (correct) {
     s.quizCorrect = state.quizCorrect + 1
-    s.score += 50 * state.scoreMultiplier
+    const reward = GAME.QUIZ_CORRECT_SCORE * state.scoreMultiplier
+    s.score += reward
     s.pendingBoxes = true
     s.boxSpawnTimer = GAME.BOX_SPAWN_DELAY
-    return addFloatingText(s, `정답! +${50 * state.scoreMultiplier}`, 0.5, 200, '#4ade80', 26, 90)
+    return addFloatingText(s, `정답! +${reward}`, 0.5, 200, '#4ade80', 26, 90)
   }
 
   return addFloatingText(s, '아쉽다! 다음 기회에', 0.5, 200, '#fca5a5', 22, 90)

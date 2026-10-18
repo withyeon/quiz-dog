@@ -353,7 +353,8 @@ let cpuPrev = process.cpuUsage()
 let cpuPrevAt = process.hrtime.bigint()
 let statsPrev = { ...stats }
 let statsPrevAt = Date.now()
-const loopDelay = monitorEventLoopDelay({ resolution: 10 })
+// 10ms 해상도는 연결 0개에서도 vCPU 1개의 0.6~0.7%를 계속 썼다(2026-10-18 Lightsail 실측 = 기준 성능의 3.5%). 100ms면 충분하다.
+const loopDelay = monitorEventLoopDelay({ resolution: 100 })
 loopDelay.enable()
 
 function sampleMetrics() {

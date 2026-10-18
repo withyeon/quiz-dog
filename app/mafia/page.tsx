@@ -197,6 +197,7 @@ export default function MafiaPage() {
               commitPlayerSteal={commitPlayerSteal}
               sendRoomEvent={sendRoomEvent}
               playSFX={playSFX}
+              roomStatus={room?.status}
             />
           </motion.div>
         )}

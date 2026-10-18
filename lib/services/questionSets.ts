@@ -25,6 +25,8 @@ export type QuestionSetIndexItem = {
   weekly_like_count: number
   monthly_like_count: number
   liked_by_client: boolean
+  /** 만든 선생님의 표시 이름 (주인이 없거나 이름이 비어 있으면 null) */
+  creator_name?: string | null
 }
 
 export type QuestionDraft = {
@@ -189,6 +191,31 @@ async function selectAllPages<T>(
 // 이만큼씩 나눠 보낸다. (id 는 30자 남짓이라 100개면 URL 이 몇 KB 안에 머문다)
 const IN_FILTER_CHUNK_SIZE = 100
 
+/** 선생님 id → 표시 이름. profiles 는 누구나 읽을 수 있다(sql/20260910_share_links_and_profiles.sql). 실패해도 목록은 그대로 보여준다. */
+async function getDisplayNamesByIds(userIds: string[]): Promise<Map<string, string>> {
+  const names = new Map<string, string>()
+  if (userIds.length === 0) return names
+  try {
+    const chunks = await Promise.all(
+      chunkIds(userIds).map(async (idChunk) => {
+        const { data, error } = await (supabase.from('profiles') as any)
+          .select('id, display_name')
+          .in('id', idChunk)
+        if (error) throw error
+        return (data ?? []) as { id: string; display_name: string | null }[]
+      }),
+    )
+    for (const row of chunks.flat()) {
+      // 표시 이름을 이메일로 적어 둔 선생님도 있어, 자료실(누구나 보는 곳)에는 @ 앞부분만 보여준다
+      const name = row.display_name?.trim().split('@')[0].trim()
+      if (name) names.set(row.id, name)
+    }
+  } catch (error) {
+    console.error('Error loading creator names:', error)
+  }
+  return names
+}
+
 function chunkIds(ids: string[]): string[][] {
   const chunks: string[][] = []
   for (let i = 0; i < ids.length; i += IN_FILTER_CHUNK_SIZE) {
@@ -278,13 +305,13 @@ export async function listQuestionSetIndexFromQuestions(
 
   if (setIds.length === 0) return items
 
-  type IndexSetMeta = Pick<QuestionSetRow, 'id' | 'title' | 'description' | 'subject' | 'grade' | 'tags' | 'is_public'>
+  type IndexSetMeta = Pick<QuestionSetRow, 'id' | 'title' | 'description' | 'subject' | 'grade' | 'tags' | 'is_public' | 'owner_id'>
   // 문제집 수만큼 id 를 넣으므로 나눠 보낸다. 묶음마다 행이 100개 이하라 1000행 제한에도 걸리지 않는다.
   const setChunks = await Promise.all(
     chunkIds(setIds).map(async (idChunk) => {
       const { data: sets, error: setError } = await (supabase
         .from('question_sets') as any)
-        .select('id, title, description, subject, grade, tags, is_public')
+        .select('id, title, description, subject, grade, tags, is_public, owner_id')
         .in('id', idChunk)
 
       if (setError) throw setError
@@ -301,7 +328,13 @@ export async function listQuestionSetIndexFromQuestions(
     : items
 
   const visibleSetIds = visibleItems.map((item) => item.set_id)
-  const likeSummaryById = await getQuestionSetLikeSummaries(visibleSetIds, clientId)
+  const ownerIds = Array.from(new Set(
+    visibleSetIds.map((id) => setById.get(id)?.owner_id).filter((id): id is string => Boolean(id)),
+  ))
+  const [likeSummaryById, ownerNameById] = await Promise.all([
+    getQuestionSetLikeSummaries(visibleSetIds, clientId),
+    getDisplayNamesByIds(ownerIds),
+  ])
 
   return visibleItems.map((item) => {
     const set = setById.get(item.set_id)
@@ -317,6 +350,7 @@ export async function listQuestionSetIndexFromQuestions(
       weekly_like_count: likeSummary?.weeklyLikeCount ?? 0,
       monthly_like_count: likeSummary?.monthlyLikeCount ?? 0,
       liked_by_client: likeSummary?.likedByClient ?? false,
+      creator_name: set?.owner_id ? ownerNameById.get(set.owner_id) ?? null : null,
     }
   })
 }
