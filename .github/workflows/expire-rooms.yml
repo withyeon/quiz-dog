@@ -1,0 +1,46 @@
+# 방치된 게임 룸 자동 종료 — 15분마다 프로덕션의 /api/cron/expire-rooms 를 호출한다.
+#
+# 왜 GitHub Actions 인가: Vercel Hobby 요금제의 크론은 하루 1번이 한도라
+# "만든 지 2시간 지난 방은 닫는다" 규칙을 지킬 수 없다. (vercel.json 의 새벽 크론은 안전망으로 남겨 둔다)
+#
+# 준비물 (저장소 Settings → Secrets and variables → Actions):
+#   - Secret  CRON_SECRET : Vercel 환경변수 CRON_SECRET 과 같은 값
+#   - Variable SITE_URL   : (선택) 기본값 https://quizdog.kr
+#
+# GitHub 의 schedule 은 몇 분 늦게 돌 수 있고, 저장소가 60일 동안 조용하면 자동으로 꺼진다.
+# Actions 탭에서 수동 실행(workflow_dispatch)도 된다.
+name: expire-rooms
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: expire-rooms
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call /api/cron/expire-rooms
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://quizdog.kr' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::저장소 Secret CRON_SECRET 이 없습니다. Vercel 의 CRON_SECRET 과 같은 값을 등록하세요."
+            exit 1
+          fi
+          status=$(curl -sS -o body.json -w '%{http_code}' -X POST \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            -H "User-Agent: quizdog-expire-rooms (github-actions)" \
+            "$SITE_URL/api/cron/expire-rooms")
+          echo "HTTP $status"
+          cat body.json; echo
+          if [ "$status" != "200" ]; then
+            echo "::error::자동 종료 호출 실패 (HTTP $status). 401 이면 CRON_SECRET 불일치, 403 이면 Vercel 방화벽/봇 보호에 막힌 것입니다."
+            exit 1
+          fi

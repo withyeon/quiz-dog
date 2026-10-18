@@ -24,8 +24,10 @@ SUPABASE_SECRET_KEY=your-secret-key-here
 # NEXT_PUBLIC_SUPABASE_ANON_KEY=your-legacy-anon-key-here
 # SUPABASE_SERVICE_ROLE_KEY=your-legacy-service-role-key-here
 
-# 방치된 게임 룸 자동 종료 크론용 (Vercel Cron 사용 시)
-# Vercel 프로젝트 환경변수에 넣으면 크론 요청이 이 값으로 인증된다.
+# 방치된 게임 룸 자동 종료 크론용. 만든 지 2시간 지난 방을 닫고 결과를 선생님 기록에 남긴다.
+# Vercel 프로젝트 환경변수에 넣고, 같은 값을 GitHub 저장소 Secrets(CRON_SECRET)에도 넣는다.
+# (.github/workflows/expire-rooms.yml 이 15분마다 /api/cron/expire-rooms 를 이 값으로 호출한다.
+#  Vercel Cron 은 Hobby 요금제에서 하루 1번만 돌아 안전망 역할만 한다.)
 CRON_SECRET=아무-긴-랜덤-문자열
 
 # 위드현 이용 코드(프로 1개월) 서명 비밀값. 위드현 매니저·초피티와 같은 값이어야 한다(16자 이상).

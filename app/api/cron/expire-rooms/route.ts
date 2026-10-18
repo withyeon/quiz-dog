@@ -10,8 +10,10 @@ export const dynamic = 'force-dynamic'
  * 방치된 게임 룸 자동 종료 (스케줄러 + 관리자 수동 실행용).
  *
  * 호출 주체:
- *   - Vercel Cron — vercel.json 의 crons 설정. `Authorization: Bearer $CRON_SECRET` 를 붙여 보낸다.
+ *   - GitHub Actions — .github/workflows/expire-rooms.yml 이 15분마다 `Authorization: Bearer $CRON_SECRET` 로 호출한다.
+ *   - Vercel Cron — vercel.json 의 crons 설정(하루 1번, Hobby 요금제 한도). GitHub 쪽이 멈췄을 때의 안전망.
  *   - 관리자 — '게임 / 세션' 페이지의 '방치된 방 정리' 버튼 (관리자 3단계 인증 통과 필요)
+ *   - 선생님 화면 — /api/teacher/sweep-rooms 가 같은 서비스를 로그인한 선생님 권한으로 돌린다.
  *
  * CRON_SECRET 환경변수가 없으면 크론 경로는 막히고 관리자만 호출할 수 있다.
  */
@@ -63,6 +65,8 @@ async function handle(request: NextRequest) {
       scanned: result.scanned,
       expiredCount: result.expired.length,
       expired: result.expired,
+      reportedCount: result.reported.length,
+      reported: result.reported,
       skippedLive: result.skippedLive,
     })
   } catch (error) {

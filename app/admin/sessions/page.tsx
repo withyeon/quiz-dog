@@ -126,8 +126,8 @@ export default function AdminSessionsPage() {
   const sweepStale = async () => {
     setSweeping(true)
     try {
-      const data = await fetchAdminJson<{ expiredCount: number; skippedLive: string[] }>('/api/cron/expire-rooms', { method: 'POST' })
-      notice.success(data.expiredCount > 0 ? `방치된 방 ${data.expiredCount}개를 종료 처리했습니다.` : '정리할 방치된 방이 없습니다.')
+      const data = await fetchAdminJson<{ expiredCount: number; reportedCount?: number; skippedLive: string[] }>('/api/cron/expire-rooms', { method: 'POST' })
+      notice.success(data.expiredCount > 0 ? `방치된 방 ${data.expiredCount}개를 종료 처리했습니다. (기록 저장 ${data.reportedCount ?? 0}개)` : '정리할 방치된 방이 없습니다.')
       await load()
     } catch (e) {
       notice.error(e instanceof Error ? e.message : '정리하지 못했습니다.')
@@ -195,7 +195,7 @@ export default function AdminSessionsPage() {
               onClick={sweepStale}
               disabled={sweeping}
               className="bg-white"
-              title="3시간 이상 방치된 대기방, 6시간 이상 방치된 진행 중 게임을 종료 처리합니다. 학생이 활동 중인 방은 건드리지 않습니다."
+              title="만든 지 2시간이 지난 방을 종료 처리합니다(과제 방은 마감 뒤). 최근 5분 안에 학생이 활동한 방은 다음 정리로 미루고, 시작됐던 방은 선생님 기록에 결과를 남깁니다."
             >
               <BrushCleaning className="mr-1.5 h-4 w-4" />
               {sweeping ? '정리 중…' : '방치된 방 정리'}

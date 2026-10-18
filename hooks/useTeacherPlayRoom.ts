@@ -43,6 +43,7 @@ import {
   updateRoomGameMode,
 } from '@/lib/services/rooms'
 import { saveGameReportSnapshot } from '@/lib/services/reports'
+import { requestStaleRoomSweep } from '@/lib/services/roomSweep'
 import { useAuth } from '@/contexts/AuthContext'
 import { listQuestionSetsWithCounts, type QuestionSetSummary } from '@/lib/services/questionSets'
 
@@ -173,6 +174,9 @@ export function useTeacherPlayRoom() {
   }, [roomCode, sendRoomEvent])
 
   useEffect(() => {
+    // 2시간 지난 방 정리(안전망). 크론이 못 돌았어도 선생님이 들어온 순간 지난 방은 닫히고 기록에 남는다.
+    void requestStaleRoomSweep()
+
     const params = new URLSearchParams(window.location.search)
     const modeFromUrl = params.get('gameMode')
     const roomFromUrl = params.get('room')
