@@ -7,6 +7,7 @@ import { useRoomRealtime } from '@/hooks/useRoomRealtime'
 import { listQuestionsForAnalytics, type AnalyticsQuestion } from '@/lib/services/questions'
 import { getFinishedRoomReport } from '@/lib/services/reports'
 import { formatServiceError } from '@/lib/services/errors'
+import { resolvePlayerSetId } from '@/lib/quiz/nicknameSetSwap'
 import { DEFAULT_GAME_MODE, getGameModeUrl } from '@/lib/game/modes'
 import type { Database } from '@/types/database.types'
 
@@ -32,7 +33,10 @@ function StudentResultContent({ gameId }: { gameId: string }) {
       setErrorMessage(null)
       try {
         const { room: roomData, players: playersData } = await getFinishedRoomReport(gameId)
-        const questionData = roomData?.set_id ? await listQuestionsForAnalytics(roomData.set_id) : []
+        // 숨겨진 닉네임별 문제집 방이면 이 학생이 푼 문제집으로 맞춘다(lib/quiz/nicknameSetSwap.ts). 아니면 room.set_id 그대로.
+        const nickname = playersData.find((player) => player.id === playerId)?.nickname
+        const setId = resolvePlayerSetId(roomData?.set_id, nickname)
+        const questionData = setId ? await listQuestionsForAnalytics(setId) : []
 
         if (cancelled) return
         setRoom(roomData)
@@ -52,7 +56,7 @@ function StudentResultContent({ gameId }: { gameId: string }) {
     return () => {
       cancelled = true
     }
-  }, [gameId])
+  }, [gameId, playerId])
 
   useEffect(() => {
     if (liveRoom?.status !== 'playing' || !playerId || !liveRoom.started_at) return

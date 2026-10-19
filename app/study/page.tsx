@@ -80,6 +80,7 @@ export default function StudyPage() {
     questionsLoading,
     questionsError,
     questionSetTitle,
+    playSetId,
     showCountdown,
     handleCountdownComplete,
     isHomework,
@@ -280,14 +281,15 @@ export default function StudyPage() {
   }, [current, questions])
 
   // 요약·마무리 화면의 정답 표시에만 정답 목록을 읽는다 (결과 화면과 같은 조회)
+  // playSetId: 숨겨진 닉네임별 문제집 방이면 이 학생이 푼 문제집(lib/quiz/nicknameSetSwap.ts), 아니면 room.set_id
   useEffect(() => {
-    if ((phase !== 'summary' && phase !== 'finished' && phase !== 'exhausted') || answerKey || !room?.set_id) return
+    if ((phase !== 'summary' && phase !== 'finished' && phase !== 'exhausted') || answerKey || !playSetId) return
     let cancelled = false
-    void listQuestionsForAnalytics(room.set_id).then((rows) => {
+    void listQuestionsForAnalytics(playSetId).then((rows) => {
       if (!cancelled) setAnswerKey(new Map(rows.map((row) => [row.id, row])))
     }).catch((error) => console.error('정답 목록 조회 실패:', formatServiceError(error)))
     return () => { cancelled = true }
-  }, [answerKey, phase, room?.set_id])
+  }, [answerKey, phase, playSetId])
 
   const startRetry = useCallback(() => {
     if (!current || wrongIds.length === 0) return

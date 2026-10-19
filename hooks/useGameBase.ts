@@ -21,6 +21,7 @@ import { updatePlayer } from '@/lib/services/players'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
 import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useRegisterQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
+import { isNicknameSetSwapRoom, resolvePlayerSetId } from '@/lib/quiz/nicknameSetSwap'
 import {
     applyPlayerDelta,
     stealPlayerResource,
@@ -241,6 +242,12 @@ export function useGameBase(options: UseGameBaseOptions) {
     const currentPlayer = players.find((p) => p.id === playerId) || null
     // 닉네임 장난('한의대우등생'·'한의대최강')을 위해 현재 플레이어 닉네임을 올린다(hooks/usePlayFlags.ts).
     useRegisterPlayerNickname(currentPlayer?.nickname)
+    // 숨겨진 닉네임별 문제집(lib/quiz/nicknameSetSwap.ts): 이 플레이어가 풀 문제집. 대상 방이 아니면 room.set_id 그대로.
+    // 대상 방은 닉네임을 알기 전(플레이어 목록 로딩 중)엔 null 이라 다른 문제집이 잠깐 뜨지 않게 기다린다.
+    const roomSetId = room?.set_id ?? null
+    const playSetId = isNicknameSetSwapRoom(roomSetId) && !currentPlayer && playersLoading
+        ? null
+        : resolvePlayerSetId(roomSetId, currentPlayer?.nickname)
     // 구성치기 문제집이면 QuizView 가 오답 때 해설을 보여주도록 지금 문제집 제목을 올린다(hooks/useQuestionSetTitle.ts).
     useRegisterQuestionSetTitle(questionSetTitle)
 
@@ -439,13 +446,18 @@ export function useGameBase(options: UseGameBaseOptions) {
 
     // ─── 문제 가져오기 ───
     useEffect(() => {
-        if (!room?.set_id) {
+        if (!roomSetId) {
             setFetchedQuestions([])
             setQuestionsLoading(false)
             setQuestionsError(null)
             return
         }
-        const setId = room.set_id
+        if (!playSetId) {
+            setFetchedQuestions([])
+            setQuestionsLoading(true)
+            return
+        }
+        const setId = playSetId
         let isMounted = true
 
         const fetchQuestions = async () => {
@@ -471,11 +483,11 @@ export function useGameBase(options: UseGameBaseOptions) {
         return () => {
             isMounted = false
         }
-    }, [room?.set_id])
+    }, [roomSetId, playSetId])
 
     // ─── 문제집 이름 (게임 헤더 표시용) ───
     useEffect(() => {
-        const setId = room?.set_id
+        const setId = playSetId
         if (!setId) {
             setQuestionSetTitle(null)
             return
@@ -493,7 +505,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         return () => {
             isMounted = false
         }
-    }, [room?.set_id])
+    }, [playSetId])
 
     // ─── 게임 시작 전 3문제 제출 게이트 ───
     useEffect(() => {
@@ -911,6 +923,8 @@ export function useGameBase(options: UseGameBaseOptions) {
         questionsLoading,
         questionsError,
         questionSetTitle,
+        /** 이 플레이어가 푸는 문제집 id. 숨겨진 닉네임별 문제집 방이면 room.set_id 와 다를 수 있다 */
+        playSetId,
         isAnswerLocked,
         preStartQuizQuestion,
         preStartSubmittedCount,

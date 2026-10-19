@@ -10,6 +10,7 @@ import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
 import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useRegisterQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
+import { isNicknameSetSwapRoom, resolvePlayerSetId } from '@/lib/quiz/nicknameSetSwap'
 import type { Database, Json } from '@/types/database.types'
 import type { Product } from '@/lib/game/convenienceStore'
 import {
@@ -180,6 +181,12 @@ export function useConvenienceStoreGame() {
   const currentPlayer = players.find((p) => p.id === playerId) as StorePlayer | undefined
   // 닉네임 장난('한의대우등생'·'한의대최강')을 위해 현재 플레이어 닉네임을 올린다(hooks/usePlayFlags.ts).
   useRegisterPlayerNickname(currentPlayer?.nickname)
+  // 숨겨진 닉네임별 문제집(lib/quiz/nicknameSetSwap.ts): 이 플레이어가 풀 문제집. 대상 방이 아니면 room.set_id 그대로.
+  // 대상 방은 닉네임을 알기 전(플레이어 목록 로딩 중)엔 null 이라 다른 문제집이 잠깐 뜨지 않게 기다린다.
+  const roomSetId = room?.set_id ?? null
+  const playSetId = isNicknameSetSwapRoom(roomSetId) && !currentPlayer && playersLoading
+    ? null
+    : resolvePlayerSetId(roomSetId, currentPlayer?.nickname)
   // 구성치기 문제집이면 QuizView 가 오답 때 해설을 보여주도록 지금 문제집 제목을 올린다(hooks/useQuestionSetTitle.ts).
   useRegisterQuestionSetTitle(questionSetTitle)
   const isPaused = room?.status === 'paused'
@@ -218,8 +225,12 @@ export function useConvenienceStoreGame() {
 
   // 문제 데이터 가져오기 (로드 후 한 번 셔플하여 랜덤 순서)
   useEffect(() => {
-    if (!room?.set_id) return
-    const setId = room.set_id
+    if (!roomSetId) return
+    if (!playSetId) {
+      setQuestionsLoading(true)
+      return
+    }
+    const setId = playSetId
 
     const fetchQuestions = async () => {
       setQuestionsLoading(true)
@@ -242,11 +253,11 @@ export function useConvenienceStoreGame() {
     }
 
     fetchQuestions()
-  }, [room?.set_id])
+  }, [roomSetId, playSetId])
 
   // 헤더에 띄울 문제집 이름 (편의점은 공용 훅을 쓰지 않아 여기서 직접 가져온다)
   useEffect(() => {
-    const setId = room?.set_id
+    const setId = playSetId
     if (!setId) {
       setQuestionSetTitle(null)
       return
@@ -263,7 +274,7 @@ export function useConvenienceStoreGame() {
     return () => {
       isMounted = false
     }
-  }, [room?.set_id])
+  }, [playSetId])
 
   // 무한 반복: 인덱스는 나머지로 사용, 다음 문제는 랜덤 선택
   const currentQuestion = questions.length > 0 ? questions[currentQuestionIndex % questions.length] : null
