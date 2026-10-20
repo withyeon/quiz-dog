@@ -17,7 +17,7 @@ export default function AnswerReveal({
   className,
 }: {
   answer: string | null | undefined
-  /** 틀린 문제의 해설(useRevealedAnswer 의 revealedExplanation). 구성치기 문제집에서만 보인다 */
+  /** 틀린 문제의 해설(useRevealedAnswer 의 revealedExplanation). 구성치기·탕치기 문제집에서만 보인다 */
   explanation?: string | null
   className?: string
 }) {

@@ -1,5 +1,6 @@
 'use client'
 
+import ExplanationToggle from '@/components/teacher/play/ExplanationToggle'
 import SelectedQuestionSet from '@/components/teacher/play/SelectedQuestionSet'
 import type { QuestionSetSummary } from '@/lib/services/questionSets'
 
@@ -9,16 +10,23 @@ type Props = {
   hasSelectedSet: boolean
   setsLoading: boolean
   setsError: string | null
+  /** "틀리면 해설 보여주기" 토글을 보일지(문제를 푸는 모드 중 공부 모드 빼고) */
+  showExplanationToggle: boolean
+  showExplanation: boolean
+  onShowExplanationChange: (next: boolean) => void
   onCreate: () => void
 }
 
-/** 방을 만들기 전: 자료실에서 고른 문제집 확인과 "시작하기" 버튼. */
+/** 방을 만들기 전: 자료실에서 고른 문제집 확인, "틀리면 해설 보여주기" 토글과 "시작하기" 버튼. */
 export default function CreateRoomPanel({
   requiresQuestionSet,
   selectedSet,
   hasSelectedSet,
   setsLoading,
   setsError,
+  showExplanationToggle,
+  showExplanation,
+  onShowExplanationChange,
   onCreate,
 }: Props) {
   return (
@@ -38,13 +46,18 @@ export default function CreateRoomPanel({
             ? '자료실에서 문제집을 고르면 게임을 시작할 수 있어요'
             : '모드를 고르고 시작하기'}
         </p>
-        <button
-          onClick={onCreate}
-          disabled={requiresQuestionSet && !hasSelectedSet}
-          className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-bold text-white shadow-sm shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
-        >
-          시작하기
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          {showExplanationToggle && (
+            <ExplanationToggle checked={showExplanation} onChange={onShowExplanationChange} />
+          )}
+          <button
+            onClick={onCreate}
+            disabled={requiresQuestionSet && !hasSelectedSet}
+            className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-bold text-white shadow-sm shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
+          >
+            시작하기
+          </button>
+        </div>
       </div>
     </div>
   )

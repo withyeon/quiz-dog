@@ -9,6 +9,9 @@ import { CHARACTERS } from '@/lib/utils/characters'
 import { GAME_MODES, getGameModeUrl, type GameModeId } from '@/lib/game/modes'
 import { listQuestionSetsWithCounts, type QuestionSetSummary } from '@/lib/services/questionSets'
 import { createPlayerForRoom, createRoom, startRoom } from '@/lib/services/rooms'
+import ExplanationToggle from '@/components/teacher/play/ExplanationToggle'
+import { buildShowExplanationSettings } from '@/lib/quiz/explanationSetting'
+import { isWrongAnswerExplanationSet } from '@/lib/quiz/multiSelect'
 import { DEFAULT_DEV_PLAY_FLAGS, readDevPlayFlags, writeDevPlayFlags, type DevPlayFlags } from '@/lib/dev/devPlayFlags'
 import {
   DEFAULT_DEV_BOT_SETTINGS,
@@ -127,6 +130,13 @@ export default function DevPage() {
   const [questionSets, setQuestionSets] = useState<QuestionSetSummary[]>([])
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null)
   const [setSearch, setSetSearch] = useState('')
+  // "틀리면 해설 보여주기" — 선생님 방 만들기와 같은 규칙(useTeacherPlayRoom). 건드리기 전에는 문제집 제목 규칙을 따르고,
+  // 문제집을 바꾸면 다시 그 규칙으로 돌아간다. 문제집을 쓰는 모드(공부 모드 제외)에서만 방에 담는다.
+  const [showExplanationChoice, setShowExplanationChoice] = useState<{ setId: string | null; value: boolean } | null>(null)
+  const showExplanation = showExplanationChoice?.setId === selectedSetId
+    ? showExplanationChoice.value
+    : isWrongAnswerExplanationSet(questionSets.find((set) => set.id === selectedSetId)?.title)
+  const showExplanationToggle = Boolean(selectedSetId) && selectedMode !== 'study'
   const setListRef = useRef<HTMLUListElement | null>(null)
 
   // 처음 불러왔을 때 고른 문제집(지난번에 고른 것일 수 있다)이 목록 아래쪽이면 목록 안에서만 그 자리로 내려 준다
@@ -214,6 +224,7 @@ export default function DevPage() {
       const room = await createRoom({
         setId: selectedSetId,
         gameMode: selectedMode,
+        ...(showExplanationToggle ? { settings: buildShowExplanationSettings(showExplanation, null) } : {}),
       })
 
       const randomCharacter = CHARACTERS[Math.floor(Math.random() * CHARACTERS.length)]
@@ -532,34 +543,42 @@ export default function DevPage() {
           </div>
         </div>
 
-        {/* 시작 버튼 */}
+        {/* 시작 버튼 (+ 해설 토글) */}
         <div className="mt-8 text-center">
-          <motion.button
-            onClick={handleStartGame}
-            disabled={!selectedMode || loading}
-            whileHover={{ scale: selectedMode && !loading ? 1.05 : 1 }}
-            whileTap={{ scale: selectedMode && !loading ? 0.95 : 1 }}
-            className={`px-12 py-6 rounded-xl font-bold text-xl shadow-lg transition-all ${selectedMode && !loading
-              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 cursor-pointer'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              } font-bitbit`}
-          >
-            {loading ? (
-              <span className="flex items-center gap-2">
-                <motion.span
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                >
-                  ⏳
-                </motion.span>
-                게임 시작 중
-              </span>
-            ) : (
-              <span className="flex items-center gap-2">
-                🚀 게임 시작하기
-              </span>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {showExplanationToggle && (
+              <ExplanationToggle
+                checked={showExplanation}
+                onChange={(value) => setShowExplanationChoice({ setId: selectedSetId, value })}
+              />
             )}
-          </motion.button>
+            <motion.button
+              onClick={handleStartGame}
+              disabled={!selectedMode || loading}
+              whileHover={{ scale: selectedMode && !loading ? 1.05 : 1 }}
+              whileTap={{ scale: selectedMode && !loading ? 0.95 : 1 }}
+              className={`px-12 py-6 rounded-xl font-bold text-xl shadow-lg transition-all ${selectedMode && !loading
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 cursor-pointer'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                } font-bitbit`}
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <motion.span
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                  >
+                    ⏳
+                  </motion.span>
+                  게임 시작 중
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  🚀 게임 시작하기
+                </span>
+              )}
+            </motion.button>
+          </div>
           {!selectedMode && (
             <p className="mt-4 text-gray-500 text-sm">
               게임 모드를 선택해주세요

@@ -10,6 +10,13 @@
  */
 
 import { useEffect, useSyncExternalStore } from 'react'
+import type { Json } from '@/types/database.types'
+import {
+  getRoomShowExplanation,
+  parseShowExplanationSetting,
+  setRoomShowExplanation,
+  subscribeRoomShowExplanation,
+} from '@/lib/quiz/explanationSetting'
 
 let currentTitle: string | null = null
 const listeners = new Set<() => void>()
@@ -45,4 +52,20 @@ export function useRegisterQuestionSetTitle(title: string | null | undefined) {
 /** 문제 렌더러에서 호출. 지금 문제집 제목(모르면 null). */
 export function useCurrentQuestionSetTitle(): string | null {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+}
+
+/**
+ * 게임 훅에서 호출. 방 옵션 "틀리면 해설 보여주기"(rooms.settings.showExplanation)를 올린다.
+ * 방을 아직 못 읽었거나(undefined) 선생님이 정하지 않은 방이면 null — 제목 규칙을 따른다(lib/quiz/explanationSetting.ts).
+ */
+export function useRegisterRoomShowExplanation(roomSettings: Json | null | undefined) {
+  const value = parseShowExplanationSetting(roomSettings)
+  useEffect(() => {
+    setRoomShowExplanation(value)
+  }, [value])
+}
+
+/** 해설 표시 쪽에서 호출. 선생님이 정한 값(정하지 않았으면 null). */
+export function useCurrentRoomShowExplanation(): boolean | null {
+  return useSyncExternalStore(subscribeRoomShowExplanation, getRoomShowExplanation, () => null)
 }

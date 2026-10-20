@@ -17,10 +17,11 @@
  *   화면은 isMultiSelectGameQuestion 으로 그 표시만 읽는다. 서버 판정에 제목 조건이 이미 들어 있어
  *   QuizView 를 쓰는 게임 페이지마다 제목을 내려보낼 필요가 없다.
  * - 채점 규칙(순서 무관 집합 비교)은 lib/quiz/answerMatching.ts 의 isMultiSelectAnswerMatch.
- * - 오답 해설: 구성치기 문제집(isGusungchigiSet)이면 QuizView 가 "정답: …" 아래에 question.explanation 을 보여준다.
+ * - 오답 해설: 구성치기·탕치기 문제집(isWrongAnswerExplanationSet)이면 QuizView 가 "정답: …" 아래에 question.explanation 을 보여준다.
  *   QuizView 는 게임 훅이 올린 문제집 제목을 hooks/useQuestionSetTitle.ts 로 읽는다.
  */
 
+import { getRoomShowExplanation } from '@/lib/quiz/explanationSetting'
 import {
   normalizeQuizAnswer,
   splitMultiSelectAnswer,
@@ -48,14 +49,35 @@ export function isGusungchigiSet(setTitle: string | null | undefined): boolean {
   return String(setTitle ?? '').normalize('NFC').includes(MULTI_SELECT_SET_KEYWORD)
 }
 
+/** 탕치기 문제집 제목 키워드. 다중 선택은 아니지만 구성치기처럼 오답 때 해설을 보여 준다. */
+export const TANGCHIGI_SET_KEYWORD = '탕치기'
+
 /**
- * 오답 화면을 띄워 두는 시간(ms). 구성치기 문제집이면 해설(말야마)을 읽을 시간을 주려고 8초로 늘린다.
- * 그 외 문제집은 모드마다 원래 시간(defaultMs) 그대로다.
+ * 오답 때 해설을 보여 주는 문제집인지(제목에 '구성치기' 또는 '탕치기'). 해설 표시와 오답 화면 시간은 이 함수로 가른다.
+ * 다중 선택 판정은 여기에 없다 — 그건 구성치기만(isGusungchigiSet, 서버 quiz_is_multi_select 와 같은 규칙).
+ * 탕치기를 넣은 이유: 닉네임별 문제집(lib/quiz/nicknameSetSwap.ts)으로 구성치기(취약) 방에서 탕치기(취약)를 받은 학생도 해설을 봐야 한다.
+ */
+export function isWrongAnswerExplanationSet(setTitle: string | null | undefined): boolean {
+  const title = String(setTitle ?? '').normalize('NFC')
+  return title.includes(MULTI_SELECT_SET_KEYWORD) || title.includes(TANGCHIGI_SET_KEYWORD)
+}
+
+/**
+ * 학생 화면에서 지금 오답 해설을 보여 줄지. 선생님이 방에서 정한 값(lib/quiz/explanationSetting.ts)이 있으면 그 값,
+ * 없으면 문제집 제목 규칙(isWrongAnswerExplanationSet).
+ */
+export function shouldShowWrongAnswerExplanation(setTitle: string | null | undefined): boolean {
+  return getRoomShowExplanation() ?? isWrongAnswerExplanationSet(setTitle)
+}
+
+/**
+ * 오답 화면을 띄워 두는 시간(ms). 해설을 보여 주는 방(shouldShowWrongAnswerExplanation)이면 해설(말야마)을 읽을 시간을 주려고 8초로 늘린다.
+ * 그 외는 모드마다 원래 시간(defaultMs) 그대로다.
  */
 export const GUSUNGCHIGI_WRONG_SCREEN_MS = 8000
 
 export function getWrongScreenMs(setTitle: string | null | undefined, defaultMs: number): number {
-  return isGusungchigiSet(setTitle) ? GUSUNGCHIGI_WRONG_SCREEN_MS : defaultMs
+  return shouldShowWrongAnswerExplanation(setTitle) ? GUSUNGCHIGI_WRONG_SCREEN_MS : defaultMs
 }
 
 /** 다중 선택 판정(유일한 기준). 정답을 아는 곳(선생님 화면)에서 쓴다. */

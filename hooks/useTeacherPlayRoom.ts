@@ -13,6 +13,8 @@ import { isTerminalRoomStatus, type RoomStatus } from '@/lib/game/roomStatus'
 import { useAudioContext } from '@/components/AudioProvider'
 import type { HostMode } from '@/components/teacher/play/HomeworkPanel'
 import { DEFAULT_STUDY_SETTINGS, buildRoomSettings, type StudySettings } from '@/lib/game/studySettings'
+import { buildShowExplanationSettings } from '@/lib/quiz/explanationSetting'
+import { isWrongAnswerExplanationSet } from '@/lib/quiz/multiSelect'
 import { DEFAULT_GAME_MODE, getGameModeConfig, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
 import {
@@ -106,6 +108,15 @@ export function useTeacherPlayRoom() {
     () => questionSets.find((set) => set.id === selectedSetId) ?? null,
     [questionSets, selectedSetId],
   )
+  // "틀리면 해설 보여주기" — 방을 만들 때 rooms.settings.showExplanation 에 담긴다(lib/quiz/explanationSetting.ts).
+  // 선생님이 건드리기 전(null)에는 문제집 제목 규칙(구성치기·탕치기면 켬)을 따르고, 문제집이 바뀌면 다시 그 규칙으로 돌아간다.
+  const [showExplanationChoice, setShowExplanationChoice] = useState<{ setId: string; value: boolean } | null>(null)
+  const showExplanation = showExplanationChoice?.setId === selectedSetId
+    ? showExplanationChoice.value
+    : isWrongAnswerExplanationSet(selectedSet?.title)
+  const setShowExplanation = useCallback((value: boolean) => {
+    setShowExplanationChoice({ setId: selectedSetId, value })
+  }, [selectedSetId])
   // 현재 방(또는 선택된) 문제집 제목 — 대기방에서 어떤 문제집인지 확인용
   const activeSetLabel = useMemo(() => {
     const activeId = room?.set_id || selectedSetId
@@ -508,7 +519,12 @@ export function useTeacherPlayRoom() {
       const createdRoom = await createRoom({
         setId,
         gameMode,
-        ...(gameMode === 'study' ? { settings: buildRoomSettings(studySettings) } : {}),
+        // 공부 모드는 해설을 늘 보여 주므로 해설 옵션은 문제를 푸는 다른 모드에만 담는다
+        ...(gameMode === 'study'
+          ? { settings: buildRoomSettings(studySettings) }
+          : activeModeConfig.requiresQuestionSet
+            ? { settings: buildShowExplanationSettings(showExplanation, null) }
+            : {}),
       })
       setRoomCode(createdRoom.room_code)
 
@@ -747,6 +763,8 @@ export function useTeacherPlayRoom() {
     setTimedDurationMinutes,
     studySettings,
     setStudySettings,
+    showExplanation,
+    setShowExplanation,
     zombieSettings,
     setZombieSettings,
     raidSettings,

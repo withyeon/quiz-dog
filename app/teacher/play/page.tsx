@@ -41,6 +41,8 @@ export default function TeacherDashboard() {
     timedDurationMinutes,
     setTimedDurationMinutes,
     studySettings,
+    showExplanation,
+    setShowExplanation,
     setStudySettings,
     zombieSettings,
     setZombieSettings,
@@ -159,6 +161,9 @@ export default function TeacherDashboard() {
             hasSelectedSet={Boolean(selectedSetId)}
             setsLoading={setsLoading}
             setsError={setsError}
+            showExplanationToggle={activeModeConfig.requiresQuestionSet && gameMode !== 'study'}
+            showExplanation={showExplanation}
+            onShowExplanationChange={setShowExplanation}
             onCreate={handleCreateGame}
           />
         )}

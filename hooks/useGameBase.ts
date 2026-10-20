@@ -20,7 +20,7 @@ import { getQuestionSetTitle } from '@/lib/services/questionSets'
 import { updatePlayer } from '@/lib/services/players'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
 import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
-import { useRegisterQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
+import { useRegisterQuestionSetTitle, useRegisterRoomShowExplanation } from '@/hooks/useQuestionSetTitle'
 import { isNicknameSetSwapRoom, resolvePlayerSetId } from '@/lib/quiz/nicknameSetSwap'
 import {
     applyPlayerDelta,
@@ -250,6 +250,8 @@ export function useGameBase(options: UseGameBaseOptions) {
         : resolvePlayerSetId(roomSetId, currentPlayer?.nickname)
     // 구성치기 문제집이면 QuizView 가 오답 때 해설을 보여주도록 지금 문제집 제목을 올린다(hooks/useQuestionSetTitle.ts).
     useRegisterQuestionSetTitle(questionSetTitle)
+    // 선생님이 방에서 정한 "틀리면 해설 보여주기"(lib/quiz/explanationSetting.ts)도 함께 올린다.
+    useRegisterRoomShowExplanation(room?.settings)
 
     // ─── 과제 모드: 제한 시간은 방이 아니라 "이 학생이 게임에 들어간 시각"부터 센다 ───
     // 학생마다 다른 시간에 들어오므로 room.started_at을 쓰면 늦게 온 학생은 시작하자마자 끝난다.

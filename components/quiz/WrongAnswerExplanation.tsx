@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * 오답 때 보여 주는 해설. 구성치기 문제집에서만 보인다(lib/quiz/multiSelect.ts 의 isGusungchigiSet).
+ * 오답 때 보여 주는 해설. 선생님이 방에서 켠 경우, 또는 정하지 않았으면 구성치기·탕치기 문제집에서 보인다
+ * (lib/quiz/multiSelect.ts 의 shouldShowWrongAnswerExplanation).
  * 그 외 문제집은 지금처럼 정답만 보인다.
  *
  * 쓰는 곳
@@ -12,16 +13,18 @@
  * 줄바꿈을 그대로 살리고, 첫 줄이 '말야마:'로 시작하면 그 줄만 굵게·다른 색으로 보여 준다.
  */
 
-import { useCurrentQuestionSetTitle } from '@/hooks/useQuestionSetTitle'
-import { isGusungchigiSet } from '@/lib/quiz/multiSelect'
+import { useCurrentQuestionSetTitle, useCurrentRoomShowExplanation } from '@/hooks/useQuestionSetTitle'
+import { shouldShowWrongAnswerExplanation } from '@/lib/quiz/multiSelect'
 
 // 첫 줄이 이 말로 시작하면 그 줄만 눈에 띄게 보여준다(구성치기 해설에서 쓰는 외우기용 한 줄)
 const EXPLANATION_HIGHLIGHT_PREFIX = '말야마:'
 
-/** 지금 문제집이 구성치기면 보여 줄 해설, 아니면 빈 문자열. 제목은 게임 훅이 올린 값을 읽는다(hooks/useQuestionSetTitle.ts). */
+/** 지금 방이 해설을 보여 주면 보여 줄 해설, 아니면 빈 문자열. 제목은 게임 훅이 올린 값을 읽는다(hooks/useQuestionSetTitle.ts). */
 export function useWrongAnswerExplanation(explanation: string | null | undefined): string {
   const questionSetTitle = useCurrentQuestionSetTitle()
-  return isGusungchigiSet(questionSetTitle) ? explanation?.trim() ?? '' : ''
+  // 구독만 한다(값은 shouldShowWrongAnswerExplanation 이 읽는다). 선생님 설정이 바뀌면 다시 그리기 위해서다.
+  useCurrentRoomShowExplanation()
+  return shouldShowWrongAnswerExplanation(questionSetTitle) ? explanation?.trim() ?? '' : ''
 }
 
 const TONE_STYLE = {

@@ -34,7 +34,7 @@ interface QuizViewProps {
     image_url?: string | null
     /** 숨겨진 구성치기(다중 선택) 문제 표시. listQuestionsForGame 이 서버 판정으로 붙인다(lib/quiz/multiSelect.ts) */
     multiSelect?: boolean
-    /** 해설. 구성치기 문제집에서만 오답 때 "정답: …" 아래에 보여준다(isGusungchigiSet). 게임 문제 객체에 이미 들어 있다 */
+    /** 해설. 구성치기·탕치기 문제집에서만 오답 때 "정답: …" 아래에 보여준다(isWrongAnswerExplanationSet). 게임 문제 객체에 이미 들어 있다 */
     explanation?: string | null
   }
   onAnswer: (answer: string) => void | boolean | Promise<void | boolean>
