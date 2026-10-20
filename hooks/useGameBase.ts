@@ -19,7 +19,6 @@ import { formatServiceError } from '@/lib/services/errors'
 import { getQuestionSetTitle } from '@/lib/services/questionSets'
 import { updatePlayer } from '@/lib/services/players'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
-import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useRegisterQuestionSetTitle, useRegisterRoomShowExplanation } from '@/hooks/useQuestionSetTitle'
 import { isNicknameSetSwapRoom, resolvePlayerSetId } from '@/lib/quiz/nicknameSetSwap'
 import {
@@ -810,11 +809,10 @@ export function useGameBase(options: UseGameBaseOptions) {
         setCurrentView('wrong')
         // 오답 화면에 정답을 보여주기 위해 서버에서 정답을 조회한다(학습용).
         revealAnswer(currentQuestion)
-        // 구성치기 문제집은 해설을 읽도록 8초, 그 외는 모드 기본값(lib/quiz/multiSelect.ts)
         setTimeout(() => {
             goToNextQuestion()
-        }, getWrongScreenMs(questionSetTitle, wrongAnswerDelay))
-    }, [wrongAnswerDelay, goToNextQuestion, currentQuestion, revealAnswer, questionSetTitle])
+        }, wrongAnswerDelay)
+    }, [wrongAnswerDelay, goToNextQuestion, currentQuestion, revealAnswer])
 
     // ─── 시작 전 퀴즈: 정답 보상 없이 제출 수만 카운트 ───
     const handlePreStartQuizAnswer = useCallback(async (answer: string): Promise<boolean> => {
@@ -854,13 +852,12 @@ export function useGameBase(options: UseGameBaseOptions) {
             },
         ])
 
-        // 틀렸으면 구성치기 문제집에서는 오답 배너(정답·해설)를 8초 보여 준 뒤 넘어간다
         window.setTimeout(() => {
             setPreStartSubmittedCount((prev) => Math.min(requiredPreStartQuizCount, prev + 1))
             setPreStartQuestionIndex((prev) => prev + 1)
             setIsPreStartAnswerLocked(false)
             questionStartTime.current = Date.now()
-        }, correct ? 650 : getWrongScreenMs(questionSetTitle, 650))
+        }, 650)
 
         return correct
     }, [
@@ -871,7 +868,6 @@ export function useGameBase(options: UseGameBaseOptions) {
         questions.length,
         requiredPreStartQuizCount,
         roomStatus,
-        questionSetTitle,
     ])
 
     // ─── 게임 종료 (모든 문제 풀었을 때) ───

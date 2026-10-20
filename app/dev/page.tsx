@@ -545,19 +545,13 @@ export default function DevPage() {
 
         {/* 시작 버튼 (+ 해설 토글) */}
         <div className="mt-8 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            {showExplanationToggle && (
-              <ExplanationToggle
-                checked={showExplanation}
-                onChange={(value) => setShowExplanationChoice({ setId: selectedSetId, value })}
-              />
-            )}
+          <div className="flex flex-col items-center gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
             <motion.button
               onClick={handleStartGame}
               disabled={!selectedMode || loading}
               whileHover={{ scale: selectedMode && !loading ? 1.05 : 1 }}
               whileTap={{ scale: selectedMode && !loading ? 0.95 : 1 }}
-              className={`px-12 py-6 rounded-xl font-bold text-xl shadow-lg transition-all ${selectedMode && !loading
+              className={`sm:col-start-2 px-12 py-6 rounded-xl font-bold text-xl shadow-lg transition-all ${selectedMode && !loading
                 ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 cursor-pointer'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 } font-bitbit`}
@@ -578,6 +572,14 @@ export default function DevPage() {
                 </span>
               )}
             </motion.button>
+            {showExplanationToggle && (
+              <div className="sm:col-start-3 sm:justify-self-start">
+                <ExplanationToggle
+                  checked={showExplanation}
+                  onChange={(value) => setShowExplanationChoice({ setId: selectedSetId, value })}
+                />
+              </div>
+            )}
           </div>
           {!selectedMode && (
             <p className="mt-4 text-gray-500 text-sm">

@@ -8,7 +8,7 @@ import type { Json } from '@/types/database.types'
  * 이 키가 없는 방(이전에 만든 방)은 제목 규칙 그대로다.
  *
  * 학생 화면에서는 게임 훅(useGameBase·useConvenienceStoreGame)이 이 값을 아래 전역 값에 올리고,
- * 해설 표시(components/quiz/WrongAnswerExplanation.tsx)와 오답 화면 시간(getWrongScreenMs)이 읽는다.
+ * 해설 표시(components/quiz/WrongAnswerExplanation.tsx)가 읽는다.
  * 공부 모드는 원래 해설을 늘 보여 주므로 이 옵션과 상관없다.
  */
 

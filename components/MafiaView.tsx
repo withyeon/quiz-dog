@@ -30,7 +30,6 @@ import PixelIcon from '@/components/ui/PixelIcon'
 import VaultIcon, { getVaultDisplay, VaultReveal } from '@/components/mafia/VaultIcon'
 import QuizSetName from '@/components/game/QuizSetName'
 import { getPlayerById } from '@/lib/services/players'
-import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type PlayerPatch = Partial<PlayerRow> & Record<string, unknown>
@@ -320,8 +319,7 @@ export default function MafiaView({
       playSFX('incorrect')
       setCurrentView('wrong')
       revealAnswer(currentQuestion)
-      // 구성치기 문제집은 해설을 읽도록 8초, 그 외는 3초(lib/quiz/multiSelect.ts)
-      window.setTimeout(goToQuiz, getWrongScreenMs(questionSetTitle, 3000))
+      window.setTimeout(goToQuiz, 3000)
     }
     return correct
   }

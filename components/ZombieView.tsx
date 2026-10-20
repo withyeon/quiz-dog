@@ -25,7 +25,6 @@ import type { ZombieAttackResult } from '@/lib/services/playerMutations'
 import type { Question } from '@/hooks/useGameBase'
 import PixelIcon from '@/components/ui/PixelIcon'
 import QuizSetName from '@/components/game/QuizSetName'
-import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 
 type ViewState = 'quiz' | 'actionSelect' | 'targetSelect' | 'scanResult' | 'attackResult' | 'wrong'
 
@@ -266,12 +265,11 @@ export default function ZombieView({
     setScanCooldown((prev) => Math.max(0, prev - 1))
     setCurrentView('wrong')
     revealAnswer(currentQuestion)
-    // 구성치기 문제집은 해설을 읽도록 8초, 그 외는 3초(lib/quiz/multiSelect.ts)
     window.setTimeout(() => {
       setCurrentView('quiz')
       clearRevealedAnswer()
       onNextQuestion()
-    }, getWrongScreenMs(questionSetTitle, 3000))
+    }, 3000)
     return false
   }
 

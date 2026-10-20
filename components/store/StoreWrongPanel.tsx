@@ -12,7 +12,7 @@ type Props = {
   wrongPenalty: number | null
 }
 
-/** 오답 화면: 정답 공개와 매출 패널티 안내. 3초(구성치기 문제집은 8초) 뒤 훅이 다음 문제로 넘긴다. */
+/** 오답 화면: 정답 공개와 매출 패널티 안내. 3초 뒤 훅이 다음 문제로 넘긴다. */
 export default function StoreWrongPanel({ revealedAnswer, revealedExplanation = null, wrongPenalty }: Props) {
   return (
     <motion.div

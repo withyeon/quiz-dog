@@ -8,7 +8,6 @@ import { useRoomChannel } from '@/hooks/useRoomChannel'
 import { useAudioContext } from '@/components/AudioProvider'
 import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
 import { usePlayQuestions, useRegisterPlayerNickname } from '@/hooks/usePlayFlags'
-import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useRegisterQuestionSetTitle, useRegisterRoomShowExplanation } from '@/hooks/useQuestionSetTitle'
 import { isNicknameSetSwapRoom, resolvePlayerSetId } from '@/lib/quiz/nicknameSetSwap'
 import type { Database, Json } from '@/types/database.types'
@@ -380,7 +379,7 @@ export function useConvenienceStoreGame() {
         setShowCountdown(true)
         setCurrentView('countdown')
       }
-    }, correct ? 650 : getWrongScreenMs(questionSetTitle, 650)) // 틀렸으면 구성치기는 정답·해설 배너를 8초
+    }, 650)
 
     return correct
   }
@@ -535,7 +534,7 @@ export function useConvenienceStoreGame() {
         setIsCorrect(false)
         clearRevealedAnswer()
         questionStartTime.current = Date.now()
-      }, getWrongScreenMs(questionSetTitle, 3000)) // 구성치기 문제집은 해설을 읽도록 8초
+      }, 3000)
     }
     return correct
   }

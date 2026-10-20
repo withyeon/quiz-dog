@@ -6,7 +6,6 @@ import { MENU_ITEMS, Customer, pickCopyCatMenu } from '@/lib/game/cafe'
 import { MAX_CUSTOMERS_IN_LINE } from '@/lib/game/cafeConfig'
 import { CAFE_ITEMS, getRandomItemChoices, type CafeItem, type ItemId } from '@/lib/game/cafeItems'
 import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
-import { getWrongScreenMs } from '@/lib/quiz/multiSelect'
 import { useAudioContext } from '@/components/AudioProvider'
 import type { Database } from '@/types/database.types'
 
@@ -44,6 +43,9 @@ export interface CafeViewProps {
  * 타이머·손님 줄·인내심, 손님 서빙(가격 폭락·황금 뒤집개·슈퍼 광고 보정), 정답 재고 충전,
  * 아이템 선택과 공격 전송을 모두 여기서 처리하고 CafeView 는 돌려준 값으로 화면만 그린다.
  */
+/** 오답 화면을 띄워 두는 시간(ms) */
+const WRONG_SCREEN_MS = 3000
+
 export function useCafeView({
   onGameEnd,
   currentQuestion,
@@ -54,7 +56,6 @@ export function useCafeView({
   consecutiveCorrect,
   onSendEvent,
   paused = false,
-  questionSetTitle = null,
   answerLocked = false,
 }: CafeViewProps) {
   const {
@@ -84,8 +85,6 @@ export function useCafeView({
   const [showQuiz, setShowQuiz] = useState(false)
   const [showWrong, setShowWrong] = useState(false)
   const { revealedAnswer, revealedExplanation, reveal: revealAnswer, clearRevealedAnswer } = useRevealedAnswer()
-  // 오답 화면 시간. 구성치기 문제집은 해설을 읽도록 8초, 그 외는 3초(lib/quiz/multiSelect.ts)
-  const wrongScreenMs = getWrongScreenMs(questionSetTitle, 3000)
   const [showShop, setShowShop] = useState(false)
   const [servingAnimations, setServingAnimations] = useState<
     Array<{ id: string; x: number; y: number; amount: number; isGolden?: boolean }>
@@ -294,7 +293,7 @@ export function useCafeView({
         setShowWrong(false)
         clearRevealedAnswer()
         onNextQuestion()
-      }, wrongScreenMs)
+      }, WRONG_SCREEN_MS)
       return false
     }
 
@@ -321,7 +320,7 @@ export function useCafeView({
         setShowWrong(false)
         clearRevealedAnswer()
         onNextQuestion()
-      }, wrongScreenMs)
+      }, WRONG_SCREEN_MS)
     }
     return correct
   }

@@ -46,17 +46,20 @@ export default function CreateRoomPanel({
             ? '자료실에서 문제집을 고르면 게임을 시작할 수 있어요'
             : '모드를 고르고 시작하기'}
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          {showExplanationToggle && (
-            <ExplanationToggle checked={showExplanation} onChange={onShowExplanationChange} />
-          )}
+        {/* 시작하기는 늘 가운데, 해설 토글은 그 오른쪽(좁은 화면에선 아래) */}
+        <div className="flex flex-col items-center gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr] sm:gap-4">
           <button
             onClick={onCreate}
             disabled={requiresQuestionSet && !hasSelectedSet}
-            className="rounded-2xl bg-sky-500 px-9 py-4 text-lg font-bold text-white shadow-sm shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
+            className="rounded-2xl bg-sky-500 sm:col-start-2 px-9 py-4 text-lg font-bold text-white shadow-sm shadow-sky-200 transition-all hover:-translate-y-0.5 hover:bg-sky-600 hover:shadow-md focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:shadow-none disabled:hover:translate-y-0"
           >
             시작하기
           </button>
+          {showExplanationToggle && (
+            <div className="sm:col-start-3 sm:justify-self-start">
+              <ExplanationToggle checked={showExplanation} onChange={onShowExplanationChange} />
+            </div>
+          )}
         </div>
       </div>
     </div>

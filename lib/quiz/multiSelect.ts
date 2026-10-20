@@ -70,16 +70,6 @@ export function shouldShowWrongAnswerExplanation(setTitle: string | null | undef
   return getRoomShowExplanation() ?? isWrongAnswerExplanationSet(setTitle)
 }
 
-/**
- * 오답 화면을 띄워 두는 시간(ms). 해설을 보여 주는 방(shouldShowWrongAnswerExplanation)이면 해설(말야마)을 읽을 시간을 주려고 8초로 늘린다.
- * 그 외는 모드마다 원래 시간(defaultMs) 그대로다.
- */
-export const GUSUNGCHIGI_WRONG_SCREEN_MS = 8000
-
-export function getWrongScreenMs(setTitle: string | null | undefined, defaultMs: number): number {
-  return shouldShowWrongAnswerExplanation(setTitle) ? GUSUNGCHIGI_WRONG_SCREEN_MS : defaultMs
-}
-
 /** 다중 선택 판정(유일한 기준). 정답을 아는 곳(선생님 화면)에서 쓴다. */
 export function isMultiSelectQuestion(
   question: { type?: string | null; answer?: string | null },
