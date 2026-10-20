@@ -1475,3 +1475,66 @@
     }
   }
 }
+
+/* ─── 붕어빵 굽굽! (components/bungeoppang, app/bungeoppang) ─── */
+@keyframes bungeo-flame {
+  0%, 100% { transform: scaleY(1) translateY(0); opacity: 0.95; }
+  50% { transform: scaleY(1.35) translateY(-2px); opacity: 0.8; }
+}
+.bungeo-flame { transform-origin: bottom center; animation: bungeo-flame 0.8s ease-in-out infinite; }
+@keyframes bungeo-steam {
+  0% { transform: translate(-50%, 0) scale(0.9); opacity: 0; }
+  40% { opacity: 0.8; }
+  100% { transform: translate(-50%, -14px) scale(1.15); opacity: 0; }
+}
+.bungeo-steam { animation: bungeo-steam 1.6s ease-out infinite; }
+@keyframes bungeo-snow {
+  0% { transform: translateY(-20px); }
+  100% { transform: translateY(420px); }
+}
+.bungeo-snow { top: -20px; animation: bungeo-snow linear infinite; }
+@keyframes bungeo-star {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+.bungeo-star { animation: bungeo-star 2.2s ease-in-out infinite; }
+@keyframes bungeo-pulse {
+  0%, 100% { box-shadow: 0 8px 0 #7c2d12, 0 0 0 0 rgba(251, 191, 36, 0.6); }
+  50% { box-shadow: 0 8px 0 #7c2d12, 0 0 0 10px rgba(251, 191, 36, 0); }
+}
+.bungeo-pulse { animation: bungeo-pulse 0.9s ease-out infinite; }
+.bungeo-perfect-glow { text-shadow: 0 0 6px rgba(255, 255, 255, 0.9); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.55); }
+
+/* ─── 퀴즈독의 라면가게 (components/ramen, app/ramen) ─── */
+@keyframes ramen-flame {
+  0%, 100% { transform: scaleY(1) translateY(0); opacity: 0.95; }
+  50% { transform: scaleY(1.35) translateY(-2px); opacity: 0.8; }
+}
+.ramen-flame { transform-origin: bottom center; animation: ramen-flame 0.7s ease-in-out infinite; }
+@keyframes ramen-steam {
+  0% { transform: translateY(0) scale(0.9); opacity: 0; }
+  40% { opacity: 0.85; }
+  100% { transform: translateY(-16px) scale(1.15); opacity: 0; }
+}
+.ramen-steam { display: inline-block; animation: ramen-steam 1.4s ease-out infinite; }
+@keyframes ramen-smoke {
+  0% { transform: translateY(0) scale(0.7); opacity: 0.7; }
+  100% { transform: translateY(-22px) scale(1.5); opacity: 0; }
+}
+.ramen-smoke { animation: ramen-smoke 1.6s ease-out infinite; }
+@keyframes ramen-bubble {
+  0% { transform: translateY(2px) scale(0.6); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-5px) scale(1.1); opacity: 0; }
+}
+.ramen-bubble { transform-box: fill-box; transform-origin: center; animation: ramen-bubble 0.55s ease-out infinite; }
+@keyframes ramen-pulse {
+  0%, 100% { box-shadow: 0 4px 0 #3b0764, 0 0 0 0 rgba(217, 70, 239, 0.6); }
+  50% { box-shadow: 0 4px 0 #3b0764, 0 0 0 8px rgba(217, 70, 239, 0); }
+}
+.ramen-pulse { animation: ramen-pulse 0.7s ease-out infinite; }
+@keyframes ramen-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.ramen-blink { animation: ramen-blink 0.5s ease-in-out infinite; }

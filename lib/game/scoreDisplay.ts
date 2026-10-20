@@ -49,7 +49,7 @@ export function getScoreDisplay(player: ScorePlayer, gameMode: string | null | u
     }
   }
 
-  if (mode === 'factory' || mode === 'cafe') {
+  if (mode === 'factory' || mode === 'cafe' || mode === 'ramen') {
     return {
       value,
       label: '원',
@@ -121,6 +121,8 @@ export function getScoreDisplayLabel(gameMode: string | null | undefined): strin
   if (mode === 'factory') return '수익'
   // 카페 순위는 끝났을 때 가진 돈 (메뉴를 사거나 세금을 내면 줄어든다)
   if (mode === 'cafe') return '돈'
+  // 라면가게 순위는 라면을 팔아 번 돈(매출)
+  if (mode === 'ramen') return '매출'
   if (mode === 'battle_royale') return '체력'
   if (mode === 'dontlookdown') return '높이'
   if (mode === 'zombie') return '생존 점수'

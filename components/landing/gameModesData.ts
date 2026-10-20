@@ -48,6 +48,10 @@ const GAME_MODE_CARDS: GameModeCardDef[] = [
   { modeId: 'poop_dodge', name: '강아지대소동', titleImage: '/title/puppy-chaos.webp', icon: '/puppy-chaos/poop.webp', color: '#F43F5E', bg: 'rgba(244,63,94,0.14)', previewVideo: { webm: '/main/mp4/games/puppy-chaos.webm', mp4: '/main/mp4/games/puppy-chaos.mp4' }, previewImage: '/main/games/puppy-chaos.webp' },
   // 협동 보스 레이드. 플레이 영상은 아직 없어 호버 때는 플레이 화면 캡처만 보여준다.
   { modeId: 'raid', name: '황제 펭귄을 막아라', titleImage: '/title/raid.webp', icon: '/raid/penguin-emperor.webp', color: '#0EA5E9', bg: 'rgba(14,165,233,0.14)', previewImage: '/main/games/raid.webp' },
+  // 붕어빵 굽굽!. 플레이 영상은 아직 없어 호버 때는 플레이 화면 캡처만 보여준다.
+  { modeId: 'bungeoppang', name: '붕어빵 굽굽!', titleImage: '/title/bungeoppang.webp', icon: '/bungeoppang/baked.webp', color: '#F59E0B', bg: 'rgba(245,158,11,0.16)', previewImage: '/main/games/bungeoppang.webp' },
+  // 퀴즈독의 라면가게. 플레이 영상·캡처는 아직 없다.
+  { modeId: 'ramen', name: '퀴즈독의 라면가게', titleImage: '/title/ramen.webp', icon: '/ramen/icon-bowl.webp', color: '#7C3AED', bg: 'rgba(124,58,237,0.14)' },
 ]
 
 export const gameModesData: GameModeInfo[] = GAME_MODE_CARDS.map((game) => ({

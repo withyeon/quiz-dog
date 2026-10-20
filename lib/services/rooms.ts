@@ -131,6 +131,16 @@ export async function startRoom({ roomCode, gameMode, durationSeconds, settings,
     if (raidResetError) throw raidResetError
   }
 
+  if (gameMode === 'bungeoppang' || gameMode === 'ramen') {
+    // 점수·통계(item_effects)는 학생 행에 쌓인다(lib/game/bungeoppang.ts · lib/game/ramen.ts). 다시 시작하면 옛 값이 남지 않게 비운다.
+    const { error: bungeoResetError } = await (supabase
+      .from('players') as any)
+      .update({ score: 0, item_effects: null, combo_count: 0 })
+      .eq('room_code', roomCode)
+
+    if (bungeoResetError) throw bungeoResetError
+  }
+
   const updatePayload: Record<string, unknown> = {
     status: 'playing',
     started_at: startedAt ?? new Date().toISOString(),

@@ -48,6 +48,9 @@ import {
 } from '@/lib/game/강아지대소동'
 import { withJosa } from '@/lib/utils/korean'
 import { RAID, RAID_ROLES } from '@/lib/game/raid'
+import { ARENA } from '@/lib/game/raidArena'
+import { BUNGEO, FILLING_BY_ID, GRADE_BY_ID } from '@/lib/game/bungeoppang'
+import { RAMEN, VERDICT_MONEY } from '@/lib/game/ramen'
 
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
@@ -486,43 +489,130 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   raid: {
     gameMode: 'raid',
     title: '황제 펭귄을 막아라!',
-    subtitle: '반 전체가 힘을 합쳐 펭귄 군단의 체력을 깎는 협동 게임입니다. 경쟁이 아니라 모두가 한 편이에요.',
+    subtitle: '퀴즈로 물풍선을 얻고, 아레나에서 펭귄을 맞히는 협동 게임입니다. 경쟁이 아니라 모두가 한 편이에요.',
     slides: [
       {
-        title: '펭귄의 체력은 반 전체가 같이 깎아요',
-        body: `문제를 맞힐 때마다 지금 싸우는 펭귄의 체력이 줄어요. 한 마리를 쓰러뜨리면 더 센 펭귄이 나오고, 마지막은 황제 펭귄입니다. 제한 시간 안에 모두 쓰러뜨리면 다 같이 승리!`,
+        title: '퀴즈를 맞히면 물풍선이 생겨요',
+        body: `물풍선은 퀴즈를 맞혀야 생겨요. 정답 하나에 물풍선 ${ARENA.BALLOONS_PER_ANSWER}개! 퀴즈를 푸는 동안 내 아레나는 멈춰 있으니 천천히 풀어도 돼요.`,
         points: [
-          `정답 하나 = 기본 ${RAID.BASE_DAMAGE} 데미지`,
-          '펭귄 체력은 참가 인원에 맞춰 정해져요',
-          '틀려도 펭귄은 반격하지 않아요. 다음 문제로!',
+          `한 번에 ${ARENA.MAX_BALLOONS}개까지 모아 둘 수 있어요`,
+          '틀려도 물풍선을 잃지 않아요. 연속 정답만 끊겨요',
+          `${RAID.COMBO_STEPS[0].streak}연속 정답부터 한 방이 더 세져요`,
         ],
       },
       {
-        title: '역할을 고르고 연속 정답을 노려요',
-        body: `시작할 때 세 역할 중 하나를 골라요. ${RAID_ROLES.warrior.name}는 한 방이 세고, ${RAID_ROLES.mage.name}는 연속 정답 보너스가 2배, ${RAID_ROLES.guardian.name}는 얼음 방패를 2칸씩 깨요.`,
+        title: '물풍선을 놓아 펭귄을 맞혀요',
+        body: `방향키로 움직이고 스페이스(폰은 물풍선 버튼)로 물풍선을 놓아요. ${ARENA.BALLOON_FUSE}초 뒤 십자 물줄기가 터져요. 물줄기가 펭귄에 닿으면 ${RAID.BASE_DAMAGE} 데미지! 눈 블록을 부수면 아이템(긴 물줄기·신발·물풍선)이 나와요.`,
         points: [
-          `${RAID.COMBO_STEPS[0].streak}연속 정답부터 보너스 +${RAID.COMBO_STEPS[0].bonus}`,
-          `${RAID.COMBO_STEPS[RAID.COMBO_STEPS.length - 1].streak}연속이면 +${RAID.COMBO_STEPS[RAID.COMBO_STEPS.length - 1].bonus}`,
-          '틀리면 연속 정답만 끊겨요',
+          '내 물줄기에 맞아도 갇혀요. 놓고 바로 피하기!',
+          '갇히면 잠시 뒤 출발 칸에서 다시 시작해요',
+          '펭귄은 처음엔 가만히 있다가 물보라로 블록을 쓸고 움직여요',
         ],
       },
       {
-        title: '얼음 방패는 여럿이 함께 깨요',
-        body: `펭귄 체력이 ${toPercent(RAID.SHIELD_HP_RATIO)}% 아래로 떨어지면 얼음 방패가 올라와요. 반의 절반 넘는 친구가 한 번씩 맞혀야 깨지고, 그 전에는 체력이 1에서 버텨요.`,
+        title: '스노우몬은 얼려서 깨요',
+        body: `펭귄이 떨어뜨린 알에서 스노우몬이 나와요. 물줄기에 맞으면 얼어붙고, 얼어 있는 동안 몸으로 부딪히면 깨져요. 깨면 펭귄 체력도 ${ARENA.SNOWMAN_KILL_DAMAGE} 깎여요.`,
         points: [
-          '빠른 몇 명만으로는 못 깨요',
-          `${RAID_ROLES.guardian.name}는 한 번에 2칸`,
-          '방패가 깨지면 넘친 데미지는 다음 펭귄에게',
+          `${ARENA.FREEZE_TIME}초 안에 못 깨면 녹아서 폭주해요(아주 빨라요)`,
+          '알은 부화 전에 물줄기로 바로 깰 수 있어요',
+          '움직이는 스노우몬에 닿으면 갇혀요',
         ],
       },
       {
-        title: '펭귄의 필살기를 다 같이 끊어요',
-        body: `시작 ${RAID.SKILL_FIRST_AT}초 뒤부터 ${RAID.SKILL_PERIOD}초마다 펭귄이 ${RAID.SKILL_CHARGE}초 동안 필살기를 모아요. 그동안 반의 ${toPercent(RAID.INTERRUPT_REQUIRED_RATIO)}% 넘는 친구가 한 번씩 맞히면 필살기가 끊기고 펭귄이 기절해요. 기절한 동안은 데미지 ${RAID.GROGGY_MULTIPLIER}배!`,
+        title: '방패와 필살기는 반 전체가 함께',
+        body: `펭귄 체력이 ${toPercent(RAID.SHIELD_HP_RATIO)}% 아래면 얼음 방패가 올라와요. 반의 ${toPercent(RAID.SHIELD_REQUIRED_RATIO)}%가 한 번씩 맞혀야 깨져요. ${RAID.SKILL_PERIOD}초마다 펭귄이 ${RAID.SKILL_CHARGE}초 동안 필살기를 모아요 — 그 사이 반의 ${toPercent(RAID.INTERRUPT_REQUIRED_RATIO)}%가 맞히면 끊기고 펭귄이 기절해요(데미지 ${RAID.GROGGY_MULTIPLIER}배).`,
         points: [
-          `빨리 끊을수록 기절이 길어요 (예고 끝 + ${RAID.GROGGY_DURATION}초까지)`,
-          `${RAID_ROLES.mage.name}는 한 번에 2칸`,
-          '못 끊어도 눈보라만 지나가요. 손해는 없어요',
+          `${RAID_ROLES.warrior.name}는 한 방이 세고, ${RAID_ROLES.mage.name}는 물줄기가 길어요`,
+          `${RAID_ROLES.guardian.name}는 보호막이 한 번 막아 줘요`,
+          '못 끊으면 보라색으로 예고된 줄에 눈보라 물줄기가 지나가요. 피하면 돼요',
         ],
+      },
+    ],
+  },
+  // 숫자는 모두 lib/game/bungeoppang.ts 의 상수에서 가져옵니다. 밸런스가 바뀌면 문구도 함께 바뀝니다.
+  bungeoppang: {
+    gameMode: 'bungeoppang',
+    title: '붕어빵 굽굽!',
+    subtitle: '퀴즈를 맞히고 붕어빵을 구운 뒤, 딱 좋은 타이밍에 뒤집어 점수를 얻어요.',
+    slides: [
+      {
+        title: '퀴즈를 맞히면 붕어빵 굽기 찬스!',
+        body: '반죽이 틀에 들어가고 굽기 게이지가 차올라요. 틀리면 굽기 없이 다음 문제로 넘어가요.',
+      },
+      {
+        title: '딱 좋은 타이밍에 「뒤집기!」',
+        body: `게이지가 ${GRADE_BY_ID.perfect.emoji} 완벽 구간에 있을 때 누르면 ${GRADE_BY_ID.perfect.score}점! 탔어도 ${GRADE_BY_ID.burnt.score}점은 받아요.`,
+        points: [
+          `${GRADE_BY_ID.underdone.label} ${GRADE_BY_ID.underdone.score} · ${GRADE_BY_ID.tasty.label} ${GRADE_BY_ID.tasty.score} · ${GRADE_BY_ID.perfect.label} ${GRADE_BY_ID.perfect.score} · ${GRADE_BY_ID.crispy.label} ${GRADE_BY_ID.crispy.score} · ${GRADE_BY_ID.burnt.label} ${GRADE_BY_ID.burnt.score}`,
+          '스페이스바나 엔터로도 뒤집을 수 있어요',
+          '끝까지 안 뒤집으면 저절로 타 버려요',
+        ],
+      },
+      {
+        title: '구우면 속이 랜덤으로 공개돼요',
+        body: `팥은 기본, 슈크림 ×${FILLING_BY_ID.cream.multiplier}, 치즈 ×${FILLING_BY_ID.cheese.multiplier}. 쌍둥이는 한 번에 2개! 황금 붕어빵은 ×${FILLING_BY_ID.golden.multiplier} 잭팟!`,
+        points: [
+          `초코 붕어빵이 나오면 다음 게이지가 느려져 완벽 맞히기가 쉬워져요`,
+          `황금 붕어빵은 ${Math.round(BUNGEO.GOLDEN_BASE_CHANCE * 100)}% 확률로 나와요`,
+        ],
+      },
+      {
+        title: `철판 ${BUNGEO.TRAY_SIZE}칸을 다 채우면 한 판 완성!`,
+        body: `붕어빵 하나마다 칸이 하나 채워지고, ${BUNGEO.TRAY_SIZE}개를 채우면 +${BUNGEO.TRAY_BONUS}점 보너스. 그리고 새 판이 시작돼요.`,
+      },
+      {
+        title: `완벽 ${BUNGEO.FIRE_MODE_STREAK}연속이면 불맛 모드!`,
+        body: `연속으로 완벽하게 구우면 PERFECT 콤보가 올라가고, ${BUNGEO.FIRE_MODE_STREAK}연속이면 다음 붕어빵 점수가 ${BUNGEO.FIRE_MODE_MULTIPLIER}배! 정답 연속이 아니라 굽기 연속이에요.`,
+      },
+      {
+        title: '랜덤 이벤트와 아이템',
+        body: '한파주의보(점수 UP), 화력 폭주(게이지 빨라짐), 버터 타임(완벽 구간 넓어짐), 황금 반죽, 단골손님 미션이 가끔 찾아와요. 따뜻한 장갑 같은 아이템도 랜덤으로 나와요.',
+      },
+      {
+        title: '점수가 가장 높으면 오늘의 붕어빵 장인 👑',
+        body: '끝나면 불판의 지배자·붕어빵 부자·황금손·팥 러버 같은 칭호도 받아요. 1등이 아니어도 하나는 꼭!',
+      },
+    ],
+  },
+  // 숫자는 lib/game/ramen.ts 의 상수에서 가져옵니다.
+  ramen: {
+    gameMode: 'ramen',
+    title: '퀴즈독의 라면가게',
+    subtitle: '퀴즈를 맞히면 손님이 와요. 끓는 타이밍에 파·계란을 넣고 바로 쟁반에 올려 1,000원 라면을 팔아요.',
+    slides: [
+      {
+        title: '퀴즈를 맞히면 손님이 와요',
+        body: `정답 하나에 손님 1~${RAMEN.MAX_CUSTOMERS}명이 랜덤으로 와요. 손님 수만큼 냄비가 놓이고, 한 냄비가 라면 한 그릇이에요. 틀리면 손님 없이 다음 문제로.`,
+      },
+      {
+        title: '면·스프 먼저, 물은 나중에',
+        body: `면과 스프는 아무 때나 넣어도 돼요. 물을 붓는 순간 타이머가 시작돼요 — ${(RAMEN.HEAT_MS / 1000).toFixed(1)}초 뒤에 끓기 시작하고, 끓고 ${(RAMEN.BOIL_MS / 1000).toFixed(1)}초가 지나면 타 버려요.`,
+        points: [
+          '냄비를 눌러 고르고, 아래 재료 선반에서 넣어요',
+          '키보드: 1·2·3 냄비 선택, Q 면 · W 스프 · E 물 · R 파 · T 계란',
+          '물·면·스프 중 하나라도 빠지면 손님이 냄비를 던져요 (0원)',
+        ],
+      },
+      {
+        title: '「끓는다!」가 깜빡이면 파·계란 → 바로 쟁반!',
+        body: `끓을 때 파와 계란을 넣고 바로 쟁반에 올리면 ${VERDICT_MONEY.perfect.toLocaleString()}원! 끓기 전에 넣으면 고명이 퍼져서 값이 떨어져요.`,
+        points: [
+          `둘 다 끓을 때 ${VERDICT_MONEY.perfect.toLocaleString()}원 · 하나만 일찍 ${VERDICT_MONEY.good}원 · 둘 다 일찍 ${VERDICT_MONEY.okay}원`,
+          `고명 없는 기본 라면 ${VERDICT_MONEY.plain}원 · 덜 익음·많이 익음은 ${VERDICT_MONEY.bad}~${VERDICT_MONEY.plain_plus}원`,
+          '탄 냄비는 손님이 거부해요. 0원!',
+        ],
+      },
+      {
+        title: '냄비 여러 개를 동시에!',
+        body: '손님이 2~3명이면 냄비도 2~3개. 한 냄비에 물을 붓고 끓는 동안 다른 냄비에 면·스프를 넣어 두면 돼요. 손님 인내심이 다 떨어지면 남은 손님은 떠나요.',
+        points: [
+          '쟁반에 올리면 선택이 다음 냄비로 저절로 넘어가요',
+          '냄비 3개를 전부 1,000원으로 팔면 👑 세 냄비 완벽!',
+        ],
+      },
+      {
+        title: `${RAMEN.GOAL_MONEY.toLocaleString()}원을 모으면 오늘 장사 성공!`,
+        body: `번 돈이 많은 사람이 1등. ${RAMEN.GOAL_MONEY.toLocaleString()}원을 넘길 때마다 축하가 떠요. 끝나면 라면 장인·손님 몰이 사장 같은 칭호도 받아요. 1등이 아니어도 하나는 꼭!`,
       },
     ],
   },

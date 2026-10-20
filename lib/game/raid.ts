@@ -1,17 +1,20 @@
 // 황제 펭귄을 막아라! (Emperor Penguin Raid) — 협동 보스 레이드의 규칙·상수·유도 상태
 //
+// 학생은 크레이지아케이드 몬스터 모드식 아레나(lib/game/raidArena.ts)에서 물풍선으로 펭귄을 맞힌다.
+// 물풍선은 퀴즈를 맞혀야 생긴다. 아레나(눈 블록·스노우몬)는 학생마다 자기 것이고, 펭귄의 체력만 반 전체가 공유한다.
+//
 // 설계 원칙: 보스 상태를 서버에 따로 두지 않는다. 모든 화면(학생·선생님)이 players 행만 보고
 // 같은 보스를 계산하므로, 실시간 이벤트가 하나 유실돼도 다음 스냅샷에서 저절로 맞춰진다.
 //   players.score        = 그 학생이 지금까지 입힌 데미지 합. 보스 체력 = 최대 체력 − 전원 score 합
-//   players.gold         = 명중(정답) 횟수. 결과 화면의 "기여"용
+//   players.gold         = 명중(물풍선으로 펭귄을 맞힌) 횟수. 결과 화면의 "기여"용
 //   players.defense      = 마지막으로 기여한 방패 번호(보스 순번 + 1, 단조 증가). 방패를 깬 "서로 다른 친구 수"를 센다
 //   players.combo_count  = 현재 연속 정답 수 (연출용. 본인 행만 쓴다)
 //   players.player_class = 역할(RaidRole)
 //   players.revival_streak = 마지막으로 끊기에 기여한 필살기 번호(주기 순번 + 1, 단조 증가)
-//   players.position     = 필살기 끊기에 기여한 횟수 (결과 화면 칭호용)
+//   players.position     = 깬 스노우몬 수 (결과 화면 칭호용)
 // 데미지 누적은 apply_player_delta(원자적 증분)로만 쓴다 — 동시 정답이 유실되지 않는다.
 // 펭귄의 필살기 예고는 room.started_at 기준 시각표라 서버 없이 전원이 같은 순간에 본다.
-// 예고 중 서로 다른 친구가 충분히 맞히면 필살기가 끊기고 펭귄이 기절(데미지 2배)한다. 못 끊어도 손해는 없다.
+// 예고 중 서로 다른 친구가 충분히 맞히면 필살기가 끊기고 펭귄이 기절(데미지 2배)한다. 못 끊으면 아레나에 눈보라 물줄기가 지나간다.
 //
 // 낙인 방지: 보스는 틀린 학생 때문에 공격하지 않는다(시간표대로만). 화면에는 기여(데미지)만 보이고,
 // 방패가 안 깨질 때도 "누가 안 때렸는지"가 아니라 "친구 N명이 더 때리면 깨져요"로만 알린다.
@@ -45,7 +48,7 @@ export const RAID_ROLES: Record<RaidRole, RaidRoleInfo> = {
     name: '얼음 전사',
     shortName: '전사',
     tagline: '강한 한 방',
-    description: '정답마다 펭귄을 더 세게 때려요.',
+    description: '물풍선으로 펭귄을 맞힐 때마다 더 세게 때려요.',
     damageMultiplier: 1.2,
     comboMultiplier: 1,
     shieldPower: 1,
@@ -55,8 +58,8 @@ export const RAID_ROLES: Record<RaidRole, RaidRoleInfo> = {
     id: 'mage',
     name: '오로라 마법사',
     shortName: '마법사',
-    tagline: '연속 정답 · 필살기 끊기',
-    description: '연속 정답 보너스가 2배! 펭귄의 필살기도 2칸씩 끊어요.',
+    tagline: '긴 물줄기 · 물풍선 넉넉',
+    description: '물줄기가 한 칸 더 길고 정답마다 물풍선을 하나 더 받아요. 연속 정답 보너스 2배, 필살기도 2칸씩 끊어요.',
     damageMultiplier: 1,
     comboMultiplier: 2,
     shieldPower: 1,
@@ -66,8 +69,8 @@ export const RAID_ROLES: Record<RaidRole, RaidRoleInfo> = {
     id: 'guardian',
     name: '빙하 수호자',
     shortName: '수호자',
-    tagline: '방패 전문',
-    description: '펭귄의 얼음 방패를 한 번에 2칸 깨요.',
+    tagline: '보호막 · 방패 전문',
+    description: '갇힐 뻔하면 보호막이 한 번 막아 줘요(시간이 지나면 다시 충전). 얼음 방패도 한 번에 2칸 깨요.',
     damageMultiplier: 1,
     comboMultiplier: 1,
     shieldPower: 2,
@@ -84,7 +87,7 @@ export function isRaidRole(value: unknown): value is RaidRole {
 // ─── 밸런스 상수 ───
 
 export const RAID = {
-  /** 정답 1개의 기본 데미지 */
+  /** 물풍선으로 펭귄을 한 번 맞혔을 때의 기본 데미지 */
   BASE_DAMAGE: 10,
   /** 연속 정답 보너스 — 낮은 연속수부터. 그 연속수 이상이면 그 보너스를 더한다 */
   COMBO_STEPS: [
@@ -120,8 +123,8 @@ export const RAID = {
   MIN_BOSS_HP: 150,
   /** 문제당 제한 시간 (초) */
   QUESTION_TIME_LIMIT: 30,
-  /** 정답 뒤 다음 문제까지 (ms). 반 전체 템포를 위해 짧게 */
-  NEXT_QUESTION_DELAY_MS: 1100,
+  /** 정답 뒤 퀴즈 창이 닫히고 다음 문제로 넘어가기까지 (ms). 아레나로 빨리 돌아가게 짧게 */
+  NEXT_QUESTION_DELAY_MS: 900,
   /** 오답 뒤 정답을 보여주는 시간 (ms) */
   WRONG_ANSWER_DELAY_MS: 2500,
 } as const
@@ -581,7 +584,7 @@ export function getRaidTeamStars(state: Pick<RaidState, 'allDefeated' | 'progres
   return 0
 }
 
-export type RaidTitleId = 'top_damage' | 'top_hits' | 'top_interrupt' | 'role' | 'together'
+export type RaidTitleId = 'top_damage' | 'top_hits' | 'top_hunter' | 'role' | 'together'
 
 export type RaidTitle = {
   id: RaidTitleId
@@ -597,7 +600,7 @@ const ROLE_TITLES: Record<RaidRole, string> = {
 
 /**
  * 모든 참가자에게 칭호를 하나 이상 준다. 순위가 아니라 "무엇을 잘했는지"만 말한다.
- * 특별 칭호(최다 데미지·최다 명중·필살기 끊기)는 공동 1등이면 모두 받는다. 나머지는 역할 칭호,
+ * 특별 칭호(최다 데미지·최다 명중·스노우몬 사냥)는 공동 1등이면 모두 받는다. 나머지는 역할 칭호,
  * 아직 한 번도 못 맞힌 친구도 "함께한 용사"를 받는다 — 결과 화면에서 빈손인 학생이 없게.
  */
 export function getRaidTitles(players: RaidPlayerLike[]): Map<string, RaidTitle[]> {
@@ -606,7 +609,7 @@ export function getRaidTitles(players: RaidPlayerLike[]): Map<string, RaidTitle[
     active.reduce((max, player) => Math.max(max, pick(player)), 0)
   const maxDamage = maxOf((player) => toNumber(player.score))
   const maxHits = maxOf((player) => toNumber(player.gold))
-  const maxInterrupts = maxOf((player) => toNumber(player.position))
+  const maxKills = maxOf((player) => toNumber(player.position))
 
   const titles = new Map<string, RaidTitle[]>()
   for (const player of active) {
@@ -617,8 +620,8 @@ export function getRaidTitles(players: RaidPlayerLike[]): Map<string, RaidTitle[
     if (maxHits > 0 && toNumber(player.gold) === maxHits) {
       list.push({ id: 'top_hits', name: '명중왕', description: `가장 많이 맞힌 친구 · ${maxHits}번` })
     }
-    if (maxInterrupts > 0 && toNumber(player.position) === maxInterrupts) {
-      list.push({ id: 'top_interrupt', name: '필살기 저지왕', description: `펭귄의 필살기를 ${maxInterrupts}번 끊었어요` })
+    if (maxKills > 0 && toNumber(player.position) === maxKills) {
+      list.push({ id: 'top_hunter', name: '스노우몬 사냥꾼', description: `스노우몬을 ${maxKills}마리 깼어요` })
     }
     const role = getRaidRole(player)
     if (toNumber(player.gold) > 0) {

@@ -115,7 +115,7 @@ export default function RoleSelector({ onSelect, selectedRole, players = [] }: R
             오늘의 역할을 고르세요
           </h2>
           <p className="mt-1.5 text-sm font-semibold text-slate-500">
-            어느 역할이든 정답마다 펭귄을 때려요. 셋이 섞여 있어야 방패도 필살기 끊기도 빨라요.
+            어느 역할이든 물풍선으로 펭귄을 때려요. 셋이 섞여 있어야 방패도 필살기 끊기도 빨라요.
           </p>
         </div>
         {selectedRole && (

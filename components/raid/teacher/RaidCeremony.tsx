@@ -27,7 +27,7 @@ const FALLBACK_TITLE: RaidTitle = { id: 'together', name: '함께한 용사', de
 /**
  * 레이드가 끝났을 때 프로젝터에 띄우는 의식 화면.
  * 팀 별·저지율을 크게 보여 주고, 오른쪽에 모든 친구의 대표 칭호를 한꺼번에 공개한다.
- * 특별 칭호(최강의 일격·명중왕·필살기 저지왕)가 앞에 오고 나머지는 이름순 — 칭호 없는 친구는 없다.
+ * 특별 칭호(최강의 일격·명중왕·스노우몬 사냥꾼)가 앞에 오고 나머지는 이름순 — 칭호 없는 친구는 없다.
  * 개인 숫자(데미지·명중)는 여기에도 없다. 칭호 설명도 화면에 풀어 쓰지 않는다.
  */
 export default function RaidCeremony({ raidState, players }: RaidCeremonyProps) {

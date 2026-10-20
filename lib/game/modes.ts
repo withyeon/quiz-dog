@@ -211,7 +211,41 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       title: '8-bit Battle Loop',
       src: '/audio/bgm/poop-dodge.mp3',
     },
-    description: '반 전체가 힘을 합쳐 거대한 펭귄 군단을 물리쳐요. 정답을 맞힐 때마다 펭귄의 체력이 줄어요. 제한 시간 안에 황제 펭귄까지 쓰러뜨리면 다 같이 승리!',
+    description: '퀴즈를 맞혀 물풍선을 얻고, 아레나에서 물줄기로 펭귄을 맞혀요. 스노우몬은 얼려서 깨고, 반 전체가 힘을 합쳐 황제 펭귄까지 쓰러뜨리면 다 같이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
+    // 붕어빵 굽굽!: 퀴즈 정답 → 굽기 게이지 타이밍 → 랜덤 속 → 6칸 판 완성. 규칙은 lib/game/bungeoppang.ts.
+    id: 'bungeoppang',
+    route: '/bungeoppang',
+    label: '붕어빵 굽굽!',
+    shortLabel: '붕어빵',
+    emoji: '🐟',
+    image: '/title/bungeoppang.webp',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
+    description: '퀴즈를 맞히고 붕어빵을 구워요. 딱 좋은 타이밍에 뒤집어 완벽하게 굽고, 6칸 철판을 채워요. 점수가 많은 사람이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
+    // 퀴즈독의 라면가게: 「슈의 라면가게」식. 정답 → 손님 1~3명 → 냄비마다 물·면·스프, 끓을 때 파·계란, 바로 쟁반. 규칙은 lib/game/ramen.ts.
+    id: 'ramen',
+    route: '/ramen',
+    label: '퀴즈독의 라면가게',
+    shortLabel: '라면가게',
+    emoji: '🍜',
+    image: '/title/ramen.webp',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
+    description: '퀴즈를 맞히면 손님이 와요. 냄비에 물·면·스프를 넣고, 끓을 때 파와 계란을 넣어 바로 쟁반에! 타이밍이 맞으면 1,000원. 돈을 가장 많이 번 사람이 승리!',
     leaderboardSort: 'score',
     requiresQuestionSet: true,
   },
@@ -241,7 +275,9 @@ export const GAME_MODES: readonly GameModeConfig[] = [
  * 라우트와 getGameModeConfig는 그대로 동작하므로 이미 만들어진 방은 문제없이 진행된다.
  * 공개할 때는 여기서 id만 빼면 모든 목록에 한 번에 다시 나온다.
  */
-export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = []
+// 붕어빵 굽굽!: 2026-10-20 개발 중. 다듬은 뒤 공개하기로 해서 /dev 에서만 돌린다 (/dev 는 GAME_MODES 전체를 쓴다).
+// 라면가게: 2026-10-20 개발 중. 같은 이유로 /dev 에서만.
+export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = ['bungeoppang', 'ramen']
 
 export function isHiddenGameMode(mode: string | null | undefined): boolean {
   return HIDDEN_GAME_MODE_IDS.includes(mode as GameModeId)
@@ -293,7 +329,7 @@ export function getModeInitialPlayerState(mode: string | null | undefined) {
  * 눈싸움(팀전)·마피아·좀비(역할 배정)·펭귄 레이드(반 전체 협동)는 여럿이 있어야 성립하므로 뺀다.
  */
 export const HOMEWORK_GAME_MODES: readonly GameModeId[] = [
-  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'gold_quest', 'factory', 'cafe', 'tower',
+  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'bungeoppang', 'ramen', 'gold_quest', 'factory', 'cafe', 'tower',
 ]
 
 /** 과제로 낼 수 있는 "게임" (공부 모드 제외) */

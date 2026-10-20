@@ -26,6 +26,8 @@ import {
   type Room,
 } from './resultAnalytics'
 import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
+import BungeoResultSummary from '@/components/bungeoppang/BungeoResultSummary'
+import RamenResultSummary from '@/components/ramen/RamenResultSummary'
 import { getScoreDisplay } from '@/lib/game/scoreDisplay'
 
 type StudentResultViewProps = {
@@ -117,6 +119,14 @@ export default function StudentResultView({
             {getResultMessage(student)}
           </p>
         </section>
+
+        {room.game_mode === 'bungeoppang' && (
+          <BungeoResultSummary players={players} playerId={playerId} />
+        )}
+
+        {room.game_mode === 'ramen' && (
+          <RamenResultSummary players={players} playerId={playerId} />
+        )}
 
         {studyInfo && (
           <section className="rounded-lg border border-sky-200 bg-white p-5 shadow-sm">

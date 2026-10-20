@@ -61,8 +61,8 @@ export default function RaidResultPanel({ raidState, players, playerId, role, on
   const myName = me ? getPlayerDisplayNickname(me.nickname, me.avatar) : ''
   const myDamage = Math.max(0, me?.score ?? 0)
   const myHits = Math.max(0, me?.gold ?? 0)
-  // position 은 필살기 끊기에 기여한 횟수다 (raid.ts 저장 규칙)
-  const myInterrupts = Math.max(0, me?.position ?? 0)
+  // position 은 깬 스노우몬 수다 (raid.ts 저장 규칙)
+  const myKills = Math.max(0, me?.position ?? 0)
 
   const shownMates = mates.slice(0, MAX_MATE_AVATARS)
   const hiddenMates = mates.length - shownMates.length
@@ -170,8 +170,8 @@ export default function RaidResultPanel({ raidState, players, playerId, role, on
               <div className="mt-0.5 text-xl font-black text-rose-900">{myHits}번</div>
             </div>
             <div className="rounded-xl border border-violet-200 bg-violet-50 px-1 py-2">
-              <div className="break-keep text-[11px] font-bold text-violet-700">필살기 저지</div>
-              <div className="mt-0.5 text-xl font-black text-violet-900">{myInterrupts}번</div>
+              <div className="break-keep text-[11px] font-bold text-violet-700">스노우몬</div>
+              <div className="mt-0.5 text-xl font-black text-violet-900">{myKills}마리</div>
             </div>
           </div>
         </motion.div>

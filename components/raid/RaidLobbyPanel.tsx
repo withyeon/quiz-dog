@@ -5,6 +5,7 @@ import { Crown, ShieldCheck, Swords, Users, Zap } from 'lucide-react'
 import { RaidAvatar } from '@/components/raid/PartyStrip'
 import { RAID_ROLE_ICON_SRC, RAID_SPRITE_SRC } from '@/components/raid/raidAssets'
 import { RAID, RAID_ROLES, RAID_ROLE_ORDER, getRaidBossRoster, getRaidRole, type RaidSettings } from '@/lib/game/raid'
+import { ARENA } from '@/lib/game/raidArena'
 
 type RaidLobbyPanelProps = {
   players: Array<{
@@ -31,20 +32,20 @@ export default function RaidLobbyPanel({ players, settings }: RaidLobbyPanelProp
     {
       Icon: Swords,
       tone: 'bg-rose-50 text-rose-600 border-rose-200',
-      title: '정답 = 공격',
-      body: `정답 하나에 ${RAID.BASE_DAMAGE} 데미지! ${RAID.COMBO_STEPS[0].streak}연속부터는 보너스도 붙어요. 틀려도 펭귄은 반격하지 않고 연속 정답만 처음부터 세요.`,
+      title: '정답 = 물풍선',
+      body: `문제를 맞히면 물풍선 ${ARENA.BALLOONS_PER_ANSWER}개! 아레나에서 물풍선을 놓아 물줄기로 펭귄을 맞히면 ${RAID.BASE_DAMAGE} 데미지예요. ${RAID.COMBO_STEPS[0].streak}연속 정답부터는 한 방이 더 세져요. 틀려도 잃는 건 없어요.`,
     },
     {
       Icon: ShieldCheck,
       tone: 'bg-cyan-50 text-cyan-600 border-cyan-200',
-      title: '방패는 여럿이',
-      body: `펭귄 체력이 ${percent(RAID.SHIELD_HP_RATIO)} 아래로 내려가면 얼음 방패! 반 친구 ${percent(RAID.SHIELD_REQUIRED_RATIO)}가 한 번씩 맞혀야 깨져요.`,
+      title: '스노우몬은 얼려서 깨기',
+      body: `펭귄이 떨어뜨린 알에서 스노우몬이 나와요. 물줄기로 얼린 뒤 몸으로 부딪혀 깨요. ${ARENA.FREEZE_TIME}초 안에 못 깨면 녹아서 폭주해요! 스노우몬·물줄기·펭귄에 닿으면 물방울에 갇혔다가 출발 칸에서 다시 시작해요.`,
     },
     {
       Icon: Zap,
       tone: 'bg-amber-50 text-amber-600 border-amber-200',
-      title: '필살기는 다 같이 끊기',
-      body: `펭귄이 ${RAID.SKILL_CHARGE}초 동안 기를 모아요. 그 사이 반 친구 ${percent(RAID.INTERRUPT_REQUIRED_RATIO)}가 맞히면 끊겨서 펭귄이 기절! 그동안은 데미지 ${RAID.GROGGY_MULTIPLIER}배예요. 못 끊어도 괜찮아요.`,
+      title: '방패·필살기는 다 같이',
+      body: `펭귄 체력이 ${percent(RAID.SHIELD_HP_RATIO)} 아래면 얼음 방패 — 반 친구 ${percent(RAID.SHIELD_REQUIRED_RATIO)}가 한 번씩 맞혀야 깨져요. 필살기 예고 ${RAID.SKILL_CHARGE}초 동안 ${percent(RAID.INTERRUPT_REQUIRED_RATIO)}가 맞히면 펭귄이 기절(데미지 ${RAID.GROGGY_MULTIPLIER}배), 못 끊으면 눈보라 물줄기가 지나가요.`,
     },
   ]
 

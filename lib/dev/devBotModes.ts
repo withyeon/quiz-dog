@@ -62,6 +62,25 @@ import {
   getRaidRole,
   parseRaidSettings,
 } from '@/lib/game/raid'
+import {
+  createEmptyStats,
+  getBakeSetup,
+  parseStats,
+  resolveBake,
+  type BungeoStats,
+} from '@/lib/game/bungeoppang'
+import {
+  createEmptyStats as createEmptyRamenStats,
+  createPot,
+  drawCustomerCount,
+  drawCustomers,
+  evaluatePot,
+  parseStats as parseRamenStats,
+  resolveRound,
+  RAMEN,
+  type Pot,
+  type RamenStats,
+} from '@/lib/game/ramen'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -656,6 +675,57 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
         deltas.position = 1
       }
       await ctx.addDelta(deltas)
+    },
+  },
+
+  // 붕어빵 굽굽!: 정답마다 한 번 굽는다. 난이도 정확도가 높을수록 완벽 구간 근처에서 뒤집는다.
+  // 점수는 원자 증분, 굽기 통계(item_effects)는 봇 행에 덮어쓴다 (사람 화면과 같은 규칙 함수).
+  bungeoppang: {
+    cycleSeconds: 11,
+    onAnswer: async (ctx, correct) => {
+      if (!correct) return
+      const self = ctx.self()
+      const stats: BungeoStats = self ? parseStats(self.item_effects) : createEmptyStats()
+      const setup = getBakeSetup(stats.buffs)
+      const perfect = setup.zones.find((zone) => zone.id === 'perfect')!
+      const center = (perfect.start + perfect.end) / 2
+      const accuracy = DEV_BOT_DIFFICULTIES[ctx.bot.difficulty].accuracy
+      // 정확할수록 완벽 가운데에 가깝게, 아니면 게이지 어디든
+      const spread = (1 - accuracy) * 60 + 8
+      const position = Math.max(0, Math.min(100, center + (Math.random() - 0.5) * spread))
+      const outcome = resolveBake(stats, position, setup, Math.random)
+      await ctx.setFields({ item_effects: outcome.stats })
+      await ctx.addDelta({ score: outcome.points })
+    },
+  },
+
+  // 라면가게: 정답마다 손님 1~3명(랜덤) → 냄비마다 라면 하나. 정확도가 높을수록 끓을 때 파·계란을 넣고 바로 쟁반에 올린다.
+  // 점수(원)는 원자 증분, 장사 통계(item_effects)는 봇 행에 덮어쓴다 (사람 화면과 같은 규칙 함수).
+  ramen: {
+    cycleSeconds: 16,
+    onAnswer: async (ctx, correct) => {
+      if (!correct) return
+      const self = ctx.self()
+      const stats: RamenStats = self ? parseRamenStats(self.item_effects) : createEmptyRamenStats()
+      const accuracy = DEV_BOT_DIFFICULTIES[ctx.bot.difficulty].accuracy
+      const customers = drawCustomers(drawCustomerCount())
+      const results = customers.map((_, index) => {
+        const base: Pot = { ...createPot(index), noodle: true, soup: true, water: true }
+        const roll = Math.random()
+        // 냄비가 많을수록 어렵다. 정확도 × (냄비 수 보정) 확률로 완벽, 아니면 흔한 실수 중 하나
+        const perfectChance = accuracy * (customers.length === 1 ? 0.9 : customers.length === 2 ? 0.7 : 0.5)
+        let pot: Pot
+        if (roll < perfectChance) pot = { ...base, leek: 'boiling', egg: 'boiling', cookMs: RAMEN.HEAT_MS + 800 }
+        else if (roll < perfectChance + 0.15) pot = { ...base, leek: 'early', egg: 'boiling', cookMs: RAMEN.HEAT_MS + 800 }
+        else if (roll < perfectChance + 0.25) pot = { ...base, leek: 'early', egg: 'early', cookMs: RAMEN.HEAT_MS + 800 }
+        else if (roll < perfectChance + 0.33) pot = { ...base, cookMs: RAMEN.HEAT_MS + 800 }
+        else if (roll < perfectChance + 0.4) pot = { ...base, leek: 'early', egg: 'early', cookMs: 1200 }
+        else pot = { ...base, leek: 'boiling', egg: 'boiling', cookMs: RAMEN.HEAT_MS + RAMEN.BOIL_MS }
+        return evaluatePot(pot)
+      })
+      const outcome = resolveRound(stats, customers, results, stats.money)
+      await ctx.setFields({ item_effects: outcome.stats })
+      await ctx.addDelta({ score: outcome.money })
     },
   },
 
