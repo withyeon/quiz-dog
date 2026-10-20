@@ -224,7 +224,7 @@ export default function RamenPage() {
                 </div>
 
                 <aside className="space-y-4">
-                  <Leaderboard players={players} currentPlayerId={playerId} sortBy="score" gameMode="ramen" title="🍜 매출 순위" />
+                  <Leaderboard compact players={players} currentPlayerId={playerId} sortBy="score" gameMode="ramen" title="🍜 매출 순위" />
                   <div className="rounded-xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-700 shadow-lg">
                     <div className="mb-2 text-sm font-extrabold text-slate-800">라면 값</div>
                     <div className="space-y-1 text-xs font-bold">
@@ -286,7 +286,7 @@ export default function RamenPage() {
                     <li>· 끓고 몇 초 지나면 타요. 탄 냄비는 0원!</li>
                   </ul>
                 </div>
-                <Leaderboard players={players} currentPlayerId={playerId} sortBy="score" gameMode="ramen" title="🍜 매출 순위" />
+                <Leaderboard compact players={players} currentPlayerId={playerId} sortBy="score" gameMode="ramen" title="🍜 매출 순위" />
               </aside>
             </div>
           )}

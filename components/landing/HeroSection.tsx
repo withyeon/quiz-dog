@@ -48,7 +48,7 @@ function HeroPreview() {
           loop
           playsInline
           preload="metadata"
-          aria-label="퀴즈독 게임 소개 영상: 타워 디펜스, 인형뽑기, 좀비, 카페, 마피아 등 11가지 게임으로 퀴즈를 복습하는 장면"
+          aria-label="퀴즈독 게임 소개 영상: 타워 디펜스, 인형뽑기, 좀비, 카페, 마피아 등 여러 게임으로 퀴즈를 복습하는 장면"
           className="absolute inset-0 h-full w-full object-cover"
         >
           <source src={HERO_PROMO.webm} type="video/webm" />

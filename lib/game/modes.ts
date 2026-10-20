@@ -275,9 +275,8 @@ export const GAME_MODES: readonly GameModeConfig[] = [
  * 라우트와 getGameModeConfig는 그대로 동작하므로 이미 만들어진 방은 문제없이 진행된다.
  * 공개할 때는 여기서 id만 빼면 모든 목록에 한 번에 다시 나온다.
  */
-// 붕어빵 굽굽!: 2026-10-20 개발 중. 다듬은 뒤 공개하기로 해서 /dev 에서만 돌린다 (/dev 는 GAME_MODES 전체를 쓴다).
-// 라면가게: 2026-10-20 개발 중. 같은 이유로 /dev 에서만.
-export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = ['bungeoppang', 'ramen']
+// 붕어빵 굽굽!·라면가게: 2026-10-20 공개 (그 전에는 /dev 에서만 돌렸다).
+export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = []
 
 export function isHiddenGameMode(mode: string | null | undefined): boolean {
   return HIDDEN_GAME_MODE_IDS.includes(mode as GameModeId)

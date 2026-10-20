@@ -255,7 +255,7 @@ export default function BungeoppangPage() {
                 </div>
 
                 <aside className="space-y-4">
-                  <Leaderboard players={players} currentPlayerId={playerId} sortBy="score" gameMode="bungeoppang" title="🐟 붕어빵 순위" />
+                  <Leaderboard compact players={players} currentPlayerId={playerId} sortBy="score" gameMode="bungeoppang" title="🐟 붕어빵 순위" />
                   <div className="rounded-xl border border-slate-200 bg-white/90 p-4 text-sm text-slate-700 shadow-lg">
                     <div className="mb-2 text-sm font-extrabold text-slate-800">굽기 점수표</div>
                     <div className="grid grid-cols-5 gap-1 text-center text-[11px] font-bold">
@@ -331,7 +331,7 @@ export default function BungeoppangPage() {
                     <div className="text-3xl font-black text-orange-700">{comboLabel}</div>
                   </motion.div>
                 )}
-                <Leaderboard players={players} currentPlayerId={playerId} sortBy="score" gameMode="bungeoppang" title="🐟 붕어빵 순위" />
+                <Leaderboard compact players={players} currentPlayerId={playerId} sortBy="score" gameMode="bungeoppang" title="🐟 붕어빵 순위" />
               </aside>
             </div>
           )}

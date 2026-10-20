@@ -17,6 +17,8 @@ interface LeaderboardProps {
   gameMode?: GameModeId | string | null
   title?: string
   titleIcon?: string
+  /** 좁은 옆 칸(라면가게·붕어빵 화면 오른쪽 순위표)용 작은 줄 — 이름이 세로로 깨지거나 금액이 잘리지 않게 */
+  compact?: boolean
 }
 
 export default function Leaderboard({
@@ -26,6 +28,7 @@ export default function Leaderboard({
   gameMode = DEFAULT_GAME_MODE,
   title = '실시간 순위',
   titleIcon,
+  compact = false,
 }: LeaderboardProps) {
   const [sortedPlayers, setSortedPlayers] = useState<Player[]>([])
   const [previousRanks, setPreviousRanks] = useState<Map<string, number>>(new Map())
@@ -100,7 +103,7 @@ export default function Leaderboard({
             return (
               <div
                 key={player.id}
-                className={`flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${isCurrentPlayer
+                className={`flex items-center justify-between gap-2 ${compact ? 'p-2.5' : 'p-4'} rounded-xl border-2 transition-colors ${isCurrentPlayer
                     ? isGoldMode
                       ? 'border-yellow-500 bg-yellow-100 shadow-md'
                       : 'border-blue-500 bg-blue-100 shadow-md'
@@ -114,9 +117,10 @@ export default function Leaderboard({
                       : ''
                   }`}
               >
-                <div className="flex items-center gap-4">
+                {/* 좁은 칸(라면가게·붕어빵 옆 순위표 등)에서는 이름을 말줄임하고 점수는 한 줄로 둔다 */}
+                <div className={`flex min-w-0 items-center ${compact ? 'gap-2' : 'gap-4'}`}>
                   <div
-                    className={`flex items-center justify-center w-12 h-12 rounded-full text-white font-bold text-lg shadow-md ${isGoldMode
+                    className={`flex shrink-0 items-center justify-center rounded-full text-white font-bold shadow-md ${compact ? 'h-8 w-8 text-sm' : 'h-12 w-12 text-lg'} ${isGoldMode
                         ? index < 3
                           ? 'bg-yellow-600'
                           : 'bg-yellow-500'
@@ -129,11 +133,11 @@ export default function Leaderboard({
                     avatar={player.avatar}
                     nickname={displayNickname}
                     fallback="🎮"
-                    className="relative h-12 w-12 overflow-hidden rounded-xl bg-white text-3xl ring-1 ring-gray-200"
+                    className={`relative shrink-0 overflow-hidden rounded-xl bg-white ring-1 ring-gray-200 ${compact ? 'h-9 w-9 text-2xl' : 'h-12 w-12 text-3xl'}`}
                     sizes="48px"
                   />
-                  <div>
-                    <div className="font-bold text-gray-800 text-lg">
+                  <div className="min-w-0">
+                    <div className={`truncate font-bold text-gray-800 ${compact ? 'text-sm' : 'text-lg'}`}>
                       {displayNickname}
                       {isCurrentPlayer && (
                         <span className="ml-2 text-xs bg-primary-500 text-white px-2 py-1 rounded-full">
@@ -151,7 +155,7 @@ export default function Leaderboard({
                     </div>
                   )}
                 </div>
-                <div className="text-right">
+                <div className="shrink-0 whitespace-nowrap text-right">
                   {sortBy === 'gold' ? (
                     <>
                       <div className="text-3xl font-bold text-yellow-600 flex items-center justify-end gap-2">
@@ -162,7 +166,7 @@ export default function Leaderboard({
                     </>
                   ) : (
                     <>
-                      <div className={`text-2xl font-bold ${
+                      <div className={`${compact ? 'text-lg' : 'text-2xl'} font-bold ${
                         scoreDisplay.tone === 'money'
                           ? 'text-emerald-600'
                           : scoreDisplay.tone === 'gold'

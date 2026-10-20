@@ -128,7 +128,7 @@ function CookPreview({ params }: { params: URLSearchParams }) {
               </div>
             </KitchenScene>
             <aside>
-              <Leaderboard players={players} currentPlayerId="p0" sortBy="score" gameMode="ramen" title="🍜 매출 순위" />
+              <Leaderboard compact players={players} currentPlayerId="p0" sortBy="score" gameMode="ramen" title="🍜 매출 순위" />
             </aside>
           </div>
         )}

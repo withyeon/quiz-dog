@@ -143,7 +143,7 @@ function BakePreview({ params }: { params: URLSearchParams }) {
             </StallScene>
             <aside className="flex flex-col gap-4">
               {comboLabel && <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-center text-2xl font-black text-orange-700">{comboLabel}</div>}
-              <Leaderboard players={players} currentPlayerId="p0" sortBy="score" gameMode="bungeoppang" title="🐟 붕어빵 순위" />
+              <Leaderboard compact players={players} currentPlayerId="p0" sortBy="score" gameMode="bungeoppang" title="🐟 붕어빵 순위" />
             </aside>
           </div>
         )}
