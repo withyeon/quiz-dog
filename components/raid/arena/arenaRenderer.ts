@@ -141,7 +141,7 @@ function drawPillar(ctx: CanvasRenderingContext2D, col: number, row: number, img
     ctx.beginPath()
     ctx.ellipse(x + T / 2, y + T - 4, T * 0.42, 5, 0, 0, Math.PI * 2)
     ctx.fill()
-    drawTileImage(ctx, img, col, row, 1.12, 8)
+    drawTileImage(ctx, img, col, row, 1.3, 12)
     return
   }
   // 그림자

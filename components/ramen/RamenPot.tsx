@@ -86,7 +86,7 @@ export default function RamenPot({ pot, selected, onSelect, onServe, disabled = 
         animate={isBoiling && !done ? { x: [0, -1.5, 1.5, -1.5, 0] } : { x: 0 }}
         transition={{ duration: 0.25, repeat: isBoiling && !done ? Infinity : 0 }}
         className="relative"
-        style={{ width: compact ? 112 : 136 }}
+        style={{ width: compact ? 124 : 156 }}
       >
         {/* 김 */}
         {isBoiling && !done && (

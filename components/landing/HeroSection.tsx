@@ -157,7 +157,8 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
                 <ArrowRight className="h-5 w-5" />
               </motion.span>
             </Link>
-            <a href="#games" className="w-full sm:w-auto">
+            {/* 가입 없이 1분 체험 — 문제 3개 풀고 보물 상자를 여는 짧은 체험(/try). 설명보다 한 번 해보는 쪽이 가입 이유가 분명해진다 */}
+            <Link href="/try" className="w-full sm:w-auto">
               <motion.span
                 whileHover={{ y: -3 }}
                 whileTap={{ y: 0 }}
@@ -169,9 +170,21 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
                   boxShadow: '0 5px 0 rgba(186,230,253,0.9), 0 10px 20px rgba(14,165,233,0.14)',
                 }}
               >
-                게임 둘러보기
+                <Image
+                  src="/gold-quest/quest.webp"
+                  alt=""
+                  aria-hidden
+                  width={48}
+                  height={48}
+                  className="h-6 w-6 object-contain"
+                />
+                가입 없이 1분 체험
               </motion.span>
-            </a>
+            </Link>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm font-bold lg:justify-start" style={{ color: '#0369A1' }}>
+            <a href="#games" className="underline-offset-4 hover:underline">게임 둘러보기 ↓</a>
+            <Link href="/explore" className="underline-offset-4 hover:underline">자료실 구경하기 →</Link>
           </div>
         </motion.div>
 

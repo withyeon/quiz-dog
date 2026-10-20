@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -23,6 +24,8 @@ import FeatureClip from '@/components/features/FeatureClip'
 import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import { gameAssets } from '@/assets/game-assets'
 import { visibleGameModes } from '@/components/landing/gameModesData'
+import GameRecommendationPicker from '@/components/landing/GameRecommendationPicker'
+import { matchesRecommendation, type RecommendationTag } from '@/lib/game/modeGuide'
 
 /* ─────────────────────────────────────────────────────────────
    공통 조각
@@ -328,6 +331,7 @@ const LIBRARY_POINTS = [
    페이지
 ───────────────────────────────────────────────────────────── */
 export default function FeaturesContent() {
+  const [gamePick, setGamePick] = useState<RecommendationTag | null>(null)
   return (
     <div className="relative min-h-dvh overflow-hidden bg-[#d9eef5] font-bitbit">
       <PawBackgroundDecor />
@@ -526,8 +530,9 @@ export default function FeaturesContent() {
             }
           />
 
+          <GameRecommendationPicker value={gamePick} onChange={setGamePick} />
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
-            {visibleGameModes.map((game, i) => (
+            {visibleGameModes.filter((game) => matchesRecommendation(game.modeId, gamePick)).map((game, i) => (
               <GameModeCard key={game.name} game={game} index={i} animationsReady />
             ))}
           </div>

@@ -109,7 +109,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-6 shrink-0">
             <div className="hidden xl:flex items-center gap-6">
               <Link
-                href="/teacher/library"
+                href="/explore"
                 className="flex items-center gap-2 whitespace-nowrap transition-colors font-bold text-xl nav-outlined-text"
               >
                 자료실
@@ -206,7 +206,7 @@ export default function Navbar() {
         <div className="xl:hidden bg-sky-50/95 border-t border-sky-200">
           <div className="px-4 py-4 space-y-3">
             <Link
-              href="/teacher/library"
+              href="/explore"
               className="flex items-center gap-2 py-2 font-bold text-xl nav-outlined-text"
               onClick={() => setIsMobileMenuOpen(false)}
             >

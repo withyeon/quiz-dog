@@ -135,6 +135,21 @@ export default function LandingPage() {
                       <ArrowRight className="h-5 w-5" />
                     </motion.span>
                   </Link>
+                  <Link href="/try" className="w-full sm:w-auto">
+                    <motion.span
+                      whileHover={{ y: -3 }}
+                      whileTap={{ y: 0 }}
+                      className="flex w-full items-center justify-center gap-2 rounded-full px-8 py-4 text-lg font-black sm:w-auto"
+                      style={{
+                        backgroundColor: '#FFFFFF',
+                        border: '2px solid #BAE6FD',
+                        color: '#0369A1',
+                        boxShadow: '0 5px 0 rgba(186,230,253,0.9), 0 10px 20px rgba(14,165,233,0.14)',
+                      }}
+                    >
+                      가입 없이 1분 체험
+                    </motion.span>
+                  </Link>
                 </div>
               </div>
             </div>

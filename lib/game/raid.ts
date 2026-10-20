@@ -114,8 +114,12 @@ export const RAID = {
   SHIELD_HP_RATIO: 0.5,
   /** 방패를 깨는 데 필요한 "서로 다른 친구" 비율 (참가자 수 × 비율, 올림, 최소 1) */
   SHIELD_REQUIRED_RATIO: 0.5,
-  /** 보스 체력 = 참가자 수 × 이 값 (첫 보스). 뒤로 갈수록 HP_GROWTH 배 */
-  HP_PER_PLAYER: 32,
+  /**
+   * 보스 체력 = 참가자 수 × 이 값 (첫 보스). 뒤로 갈수록 HP_GROWTH 배.
+   * 아레나 개편(2026-10-20) 뒤 실제 엔진 봇 시뮬레이션으로 맞춘 값: 25명 보통 반이 5분·3마리를
+   * 약 4분(필살기를 끊으면 3분 50초, 못 끊으면 4분 50초)에 잡는다. 잘하는 반은 약 3분, 느린 반은 5분 안에 못 잡을 수 있다.
+   */
+  HP_PER_PLAYER: 45,
   HP_GROWTH: 1.25,
   /** 마지막 황제 펭귄은 한 번 더 세다 */
   EMPEROR_HP_BONUS: 1.4,
@@ -214,7 +218,7 @@ export function resolveRaidPlayerCount(settings: RaidSettings, activePlayerCount
 
 /**
  * 쓰러뜨려야 할 펭귄 목록. 앞은 병사들, 마지막은 항상 황제 펭귄.
- * 체력은 참가자 수에 비례하고 뒤로 갈수록 세진다. 5분·25명 기준으로 3마리를 1분쯤 남기고 잡도록 맞췄다.
+ * 체력은 참가자 수에 비례하고 뒤로 갈수록 세진다. 5분·25명 보통 반 기준으로 3마리를 1분쯤 남기고 잡도록 맞췄다(HP_PER_PLAYER 주석).
  */
 export function getRaidBossRoster(settings: RaidSettings, activePlayerCount: number): RaidBossDef[] {
   const count = Math.max(1, settings.bossCount)

@@ -65,6 +65,8 @@ export const NO_INDEX_PATHS = [
 /** sitemap.xml에 넣는 공개 페이지 */
 export const PUBLIC_PATHS: { path: string; priority: number; changeFrequency: 'daily' | 'weekly' | 'monthly' }[] = [
   { path: '/', priority: 1, changeFrequency: 'weekly' },
+  { path: '/explore', priority: 0.9, changeFrequency: 'daily' },
+  { path: '/try', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/features', priority: 0.9, changeFrequency: 'weekly' },
   { path: '/pricing', priority: 0.8, changeFrequency: 'monthly' },
   { path: '/pricing/quote', priority: 0.6, changeFrequency: 'monthly' },

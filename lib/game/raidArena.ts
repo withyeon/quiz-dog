@@ -41,8 +41,8 @@ export const ARENA = {
   START_BALLOONS: 3,
   MAX_BALLOONS: 9,
   MAX_PLACED: 3,
-  /** 정답 하나로 받는 물풍선 */
-  BALLOONS_PER_ANSWER: 3,
+  /** 정답 하나로 받는 물풍선. 물풍선은 퀴즈로만 생긴다(블록에서 물풍선 아이템은 나오지 않는다) — 문제를 더 자주 풀게 */
+  BALLOONS_PER_ANSWER: 2,
   /** 알이 부화하는 시간 (초) · 첫 알 · 알 간격 · 동시에 있을 수 있는 부하(알+스노우몬) 수 */
   EGG_HATCH: 3.0,
   EGG_FIRST_AT: 4,
@@ -438,7 +438,8 @@ function breakBlock(state: ArenaState, col: number, row: number) {
   burst(state, col + 0.5, row + 0.5, '#f8fafc', 8, 2.2)
   if (state.random() < ARENA.ITEM_DROP_CHANCE) {
     const roll = state.random()
-    const kind: ArenaItemKind = roll < 0.4 ? 'range' : roll < 0.65 ? 'balloon' : roll < 0.85 ? 'shoe' : 'needle'
+    // 물풍선 아이템은 없다: 물풍선은 퀴즈를 맞혀야만 생긴다
+    const kind: ArenaItemKind = roll < 0.5 ? 'range' : roll < 0.78 ? 'shoe' : 'needle'
     state.items.push({ id: state.nextId++, col, row, kind, t: 0 })
   }
 }

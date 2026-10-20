@@ -39,6 +39,12 @@ export const DEV_GAME_DURATION_MINUTES = [3, 5, 7, 10] as const
 // 봇 이름. 실제 학생과 헷갈리지 않게 '봇'을 붙인다.
 const BOT_NAMES = ['뭉치', '보리', '초코', '콩이', '두부', '호두', '라떼', '모카', '쿠키', '젤리', '구름', '마루']
 
+/** 봇 이름 n개를 겹치지 않게 섞어서 뽑는다(접미사 없음). 가입 없이 체험(/try)의 봇 친구 이름 */
+export function pickBotNames(count: number): string[] {
+  const names = [...BOT_NAMES].sort(() => Math.random() - 0.5)
+  return Array.from({ length: count }, (_, i) => names[i % names.length])
+}
+
 /** 이번 판 봇 닉네임 n개. 이름이 겹치지 않게 섞어서 뽑는다. 예) '뭉치봇(중)' */
 export function createDevBotNicknames(count: number, difficulty: DevBotDifficulty): string[] {
   const names = [...BOT_NAMES].sort(() => Math.random() - 0.5)

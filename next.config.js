@@ -34,8 +34,10 @@ const nextConfig = {
         destination: '/teacher/play',
         permanent: true,
       },
-      // 로그인 없이 보던 공개 자료실(/library)을 없애고 대시보드 자료실 하나로 합쳤다.
-      // 검색엔진이나 공유 글에 남아 있을 예전 주소는 그대로 넘겨준다.
+      // 2026-09-11 공개 자료실(/library)을 대시보드 자료실로 합치며 둔 영구 리다이렉트.
+      // 2026-10-20 공개 자료실을 /explore 로 되살렸다. 이 308 은 이미 브라우저에 캐시돼 있을 수 있어
+      // 같은 /library 주소는 다시 못 쓰고(캐시된 308 ↔ 로그인 안내가 서로 튕김) 그대로 둔다.
+      // 로그인 없이 /teacher/library 로 오면 TeacherLayout 이 /explore 로 보낸다.
       {
         source: '/library',
         destination: '/teacher/library',

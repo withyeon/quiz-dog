@@ -32,6 +32,16 @@ export default function Footer() {
             <h3 className="text-[#1e3a8a] font-semibold mb-4">제품</h3>
             <ul className="space-y-2 text-sm">
               <li>
+                <Link href="/explore" className="hover:text-[#1e3a8a]/70 transition-colors">
+                  자료실
+                </Link>
+              </li>
+              <li>
+                <Link href="/try" className="hover:text-[#1e3a8a]/70 transition-colors">
+                  가입 없이 1분 체험
+                </Link>
+              </li>
+              <li>
                 <Link href="/features" className="hover:text-[#1e3a8a]/70 transition-colors">
                   기능 소개
                 </Link>

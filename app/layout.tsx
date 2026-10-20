@@ -16,6 +16,8 @@ import { ConfirmDialogProvider } from '@/components/ui/ConfirmDialog'
 import { Toaster } from '@/components/ui/Toaster'
 import DevBotRunnerGate from '@/components/dev/DevBotRunnerGate'
 import ClientErrorReporter from '@/components/ClientErrorReporter'
+import TrialGameBanner from '@/components/try/TrialGameBanner'
+import { Suspense } from 'react'
 
 const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
@@ -299,6 +301,8 @@ export default function RootLayout({
             <DevBotRunnerGate />
             {/* 브라우저 오류를 /api/client-errors 로 보낸다. 관리자 '수업 점검'에서 날짜별로 본다 */}
             <ClientErrorReporter />
+            {/* 가입 없이 1분 체험(/try)으로 연 게임 화면에만 뜨는 '체험 중' 띠 (components/try/TrialGameBanner.tsx) */}
+            <Suspense fallback={null}><TrialGameBanner /></Suspense>
           </ConfirmDialogProvider>
         </AuthProvider>
       </body>

@@ -13,6 +13,11 @@ export default function TeacherLayout({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     if (!loading && !user) {
+      // 자료실은 로그인 없이도 구경할 수 있다 — 옛 링크(/teacher/library?set=…)는 공개 자료실로 보낸다
+      if (pathname?.startsWith('/teacher/library')) {
+        router.replace(`/explore${window.location.search}`)
+        return
+      }
       // 쿼리도 함께 넘긴다: quizdog.kr/redeem?code=… 처럼 링크로 들어온 값이 로그인 뒤에도 남게
       const target = `${pathname ?? '/teacher'}${window.location.search}`
       router.replace(`/login?redirect=${encodeURIComponent(target)}`)
