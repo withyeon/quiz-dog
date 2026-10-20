@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import AnswerReveal from '@/components/AnswerReveal'
 import PixelIcon from '@/components/ui/PixelIcon'
 
-/** 오답 화면: 정답 공개 뒤 3초 후 훅이 다음 문제로 넘긴다. */
+/** 오답 화면: 정답 공개 뒤 3초(구성치기 문제집은 5초) 후 훅이 다음 문제로 넘긴다. */
 export default function CafeWrongPanel({
   revealedAnswer,
   revealedExplanation = null,

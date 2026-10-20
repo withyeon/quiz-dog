@@ -18,7 +18,7 @@ export default function ExplanationToggle({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      title="해설이 있는 문제만 보여요."
+      title="해설이 있는 문제만 보여요. 해설을 읽을 수 있게 오답 화면이 5초 동안 떠 있어요."
       className={`flex items-center gap-3 rounded-2xl border-2 px-5 py-3.5 text-base font-bold transition focus:outline-none focus:ring-4 focus:ring-sky-100 ${
         checked
           ? 'border-sky-400 bg-sky-50 text-sky-800'
