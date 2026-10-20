@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { reportClientError } from '@/components/ClientErrorReporter'
 
 export default function Error({
   error,
@@ -12,6 +13,7 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error('페이지 오류:', error)
+    void reportClientError('page_error', error)
   }, [error])
 
   return (

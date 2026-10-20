@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { reportClientError } from '@/components/ClientErrorReporter'
 
 export default function GlobalError({
   error,
@@ -11,6 +12,7 @@ export default function GlobalError({
 }) {
   useEffect(() => {
     console.error('치명적 오류:', error)
+    void reportClientError('global_error', error)
   }, [error])
 
   // 루트 레이아웃을 대체하므로 globals.css가 로드되지 않을 수 있어 인라인 스타일을 사용한다.

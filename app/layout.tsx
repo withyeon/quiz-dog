@@ -15,6 +15,7 @@ import { AuthProvider } from '@/contexts/AuthContext'
 import { ConfirmDialogProvider } from '@/components/ui/ConfirmDialog'
 import { Toaster } from '@/components/ui/Toaster'
 import DevBotRunnerGate from '@/components/dev/DevBotRunnerGate'
+import ClientErrorReporter from '@/components/ClientErrorReporter'
 
 const notoSansKR = Noto_Sans_KR({
   subsets: ['latin'],
@@ -296,6 +297,8 @@ export default function RootLayout({
             <Toaster />
             {/* /dev 봇 친구 실행기. /dev 에서 봇과 함께 시작한 탭에서만 켜진다(components/dev/DevBotRunnerGate.tsx) */}
             <DevBotRunnerGate />
+            {/* 브라우저 오류를 /api/client-errors 로 보낸다. 관리자 '수업 점검'에서 날짜별로 본다 */}
+            <ClientErrorReporter />
           </ConfirmDialogProvider>
         </AuthProvider>
       </body>

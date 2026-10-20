@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BarChart3, Megaphone, MessageSquare, Radio, Users } from 'lucide-react'
+import { BarChart3, ClipboardCheck, Megaphone, MessageSquare, Radio, Users } from 'lucide-react'
 
 export interface AdminNavItem {
   label: string
@@ -21,6 +21,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { label: '대시보드', href: '/admin/dashboard', icon: BarChart3, description: '가입·게임·요금제 현황을 한눈에 봅니다.' },
       { label: '게임 / 세션', href: '/admin/sessions', icon: Radio, description: '열린 게임 방을 찾아 종료하거나 정리합니다.' },
+      { label: '수업 점검', href: '/admin/daily-check', icon: ClipboardCheck, description: '하루 동안의 수업, 기록 누락, 화면 오류를 돌아봅니다.' },
     ],
   },
   {

@@ -47,11 +47,44 @@ function isMissingOwnerColumn(error: unknown): boolean {
   return message.includes('owner_id')
 }
 
+/**
+ * 기록에 담을 학생 행은 DB 에서 새로 읽는다.
+ *
+ * 교사 화면이 들고 있는 players 는 실시간 패치로 만든 메모리 사본이라 answer_history 처럼
+ * 패치에 안 실리는 컬럼이 비어 있다(2026-10-19 수업 기록 19명 전원 풀이 기록 0건으로 확인).
+ * 게임 기록(분석 화면)은 이 스냅샷만 보므로 정답률이 통째로 사라진다. DB 읽기에 실패하면
+ * 기록이 아예 없는 것보다는 나으니 받은 목록을 그대로 쓴다.
+ */
+async function freshestPlayers(roomCode: string, fallback: PlayerRow[]): Promise<PlayerRow[]> {
+  try {
+    const rows = await listPlayersInRoom(roomCode)
+    if (rows.length === 0) return fallback
+    // 종료 직전 몇 초 사이의 점수 패치가 아직 DB 에 안 닿았을 수 있어, 점수류는 큰 쪽을 남긴다.
+    const byId = new Map(fallback.map((player) => [player.id, player]))
+    return rows.map((row) => {
+      const local = byId.get(row.id)
+      if (!local) return row
+      return {
+        ...row,
+        score: Math.max(row.score ?? 0, local.score ?? 0),
+        gold: Math.max(row.gold ?? 0, local.gold ?? 0),
+        answer_history: Array.isArray(row.answer_history) && (row.answer_history as unknown[]).length > 0
+          ? row.answer_history
+          : local.answer_history ?? row.answer_history,
+      }
+    })
+  } catch (error) {
+    console.error('게임 기록용 학생 행 다시 읽기 실패, 화면 목록으로 저장:', error)
+    return fallback
+  }
+}
+
 export async function saveGameReportSnapshot(
   room: RoomRow,
-  players: PlayerRow[],
+  localPlayers: PlayerRow[],
   ownerId?: string | null,
 ): Promise<void> {
+  const players = await freshestPlayers(room.room_code, localPlayers)
   const snapshot = {
     room_code: room.room_code,
     set_id: room.set_id,

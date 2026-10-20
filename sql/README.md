@@ -40,6 +40,11 @@
 - **내용**: `quiz_answer_numeric_core`가 숫자 사이의 소수점을 지키고, `quiz_single_answer_match`가 두 답이 모두 숫자 답이면 값부터 비교한다(`check_question_answer` 시그니처·GRANT 그대로). 숫자 답이 아닌 정답("3·1 운동" 등)과 구성치기 채점은 그대로다
 - **실행 순서**: `20260922_lenient_numeric_answers.sql` 이후. 여러 번 실행해도 안전하다. 파일 끝의 확인용 SELECT 가 모두 true 여야 한다
 
+### 8. `20261020_client_error_logs.sql`
+- **용도**: 학생·선생님 브라우저에서 난 오류를 모아 두는 `client_error_logs` 표. 관리자 '수업 점검'(/admin/daily-check) 페이지가 날짜별로 보여 준다
+- **내용**: 표·인덱스 생성, RLS 켜고 anon/authenticated 권한 전부 회수(쓰기·읽기는 `/api/client-errors`·관리자 API 가 service role 로만 한다), 30일 지난 행을 지우는 `prune_client_error_logs()`
+- **실행 순서**: 아무 때나. 실행 전에는 오류가 안 쌓일 뿐 화면·API 는 정상 동작한다. 여러 번 실행해도 안전하다
+
 ## 실행 방법
 
 ### Supabase 대시보드에서 실행
