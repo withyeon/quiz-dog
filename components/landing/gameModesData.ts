@@ -52,6 +52,8 @@ const GAME_MODE_CARDS: GameModeCardDef[] = [
   { modeId: 'bungeoppang', name: '붕어빵 굽굽!', titleImage: '/title/bungeoppang.webp', icon: '/bungeoppang/baked.webp', color: '#F59E0B', bg: 'rgba(245,158,11,0.16)', previewImage: '/main/games/bungeoppang.webp' },
   // 퀴즈독의 라면가게. 플레이 영상은 아직 없어 호버 때는 /dev/ramen-preview 주방 화면 캡처만 보여준다.
   { modeId: 'ramen', name: '퀴즈독의 라면가게', titleImage: '/title/ramen.webp', icon: '/ramen/icon-bowl.webp', color: '#7C3AED', bg: 'rgba(124,58,237,0.14)', previewImage: '/main/games/ramen.webp' },
+  // 블록 텃밭 키우기. 플레이 영상은 아직 없어 호버 때는 /dev/garden-preview?preset=rich&view0=garden&bare=1 밭 화면 캡처(1280×800)만 보여준다.
+  { modeId: 'garden', name: '블록 텃밭 키우기', titleImage: '/title/garden.webp', icon: '/garden/crop-carrot.webp', color: '#65A30D', bg: 'rgba(101,163,13,0.15)', previewImage: '/main/games/garden.webp' },
 ]
 
 export const gameModesData: GameModeInfo[] = GAME_MODE_CARDS.map((game) => ({

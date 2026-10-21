@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type { Database } from '@/types/database.types'
+import type { Database, Json } from '@/types/database.types'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 
@@ -109,39 +109,121 @@ export async function swapPlayerColumns(
   return (data as PlayerRow[]) ?? []
 }
 
-/** zombie_attack 이 알려주는, 이번 공격이 실제로 한 일. */
-export type ZombieAttackOutcome = 'infected' | 'damaged' | 'already_zombie' | 'no_role'
+/** zombie_strike 가 알려주는, 이번 공격이 실제로 한 일. */
+export type ZombieAttackOutcome =
+  | 'infected'        // 이번 공격이 감염을 성사시켰다
+  | 'damaged'         // 데미지만 들어갔다
+  | 'blocked'         // 방어막이 통째로 막았다
+  | 'hidden'          // 대상이 숨는 중이라 공격할 수 없다 (아무 변화 없음)
+  | 'already_zombie'  // 도착했을 때 이미 좀비였다
+  | 'no_role'
+  | 'not_zombie'      // 공격자가 그새 백신으로 인간이 됐다
 
 export type ZombieAttackResult = {
   outcome: ZombieAttackOutcome
+  damage: number
   players: PlayerRow[]
 }
 
 /**
- * 좀비 감염 공격 — 방어막 흡수 → 체력 감소 → 감염(역할 전이)을 서버에서 원자적으로 처리.
- * 두 행(공격자/대상)의 권위 있는 최종 상태와 함께, 이번 호출이 감염을 성사시켰는지를 돌려준다.
+ * 좀비 감염 공격 — 숨기 확인 → 방어막 → 체력 감소 → 감염(역할 전이)을 서버에서 원자적으로 처리.
+ * 데미지는 서버가 공격자의 attack_power(헬기를 부른 뒤엔 ×1.5)로 정한다.
  * (여러 좀비가 같은 인간에게 막타를 노려도 감염 연출은 실제로 성사시킨 한 명만 본다.)
  */
-export async function zombieAttack(
+export async function zombieStrike(
   zombieId: string,
   targetId: string,
-  damage: number,
-  infectionThreshold: number,
-  zombieBaseAttack: number,
+  limits: Record<string, number>,
 ): Promise<ZombieAttackResult> {
-  const { data, error } = await rpc('zombie_attack', {
+  const { data, error } = await rpc('zombie_strike', {
     p_zombie: zombieId,
     p_target: targetId,
-    p_damage: damage,
-    p_infection_threshold: infectionThreshold,
-    p_zombie_base_attack: zombieBaseAttack,
+    p_limits: limits,
   })
   if (error) throw new Error(error.message)
-  const result = data as { outcome?: ZombieAttackOutcome; players?: PlayerRow[] } | null
+  const result = data as { outcome?: ZombieAttackOutcome; damage?: number; players?: PlayerRow[] } | null
   return {
     outcome: result?.outcome ?? 'no_role',
+    damage: result?.damage ?? 0,
     players: result?.players ?? [],
   }
+}
+
+export type ZombieVaccineOutcome = 'dosed' | 'cured' | 'immune' | 'not_zombie' | 'not_human'
+
+export type ZombieVaccineResult = {
+  outcome: ZombieVaccineOutcome
+  /** 지금까지 맞은 백신 수 (dosed 일 때) */
+  doses: number
+  players: PlayerRow[]
+}
+
+/** 인간이 좀비 친구에게 백신을 쏜다. 감염된 친구만 3발에 돌아오고, 처음 좀비는 면역. */
+export async function zombieVaccinate(
+  humanId: string,
+  targetId: string,
+  limits: Record<string, number>,
+): Promise<ZombieVaccineResult> {
+  const { data, error } = await rpc('zombie_vaccinate', {
+    p_human: humanId,
+    p_target: targetId,
+    p_limits: limits,
+  })
+  if (error) throw new Error(error.message)
+  const result = data as { outcome?: ZombieVaccineOutcome; doses?: number; players?: PlayerRow[] } | null
+  return {
+    outcome: result?.outcome ?? 'not_zombie',
+    doses: result?.doses ?? 0,
+    players: result?.players ?? [],
+  }
+}
+
+export type ZombieSabotageResult = {
+  outcome: 'sabotaged' | 'locked' | 'not_zombie'
+  amount: number
+  player: PlayerRow | null
+}
+
+/** 좀비의 무전기 방해. 헬기를 부른 뒤에는 locked. */
+export async function zombieSabotage(
+  zombieId: string,
+  limits: Record<string, number>,
+): Promise<ZombieSabotageResult> {
+  const { data, error } = await rpc('zombie_sabotage', {
+    p_zombie: zombieId,
+    p_limits: limits,
+  })
+  if (error) throw new Error(error.message)
+  const result = data as { outcome?: ZombieSabotageResult['outcome']; amount?: number; player?: PlayerRow } | null
+  return {
+    outcome: result?.outcome ?? 'not_zombie',
+    amount: Number(result?.amount ?? 0),
+    player: result?.player ?? null,
+  }
+}
+
+/**
+ * 무전기 목표를 정한다 (한 번만 — 이미 정해졌거나 너무 이르면 그대로 돌려준다).
+ * 누가 불러도 같은 값이 나오므로 선생님 화면·학생 화면·체험 봇 어디서 불러도 된다.
+ * 돌려받은 rooms.settings 를 room:patch 로 방송한다.
+ */
+export async function zombieLockRadioGoal(
+  roomCode: string,
+  limits: Record<string, number>,
+): Promise<Json | null> {
+  const { data, error } = await rpc('zombie_lock_radio_goal', {
+    p_room: roomCode,
+    p_limits: limits,
+  })
+  if (error) throw new Error(error.message)
+  return (data as Json | null) ?? null
+}
+
+/** 무전기가 목표에 닿았으면 헬기를 부른다 (한 번만). 진행도는 서버가 다시 센다. */
+export async function zombieCallHeli(roomCode: string): Promise<Json | null> {
+  const { data, error } = await rpc('zombie_call_heli', { p_room: roomCode })
+  if (error) throw new Error(error.message)
+  return (data as Json | null) ?? null
 }
 
 /**
@@ -151,7 +233,7 @@ export async function zombieAttack(
  */
 export async function zombieApplyAction(
   playerId: string,
-  action: 'correct' | 'wrong' | 'heal' | 'shield',
+  action: 'correct' | 'wrong' | 'heal' | 'shield' | 'repair',
   limits: Record<string, number>,
 ): Promise<PlayerRow | null> {
   const { data, error } = await rpc('zombie_apply_action', {

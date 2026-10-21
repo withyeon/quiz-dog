@@ -310,7 +310,7 @@ export interface Database {
           room_code: string
           status: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -326,7 +326,7 @@ export interface Database {
           room_code: string
           status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -340,7 +340,7 @@ export interface Database {
           room_code?: string
           status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null

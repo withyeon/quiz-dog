@@ -30,6 +30,7 @@ export type RoomEventType =
   | 'battle:attacked'
   | 'battle:blizzard'
   | 'cafe:item_attack'
+  | 'garden:crow'
   | 'dontlookdown:pos'
 
 export type RoomChannelEvent<TPayload = unknown> = {

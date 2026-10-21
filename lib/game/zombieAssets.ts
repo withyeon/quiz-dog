@@ -12,6 +12,12 @@ export const ZOMBIE_ICON = {
   timer: '/zombie/timer.webp',
   log: '/zombie/log.webp',
   player: '/zombie/player.webp',
+  // 2026-10-21 B안 개편 — Codex 이미지 생성으로 기존 아이콘과 같은 픽셀아트로 만들었다
+  heli: '/zombie/heli.webp',
+  radio: '/zombie/radio.webp',
+  repair: '/zombie/repair.webp',
+  vaccine: '/zombie/vaccine.webp',
+  sabotage: '/zombie/sabotage.webp',
 } as const
 
 export type ZombieIconName = keyof typeof ZOMBIE_ICON

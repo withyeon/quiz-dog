@@ -8,25 +8,29 @@ import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import { Button } from '@/components/ui/button'
-import { Heart, Trophy } from 'lucide-react'
+import { Trophy } from 'lucide-react'
 import ZombieIcon from '@/components/zombie/ZombieIcon'
 import {
+  computeZombieRadio,
   createLateJoinerPatch,
   getZombieMeta,
   parseZombieSettings,
+  resolveZombieOutcome,
   roomPlayerToZombiePlayer,
-  GAME_CONSTANTS,
   ZOMBIE_ACTION_LIMITS,
   type ZombieActionKind,
 } from '@/lib/game/zombie'
 import {
-  zombieAttack as zombieAttackRpc,
   zombieApplyAction,
+  zombieSabotage,
+  zombieStrike,
+  zombieVaccinate,
   pickDeltaFields,
   type ZombieAttackResult,
 } from '@/lib/services/playerMutations'
 import { useGameBase } from '@/hooks/useGameBase'
-import type { Database } from '@/types/database.types'
+import { useZombieRadioDirector } from '@/hooks/useZombieRadioDirector'
+import type { Database, Json } from '@/types/database.types'
 
 export default function ZombiePage() {
   const router = useRouter()
@@ -51,6 +55,7 @@ export default function ZombiePage() {
     checkAnswer,
     goToNextQuestion,
     sendRoomEvent,
+    applyRoomPatch,
     applyPlayerPatch,
     commitPlayerPatch,
     roomLoading,
@@ -77,22 +82,27 @@ export default function ZombiePage() {
     [players],
   )
 
-  // 좀비 감염 공격 — 방어막/체력/역할 전이를 서버에서 원자적으로 처리하고,
+  // 좀비 감염 공격 — 숨기/방어막/체력/역할 전이를 서버에서 원자적으로 처리하고,
   // 두 행의 권위 있는 결과를 broadcast 해 모든 화면을 정합적으로 수렴시킨다.
   // (동시에 여러 좀비가 같은 인간을 공격해도 데미지가 누적된다.)
   const handleZombieAttack = useCallback(async (
     zombieId: string,
     targetId: string,
-    damage: number,
   ): Promise<ZombieAttackResult> => {
-    const result = await zombieAttackRpc(
-      zombieId,
-      targetId,
-      damage,
-      GAME_CONSTANTS.INFECTION_THRESHOLD,
-      GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
-    )
+    const result = await zombieStrike(zombieId, targetId, { ...ZOMBIE_ACTION_LIMITS })
     result.players.forEach((row) => broadcastAuthoritativeRow(row, 'zombie_attack'))
+    return result
+  }, [broadcastAuthoritativeRow])
+
+  const handleZombieVaccinate = useCallback(async (humanId: string, targetId: string) => {
+    const result = await zombieVaccinate(humanId, targetId, { ...ZOMBIE_ACTION_LIMITS })
+    result.players.forEach((row) => broadcastAuthoritativeRow(row, 'zombie_vaccine'))
+    return result
+  }, [broadcastAuthoritativeRow])
+
+  const handleZombieSabotage = useCallback(async (zombieId: string) => {
+    const result = await zombieSabotage(zombieId, { ...ZOMBIE_ACTION_LIMITS })
+    if (result.player) broadcastAuthoritativeRow(result.player, 'zombie_sabotage')
     return result
   }, [broadcastAuthoritativeRow])
 
@@ -120,13 +130,35 @@ export default function ZombiePage() {
   )
   const humanSurvivors = zombiePlayers.filter((player) => player.role === 'human')
   const zombies = zombiePlayers.filter((player) => player.role === 'zombie')
-  const winner = humanSurvivors.length === 0 && zombiePlayers.length > 0 ? 'zombie' : 'human'
-  const winReason = winner === 'zombie'
-    ? '모든 인간이 감염되었습니다! 좀비 팀 승리!'
-    : `${humanSurvivors.length}명의 인간이 생존했습니다! 인간 팀 승리!`
+  const zombieSettings = useMemo(() => parseZombieSettings(room?.settings), [room?.settings])
+  const { winner, message: winReason } = resolveZombieOutcome(zombiePlayers, zombieSettings)
   const myWon = myPlayer ? myPlayer.role === winner : false
   const hasAssignedRoles = playersWithRoles.length > 0
-  const zombieSettings = useMemo(() => parseZombieSettings(room?.settings), [room?.settings])
+
+  // 구조 무전기. 방 단위 이벤트(목표 확정·헬기 호출)는 선생님 화면이 맡고, 이 화면은 예비다
+  // (선생님 화면이 없는 1분 체험에서도 돌아가게).
+  const roomStartedAt = room?.started_at ?? null
+  const roomDurationSeconds = room?.duration_seconds ? Number(room.duration_seconds) : null
+  const radio = useMemo(() => {
+    const startedAtMs = roomStartedAt ? Date.parse(roomStartedAt) : null
+    return computeZombieRadio(zombiePlayers, zombieSettings, {
+      startedAtMs,
+      gameEndMs: startedAtMs !== null && roomDurationSeconds !== null ? startedAtMs + roomDurationSeconds * 1000 : null,
+      durationSeconds: roomDurationSeconds,
+    })
+  }, [roomDurationSeconds, roomStartedAt, zombiePlayers, zombieSettings])
+  const handleZombieRoomSettings = useCallback((settings: Json) => {
+    applyRoomPatch({ settings })
+    void sendRoomEvent('room:patch', { patch: { settings }, reason: 'zombie_radio' })
+  }, [applyRoomPatch, sendRoomEvent])
+  useZombieRadioDirector({
+    roomCode,
+    roomStatus: room?.status,
+    durationSeconds: zombieSettings.durationSeconds ?? roomDurationSeconds,
+    radio,
+    role: 'backup',
+    onSettings: handleZombieRoomSettings,
+  })
   // 게임이 시작된 뒤 들어온 학생은 시작 때의 역할 배정을 놓친다. 로비가 행을 만들 때 인간 역할을
   // 같이 넣어 주지만(createPlayerForRoom), 시작 직전에 들어와 배정 사이에 낀 학생은 여전히 역할이
   // 없을 수 있다. 그런 학생은 아래 효과에서 스스로 인간으로 참여한다.
@@ -267,11 +299,15 @@ export default function ZombiePage() {
                     </li>
                     <li className="flex items-start gap-3">
                       <ZombieIcon name="heal" size={22} className="mt-0.5 shrink-0" alt="" />
-                      <span>인간은 치료, 방어막, 스캔으로 생존합니다.</span>
+                      <span>인간은 정답으로 구조 무전기를 고쳐요. 시간 안에 다 고쳐야 헬기가 와요.</span>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <ZombieIcon name="scan" size={22} className="mt-0.5 shrink-0" alt="" />
+                      <span>스캔으로 감염된 친구를 찾아 백신 3발을 맞히면 다시 인간이 돼요.</span>
                     </li>
                     <li className="flex items-start gap-3">
                       <ZombieIcon name="attack" size={22} className="mt-0.5 shrink-0" alt="" />
-                      <span>좀비는 실제 친구를 공격해 감염시킵니다.</span>
+                      <span>좀비는 친구를 공격해 감염시키거나 무전기를 방해합니다.</span>
                     </li>
                   </ul>
                 </div>
@@ -295,7 +331,7 @@ export default function ZombiePage() {
                 당신은 {myPlayer.role === 'zombie' ? '좀비' : '인간'}입니다!
               </h1>
               <p className="mt-4 text-2xl text-gray-400">
-                {myPlayer.role === 'zombie' ? '모든 인간을 감염시키세요!' : '끝까지 생존하세요!'}
+                {myPlayer.role === 'zombie' ? '인간을 감염시키고 무전기를 방해하세요!' : '무전기를 고쳐 구조 헬기를 부르세요!'}
               </p>
             </motion.div>
           </motion.div>
@@ -303,7 +339,9 @@ export default function ZombiePage() {
 
         {/* 일시정지 중에도 화면을 내리지 않는다(ZombieView 가 isPaused 덮개를 그린다). 예전엔 playing 일 때만 그려서
             선생님이 멈추면 학생 화면이 검게 비었다 (2026-10-18 25명 검수) */}
-        {(room?.status === 'playing' || room?.status === 'paused') && currentView !== 'lobby' && !showRoleReveal && (
+        {/* 결과로 넘어간 뒤(헬기 도착·전원 감염·시간 끝)에는 방이 아직 playing 이어도 게임 화면을 내린다 —
+            선생님 화면이 방을 끝내기 전까지 결과 카드 위에 게임 화면이 겹쳐 있었다 */}
+        {(room?.status === 'playing' || room?.status === 'paused') && currentView !== 'lobby' && currentView !== 'result' && !showRoleReveal && (
           hasAssignedRoles && !isLateJoiner ? (
             <motion.div key="playing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-dvh w-full">
               <ZombieView
@@ -315,6 +353,7 @@ export default function ZombiePage() {
                 roomDurationSeconds={room?.duration_seconds ?? null}
                 roomPlayers={playersWithRoles}
                 showHumanStatusToZombies={zombieSettings.showHumanStatus}
+                radio={radio}
                 currentQuestion={currentQuestion}
                 onAnswer={checkAnswer}
                 onNextQuestion={goToNextQuestion}
@@ -324,6 +363,8 @@ export default function ZombiePage() {
                 onFinishRoom={async () => { setCurrentView('result'); return false }}
                 onZombieAction={handleZombieAction}
                 onZombieAttack={handleZombieAttack}
+                onZombieVaccinate={handleZombieVaccinate}
+                onZombieSabotage={handleZombieSabotage}
               />
             </motion.div>
           ) : (
@@ -363,7 +404,9 @@ export default function ZombiePage() {
                     {humanSurvivors.map((player) => (
                       <div key={player.id} className="flex items-center justify-between rounded-xl border-2 border-blue-500/50 bg-blue-950/30 p-3">
                         <span className="font-bold text-white">{player.name}</span>
-                        <span className="inline-flex items-center gap-2 text-red-400"><Heart className="h-4 w-4" />{player.health}</span>
+                        <span className="text-sm text-gray-300">
+                          수리 {player.radioParts}칸{player.rescues > 0 ? ` · 구출 ${player.rescues}` : ''}
+                        </span>
                       </div>
                     ))}
                     {humanSurvivors.length === 0 && <p className="text-center text-gray-500">생존자 없음</p>}
@@ -375,7 +418,9 @@ export default function ZombiePage() {
                     {zombies.map((player) => (
                       <div key={player.id} className={`flex items-center justify-between rounded-xl border-2 p-3 ${player.originalRole === 'zombie' ? 'border-red-500/50 bg-red-950/30' : 'border-green-500/30 bg-green-950/20'}`}>
                         <span className="font-bold text-white">{player.name}</span>
-                        <span className="text-sm text-gray-400">감염 {player.infectCount}</span>
+                        <span className="text-sm text-gray-400">
+                          감염 {player.infectCount}{player.sabotageCount > 0 ? ` · 방해 ${player.sabotageCount}` : ''}
+                        </span>
                       </div>
                     ))}
                   </div>

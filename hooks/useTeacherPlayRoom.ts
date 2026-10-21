@@ -20,10 +20,14 @@ import { getTutorialHiddenStorageKey } from '@/lib/game/tutorials'
 import {
   DEFAULT_ZOMBIE_SETTINGS,
   buildZombieRoomSettings,
+  computeZombieRadio,
   getZombieMeta,
+  parseZombieSettings,
   roomPlayerToZombiePlayer,
   type ZombieSettings,
 } from '@/lib/game/zombie'
+import { useZombieRadioDirector } from '@/hooks/useZombieRadioDirector'
+import type { Json } from '@/types/database.types'
 import {
   DEFAULT_RAID_SETTINGS,
   buildRaidRoomSettings,
@@ -91,7 +95,7 @@ export function useTeacherPlayRoom() {
   })
 
   const { players, refreshPlayers } = usePlayersRealtime({ roomCode })
-  const { room, refreshRoom } = useRoomRealtime({ roomCode })
+  const { room, refreshRoom, applyRoomPatch } = useRoomRealtime({ roomCode })
   const resyncDashboard = useRoomResync(refreshRoom, refreshPlayers)
   const {
     sendEvent: sendRoomEvent,
@@ -387,6 +391,45 @@ export function useTeacherPlayRoom() {
     void finishAutomatically('zombie_all_humans_infected', '좀비 조기 종료 실패:', 'Error saving zombie game report snapshot:')
   }, [finishAutomatically, players, room, roomCode])
 
+  // 좀비: 구조 무전기. 이 화면이 목표 확정·헬기 호출을 맡고(학생 화면은 예비), 헬기가 오면 방을 끝낸다.
+  const zombieRoomState = useMemo(() => parseZombieSettings(room?.settings), [room?.settings])
+  const zombieRadio = useMemo(() => {
+    const startedAtMs = room?.started_at ? Date.parse(room.started_at) : null
+    const durationSeconds = room?.duration_seconds ? Number(room.duration_seconds) : null
+    return computeZombieRadio(
+      players.filter((player) => !player.is_kicked && getZombieMeta(player)).map(roomPlayerToZombiePlayer),
+      zombieRoomState,
+      {
+        startedAtMs,
+        gameEndMs: startedAtMs !== null && durationSeconds !== null ? startedAtMs + durationSeconds * 1000 : null,
+        durationSeconds,
+      },
+    )
+  }, [players, room?.duration_seconds, room?.started_at, zombieRoomState])
+  const handleZombieRoomSettings = useCallback((settings: Json) => {
+    applyRoomPatch({ settings })
+    broadcastRoomPatch({ settings }, 'zombie_radio')
+  }, [applyRoomPatch, broadcastRoomPatch])
+  useZombieRadioDirector({
+    roomCode,
+    roomStatus: room?.game_mode === 'zombie' ? room.status : null,
+    durationSeconds: zombieRoomState.durationSeconds ?? (room?.duration_seconds ? Number(room.duration_seconds) : null),
+    radio: zombieRadio,
+    role: 'host',
+    onSettings: handleZombieRoomSettings,
+  })
+  const zombieHeliArrivalMs = zombieRadio.heliArrivalMs
+  useEffect(() => {
+    if (!roomCode || room?.status !== 'playing' || room.game_mode !== 'zombie' || zombieHeliArrivalMs === null) return
+    const tick = () => {
+      if (Date.now() < zombieHeliArrivalMs) return
+      void finishAutomatically('zombie_heli_rescue', '좀비 구조 종료 실패:', 'Error saving zombie game report snapshot:')
+    }
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [finishAutomatically, room?.game_mode, room?.status, roomCode, zombieHeliArrivalMs])
+
   // 펭귄 레이드: 펭귄을 전부 쓰러뜨리면(반 전체 승리) 자동 종료
   useEffect(() => {
     if (
@@ -568,7 +611,7 @@ export function useTeacherPlayRoom() {
         await assertQuestionSetHasQuestions(setId)
       }
       const startSettings = gameMode === 'zombie'
-        ? buildZombieRoomSettings(zombieSettings, room?.settings)
+        ? buildZombieRoomSettings(zombieSettings, room?.settings, timedDurationMinutes * 60)
         : gameMode === 'raid'
           // 펭귄 체력의 기준 인원은 시작 순간의 참가자 수로 고정한다 (시작 뒤 입장해도 체력이 흔들리지 않게)
           ? buildRaidRoomSettings(

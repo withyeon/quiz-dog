@@ -49,6 +49,7 @@ export const GAME_MODE_GUIDES: Record<GameModeId, GameModeGuide> = {
   raid: { grades: '초3~6', minutes: '5~10분', control: '보통', play: '협동전', tags: ['coop'] },
   bungeoppang: { grades: '초2~6', minutes: '5~10분', control: '보통', play: '개인전', tags: ['lower'] },
   ramen: { grades: '초3~6', minutes: '5~10분', control: '보통', play: '개인전', tags: [] },
+  garden: { grades: '초2~6', minutes: '7~10분', control: '쉬움', play: '개인전', tags: ['lower'] },
   study: { grades: '전체', minutes: '자유', control: '쉬움', play: '개인전', tags: [] },
 }
 

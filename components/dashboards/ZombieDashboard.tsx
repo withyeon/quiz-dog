@@ -1,8 +1,16 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import ZombieIcon from '@/components/zombie/ZombieIcon'
 import type { Database } from '@/types/database.types'
-import { getZombieMeta, roomPlayerToZombiePlayer, formatTime, GAME_CONSTANTS } from '@/lib/game/zombie'
+import {
+  computeZombieRadio,
+  formatTime,
+  getZombieMeta,
+  parseZombieSettings,
+  resolveZombieOutcome,
+  roomPlayerToZombiePlayer,
+} from '@/lib/game/zombie'
 
 type Player = Database['public']['Tables']['players']['Row']
 type Room = Database['public']['Tables']['rooms']['Row']
@@ -41,11 +49,31 @@ export default function ZombieDashboard({ players, room }: ZombieDashboardProps)
     return { humanCount: humans, zombieCount: zombies, totalWithRoles: humans + zombies }
   }, [activePlayers])
 
-  const timeRemaining = useMemo(() => {
-    if (!room.started_at || !room.duration_seconds) return null
-    const elapsed = Math.floor((Date.now() - new Date(room.started_at).getTime()) / 1000)
-    return Math.max(0, Number(room.duration_seconds) - elapsed)
-  }, [room.started_at, room.duration_seconds])
+  // 남은 시간·헬기 카운트다운이 TV 화면에서 멈춰 보이지 않게 1초마다 다시 그린다
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    if (room.status !== 'playing') return
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [room.status])
+
+  const startedAtMs = room.started_at ? new Date(room.started_at).getTime() : null
+  const durationSeconds = room.duration_seconds ? Number(room.duration_seconds) : null
+  const timeRemaining = startedAtMs !== null && durationSeconds !== null
+    ? Math.max(0, durationSeconds - Math.floor((nowMs - startedAtMs) / 1000))
+    : null
+
+  const roomState = useMemo(() => parseZombieSettings(room.settings), [room.settings])
+  const zombiePlayers = useMemo(
+    () => activePlayers.filter((p) => getZombieMeta(p as any)).map((p) => roomPlayerToZombiePlayer(p as any)),
+    [activePlayers],
+  )
+  const radio = computeZombieRadio(zombiePlayers, roomState, {
+    startedAtMs,
+    gameEndMs: startedAtMs !== null && durationSeconds !== null ? startedAtMs + durationSeconds * 1000 : null,
+    durationSeconds,
+  })
+  const outcome = rolesRevealed && zombiePlayers.length > 0 ? resolveZombieOutcome(zombiePlayers, roomState) : null
 
   const infectionRate = totalWithRoles > 0 ? Math.round((zombieCount / totalWithRoles) * 100) : 0
 
@@ -57,6 +85,45 @@ export default function ZombieDashboard({ players, room }: ZombieDashboardProps)
           ? '게임이 끝나 역할이 공개되었습니다.'
           : '누가 감염됐는지는 게임이 끝난 뒤 공개됩니다 (화면을 띄워둬도 정체가 새지 않도록).'}
       </p>
+
+      {outcome && (
+        <div className={`mb-5 rounded-xl border-2 p-4 text-center text-lg font-black ${outcome.winner === 'human' ? 'border-blue-300 bg-blue-50 text-blue-800' : 'border-green-300 bg-green-50 text-green-800'}`}>
+          {outcome.message}
+        </div>
+      )}
+
+      {totalWithRoles > 0 && (
+        <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          {radio.phase === 'heli' ? (
+            <div className="flex items-center justify-center gap-3 text-2xl font-black text-amber-800">
+              <ZombieIcon name="heli" size={40} alt="" />
+              {room.status === 'playing' && radio.heliArrivalMs !== null
+                ? `구조 헬기 도착까지 ${formatTime(Math.max(0, Math.ceil((radio.heliArrivalMs - nowMs) / 1000)))}`
+                : '구조 헬기 호출 완료'}
+            </div>
+          ) : (
+            <>
+              <div className="mb-2 flex items-center justify-between text-sm font-bold text-amber-900">
+                <span className="inline-flex items-center gap-2"><ZombieIcon name="radio" size={20} alt="" />구조 무전기</span>
+                <span>
+                  {radio.phase === 'searching'
+                    ? '신호 찾는 중… (첫 1분이 지나면 목표가 정해져요)'
+                    : `${radio.percent}%${radio.repairMultiplier > 1 ? ` · 생존자 수리 효율 ×${radio.repairMultiplier}` : ''}`}
+                </span>
+              </div>
+              <div className="h-5 overflow-hidden rounded-full bg-amber-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-500"
+                  style={{ width: `${radio.percent}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-amber-800/80">
+                시간 안에 무전기를 다 고치면 헬기가 와서 인간 승리, 못 고치면 좀비 승리예요.
+              </p>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4 mb-6 sm:grid-cols-4">
         <StatCard label="참가자" value={`${activePlayers.length}명`} color="gray" />

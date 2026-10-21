@@ -162,7 +162,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
       src: '/audio/bgm/zombie.mp3',
     },
     // 제한 시간은 선생님이 시작할 때 고른다(기본 5분). 설명에 특정 시간을 박아두지 않는다.
-    description: '퀴즈를 맞히고 좀비를 피해 살아남아요. 인간이 끝까지 남으면 인간 승리!',
+    description: '퀴즈를 맞혀 구조 무전기를 고치고, 좀비를 피해 헬기가 올 때까지 살아남아요!',
     leaderboardSort: 'zombie_survived',
     requiresQuestionSet: true,
   },
@@ -250,6 +250,23 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     requiresQuestionSet: true,
   },
   {
+    // 블록 텃밭 키우기: 로블록스 텃밭 키우기식 타이쿤. 정답 → 무료 씨앗 카드 → 밭에 심고 수확해 팔기. 규칙은 lib/game/garden.ts.
+    id: 'garden',
+    route: '/garden',
+    label: '블록 텃밭 키우기',
+    shortLabel: '블록 텃밭',
+    emoji: '🌱',
+    image: '/title/garden.webp',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
+    description: '퀴즈를 맞히면 씨앗을 받아요. 블록 밭에 심고, 다 자라면 수확해서 팔아요. 번 돈으로 밭을 넓히고 더 귀한 씨앗을 사요. 황금·무지개 작물이 나오면 대박! 돈을 가장 많이 번 사람이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
     // 게임이 아니라 공부 화면이다. 과제로 내기의 첫 번째 선택지이고, 실시간 수업에서도 열 수 있다.
     // 옵션(피드백 시점·다시 풀기·재도전 횟수·문제 순서)은 lib/game/studySettings.ts, 화면은 app/study.
     id: 'study',
@@ -276,6 +293,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
  * 공개할 때는 여기서 id만 빼면 모든 목록에 한 번에 다시 나온다.
  */
 // 붕어빵 굽굽!·라면가게: 2026-10-20 공개 (그 전에는 /dev 에서만 돌렸다).
+// 블록 텃밭 키우기: 2026-10-21 공개 (sql/20261021_garden_mode.sql 라이브 적용 뒤).
 export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = []
 
 export function isHiddenGameMode(mode: string | null | undefined): boolean {
@@ -328,7 +346,7 @@ export function getModeInitialPlayerState(mode: string | null | undefined) {
  * 눈싸움(팀전)·마피아·좀비(역할 배정)·펭귄 레이드(반 전체 협동)는 여럿이 있어야 성립하므로 뺀다.
  */
 export const HOMEWORK_GAME_MODES: readonly GameModeId[] = [
-  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'bungeoppang', 'ramen', 'gold_quest', 'factory', 'cafe', 'tower',
+  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'bungeoppang', 'ramen', 'garden', 'gold_quest', 'factory', 'cafe', 'tower',
 ]
 
 /** 과제로 낼 수 있는 "게임" (공부 모드 제외) */

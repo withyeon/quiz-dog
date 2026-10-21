@@ -58,6 +58,16 @@ export function getScoreDisplay(player: ScorePlayer, gameMode: string | null | u
     }
   }
 
+  if (mode === 'garden') {
+    return {
+      value,
+      label: '코인',
+      text: `${formatNumber(value)}코인`,
+      icon: '/garden/icon-coin.webp',
+      tone: 'money',
+    }
+  }
+
   if (mode === 'battle_royale') {
     return {
       value,
@@ -123,6 +133,8 @@ export function getScoreDisplayLabel(gameMode: string | null | undefined): strin
   if (mode === 'cafe') return '돈'
   // 라면가게 순위는 라면을 팔아 번 돈(매출)
   if (mode === 'ramen') return '매출'
+  // 블록 텃밭 순위는 작물을 팔아 번 돈 합 (씨앗·도구를 사도 줄지 않는다)
+  if (mode === 'garden') return '번 돈'
   if (mode === 'battle_royale') return '체력'
   if (mode === 'dontlookdown') return '높이'
   if (mode === 'zombie') return '생존 점수'

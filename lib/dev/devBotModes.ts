@@ -52,8 +52,8 @@ import {
   parsePendingAttacks,
 } from '@/lib/game/강아지대소동'
 import { sortPlayersByScore } from '@/lib/utils/playerSorting'
-import { GAME_CONSTANTS, ZOMBIE_ACTION_LIMITS, getZombieMeta } from '@/lib/game/zombie'
-import { zombieApplyAction, zombieAttack } from '@/lib/services/playerMutations'
+import { ZOMBIE_ACTION_LIMITS, getZombieMeta, isHiding, roomPlayerToZombiePlayer } from '@/lib/game/zombie'
+import { zombieApplyAction, zombieSabotage, zombieStrike, zombieVaccinate } from '@/lib/services/playerMutations'
 import {
   RAID_ROLE_ORDER,
   computeHitDamage,
@@ -81,6 +81,7 @@ import {
   type Pot,
   type RamenStats,
 } from '@/lib/game/ramen'
+import { GARDEN, parseGarden, type GardenState } from '@/lib/game/garden'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -524,7 +525,8 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
     },
   },
 
-  // 좀비: 역할·체력·감염은 서버 RPC 로만 바꾼다(사람 화면과 같은 경로). 역할은 startRoom 이 배정한다.
+  // 좀비: 역할·체력·감염·무전기는 서버 RPC 로만 바꾼다(사람 화면과 같은 경로). 역할은 startRoom 이 배정한다.
+  // 행동 고르는 방식은 밸런스 시뮬레이션(scripts/zombie-balance-sim.mjs)의 학생 모델과 같다.
   zombie: {
     cycleSeconds: 9,
     onAnswer: async (ctx, correct) => {
@@ -536,23 +538,36 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
       if (row) ctx.publishRows([row], columns)
       if (!correct) return
 
-      if (meta.role === 'human') {
-        const action = Math.random() < 0.5 ? 'heal' : 'shield'
-        const healed = await zombieApplyAction(self.id, action, { ...ZOMBIE_ACTION_LIMITS })
-        if (healed) ctx.publishRows([healed], columns)
+      const me = roomPlayerToZombiePlayer(row ?? self)
+      const others = ctx.players().filter((p) => p.id !== self.id && !p.is_kicked && getZombieMeta(p)).map(roomPlayerToZombiePlayer)
+
+      if (me.role === 'human') {
+        // 봇은 정체를 몰래 알지만, 사람처럼 가끔만(30%) 감염된 친구에게 백신을 쏜다
+        const infected = others.filter((p) => p.role === 'zombie' && p.originalRole === 'human')
+        if (infected.length > 0 && Math.random() < (ctx.aggressive ? 0.6 : 0.3)) {
+          const target = [...infected].sort((a, b) => b.vaccine - a.vaccine)[0]
+          const result = await zombieVaccinate(self.id, target.id, { ...ZOMBIE_ACTION_LIMITS })
+          ctx.publishRows(result.players, columns)
+          return
+        }
+        const action = me.health < 60 && Math.random() < 0.7
+          ? 'heal'
+          : me.shield === 0 && Math.random() < 0.35 ? 'shield' : 'repair'
+        const acted = await zombieApplyAction(self.id, action, { ...ZOMBIE_ACTION_LIMITS })
+        if (acted) ctx.publishRows([acted], columns)
         return
       }
-      const humans = ctx.players().filter((p) => !p.is_kicked && getZombieMeta(p)?.role === 'human')
-      const target = pickTarget(humans)
-      if (!target) return
-      const attacker = row ?? self
-      const result = await zombieAttack(
-        self.id,
-        target.id,
-        attacker.attack_power ?? GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
-        GAME_CONSTANTS.INFECTION_THRESHOLD,
-        GAME_CONSTANTS.ZOMBIE_BASE_ATTACK,
-      )
+
+      const now = Date.now()
+      const open = others.filter((p) => p.role === 'human' && !isHiding(p, now))
+      const openRows = ctx.players().filter((p) => open.some((o) => o.id === p.id))
+      const target = Math.random() < 0.25 ? null : pickTarget(openRows)
+      if (!target) {
+        const result = await zombieSabotage(self.id, { ...ZOMBIE_ACTION_LIMITS })
+        if (result.player) ctx.publishRows([result.player], columns)
+        return
+      }
+      const result = await zombieStrike(self.id, target.id, { ...ZOMBIE_ACTION_LIMITS })
       ctx.publishRows(result.players, columns)
     },
   },
@@ -726,6 +741,49 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
       const outcome = resolveRound(stats, customers, results, stats.money)
       await ctx.setFields({ item_effects: outcome.stats })
       await ctx.addDelta({ score: outcome.money })
+    },
+  },
+
+  // 블록 텃밭: 사람은 정답마다 씨앗 하나를 받아 심고, 밭에 들를 때 다 자란 작물을 수확한다.
+  // 봇은 밭을 돌리지 않고 그 평균 수입(밭이 커질수록 늘어남)을 바로 번다. 가끔 사람과 같은 이벤트로 까마귀를 보낸다.
+  garden: {
+    cycleSeconds: 28,
+    onAnswer: async (ctx, correct) => {
+      if (!correct) return
+      const self = ctx.self()
+      if (!self) return
+      const state = parseGarden(self.item_effects)
+      const rounds = state.stats.rounds + 1
+      const roll = Math.random()
+      const mult = roll < GARDEN.RAINBOW_CHANCE ? GARDEN.RAINBOW_MULT : roll < GARDEN.RAINBOW_CHANCE + GARDEN.GOLD_CHANCE ? GARDEN.GOLD_MULT : 1
+      const coins = Math.round((25 + rounds * 8) * (0.7 + Math.random() * 0.6) * mult)
+      const harvests = randInt(1, 3)
+      const next: GardenState = {
+        ...state,
+        coins: state.coins + coins,
+        earned: state.earned + coins,
+        stats: {
+          ...state.stats,
+          rounds,
+          harvests: state.stats.harvests + harvests,
+          mutated: state.stats.mutated + (mult > 1 ? 1 : 0),
+          bestHarvest: Math.max(state.stats.bestHarvest, coins),
+        },
+      }
+      const target = Math.random() < (ctx.aggressive ? 0.6 : GARDEN.CROW_CARD_CHANCE)
+        ? pickTarget(ctx.players().filter((p) => p.id !== self.id))
+        : null
+      if (target) next.stats.crowsSent += 1
+      await ctx.setFields({ item_effects: next })
+      await ctx.addDelta({ score: coins })
+      if (target) {
+        ctx.emit('garden:crow', {
+          targetId: target.id,
+          fromId: self.id,
+          fromName: self.nickname,
+          crowId: `${self.id}-${Date.now()}`,
+        })
+      }
     },
   },
 

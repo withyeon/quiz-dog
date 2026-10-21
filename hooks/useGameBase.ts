@@ -209,6 +209,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         room,
         loading: roomLoading,
         refreshRoom,
+        applyRoomPatch,
     } = useRoomRealtime({ roomCode })
     const resyncRoomSnapshot = useRoomResync(refreshRoom, refreshPlayers)
     const roomChannel = useRoomChannel({
@@ -962,6 +963,7 @@ export function useGameBase(options: UseGameBaseOptions) {
         getElapsedSeconds,
         sendRoomEvent,
         requestRoomResync,
+        applyRoomPatch,
         applyPlayerPatch,
         commitPlayerPatch,
         commitPlayerDelta,

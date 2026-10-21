@@ -35,6 +35,7 @@ import {
   type PlayerMaxes,
 } from '@/lib/services/playerMutations'
 import { finishRoom, getRoomByCode } from '@/lib/services/rooms'
+import { GAME_CONSTANTS as ZOMBIE, parseZombieSettings } from '@/lib/game/zombie'
 import { getPlayerById, listPlayersInRoom, updatePlayer } from '@/lib/services/players'
 import { listQuestionsForGame, type GameQuestion } from '@/lib/services/questions'
 import type { Database } from '@/types/database.types'
@@ -294,11 +295,16 @@ function startRoomFinisher(session: DevBotSession): () => void {
     if (stopped || finishing) return
     const room = await getRoomByCode(session.roomCode).catch(() => null)
     if (!room || room.status !== 'playing' || !room.started_at || !room.duration_seconds) return
-    const deadline = new Date(room.started_at).getTime() + Number(room.duration_seconds) * 1000
+    let deadline = new Date(room.started_at).getTime() + Number(room.duration_seconds) * 1000
+    // 좀비: 구조 헬기가 오면 그때 끝난다 (선생님 화면의 zombie_heli_rescue 와 같은 규칙)
+    const heliAt = room.game_mode === 'zombie' ? parseZombieSettings(room.settings).heliAt : null
+    const heliArrival = heliAt ? Date.parse(heliAt) + ZOMBIE.HELI_SECONDS * 1000 : NaN
+    const rescued = Number.isFinite(heliArrival) && heliArrival < deadline
+    if (rescued) deadline = heliArrival
     if (Date.now() < deadline) return
 
     finishing = true
-    const reason = `${room.game_mode || 'game'}_time_up`
+    const reason = rescued ? 'zombie_heli_rescue' : `${room.game_mode || 'game'}_time_up`
     try {
       await finishRoom(session.roomCode)
       for (const [type, payload] of [

@@ -51,6 +51,7 @@ import { RAID, RAID_ROLES } from '@/lib/game/raid'
 import { ARENA } from '@/lib/game/raidArena'
 import { BUNGEO, FILLING_BY_ID, GRADE_BY_ID } from '@/lib/game/bungeoppang'
 import { RAMEN, VERDICT_MONEY } from '@/lib/game/ramen'
+import { GARDEN } from '@/lib/game/garden'
 
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
@@ -380,42 +381,42 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
   zombie: {
     gameMode: 'zombie',
     title: '좀비를 피해라!',
-    subtitle: '몰래 정해진 좀비를 피해 제한 시간까지 살아남는 정체 숨김 게임입니다.',
+    subtitle: '몰래 정해진 좀비를 피해 구조 무전기를 고치고, 헬기가 올 때까지 살아남는 정체 숨김 게임입니다.',
     slides: [
       {
         title: '나는 인간일까, 좀비일까?',
         body: '게임이 시작되면 반의 일부가 몰래 좀비가 됩니다. 내 역할은 나만 볼 수 있어요.',
         points: [
-          '인간: 감염되지 않고 제한 시간까지 버티기',
-          '좀비: 인간을 모두 감염시키기',
+          '인간: 구조 무전기를 다 고쳐 헬기 부르기',
+          '좀비: 인간을 감염시키거나 무전기 방해하기',
           '누가 좀비인지는 아무도 모른 채 시작합니다',
         ],
       },
       {
-        title: '문제를 맞혀야 행동할 수 있어요',
-        body: '퀴즈를 맞히면 내 역할에 맞는 행동을 한 번 고를 수 있습니다.',
+        title: '정답마다 무전기가 고쳐져요',
+        body: `인간이 정답을 맞힐 때마다 무전기가 +${ZOMBIE.RADIO_PER_CORRECT}칸씩 고쳐지고, 행동을 하나 더 고를 수 있습니다.`,
         points: [
-          `인간: 치료(체력 +${ZOMBIE.HUMAN_HEAL_AMOUNT}) · 방어막(+${ZOMBIE.HUMAN_SHIELD_AMOUNT}) · 스캔(한 명의 정체 확인)`,
-          `좀비: 인간 한 명을 골라 공격 (${ZOMBIE.ZOMBIE_BASE_ATTACK} 데미지)`,
-          `3연속 정답이면 인간은 체력 +${ZOMBIE.CORRECT_STREAK_3_BONUS}, 좀비는 공격력 +${ZOMBIE.ZOMBIE_STREAK_BONUS}`,
+          `인간: 수리(+${ZOMBIE.RADIO_REPAIR_AMOUNT}칸) · 방어막(공격 1번 막기) · 치료(+${ZOMBIE.HUMAN_HEAL_AMOUNT}) · 스캔·백신`,
+          `좀비: 인간 공격(${ZOMBIE.ZOMBIE_BASE_ATTACK} 데미지) 또는 무전기 방해(−${ZOMBIE.SABOTAGE_AMOUNT}칸)`,
+          '첫 1분 동안 반이 맞힌 정답 수로 무전기 목표가 정해져요',
         ],
       },
       {
-        title: '체력은 좀비 공격으로만 줄어요',
-        body: `인간은 체력 ${ZOMBIE.HUMAN_INITIAL_HEALTH}으로 시작합니다. 문제를 틀려도 체력은 그대로지만, 그 턴엔 행동할 수 없고 연속 정답도 끊깁니다.`,
+        title: '스캔하고 백신으로 구해요',
+        body: `체력이 0이 되면 감염되지만, 감염된 친구는 백신 ${ZOMBIE.VACCINE_DOSES}발을 맞으면 인간으로 돌아옵니다.`,
         points: [
-          '방어막이 있으면 공격 데미지를 먼저 막아줍니다',
-          '체력이 0이 되면 감염되어 좀비 편이 됩니다',
-          '좀비가 되어도 계속 플레이해요 — 이제 남은 인간을 감염시키는 편입니다',
+          '스캔하면 처음 좀비인지 감염된 친구인지 알 수 있어요 (처음 좀비는 백신이 안 들어요)',
+          `공격받은 친구는 ${ZOMBIE.HIDE_SECONDS}초 동안 숨어서 다시 공격받지 않아요`,
+          '문제를 틀려도 체력은 그대로 — 그 턴에 행동만 못 해요',
         ],
       },
       {
         title: '승리와 순위',
-        body: '시간이 끝났을 때 인간이 한 명이라도 남아 있으면 인간 팀 승리입니다.',
+        body: `무전기를 다 고치면 헬기가 ${ZOMBIE.HELI_SECONDS}초 뒤에 와요. 그때 인간이 남아 있으면 인간 팀 승리입니다.`,
         points: [
-          '모두 감염되면 그 순간 좀비 팀 승리로 끝납니다',
-          '순위는 생존한 인간이 먼저, 그다음 감염시킨 수',
-          '스캔으로 확인한 정체는 게임이 끝날 때까지 기억됩니다',
+          '시간 안에 무전기를 못 고치거나, 인간이 모두 감염되면 좀비 팀 승리',
+          `헬기를 부른 뒤에는 좀비 공격력 ×${ZOMBIE.HELI_RUSH_MULTIPLIER} — 마지막까지 버텨요`,
+          '순위: 살아남은 인간(수리·구출) 먼저, 그다음 좀비(감염·방해)',
         ],
       },
     ],
@@ -613,6 +614,46 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
       {
         title: `${RAMEN.GOAL_MONEY.toLocaleString()}원을 모으면 오늘 장사 성공!`,
         body: `번 돈이 많은 사람이 1등. ${RAMEN.GOAL_MONEY.toLocaleString()}원을 넘길 때마다 축하가 떠요. 끝나면 라면 장인·손님 몰이 사장 같은 칭호도 받아요. 1등이 아니어도 하나는 꼭!`,
+      },
+    ],
+  },
+  // 숫자는 lib/game/garden.ts 의 상수에서 가져옵니다.
+  garden: {
+    gameMode: 'garden',
+    title: '블록 텃밭 키우기',
+    subtitle: '퀴즈를 맞히면 씨앗을 받아요. 블록 밭에 심고, 키우고, 수확해서 팔아 텃밭 부자가 돼요.',
+    slides: [
+      {
+        title: '퀴즈를 맞히면 카드 3장 중 하나!',
+        body: `정답이면 무료 씨앗 카드 ${GARDEN.CHOICES}장이 나와요. 하나를 고르면 밭으로 가요. 틀려도 밭은 계속 자라요.`,
+        points: [
+          '흔함 → 보통 → 희귀 → 전설 → 신화 순서로 귀해요',
+          '귀한 씨앗일수록 오래 자라지만 비싸게 팔려요',
+        ],
+      },
+      {
+        title: '심고, 기다리고, 수확!',
+        body: `씨앗 가방에서 씨앗을 고르고 빈 칸을 누르면 심겨요. 다 자란 작물을 누르면 수확해서 바로 코인이 돼요. 밭에는 ${Math.round(GARDEN.VISIT_MS / 1000)}초 동안 있을 수 있어요.`,
+        points: [
+          '딸기·토마토·사과나무는 한 번 심으면 여러 번 열려요',
+          '퀴즈를 푸는 동안에도 작물은 자라요',
+        ],
+      },
+      {
+        title: '번 돈으로 밭을 키워요',
+        body: '씨앗 가게에서 씨앗을 사고, 밭을 넓히고, 스프링클러로 더 빨리 키워요. 씨앗 가게는 문제를 맞힐 때마다 새로 채워져요.',
+      },
+      {
+        title: '황금·무지개 작물은 대박!',
+        body: `다 자랄 때 가끔 특별한 작물이 돼요. ✨황금은 ${GARDEN.GOLD_MULT}배, 🌈무지개는 ${GARDEN.RAINBOW_MULT}배! 비가 오면 빨리 자라고 💧촉촉(${GARDEN.WET_MULT}배) 작물이 생길 수도 있어요.`,
+      },
+      {
+        title: '친구 밭에 까마귀를!',
+        body: `가끔 까마귀 카드가 나와요. 친구 밭에 보내면, 친구가 ${GARDEN.CROW_SHOO_TAPS}번 톡톡 눌러 쫓지 못할 때 작물 하나가 다시 자라야 해요. 허수아비가 있으면 막아 줘요.`,
+        points: [
+          '번 돈이 가장 많은 사람이 1등이에요 (씨앗을 사도 번 돈은 줄지 않아요)',
+          '끝나면 텃밭 부자·황금 손·수확왕 같은 칭호도 받아요',
+        ],
       },
     ],
   },

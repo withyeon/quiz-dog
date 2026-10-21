@@ -1,7 +1,7 @@
 'use client'
 
 import { Eye, EyeOff } from 'lucide-react'
-import type { ZombieSettings } from '@/lib/game/zombie'
+import { GAME_CONSTANTS, type ZombieSettings } from '@/lib/game/zombie'
 
 type ZombieOptionsFieldsProps = {
   value: ZombieSettings
@@ -15,24 +15,25 @@ type ZombieOptionsFieldsProps = {
 export default function ZombieOptionsFields({ value, onChange }: ZombieOptionsFieldsProps) {
   const options: Array<{ id: boolean; label: string; hint: string; icon: React.ReactNode }> = [
     {
-      id: true,
-      label: '보여주기',
-      hint: '좀비가 체력이 낮은 친구를 골라 집중 공격할 수 있어요',
-      icon: <Eye className="h-4 w-4" />,
+      id: false,
+      label: '숨기기 (추천)',
+      hint: '누가 약한지 드러나지 않아요. 한 친구에게 공격이 몰리는 걸 줄여요',
+      icon: <EyeOff className="h-4 w-4" />,
     },
     {
-      id: false,
-      label: '숨기기',
-      hint: '누가 약한지 드러나지 않아요. 공격은 이름만 보고 골라요',
-      icon: <EyeOff className="h-4 w-4" />,
+      id: true,
+      label: '보여주기',
+      hint: '좀비가 체력이 낮은 친구를 골라 공격하는 전략을 쓸 수 있어요',
+      icon: <Eye className="h-4 w-4" />,
     },
   ]
 
   return (
     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-      <div className="mb-1 text-lg font-bold text-emerald-900">좀비에게 인간의 체력·방어막 표시</div>
-      <p className="mb-3 text-sm text-emerald-800/80">
+      <div className="mb-1 text-lg font-bold text-emerald-900">좀비에게 인간의 체력 숫자 표시</div>
+      <p className="mb-3 text-sm text-emerald-800/80 break-keep">
         체력은 좀비의 공격으로만 줄어요. 틀린 문제 때문에 체력이 깎이지는 않아요.
+        방어막과 &lsquo;숨는 중&rsquo;(공격받은 뒤 {GAME_CONSTANTS.HIDE_SECONDS}초)은 어느 쪽이든 보여요.
       </p>
       <div className="grid gap-2 sm:grid-cols-2">
         {options.map((option) => {
