@@ -35,6 +35,7 @@ import PuppyChaosTutorialDemo from '@/components/tutorial/PuppyChaosTutorialDemo
 import TowerTutorialDemo from '@/components/tutorial/TowerTutorialDemo'
 import BungeoppangTutorialDemo from '@/components/tutorial/BungeoppangTutorialDemo'
 import RamenTutorialDemo from '@/components/tutorial/RamenTutorialDemo'
+import GardenTutorialDemo from '@/components/tutorial/GardenTutorialDemo'
 import {
   TutorialDemoFrame,
   GlassQuizStep,
@@ -545,4 +546,5 @@ export const GAME_DEMO_REGISTRY: Partial<Record<GameModeId, ComponentType>> = {
   poop_dodge: PuppyChaosTutorialDemo,
   bungeoppang: BungeoppangTutorialDemo,
   ramen: RamenTutorialDemo,
+  garden: GardenTutorialDemo,
 }
