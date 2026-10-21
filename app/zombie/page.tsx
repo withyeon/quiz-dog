@@ -8,7 +8,6 @@ import PreStartQuizGate from '@/components/PreStartQuizGate'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import AnimatedBackground from '@/components/AnimatedBackground'
 import { Button } from '@/components/ui/button'
-import { Trophy } from 'lucide-react'
 import ZombieIcon from '@/components/zombie/ZombieIcon'
 import {
   computeZombieRadio,
@@ -381,11 +380,8 @@ export default function ZombiePage() {
             <Card className={`w-full max-w-3xl border-4 ${winner === 'human' ? 'border-blue-500' : 'border-green-500'} bg-black/90 shadow-2xl`}>
               <CardHeader className="pb-4 text-center">
                 <div className="mb-4 flex justify-center">
-                  {winner === 'human' ? (
-                    <Trophy className="mx-auto h-20 w-20 text-blue-300" />
-                  ) : (
-                    <ZombieIcon name="zombie" size={80} alt="좀비 승리" />
-                  )}
+                  {/* 폰에서는 한 단계 작게 — 결과 카드 아래 목록이 화면 안에 들어오도록 */}
+                  <ZombieIcon name={winner === 'human' ? 'winHuman' : 'winZombie'} size={176} className="h-32 w-32 sm:h-44 sm:w-44" alt={winner === 'human' ? '인간 승리' : '좀비 승리'} />
                 </div>
                 <CardTitle className={`mb-2 text-5xl font-bold ${winner === 'human' ? 'text-blue-400' : 'text-green-400'}`}>
                   {winner === 'human' ? '인간 팀 승리!' : '좀비 팀 승리!'}

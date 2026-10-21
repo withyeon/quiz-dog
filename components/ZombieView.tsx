@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { EyeOff, Heart } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import QuizView from '@/components/QuizView'
 import AnswerReveal from '@/components/AnswerReveal'
 import { useRevealedAnswer } from '@/hooks/useRevealedAnswer'
@@ -671,8 +671,8 @@ export default function ZombieView({
                             <div className="min-w-0 text-left">
                               <div className="truncate">{player.name}</div>
                               <div className="flex items-center gap-2 text-xs text-red-300">
-                                {hideLeft > 0 && <span className="inline-flex items-center gap-1 text-gray-300"><EyeOff className="h-3 w-3" />숨는 중 {hideLeft}초</span>}
-                                {player.shield > 0 && <span className="text-cyan-300">🛡 방어막</span>}
+                                {hideLeft > 0 && <span className="inline-flex items-center gap-1 text-gray-300"><ZombieIcon name="hide" size={16} alt="" />숨는 중 {hideLeft}초</span>}
+                                {player.shield > 0 && <span className="inline-flex items-center gap-1 text-cyan-300"><ZombieIcon name="shield" size={16} alt="" />방어막</span>}
                                 {showHumanStatusToZombies && <span>HP {player.health}</span>}
                               </div>
                             </div>
@@ -734,15 +734,22 @@ export default function ZombieView({
             const hiding = isHiding(player, nowMs)
             // 정체를 모르는 상대는 상태도 숨긴다. 인간만 숫자가 뜨면 그 자체로 좀비가 드러난다.
             // 좀비 화면이라도 체력 숫자는 선생님 옵션이 켜졌을 때만.
+            const showHp = isMe || (isZombie && showHumanStatusToZombies)
             const status = !revealRole
               ? '???'
               : player.role === 'zombie'
-                ? player.originalRole === 'zombie' ? '처음 좀비' : `감염${player.vaccine > 0 ? ` · 💉${player.vaccine}` : ''}`
-                : [
-                  isMe || (isZombie && showHumanStatusToZombies) ? `HP ${player.health}` : null,
-                  player.shield > 0 ? '🛡' : null,
-                  hiding ? '숨는 중' : null,
-                ].filter(Boolean).join(' ') || '인간'
+                ? player.originalRole === 'zombie'
+                  ? '처음 좀비'
+                  : <>감염{player.vaccine > 0 && <><ZombieIcon name="vaccine" size={14} className="ml-1" alt="맞은 백신" />{player.vaccine}</>}</>
+                : !showHp && player.shield === 0 && !hiding
+                  ? '인간'
+                  : (
+                    <>
+                      {showHp && `HP ${player.health}`}
+                      {player.shield > 0 && <ZombieIcon name="shield" size={16} alt="방어막" />}
+                      {hiding && <><ZombieIcon name="hide" size={16} alt="" />숨는 중</>}
+                    </>
+                  )
             return (
               <Card key={player.id} className={`border ${isMe ? borderColor : 'border-gray-700'} bg-gray-800/30`}>
                 <CardContent className="p-2">
@@ -751,7 +758,7 @@ export default function ZombieView({
                       <div className="truncate text-sm font-bold text-white">{player.name}{isMe ? ' (나)' : ''}</div>
                       <div className="text-xs text-gray-400">{revealRole ? (player.role === 'zombie' ? '좀비' : '인간') : '정체불명'}</div>
                     </div>
-                    <div className="text-right text-xs text-gray-400">{status}</div>
+                    <div className="flex items-center justify-end gap-1 text-right text-xs text-gray-400">{status}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -887,7 +894,7 @@ function RadioStrip({ radio, isZombie, nowMs, hideLeft }: { radio: ZombieRadioSt
         )}
         {hideLeft > 0 && (
           <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-700 px-2 py-0.5 text-slate-100">
-            <EyeOff className="h-3 w-3" />숨는 중 {hideLeft}초
+            <ZombieIcon name="hide" size={14} alt="" />숨는 중 {hideLeft}초
           </span>
         )}
       </div>

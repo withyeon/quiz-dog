@@ -18,6 +18,9 @@ export const ZOMBIE_ICON = {
   repair: '/zombie/repair.webp',
   vaccine: '/zombie/vaccine.webp',
   sabotage: '/zombie/sabotage.webp',
+  hide: '/zombie/hide.webp',
+  winHuman: '/zombie/win-human.webp',
+  winZombie: '/zombie/win-zombie.webp',
 } as const
 
 export type ZombieIconName = keyof typeof ZOMBIE_ICON
