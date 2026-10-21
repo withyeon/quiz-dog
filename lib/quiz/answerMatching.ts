@@ -39,7 +39,7 @@ function cleanQuizAnswer(value: string | number | null | undefined): string {
   return String(value ?? '')
     .normalize('NFKC')
     .toLowerCase()
-    .replace(/[^0-9a-z가-힣]/g, '')
+    .replace(/[^0-9a-z\u1100-\u11ff\u3131-\u3163가-힣]/g, '')
 }
 
 /** cleanQuizAnswer 와 같되 숫자 사이의 소수점은 남긴다("4. 05" → "4.05", "No.5" → "no5"). 숫자 답 판정용 */
@@ -58,7 +58,7 @@ export function normalizeQuizAnswer(value: string | number | null | undefined): 
     normalized = normalized.replaceAll(korean, digit)
   }
 
-  return normalized.replace(/[^0-9a-z가-힣]/g, '')
+  return normalized.replace(/[^0-9a-z\u1100-\u11ff\u3131-\u3163가-힣]/g, '')
 }
 
 // 숫자 뒤에 붙어도 무시하는 단위·조사·어미. "0개", "5명", "3cm", "0개입니다" 모두 숫자 0/5/3 으로 본다.
