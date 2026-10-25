@@ -69,6 +69,7 @@ export function useFrameFitZoom(
   contentRef: RefObject<HTMLElement | null>,
   baseWidth: number,
   reserved = 200,
+  max = 1,
 ): number {
   const [zoom, setZoom] = useState(0.6)
   useLayoutEffectSafe(() => {
@@ -79,7 +80,7 @@ export function useFrameFitZoom(
       const width = frame.clientWidth - 24
       const height = frame.clientHeight - reserved
       const natural = content.offsetHeight || 1
-      const next = Math.max(0.35, Math.min(1, width / baseWidth, height / natural))
+      const next = Math.max(0.35, Math.min(max, width / baseWidth, height / natural))
       setZoom((prev) => (Math.abs(prev - next) < 0.01 ? prev : next))
     }
     measure()
@@ -87,7 +88,7 @@ export function useFrameFitZoom(
     observer.observe(frame)
     observer.observe(content)
     return () => observer.disconnect()
-  }, [contentRef, baseWidth, reserved])
+  }, [contentRef, baseWidth, reserved, max])
   return zoom
 }
 

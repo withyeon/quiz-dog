@@ -193,7 +193,7 @@ function FieldRun({ initial, steps, raining = false, side = 'seeds' }: Omit<Fiel
   const { garden, floats, crow, seed, shooed, pointing, pointKey } = useFieldSim(initial, steps, raining)
   const pointer = useElementPointer(boxRef, pointing ? pointing.point : null, pointKey)
   const contentRef = useRef<HTMLDivElement>(null)
-  const zoom = useFrameFitZoom(contentRef, 680)
+  const zoom = useFrameFitZoom(contentRef, 680, 250, 1.4)
 
   return (
     <div ref={boxRef} className="relative">
@@ -201,8 +201,8 @@ function FieldRun({ initial, steps, raining = false, side = 'seeds' }: Omit<Fiel
         <div ref={contentRef} className="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-3">
           <section className="relative overflow-hidden rounded-2xl border-4 border-white/80 bg-gradient-to-b from-sky-300 via-sky-200 to-lime-200 p-3 shadow-2xl">
             {raining && (
-              <div className="relative z-[150] mb-1 rounded-xl bg-sky-700/85 px-3 py-1.5 text-center text-sm font-black text-white">
-                🌧️ 비가 와요! 쑥쑥 자라고, 다 자란 작물이 💧촉촉해질 수도 있어요
+              <div className="relative z-[150] mb-1 whitespace-nowrap rounded-xl bg-sky-700/85 px-3 py-1.5 text-center text-sm font-black text-white">
+                🌧️ 비가 와요! 💧촉촉 작물이 생길 수 있어요
               </div>
             )}
             <div className="relative mx-auto max-w-[340px]">
@@ -212,8 +212,8 @@ function FieldRun({ initial, steps, raining = false, side = 'seeds' }: Omit<Fiel
               <Image unoptimized width={256} height={256} src="/garden/farmer.webp" alt="" className="pointer-events-none absolute bottom-0 left-0 h-auto w-[17%] max-w-[110px] drop-shadow-lg" />
             </div>
             {crow && (
-              <div className="relative z-[150] mt-1 rounded-xl bg-red-600 px-3 py-2 text-center text-sm font-black text-white shadow-lg ramen-blink">
-                🐦 {crow.fromName}의 까마귀다! 까마귀를 {GARDEN.CROW_SHOO_TAPS}번 톡톡 눌러 쫓아요
+              <div className="relative z-[150] mt-1 whitespace-nowrap rounded-xl bg-red-600 px-3 py-2 text-center text-sm font-black text-white shadow-lg ramen-blink">
+                🐦 {crow.fromName}의 까마귀! {GARDEN.CROW_SHOO_TAPS}번 톡톡 눌러 쫓아요
               </div>
             )}
             {shooed && (
@@ -372,15 +372,11 @@ function MutationScene() {
     gardenWith({
       coins: 600,
       earned: 900,
-      unlock: [1, 2, 4, 8],
+      // 칸을 더 열면 늘리기 가격표가 가운데로 와서 라벨과 겹친다 — 처음 열린 4칸만 쓴다
       crops: [
-        [6, 'pumpkin', 1, 'rainbow'],
         [5, 'strawberry', 1, 'gold'],
+        [6, 'pumpkin', 1, 'rainbow'],
         [9, 'watermelon', 1, 'wet'],
-        [10, 'carrot', 1, 'none'],
-        [1, 'corn', 0.5, null],
-        [2, 'tomato', 0.8, null],
-        [8, 'blueberry', 0.3, null],
       ],
       seeds: { carrot: 2 },
     }),
@@ -394,8 +390,7 @@ function CrowScene() {
     gardenWith({
       coins: 450,
       earned: 6800,
-      unlock: [1, 2],
-      crops: [[6, 'watermelon', 0.85, null], [5, 'strawberry', 0.6, null], [9, 'carrot', 0.4, null], [10, 'tomato', 0.7, null], [1, 'corn', 0.3, null]],
+      crops: [[6, 'watermelon', 0.85, null], [9, 'carrot', 0.4, null], [10, 'tomato', 0.7, null]],
       seeds: { carrot: 1 },
     }),
     { crow: { crowId: 'demo', fromName: '냥냥이', plotIndex: 6, tapsLeft: GARDEN.CROW_SHOO_TAPS, leftMs: GARDEN.CROW_PECK_MS } },
