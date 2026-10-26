@@ -16,6 +16,7 @@ import {
   Trash2,
   Share2,
   Globe,
+  Smartphone,
 } from 'lucide-react'
 import {
   copyQuestionSetFromQuestionsOnly,
@@ -36,8 +37,17 @@ import ShareSetModal from '@/components/share/ShareSetModal'
 import { setLibraryListing } from '@/lib/services/sharing'
 import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 import PixelIcon from '@/components/ui/PixelIcon'
+import VocabStudyLinkModal from '@/components/vocab/VocabStudyLinkModal'
+import { VOCAB_ENTRY_VISIBLE } from '@/lib/vocab/flags'
 
 type QuestionSet = QuestionSetSummary
+
+/** 단어장은 카드 편집기에서, 보통 문제집은 문제 편집기에서 고친다 */
+function editPathOf(set: { id: string; kind?: string }): string {
+  return set.kind === 'vocab'
+    ? `/teacher/vocab/${encodeURIComponent(set.id)}/edit`
+    : `/teacher/sets/${encodeURIComponent(set.id)}/edit`
+}
 type LikedQuestionSet = QuestionSetIndexItem & {
   name: string
 }
@@ -77,7 +87,9 @@ function TeacherPageContent() {
   // 공유 모달을 띄울 문제집 (null 이면 닫힘)
   const [sharingSet, setSharingSet] = useState<{ id: string; title: string } | null>(null)
   // 제목을 누르면 문제를 읽기 전용으로 훑어본다(수정 화면까지 안 가고)
-  const [previewSet, setPreviewSet] = useState<{ id: string; title: string } | null>(null)
+  const [previewSet, setPreviewSet] = useState<{ id: string; title: string; kind?: string } | null>(null)
+  // 학생 공부 링크 창을 띄울 단어장
+  const [studyLinkSet, setStudyLinkSet] = useState<{ id: string; title: string } | null>(null)
   const [questionSets, setQuestionSets] = useState<QuestionSet[]>([])
   const [likedQuestionSets, setLikedQuestionSets] = useState<LikedQuestionSet[]>([])
   const [loading, setLoading] = useState(true)
@@ -233,6 +245,15 @@ function TeacherPageContent() {
                     <Plus className="h-5 w-5" />
                     문제집 만들기
                   </Link>
+                  {VOCAB_ENTRY_VISIBLE && (
+                    <Link
+                      href="/teacher/vocab/new"
+                      className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                    >
+                      <Image src="/icons/ticket.webp" alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
+                      단어장 만들기
+                    </Link>
+                  )}
                   <Link
                     href="/teacher/library"
                     className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
@@ -261,6 +282,7 @@ function TeacherPageContent() {
                     {[
                       { icon: '/icons/rare.webp', label: 'AI로 만들기', href: '/teacher/create' },
                       { icon: '/zombie/log.webp', label: '직접 작성', href: '/teacher/create' },
+                      ...(VOCAB_ENTRY_VISIBLE ? [{ icon: '/icons/ticket.webp', label: '단어장 만들기', href: '/teacher/vocab/new' }] : []),
                       { icon: '/gold-quest/treasure-chest.webp', label: '자료실에서 가져오기', href: '/teacher/library' },
                     ].map((item) => (
                       <Link
@@ -307,6 +329,15 @@ function TeacherPageContent() {
                   <Plus className="h-5 w-5" />
                   문제집 만들기
                 </Link>
+                {VOCAB_ENTRY_VISIBLE && (
+                  <Link
+                    href="/teacher/vocab/new"
+                    className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
+                  >
+                    <Image src="/icons/ticket.webp" alt="" width={22} height={22} unoptimized className="h-[22px] w-[22px] object-contain" />
+                    단어장 만들기
+                  </Link>
+                )}
                 <Link
                   href="/teacher/library"
                   className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-slate-50"
@@ -407,20 +438,23 @@ function TeacherPageContent() {
                 {visibleSets.map((set) => (
                   <div key={set.id} className="flex flex-col gap-4 p-5 transition hover:bg-slate-50 md:flex-row md:items-center">
                       <div className="flex min-w-0 flex-1 items-center gap-4">
-                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                        <Image src="/zombie/quiz.webp" alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
+                      <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl ${set.kind === 'vocab' ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
+                        <Image src={set.kind === 'vocab' ? '/icons/ticket.webp' : '/zombie/quiz.webp'} alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
                       </div>
                       <div className="min-w-0">
                         <button
                           type="button"
-                          onClick={() => setPreviewSet({ id: set.id, title: set.title })}
+                          onClick={() => setPreviewSet({ id: set.id, title: set.title, kind: set.kind })}
                           title="문제 미리보기"
                           className="block max-w-full truncate text-left text-base font-bold text-slate-900 underline-offset-4 transition hover:text-sky-700 hover:underline"
                         >
                           {set.title}
                         </button>
                         <div className="mt-1 flex flex-wrap gap-2 text-sm font-medium text-slate-500">
-                          <span>{set.question_count}문항</span>
+                          {set.kind === 'vocab' && (
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-black text-emerald-700 ring-1 ring-emerald-200">단어장</span>
+                          )}
+                          <span>{set.question_count}{set.kind === 'vocab' ? '장' : '문항'}</span>
                           <span>·</span>
                           <span>{new Date(set.created_at).toLocaleDateString('ko-KR')}</span>
                           {set.is_public && (
@@ -445,6 +479,16 @@ function TeacherPageContent() {
                         <Play className="h-4 w-4 fill-current" />
                         게임 시작
                       </button>
+                      {set.kind === 'vocab' && (
+                        <button
+                          onClick={() => setStudyLinkSet({ id: set.id, title: set.title })}
+                          className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-bold text-emerald-700 transition hover:border-emerald-300 hover:bg-white"
+                          title="학생이 혼자 공부하는 링크 · QR"
+                        >
+                          <Smartphone className="h-4 w-4" />
+                          공부 링크
+                        </button>
+                      )}
                       {set.is_public && (
                         <button
                           onClick={() => handleUnpublish(set)}
@@ -465,7 +509,7 @@ function TeacherPageContent() {
                         <Share2 className="h-4 w-4" />
                       </button>
                       <button
-                        onClick={() => router.push(`/teacher/sets/${encodeURIComponent(set.id)}/edit`)}
+                        onClick={() => router.push(editPathOf(set))}
                         className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-100 hover:text-black"
                         aria-label={`${set.title} 수정`}
                       >
@@ -543,7 +587,7 @@ function TeacherPageContent() {
             <>
               <button
                 type="button"
-                onClick={() => { const id = previewSet.id; setPreviewSet(null); router.push(`/teacher/sets/${encodeURIComponent(id)}/edit`) }}
+                onClick={() => { const target = previewSet; setPreviewSet(null); router.push(editPathOf(target)) }}
                 className="flex h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
               >
                 수정하기
@@ -557,6 +601,13 @@ function TeacherPageContent() {
               </button>
             </>
           )}
+        />
+      )}
+      {studyLinkSet && (
+        <VocabStudyLinkModal
+          setId={studyLinkSet.id}
+          title={studyLinkSet.title}
+          onClose={() => setStudyLinkSet(null)}
         />
       )}
       {sharingSet && (

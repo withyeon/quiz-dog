@@ -243,6 +243,8 @@ export interface Database {
           is_shared: boolean
           shared_at: string | null
           forked_from: string | null
+          /** 'vocab' 이면 단어장 (sql/20261025_vocab_sets.sql). 실행 전 DB에는 이 키가 없다 */
+          kind?: 'quiz' | 'vocab'
           view_count: number
           play_count: number
           created_at: string
@@ -261,6 +263,7 @@ export interface Database {
           is_shared?: boolean
           shared_at?: string | null
           forked_from?: string | null
+          kind?: 'quiz' | 'vocab'
           view_count?: number
           play_count?: number
           created_at?: string
@@ -279,6 +282,7 @@ export interface Database {
           is_shared?: boolean
           shared_at?: string | null
           forked_from?: string | null
+          kind?: 'quiz' | 'vocab'
           view_count?: number
           play_count?: number
           created_at?: string

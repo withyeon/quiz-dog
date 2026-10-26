@@ -98,6 +98,25 @@ export default function SharedSetView({ set }: { set: SharedQuestionSet }) {
           )}
         </section>
 
+        {/* ── 단어장이면 학생 혼자 공부하는 화면으로 ── */}
+        {set.isVocab && (
+          <section className="mt-6 flex flex-col gap-4 rounded-3xl border-2 border-emerald-100 bg-white p-6 shadow-sm sm:flex-row sm:items-center sm:p-8">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl font-black text-slate-900">단어장으로 혼자 공부하기</h2>
+              <p className="mt-1 break-keep text-sm font-medium text-slate-500">
+                카드 뒤집기 · 익히기 · 쓰기 · 시험 보기. 로그인 없이 바로 공부할 수 있어서 학생에게 링크를 줘도 돼요.
+              </p>
+            </div>
+            <a
+              href={`/cards/${set.shareCode}`}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-6 py-4 text-lg font-black text-white shadow-sm transition-colors hover:bg-emerald-600"
+            >
+              <Image src="/icons/ticket.webp" alt="" width={24} height={24} unoptimized className="h-6 w-6 object-contain" />
+              공부 화면 열기
+            </a>
+          </section>
+        )}
+
         {/* ── 게임 모드 고르기 ── */}
         <section className="mt-6 rounded-3xl border-2 border-sky-100 bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-black text-slate-900">게임 모드 고르기</h2>

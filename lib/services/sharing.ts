@@ -38,6 +38,13 @@ export function buildShareUrl(shareCode: string, origin?: string): string {
   return `${base}/s/${shareCode}`
 }
 
+/** 학생이 단어장을 혼자 공부하는 주소. 공유 링크와 같은 코드를 쓴다 (app/cards/[code]) */
+export function buildVocabStudyUrl(shareCode: string, origin?: string): string {
+  const base = origin
+    ?? (typeof window !== 'undefined' ? window.location.origin : 'https://quizdog.kr')
+  return `${base}/cards/${shareCode}`
+}
+
 /** 유니크 인덱스 위반(같은 코드가 이미 있음) */
 function isUniqueViolation(error: unknown): boolean {
   return String((error as { code?: unknown })?.code ?? '') === '23505'
@@ -147,6 +154,8 @@ export type SharedQuestionSet = {
   forkedFromName: string | null
   likeCount: number
   isPublic: boolean
+  /** 단어장이면 true (학생 공부 화면 /cards/<코드> 를 열 수 있다) */
+  isVocab: boolean
 }
 
 function normalizeTags(tags: unknown): string[] {
@@ -163,7 +172,8 @@ export async function getSharedSetByCode(shareCode: string): Promise<SharedQuest
 
   const { data: set, error } = await (client
     .from('question_sets') as any)
-    .select('id, title, description, subject, grade, tags, owner_id, is_public, is_shared, share_code, forked_from')
+    // kind(단어장 여부)는 나중에 생긴 컬럼이라, 마이그레이션 전 DB에서도 읽히게 * 로 읽는다
+    .select('*')
     .eq('share_code', shareCode)
     // 링크를 켠 문제집이거나, 자료실에 등재된 문제집이면 공개로 본다.
     // (자료실 카드가 이 주소로 연결되므로 둘 다 열려 있어야 한다)
@@ -206,6 +216,7 @@ export async function getSharedSetByCode(shareCode: string): Promise<SharedQuest
     forkedFromName,
     likeCount: likeCount ?? 0,
     isPublic: row.is_public,
+    isVocab: row.kind === 'vocab',
   }
 }
 

@@ -689,6 +689,8 @@ export async function duplicateQuestionSet(setId: string, title?: string): Promi
     grade: sourceSet.grade,
     tags: sourceSet.tags,
     forked_from: sourceSet.forked_from ?? null,
+    // 단어장 사본도 단어장이다 (kind 컬럼이 없는 DB면 키를 아예 안 보낸다)
+    ...(sourceSet.kind ? { kind: sourceSet.kind } : {}),
   } as QuestionSetInsert)
 
   await insertQuestions(
@@ -719,7 +721,8 @@ export async function deleteQuestionSet(setId: string): Promise<void> {
 export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Promise<string> {
   const { data: sourceSet, error: setError } = await (supabase
     .from('question_sets') as any)
-    .select('title, description, subject, grade, tags')
+    // kind(단어장 여부)는 나중에 생긴 컬럼이라 이름으로 고르지 않고 * 로 읽는다
+    .select('*')
     .eq('id', sourceSetId)
     .maybeSingle()
 
@@ -753,6 +756,7 @@ export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Pro
     tags: (sourceSet as Pick<QuestionSetRow, 'tags'> | null)?.tags ?? [],
     // 어느 문제집에서 가져왔는지 남긴다 — 사본에도 원작자를 표시하기 위한 것.
     forked_from: sourceSetId,
+    ...((sourceSet as Pick<QuestionSetRow, 'kind'> | null)?.kind ? { kind: (sourceSet as QuestionSetRow).kind } : {}),
   } as QuestionSetInsert)
 
   await insertQuestions(

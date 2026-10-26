@@ -86,6 +86,12 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
       setLoading(true)
       const { set, questions: loadedQuestions } = await getQuestionSetWithQuestions(setId)
 
+      // 단어장은 카드 편집기에서 고친다 (보기를 다른 카드의 뜻으로 다시 만들어야 해서)
+      if (set?.kind === 'vocab') {
+        router.replace(`/teacher/vocab/${encodeURIComponent(setId)}/edit`)
+        return
+      }
+
       if (!set) {
         // DB에 없다면 ID에서 유추 (fallback)
         setSetName(setId.replace('set-', '').replace(/-/g, ' '))
@@ -103,7 +109,7 @@ export default function EditQuestionSetPageClient({ setId }: { setId: string }) 
     } finally {
       setLoading(false)
     }
-  }, [setId])
+  }, [setId, router])
 
   useEffect(() => {
     if (setId) {

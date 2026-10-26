@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import ProBadge from '@/components/ProBadge'
 import { useMyDisplayName } from '@/hooks/useMyDisplayName'
+import { VOCAB_ENTRY_VISIBLE } from '@/lib/vocab/flags'
 import { isAdminEmail } from '@/lib/admin/admins'
 
 interface DashboardLayoutProps {
@@ -97,6 +98,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             <Plus className="h-4 w-4" />
             문제집 만들기
           </Link>
+          {VOCAB_ENTRY_VISIBLE && (
+            <Link
+              href="/teacher/vocab/new"
+              className="mt-2 flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+            >
+              <Image src="/icons/ticket.webp" alt="" width={20} height={20} unoptimized className="h-5 w-5 object-contain" />
+              단어장 만들기
+            </Link>
+          )}
         </div>
 
         <nav className="flex-1 space-y-1 px-3">

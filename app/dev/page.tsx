@@ -586,6 +586,17 @@ export default function DevPage() {
           )}
         </div>
 
+        {/* 단어장 (공개 전, 여기서만 들어간다 — lib/vocab/flags.ts) */}
+        <div className="mt-8 bg-white rounded-xl shadow-lg p-6 border-2 border-emerald-200">
+          <h3 className="text-lg font-bold text-gray-900 mb-1">📇 단어장 (공개 전)</h3>
+          <p className="text-sm text-gray-500 mb-4">선생님 화면에는 아직 버튼이 없어요. 여기서만 들어갈 수 있어요.</p>
+          <div className="flex flex-wrap gap-2">
+            <a href="/dev/vocab-preview" className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-600">학생 공부 화면 (샘플)</a>
+            <a href="/dev/vocab-preview?view=editor" className="rounded-lg border-2 border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">편집기 (샘플)</a>
+            <a href="/teacher/vocab/new" className="rounded-lg border-2 border-gray-200 px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50">진짜 단어장 만들기 (로그인 필요)</a>
+          </div>
+        </div>
+
         {/* 안내 메시지 */}
         <div className="mt-8 bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6">
           <h3 className="text-lg font-bold text-yellow-900 mb-2">💡 안내사항</h3>
