@@ -88,6 +88,8 @@ export function useTeacherPlayRoom() {
   /** 이 화면이 직접 끝낸 방이면 true — 밖에서(2시간 자동 종료) 끝난 방과 구분한다 */
   const selfFinishRef = useRef(false)
   const prevRoomStatusRef = useRef<string | undefined>(undefined)
+  /** 일시정지·재개 저장이 진행 중이면 true — 연타로 같은 요청이 겹치지 않게 */
+  const pauseToggleBusyRef = useRef(false)
   const tutorialStateRef = useRef({
     isOpen: false,
     gameMode: DEFAULT_GAME_MODE,
@@ -712,40 +714,63 @@ export function useTeacherPlayRoom() {
     return Math.max(1, Number(room.duration_seconds) - elapsedSeconds)
   }, [room?.duration_seconds, room?.started_at])
 
+  // 일시정지·재개는 누르는 즉시 이 화면과 학생 화면을 바꾸고 DB 저장은 뒤따르게 한다.
+  // 예전엔 저장을 기다린 뒤 방송했고, 이 화면은 재조회(2~5초)가 바뀐 값을 읽어 올 때까지 버튼이 그대로라
+  // 한 번 눌러선 안 먹는 것처럼 보이고 2~3초 뒤에야 바뀌었다. 저장이 실패하면 원래 상태로 되돌린다.
   const handlePauseGame = async () => {
-    if (!roomCode || !room || room.status !== 'playing') return
+    if (!roomCode || !room || room.status !== 'playing' || pauseToggleBusyRef.current) return
+    pauseToggleBusyRef.current = true
     playSFX('click')
 
+    const remaining = getTimedRemainingSeconds()
+    const patch = {
+      status: 'paused' as const,
+      ...(remaining != null ? { duration_seconds: remaining } : {}),
+    }
+    const rollback = { status: room.status, duration_seconds: room.duration_seconds }
+    applyRoomPatch(patch)
+    broadcastRoomPatch(patch, 'teacher_pause')
+    pauseBGM()
+
     try {
-      const remaining = getTimedRemainingSeconds()
       await pauseRoom(roomCode, remaining)
-      broadcastRoomPatch({
-        status: 'paused',
-        ...(remaining != null ? { duration_seconds: remaining } : {}),
-      }, 'teacher_pause')
-      pauseBGM()
     } catch (error) {
       console.error('Error pausing game:', error)
+      applyRoomPatch(rollback)
+      broadcastRoomPatch(rollback, 'teacher_pause_failed')
+      playBGM('game', activeBgmTrack)
       toast.error('게임 일시정지에 실패했습니다: ' + formatServiceError(error))
+    } finally {
+      pauseToggleBusyRef.current = false
     }
   }
 
   const handleResumeGame = async () => {
-    if (!roomCode || !room || room.status !== 'paused') return
+    if (!roomCode || !room || room.status !== 'paused' || pauseToggleBusyRef.current) return
+    pauseToggleBusyRef.current = true
     playSFX('click')
 
+    const startedAt = new Date().toISOString()
+    const patch = {
+      status: 'playing' as const,
+      started_at: startedAt,
+      ...(room.duration_seconds != null ? { duration_seconds: room.duration_seconds } : {}),
+    }
+    const rollback = { status: room.status, started_at: room.started_at }
+    applyRoomPatch(patch)
+    broadcastRoomPatch(patch, 'teacher_resume')
+    playBGM('game', activeBgmTrack)
+
     try {
-      const startedAt = new Date().toISOString()
       await resumeRoom(roomCode, room.duration_seconds, startedAt)
-      broadcastRoomPatch({
-        status: 'playing',
-        started_at: startedAt,
-        ...(room.duration_seconds != null ? { duration_seconds: room.duration_seconds } : {}),
-      }, 'teacher_resume')
-      playBGM('game', activeBgmTrack)
     } catch (error) {
       console.error('Error resuming game:', error)
+      applyRoomPatch(rollback)
+      broadcastRoomPatch(rollback, 'teacher_resume_failed')
+      pauseBGM()
       toast.error('게임 재개에 실패했습니다: ' + formatServiceError(error))
+    } finally {
+      pauseToggleBusyRef.current = false
     }
   }
 
