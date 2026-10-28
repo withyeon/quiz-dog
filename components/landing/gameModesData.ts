@@ -54,6 +54,8 @@ const GAME_MODE_CARDS: GameModeCardDef[] = [
   { modeId: 'ramen', name: '퀴즈독의 라면가게', titleImage: '/title/ramen.webp', icon: '/ramen/icon-bowl.webp', color: '#7C3AED', bg: 'rgba(124,58,237,0.14)', previewImage: '/main/games/ramen.webp' },
   // 블록 텃밭 키우기. 플레이 영상은 아직 없어 호버 때는 /dev/garden-preview?preset=rich&view0=garden&bare=1 밭 화면 캡처(1280×800)만 보여준다.
   { modeId: 'garden', name: '블록 텃밭 키우기', titleImage: '/title/garden.webp', icon: '/garden/crop-carrot.webp', color: '#65A30D', bg: 'rgba(101,163,13,0.15)', previewImage: '/main/games/garden.webp' },
+  // 멍멍 서바이벌. 플레이 영상은 아직 없어 호버 때는 /dev/survivor-preview?preset=strong&boss=1&bare=1 전투 화면 캡처(1280×800)만 보여준다.
+  { modeId: 'survivor', name: '멍멍 서바이벌', titleImage: '/title/survivor.webp', icon: '/survivor/skill-bone.webp', color: '#F97316', bg: 'rgba(249,115,22,0.14)', previewImage: '/main/games/survivor.webp' },
 ]
 
 export const gameModesData: GameModeInfo[] = GAME_MODE_CARDS.map((game) => ({

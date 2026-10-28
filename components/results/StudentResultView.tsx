@@ -29,6 +29,7 @@ import PlayerAvatarDisplay from '@/components/PlayerAvatarDisplay'
 import BungeoResultSummary from '@/components/bungeoppang/BungeoResultSummary'
 import RamenResultSummary from '@/components/ramen/RamenResultSummary'
 import GardenResultSummary from '@/components/garden/GardenResultSummary'
+import SurvivorResultSummary from '@/components/survivor/SurvivorResultSummary'
 import { getScoreDisplay } from '@/lib/game/scoreDisplay'
 
 type StudentResultViewProps = {
@@ -131,6 +132,10 @@ export default function StudentResultView({
 
         {room.game_mode === 'garden' && (
           <GardenResultSummary players={players} playerId={playerId} />
+        )}
+
+        {room.game_mode === 'survivor' && (
+          <SurvivorResultSummary players={players} playerId={playerId} />
         )}
 
         {studyInfo && (

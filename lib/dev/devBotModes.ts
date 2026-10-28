@@ -82,6 +82,13 @@ import {
   type RamenStats,
 } from '@/lib/game/ramen'
 import { GARDEN, parseGarden, type GardenState } from '@/lib/game/garden'
+import {
+  applySkillCard,
+  createSurvivorState,
+  drawSkillCards,
+  parseSurvivorSave,
+  toSurvivorSave,
+} from '@/lib/game/survivor'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -784,6 +791,30 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
           crowId: `${self.id}-${Date.now()}`,
         })
       }
+    },
+  },
+
+  // 멍멍 서바이벌: 사람은 레벨업마다 문제를 푼다(정답 → 카드 3장 중 하나, 오답 → 1장 랜덤).
+  // 봇은 전투를 돌리지 않고 한 문제 사이(약 20초)에 물리쳤을 만큼의 처치·점수를 바로 쌓는다. 레벨이 높을수록 많이 잡는다.
+  survivor: {
+    cycleSeconds: 20,
+    onAnswer: async (ctx, correct) => {
+      const self = ctx.self()
+      if (!self) return
+      const state = createSurvivorState(parseSurvivorSave(self.item_effects))
+      state.pendingLevelUps = 1
+      const cards = drawSkillCards(state, correct ? 3 : 1)
+      applySkillCard(state, cards[Math.floor(Math.random() * cards.length)])
+      state.level += 1
+      state.stats.levelUps += 1
+      const kills = Math.round(randInt(14, 30) * (1 + state.level / 8))
+      const score = Math.round(kills * 12 * (1 + state.battleMs / 240000))
+      state.stats.kills += kills
+      state.battleMs += 20000
+      state.diffMs += 20000
+      state.score += score
+      await ctx.setFields({ item_effects: toSurvivorSave(state) })
+      await ctx.addDelta({ score })
     },
   },
 

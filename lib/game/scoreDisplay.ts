@@ -135,6 +135,8 @@ export function getScoreDisplayLabel(gameMode: string | null | undefined): strin
   if (mode === 'ramen') return '매출'
   // 블록 텃밭 순위는 작물을 팔아 번 돈 합 (씨앗·도구를 사도 줄지 않는다)
   if (mode === 'garden') return '번 돈'
+  // 멍멍 서바이벌 순위는 몬스터를 물리쳐 얻은 점수
+  if (mode === 'survivor') return '점수'
   if (mode === 'battle_royale') return '체력'
   if (mode === 'dontlookdown') return '높이'
   if (mode === 'zombie') return '생존 점수'

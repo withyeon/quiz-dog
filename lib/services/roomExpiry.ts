@@ -20,7 +20,8 @@ import type { Database } from '@/types/database.types'
  * 종료하면서 무엇을 남기나:
  *   게임이 시작됐던 방(playing/paused)에 학생이 있었다면 그 시점의 학생 행을 게임 기록
  *   (game_reports)으로 저장한다. 선생님이 '게임 종료'를 눌렀을 때와 같은 스냅샷이라
- *   기록 목록·학생 분석·엑셀 내보내기가 그대로 된다. 시작도 안 한 대기방은 기록 없이 닫는다.
+ *   기록 목록·학생 분석·엑셀 내보내기가 그대로 된다. 시작도 안 한 대기방과 1분 체험 방(settings.trial)은
+ *   기록 없이 닫는다 — 체험을 하다 탭을 닫은 선생님 기록에 봇 판이 끼던 것(2026-10-28 점검)을 막는다.
  *
  * DB 스키마 변경이 필요 없다. 기존 컬럼만 읽고 status 를 바꾸고 game_reports 에 넣는다.
  */
@@ -58,6 +59,7 @@ type RoomCandidate = {
   /** 과제 방 — 마감 시각까지는 유휴여도 살려 둔다 (컬럼이 없는 DB면 undefined) */
   is_homework?: boolean | null
   due_at?: string | null
+  settings?: unknown
 }
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
@@ -94,6 +96,12 @@ export function isRoomStale(room: RoomCandidate, now: number): boolean {
   return now - anchor >= ROOM_MAX_AGE_MS
 }
 
+/** 1분 체험(/try) 방 — 봇과 '체험 선생님'뿐이라 선생님 게임 기록에 남기지 않는다 */
+function isTrialRoom(room: RoomCandidate): boolean {
+  const settings = room.settings
+  return typeof settings === 'object' && settings !== null && (settings as { trial?: unknown }).trial === true
+}
+
 function chunk<T>(items: T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
@@ -116,7 +124,8 @@ async function saveReportsForExpiredRooms(
   supabase: SupabaseClient<Database>,
   rooms: RoomCandidate[],
 ): Promise<string[]> {
-  const targets = rooms.filter((room) => STARTED_STATUSES.has(room.status))
+  // 체험 방은 끝까지 하면 봇 실행기가 기록 없이 닫는다. 중간에 탭을 닫아 여기로 온 체험 방도 똑같이 기록 없이 닫는다.
+  const targets = rooms.filter((room) => STARTED_STATUSES.has(room.status) && !isTrialRoom(room))
   if (targets.length === 0) return []
   const codes = targets.map((room) => room.room_code)
 

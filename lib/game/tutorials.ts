@@ -52,6 +52,7 @@ import { ARENA } from '@/lib/game/raidArena'
 import { BUNGEO, FILLING_BY_ID, GRADE_BY_ID } from '@/lib/game/bungeoppang'
 import { RAMEN, VERDICT_MONEY } from '@/lib/game/ramen'
 import { GARDEN } from '@/lib/game/garden'
+import { SURVIVOR } from '@/lib/game/survivor'
 
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
@@ -653,6 +654,42 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
         points: [
           '번 돈이 가장 많은 사람이 1등이에요 (씨앗을 사도 번 돈은 줄지 않아요)',
           '끝나면 텃밭 부자·황금 손·수확왕 같은 칭호도 받아요',
+        ],
+      },
+    ],
+  },
+  // 숫자는 lib/game/survivor.ts 의 상수에서 가져옵니다.
+  survivor: {
+    gameMode: 'survivor',
+    title: '멍멍 서바이벌',
+    subtitle: '몰려오는 몬스터를 피해 버티면서, 문제를 맞혀 퀴즈독을 강하게 키워요.',
+    slides: [
+      {
+        title: '움직이기만 하면 공격은 저절로!',
+        body: '방향키·WASD로 움직여요. 태블릿·폰은 화면 아무 데나 누르고 끌면 돼요. 퀴즈독은 가진 스킬로 알아서 공격해요.',
+        points: [
+          '몬스터에 닿으면 체력이 줄어요',
+          '몬스터를 물리치면 점수와 파란 경험치 보석이 나와요',
+        ],
+      },
+      {
+        title: '레벨 업 = 문제!',
+        body: `보석을 모아 레벨이 오르면 내 화면만 멈추고 문제가 나와요. 맞히면 스킬 카드 ${SURVIVOR.CHOICES}장 중 하나를 골라요. 틀려도 카드 1장이 랜덤으로 붙어요.`,
+        points: [
+          '뼈다귀·빙글빙글 공·멍멍 짖기·번개·원반·간식 폭탄',
+          '같은 스킬을 또 고르면 더 세져요 (최대 Lv.5)',
+        ],
+      },
+      {
+        title: '쓰러져도 괜찮아요',
+        body: '체력이 다 떨어지면 문제가 나와요. 맞히면 그 자리에서 다시 일어나고, 주변 몬스터도 싹 사라져요. 점수는 그대로예요.',
+      },
+      {
+        title: '대왕 슬라임을 물리쳐요',
+        body: `${Math.round(SURVIVOR.BOSS_FIRST_MS / 60000 * 10) / 10}분 버틸 때마다 대왕 슬라임이 나타나요. 물리치면 보물 상자가 나오고, 주우면 문제를 하나 더 풀고 스킬을 하나 더 받아요.`,
+        points: [
+          '몬스터를 많이 물리친 사람이 1등이에요',
+          '끝나면 몬스터 사냥꾼·보스 헌터 같은 칭호도 받아요',
         ],
       },
     ],

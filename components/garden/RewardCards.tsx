@@ -74,7 +74,7 @@ export default function RewardCards({ cards, choosingCrowTarget, targets, onPick
               >
                 <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black sm:text-xs">방해</span>
                 <Image unoptimized width={256} height={256} src="/garden/crow.webp" alt="" className="my-2 h-20 w-20 object-contain sm:h-28 sm:w-28" />
-                <span className="text-base font-black sm:text-xl">까마귀 보내기</span>
+                <span className="text-base font-black break-keep sm:text-xl">까마귀 보내기</span>
                 <span className="mt-1 text-[11px] font-bold text-slate-300 break-keep sm:text-xs">친구 밭의 작물을 콕!</span>
               </button>
             )

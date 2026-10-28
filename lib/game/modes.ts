@@ -267,6 +267,23 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     requiresQuestionSet: true,
   },
   {
+    // 멍멍 서바이벌: 서바이버류 액션. 몬스터 떼를 피하며 버티고, 레벨업마다 문제 → 스킬 카드. 쓰러지면 문제를 맞혀 부활. 규칙은 lib/game/survivor.ts.
+    id: 'survivor',
+    route: '/survivor',
+    label: '멍멍 서바이벌',
+    shortLabel: '서바이벌',
+    emoji: '🐶',
+    image: '/title/survivor.webp',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
+    description: '몰려오는 몬스터를 피해 움직이면 퀴즈독이 저절로 공격해요. 레벨이 오르면 문제가 나오고, 맞히면 스킬 카드를 골라 더 강해져요. 쓰러져도 문제를 맞히면 다시 일어나요. 몬스터를 많이 물리친 사람이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
     // 게임이 아니라 공부 화면이다. 과제로 내기의 첫 번째 선택지이고, 실시간 수업에서도 열 수 있다.
     // 옵션(피드백 시점·다시 풀기·재도전 횟수·문제 순서)은 lib/game/studySettings.ts, 화면은 app/study.
     id: 'study',
@@ -294,6 +311,7 @@ export const GAME_MODES: readonly GameModeConfig[] = [
  */
 // 붕어빵 굽굽!·라면가게: 2026-10-20 공개 (그 전에는 /dev 에서만 돌렸다).
 // 블록 텃밭 키우기: 2026-10-21 공개 (sql/20261021_garden_mode.sql 라이브 적용 뒤).
+// 멍멍 서바이벌: 2026-10-28 공개 (sql/20261027_survivor_mode.sql 라이브 적용·실제 방 검수 뒤).
 export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = []
 
 export function isHiddenGameMode(mode: string | null | undefined): boolean {
@@ -346,7 +364,7 @@ export function getModeInitialPlayerState(mode: string | null | undefined) {
  * 눈싸움(팀전)·마피아·좀비(역할 배정)·펭귄 레이드(반 전체 협동)는 여럿이 있어야 성립하므로 뺀다.
  */
 export const HOMEWORK_GAME_MODES: readonly GameModeId[] = [
-  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'bungeoppang', 'ramen', 'garden', 'gold_quest', 'factory', 'cafe', 'tower',
+  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'bungeoppang', 'ramen', 'garden', 'survivor', 'gold_quest', 'factory', 'cafe', 'tower',
 ]
 
 /** 과제로 낼 수 있는 "게임" (공부 모드 제외) */
