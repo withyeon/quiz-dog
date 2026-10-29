@@ -5,15 +5,24 @@
 #   curl -fsSL https://raw.githubusercontent.com/withyeon/quiz-dog/<커밋>/relay/deploy-lightsail.sh \
 #     | sudo bash -s -- <커밋> <SUPABASE_URL> <SUPABASE_ANON_KEY> [관리자 이메일,쉼표로]
 #
+# 이미 한 번 배포한 서버는 커밋만 줘도 된다. 빠진 값은 지금 relay2.service 에 있는 값을 그대로 쓴다.
+#
+#   curl -fsSL https://raw.githubusercontent.com/withyeon/quiz-dog/<커밋>/relay/deploy-lightsail.sh | sudo bash -s -- <커밋>
+#
 # SUPABASE_ANON_KEY는 앱 화면에도 들어가는 공개(publishable) 키다. 이벤트 보낸 사람이 그 방 학생인지 확인할 때만 쓴다.
 # 관리자 이메일은 관리자 화면 '서버 상태'가 /v2/status 를 읽을 때 쓴다. 생략하면 아래 기본값.
 # Caddy는 /socket.io/ 와 /v2/ 만 이 서버로 보내고 나머지는 404다. 예전 ws 서버(relay.service, 8787)는 끈다.
 set -euo pipefail
 
 REF="${1:?git ref}"
-SUPABASE_URL="${2:?supabase url}"
-SUPABASE_ANON_KEY="${3:?supabase anon key}"
-RELAY_ADMIN_EMAILS="${4:-withyeonedu@gmail.com,tjdud3617@gmail.com,withyeongpt@hyeonedu.com}"
+UNIT_FILE=/etc/systemd/system/relay2.service
+current_env() { [ -f "$UNIT_FILE" ] && sed -n "s/^Environment=$1=//p" "$UNIT_FILE" | head -n1 || true; }
+SUPABASE_URL="${2:-$(current_env SUPABASE_URL)}"
+SUPABASE_ANON_KEY="${3:-$(current_env SUPABASE_ANON_KEY)}"
+RELAY_ADMIN_EMAILS="${4:-$(current_env RELAY_ADMIN_EMAILS)}"
+RELAY_ADMIN_EMAILS="${RELAY_ADMIN_EMAILS:-withyeonedu@gmail.com,tjdud3617@gmail.com,withyeongpt@hyeonedu.com}"
+: "${SUPABASE_URL:?supabase url (처음 배포면 둘째 인자로 주세요)}"
+: "${SUPABASE_ANON_KEY:?supabase anon key (처음 배포면 셋째 인자로 주세요)}"
 RAW="https://raw.githubusercontent.com/withyeon/quiz-dog/${REF}/relay"
 
 mkdir -p /opt/relay2
