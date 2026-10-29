@@ -3,8 +3,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Sparkles } from 'lucide-react'
-import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
+import { ArrowRight } from 'lucide-react'
+import { PixelHeading } from '@/components/landing/PixelHeading'
 import { visibleGameModeCount } from '@/components/landing/gameModesData'
 import { gameAssets } from '@/assets/game-assets'
 
@@ -102,22 +102,18 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
           transition={{ duration: 0.5 }}
           className="order-2 text-center lg:order-1 lg:text-left"
         >
-          <span
-            className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-black"
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.8)',
-              border: '2px solid #BAE6FD',
-              color: '#0369A1',
-              boxShadow: '0 2px 8px rgba(14,165,233,0.12)',
-            }}
-          >
-            <Sparkles className="h-4 w-4" />
-            AI 문제 생성 · 학생 회원가입, 설치 필요 없음
-          </span>
-
-          <h1 className="mt-6 text-4xl leading-tight sm:text-5xl lg:text-6xl">
-            <PixelHeading>
-              <PixelAccent>퀴즈독</PixelAccent>과 함께
+          <h1 className="text-4xl leading-tight sm:text-5xl lg:text-6xl">
+            <PixelHeading tone="ink">
+              {/* 로고 그림은 위아래 여백이 커서 object-cover 로 글자 높이에 맞게 잘라 넣는다 */}
+              <Image
+                src="/header-logo.webp"
+                alt="퀴즈독"
+                width={960}
+                height={540}
+                priority
+                className="inline-block h-[1.15em] w-[3.2em] object-cover align-[-0.2em]"
+              />
+              과 함께
               <br />
               즐거운 수업시간
             </PixelHeading>
@@ -181,10 +177,6 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
                 가입 없이 1분 체험
               </motion.span>
             </Link>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-sm font-bold lg:justify-start" style={{ color: '#0369A1' }}>
-            <a href="#games" className="underline-offset-4 hover:underline">게임 둘러보기 ↓</a>
-            <Link href="/explore" className="underline-offset-4 hover:underline">자료실 구경하기 →</Link>
           </div>
         </motion.div>
 

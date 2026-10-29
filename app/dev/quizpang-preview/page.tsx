@@ -167,7 +167,14 @@ function PlayPreview({ params }: { params: URLSearchParams }) {
 
       {game.banner && (
         <div className="pointer-events-none absolute inset-x-0 top-[30%] z-[35] flex justify-center px-4">
-          <div className={`rounded-2xl border-4 border-slate-900 px-5 py-3 text-xl font-black shadow-[0_6px_0_#0f172a] ${game.banner.big ? 'bg-rose-300' : 'bg-yellow-300'}`}>{game.banner.text}</div>
+          {game.banner.burst ? (
+            <div className="relative flex h-44 w-44 items-center justify-center sm:h-60 sm:w-60">
+              <span className="absolute inset-0 bg-[url('/quizpang/fx-burst.webp')] bg-contain bg-center bg-no-repeat" />
+              <span className="relative max-w-[70%] text-center text-xl font-black leading-tight text-rose-600 break-keep [paint-order:stroke] [-webkit-text-stroke:5px_#fff] sm:text-3xl">{game.banner.text}</span>
+            </div>
+          ) : (
+            <div className={`rounded-2xl border-4 border-slate-900 px-5 py-3 text-xl font-black shadow-[0_6px_0_#0f172a] ${game.banner.big ? 'bg-rose-300' : 'bg-yellow-300'}`}>{game.banner.text}</div>
+          )}
         </div>
       )}
       {game.notice && (
@@ -195,7 +202,7 @@ export default function QuizpangPreviewPage() {
   if (!params) return <main className="min-h-dvh bg-[#fde2f3]" />
   const view = params.get('view') ?? 'play'
   return (
-    <main className="relative min-h-dvh overflow-hidden bg-[radial-gradient(circle_at_20%_10%,#fde2f3_0,#dbeafe_45%,#fef3c7_100%)] text-slate-900">
+    <main className="relative min-h-dvh overflow-hidden bg-[#fdf2f8] bg-[url('/quizpang/bg-pattern.webp'),radial-gradient(circle_at_20%_10%,#fde2f3_0,#dbeafe_45%,#fef3c7_100%)] bg-[length:360px_360px,auto] text-slate-900">
       {view === 'play' && <PlayPreview params={params} />}
       {view === 'summary' && <SummaryPreview />}
     </main>

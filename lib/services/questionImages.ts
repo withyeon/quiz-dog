@@ -20,7 +20,7 @@ export async function getTeacherAccessToken(): Promise<string | null> {
  */
 export async function uploadQuestionImage(file: File): Promise<string> {
   if (!isAcceptedQuestionImageType(file.type)) {
-    throw new Error('PNG, JPG, WEBP, GIF 이미지만 올릴 수 있어요.')
+    throw new Error('PNG, JPG, GIF 이미지만 올릴 수 있어요.')
   }
   if (file.size > QUESTION_IMAGE_MAX_UPLOAD_BYTES) {
     throw new Error('8MB 이하 이미지만 올릴 수 있어요.')

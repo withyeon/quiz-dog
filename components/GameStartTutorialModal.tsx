@@ -12,7 +12,8 @@ type GameStartTutorialModalProps = {
   gameMode: GameModeId
   isOpen: boolean
   stepIndex: number
-  role: 'teacher' | 'student'
+  /** preview: 기능 소개(/features) 게임 카드에서 여는 둘러보기. 넘기기는 선생님과 같고, 안보기 체크 없이 시작 버튼이 '직접 해보기'가 된다 */
+  role: 'teacher' | 'student' | 'preview'
   hideNextTime?: boolean
   onHideNextTimeChange?: (value: boolean) => void
   onStepChange?: (stepIndex: number) => void
@@ -35,7 +36,9 @@ export default function GameStartTutorialModal({
   const mode = getGameModeConfig(gameMode)
   const safeStepIndex = Math.min(Math.max(stepIndex, 0), Math.max(tutorial.slides.length - 1, 0))
   const slide = tutorial.slides[safeStepIndex]
-  const isTeacher = role === 'teacher'
+  const isPreview = role === 'preview'
+  const isTeacher = role !== 'student'
+  const startLabel = isPreview ? '직접 해보기' : '게임 시작'
   const isFirst = safeStepIndex === 0
   const isLast = safeStepIndex >= tutorial.slides.length - 1
   const lastStep = Math.max(tutorial.slides.length - 1, 0)
@@ -53,12 +56,14 @@ export default function GameStartTutorialModal({
       } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
         event.preventDefault()
         onStepChange?.(Math.max(safeStepIndex - 1, 0))
+      } else if (event.key === 'Escape' && isPreview) {
+        onClose?.()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [canControlSteps, isOpen, lastStep, onStepChange, safeStepIndex])
+  }, [canControlSteps, isOpen, isPreview, lastStep, onClose, onStepChange, safeStepIndex])
 
   if (!isOpen || !slide) return null
 
@@ -83,7 +88,7 @@ export default function GameStartTutorialModal({
             </div>
             <div className="min-w-0">
               <p className="text-xs font-black tracking-wide text-amber-400 sm:text-sm">
-                {isTeacher ? '게임 시작 전 — 이렇게 플레이해요' : '선생님이 플레이 방법을 보여주는 중'}
+                {isPreview ? '이렇게 플레이해요' : isTeacher ? '게임 시작 전 — 이렇게 플레이해요' : '선생님이 플레이 방법을 보여주는 중'}
               </p>
               <h2 className="mt-0.5 truncate text-2xl font-black tracking-normal text-white sm:text-3xl">
                 {tutorial.title}
@@ -157,7 +162,9 @@ export default function GameStartTutorialModal({
 
         {/* 푸터 컨트롤 */}
         <div className="flex flex-col gap-4 border-t border-white/10 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
-          {isTeacher ? (
+          {isPreview ? (
+            <p className="hidden text-sm font-bold text-white/50 sm:block">게임 시작 전에 학생들에게도 이 화면이 보여요</p>
+          ) : isTeacher ? (
             <label className="flex cursor-pointer items-center gap-3 text-sm font-bold text-white/70">
               <input
                 type="checkbox"
@@ -201,7 +208,7 @@ export default function GameStartTutorialModal({
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-amber-400 px-6 text-base font-black text-[#17262a] shadow-lg shadow-amber-500/20 transition hover:bg-amber-300"
               >
                 <Play className="h-5 w-5" fill="currentColor" />
-                게임 시작
+                {startLabel}
               </button>
             </div>
           )}
@@ -230,7 +237,7 @@ export default function GameStartTutorialModal({
             </div>
             <div className="min-w-0">
               <p className="text-sm font-black text-sky-500">
-                {isTeacher ? '게임 시작 전 튜토리얼' : '선생님이 튜토리얼을 보여주는 중'}
+                {isPreview ? '게임 튜토리얼' : isTeacher ? '게임 시작 전 튜토리얼' : '선생님이 튜토리얼을 보여주는 중'}
               </p>
               <h2 className="mt-1 text-2xl font-black tracking-normal text-black sm:text-3xl">
                 {tutorial.title}
@@ -297,7 +304,9 @@ export default function GameStartTutorialModal({
         </div>
 
         <div className="flex flex-col gap-4 border-t border-slate-100 bg-white px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          {isTeacher ? (
+          {isPreview ? (
+            <p className="hidden text-sm font-bold text-slate-500 sm:block">게임 시작 전에 학생들에게도 이 화면이 보여요</p>
+          ) : isTeacher ? (
             <label className="flex cursor-pointer items-center gap-3 text-sm font-bold text-slate-600">
               <input
                 type="checkbox"
@@ -343,7 +352,7 @@ export default function GameStartTutorialModal({
                   className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-black px-5 text-sm font-black text-white transition hover:bg-neutral-800"
                 >
                   <Play className="h-4 w-4" />
-                  게임 시작
+                  {startLabel}
                 </button>
               </>
             )}

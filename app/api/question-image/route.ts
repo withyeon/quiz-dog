@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
       return json(413, { error: '8MB 이하 이미지만 올릴 수 있어요.' })
     }
     if (!isAcceptedQuestionImageType(file.type)) {
-      return json(415, { error: 'PNG, JPG, WEBP, GIF 이미지만 올릴 수 있어요.' })
+      return json(415, { error: 'PNG, JPG, GIF 이미지만 올릴 수 있어요.' })
     }
 
     const input = Buffer.from(await file.arrayBuffer())

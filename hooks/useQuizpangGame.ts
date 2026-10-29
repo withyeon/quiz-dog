@@ -31,7 +31,8 @@ type Player = Database['public']['Tables']['players']['Row']
 /** main = 30초마다 뜨는 문제(정답이면 카드), bonus = 틀린 뒤 추가 문제(보상 없음) */
 export type QuizpangQuizReason = 'main' | 'bonus'
 export type QuizpangNotice = { id: number; text: string; tone: 'good' | 'bad' | 'info' }
-export type QuizpangBanner = { id: number; text: string; big?: boolean }
+/** burst = 콤보 배너 (폭발 그림 위에 글자) */
+export type QuizpangBanner = { id: number; text: string; big?: boolean; burst?: boolean }
 export type Targeting = { item: 'bomb' | 'line'; index: number; dir: LineDir }
 
 /** 보드(캔버스)가 훅에 알려 주는 일 */
@@ -163,10 +164,10 @@ export function useQuizpangGame({
     return () => window.clearTimeout(timer)
   }, [notice])
 
-  const showBanner = useCallback((text: string, big = false) => {
+  const showBanner = useCallback((text: string, big = false, burst = false) => {
     noticeIdRef.current += 1
     const id = noticeIdRef.current
-    setBanner({ id, text, big })
+    setBanner({ id, text, big, burst })
     window.setTimeout(() => setBanner((current) => (current?.id === id ? null : current)), big ? 1600 : 1100)
   }, [])
 
@@ -276,7 +277,7 @@ export function useQuizpangGame({
         case 'clear': {
           playSFX(event.chain >= 3 || event.specials > 0 || event.triggered > 0 ? 'item' : 'click')
           const cheer = chainCheer(event.chain)
-          if (cheer) showBanner(cheer, event.chain >= 4)
+          if (cheer) showBanner(cheer, event.chain >= 4, true)
           else if (event.triggered > 0) showBanner(event.triggered > 1 ? '연속 펑! 💥💥' : '펑! 💥')
           else if (event.specials > 0) showBanner('✨ 스페셜 강아지 탄생!')
           else if (event.count >= 6) showBanner('와, 한꺼번에!')

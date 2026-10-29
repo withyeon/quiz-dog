@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
           break
         default:
           return NextResponse.json(
-            { error: `지원하지 않는 파일 형식입니다: .${ext}\n지원 형식: PDF, HWP, HWPX, DOCX, PPTX, PPT, TXT, CSV` },
+            { error: `지원하지 않는 파일 형식입니다: .${ext}\n지원 형식: PDF, HWP, PPT` },
             { status: 400 }
           )
       }

@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
@@ -26,6 +28,10 @@ import { gameAssets } from '@/assets/game-assets'
 import { visibleGameModes } from '@/components/landing/gameModesData'
 import GameRecommendationPicker from '@/components/landing/GameRecommendationPicker'
 import { matchesRecommendation, type RecommendationTag } from '@/lib/game/modeGuide'
+import type { GameModeId } from '@/lib/game/modes'
+
+// 게임 데모가 전부 들어 있어 무겁다 — 카드에서 '튜토리얼 보기'를 눌렀을 때만 받는다
+const GameStartTutorialModal = dynamic(() => import('@/components/GameStartTutorialModal'), { ssr: false })
 
 /* ─────────────────────────────────────────────────────────────
    공통 조각
@@ -260,7 +266,7 @@ const AI_SOURCES = [
     icon: '/zombie/log.webp',
     title: '수업 자료에서',
     description: '학습지, 안내문, 발표 자료에서 낼 만한 문제를 골라요.',
-    helper: 'PDF · HWP · HWPX · DOCX · PPTX · PPT · TXT · CSV',
+    helper: 'PDF · HWP · PPT',
     color: '#14B8A6',
   },
   {
@@ -274,7 +280,7 @@ const AI_SOURCES = [
     icon: '/icons/scan.webp',
     title: '시험지 스캔에서',
     description: '스캔한 활동지나 사진 속 문제를 편집 가능한 형태로 옮겨요.',
-    helper: 'PDF · JPG · PNG · WEBP',
+    helper: 'PDF · JPG · PNG',
     color: '#F97316',
   },
 ]
@@ -332,6 +338,25 @@ const LIBRARY_POINTS = [
 ───────────────────────────────────────────────────────────── */
 export default function FeaturesContent() {
   const [gamePick, setGamePick] = useState<RecommendationTag | null>(null)
+  const [tutorialMode, setTutorialMode] = useState<GameModeId | null>(null)
+  const [tutorialStep, setTutorialStep] = useState(0)
+  const router = useRouter()
+
+  // 전체 화면 튜토리얼이 떠 있는 동안 뒤 페이지가 스크롤되지 않게
+  useEffect(() => {
+    if (!tutorialMode) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [tutorialMode])
+
+  const openTutorial = (modeId: GameModeId) => {
+    setTutorialStep(0)
+    setTutorialMode(modeId)
+  }
+
   return (
     <div className="relative min-h-dvh overflow-hidden bg-[#d9eef5] font-bitbit">
       <PawBackgroundDecor />
@@ -533,7 +558,13 @@ export default function FeaturesContent() {
           <GameRecommendationPicker value={gamePick} onChange={setGamePick} />
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
             {visibleGameModes.filter((game) => matchesRecommendation(game.modeId, gamePick)).map((game, i) => (
-              <GameModeCard key={game.name} game={game} index={i} animationsReady />
+              <GameModeCard
+                key={game.name}
+                game={game}
+                index={i}
+                animationsReady
+                onTutorial={() => openTutorial(game.modeId)}
+              />
             ))}
           </div>
         </div>
@@ -785,6 +816,19 @@ export default function FeaturesContent() {
       </section>
 
       <Footer />
+
+      {tutorialMode && (
+        <GameStartTutorialModal
+          key={tutorialMode}
+          gameMode={tutorialMode}
+          isOpen
+          stepIndex={tutorialStep}
+          role="preview"
+          onStepChange={setTutorialStep}
+          onStart={() => router.push('/try')}
+          onClose={() => setTutorialMode(null)}
+        />
+      )}
     </div>
   )
 }

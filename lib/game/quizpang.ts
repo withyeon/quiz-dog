@@ -39,9 +39,10 @@ export const QUIZPANG = {
   ROWS: 8,
   KINDS: 6,
   /** 블록 그림(기존 강아지 아바타)과 그 배경색 — KINDS 개수만큼 쓴다 */
-  DOG_IMAGES: ['/character/1.webp', '/character/2.webp', '/character/3.webp', '/character/5.webp', '/character/7.webp', '/character/12.webp'],
-  DOG_COLORS: ['#f9a870', '#8ec5ff', '#c4b5fd', '#9ae6a0', '#f9a8c9', '#fde68a'],
-  DOG_NAMES: ['시바', '비숑', '스피츠', '사모예드', '푸들', '웰시코기'],
+  /** 퀴즈팡팡 전용 블록 그림(Codex 생성, public/quizpang/block-N.webp). 파티클 색은 블록 판 색과 맞춘다 */
+  DOG_IMAGES: ['/quizpang/block-1.webp', '/quizpang/block-2.webp', '/quizpang/block-3.webp', '/quizpang/block-4.webp', '/quizpang/block-5.webp', '/quizpang/block-6.webp'],
+  DOG_COLORS: ['#fb923c', '#38bdf8', '#f472b6', '#a78bfa', '#4ade80', '#facc15'],
+  DOG_NAMES: ['시바', '비숑', '푸들', '허스키', '달마시안', '웰시코기'],
 
   /** 한 줄 매치 점수 — index = 맞춘 개수 (6개 이상은 5개 점수 + 개당 EXTRA_BLOCK_SCORE) */
   MATCH_SCORE: [0, 0, 0, 30, 60, 120],

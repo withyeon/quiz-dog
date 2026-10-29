@@ -113,7 +113,7 @@ export default function QuizpangPage() {
   } : null
 
   return (
-    <main className="relative h-dvh overflow-hidden bg-[radial-gradient(circle_at_20%_10%,#fde2f3_0,#dbeafe_45%,#fef3c7_100%)] font-bitbit text-slate-900">
+    <main className="relative h-dvh overflow-hidden bg-[#fdf2f8] bg-[url('/quizpang/bg-pattern.webp'),radial-gradient(circle_at_20%_10%,#fde2f3_0,#dbeafe_45%,#fef3c7_100%)] bg-[length:360px_360px,auto] font-bitbit text-slate-900">
       <GameTimeBadge startedAt={gameBase.sessionStartedAt} durationSeconds={room?.duration_seconds} status={room?.status} />
 
       {inGame && (
@@ -248,9 +248,19 @@ function BannerToast({ banner }: { banner: QuizpangBanner | null }) {
             animate={{ opacity: 1, scale: banner.big ? 1.15 : 1, rotate: 0 }}
             exit={{ opacity: 0, scale: 1.2, y: -20 }}
             transition={{ type: 'spring', stiffness: 420, damping: 18 }}
-            className={`rounded-2xl border-4 border-slate-900 px-5 py-3 text-center text-xl font-black text-slate-900 shadow-[0_6px_0_#0f172a] break-keep sm:text-3xl ${banner.big ? 'bg-rose-300' : 'bg-yellow-300'}`}
+            className={banner.burst
+              ? 'relative flex h-44 w-44 items-center justify-center sm:h-60 sm:w-60'
+              : `rounded-2xl border-4 border-slate-900 px-5 py-3 text-center text-xl font-black text-slate-900 shadow-[0_6px_0_#0f172a] break-keep sm:text-3xl ${banner.big ? 'bg-rose-300' : 'bg-yellow-300'}`}
           >
-            {banner.text}
+            {banner.burst ? (
+              <>
+                {/* 콤보: 폭발 그림(public/quizpang/fx-burst.webp) 위에 글자 */}
+                <span className="absolute inset-0 bg-[url('/quizpang/fx-burst.webp')] bg-contain bg-center bg-no-repeat" />
+                <span className="relative max-w-[70%] text-center text-xl font-black leading-tight text-rose-600 break-keep [paint-order:stroke] [-webkit-text-stroke:5px_#fff] sm:text-3xl">
+                  {banner.text}
+                </span>
+              </>
+            ) : banner.text}
           </motion.div>
         )}
       </AnimatePresence>

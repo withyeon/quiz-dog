@@ -17,7 +17,7 @@ type SourceOption = {
 
 export const SOURCE_OPTIONS: SourceOption[] = [
   { id: 'topic', title: '주제', caption: '배울 단원이나 내용을 적어요', icon: Pencil, iconClass: 'bg-sky-100 text-sky-600', badge: null },
-  { id: 'file', title: '수업 자료', caption: 'PDF · PPT · DOCX · TXT 파일', icon: FileText, iconClass: 'bg-emerald-100 text-emerald-600', badge: null },
+  { id: 'file', title: '수업 자료', caption: 'PDF · HWP · PPT 파일', icon: FileText, iconClass: 'bg-emerald-100 text-emerald-600', badge: null },
   { id: 'youtube', title: '유튜브 영상', caption: '공개 영상 링크', icon: Youtube, iconClass: 'bg-rose-100 text-rose-600', badge: '베타' },
   { id: 'exam', title: '종이 시험지', caption: '사진 · 스캔 PDF 속 문제를 옮겨요', icon: ScanLine, iconClass: 'bg-amber-100 text-amber-600', badge: null },
 ]
@@ -159,7 +159,7 @@ export default function SourcePicker({
               file={file}
               onSelect={setFile}
               accept=".pdf,.hwp,.hwpx,.txt,.csv,.docx,.ppt,.pptx"
-              hint="PDF · HWP · HWPX · DOCX · PPTX · PPT · TXT · CSV"
+              hint="PDF · HWP · PPT"
               tone="sky"
               disabled={disabled}
               onError={(msg) => toast.error(msg)}
@@ -199,7 +199,7 @@ export default function SourcePicker({
               file={examFile}
               onSelect={setExamFile}
               accept=".pdf,.jpg,.jpeg,.png,.webp"
-              hint="PDF · JPG · PNG · WEBP"
+              hint="PDF · JPG · PNG"
               tone="amber"
               disabled={disabled}
               onError={(msg) => toast.error(msg)}

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
-import { Play } from 'lucide-react'
+import { BookOpen, Play } from 'lucide-react'
 import { type GameModeInfo } from '@/components/landing/gameModesData'
 import GameGuideChips from '@/components/landing/GameGuideChips'
 
@@ -15,10 +15,13 @@ export default function GameCard({
   game,
   index,
   animationsReady,
+  onTutorial,
 }: {
   game: GameModeInfo
   index: number
   animationsReady: boolean
+  /** 있으면 카드 아래에 '튜토리얼 보기' 버튼을 단다 (기능 소개 페이지) */
+  onTutorial?: () => void
 }) {
   const [active, setActive] = useState(false)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -133,6 +136,21 @@ export default function GameCard({
           <div className="mt-auto pt-2">
             <GameGuideChips modeId={game.modeId} />
           </div>
+          {onTutorial && (
+            <button
+              type="button"
+              onClick={onTutorial}
+              className="mt-2.5 flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border-2 text-xs font-black transition-colors sm:text-[13px]"
+              style={{
+                borderColor: active ? game.color : 'rgba(226,232,240,0.9)',
+                backgroundColor: active ? game.bg : '#F8FAFC',
+                color: '#0F172A',
+              }}
+            >
+              <BookOpen className="h-3.5 w-3.5 shrink-0" />
+              튜토리얼 보기
+            </button>
+          )}
         </div>
       </div>
     </motion.div>

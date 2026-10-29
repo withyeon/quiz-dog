@@ -297,7 +297,7 @@ export default function VocabAiImport({
                 <p className="w-full break-keep text-xs font-medium text-slate-400">
                   {mode === 'scan'
                     ? <><span className="hidden sm:inline">여기에 끌어다 놓아도 돼요 · </span>사진 여러 장({MAX_FILES}장까지)은 순서대로 이어서 옮겨요</>
-                    : '사진·PDF·한글·워드·PPT 파일도 돼요 · 글과 파일을 함께 넣어도 돼요'}
+                    : '사진·PDF·한글·PPT 파일도 돼요 · 글과 파일을 함께 넣어도 돼요'}
                 </p>
               </div>
               <input ref={fileInput} type="file" multiple accept={ACCEPT[mode]} className="hidden" onChange={(event) => { void addFiles(event.target.files); event.target.value = '' }} />

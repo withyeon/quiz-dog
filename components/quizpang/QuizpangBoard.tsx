@@ -52,7 +52,9 @@ type Visual = {
   /** 스페셜로 변신한 순간 (반짝) */
   bornSpecial: number
 }
-type Particle = { x: number; y: number; vx: number; vy: number; start: number; dur: number; color: string; size: number; star: boolean }
+type Particle = { x: number; y: number; vx: number; vy: number; start: number; dur: number; color: string; size: number; star: boolean; sprite: 'star' | 'paw' | null; spin: number }
+/** 터질 때 뜨는 「팡!」 스티커 */
+type Pang = { x: number; y: number; start: number; dur: number; size: number; tilt: number }
 type FloatText = { x: number; y: number; text: string; sub: string | null; start: number; dur: number; color: string; big: boolean }
 type Flash = { kind: 'row' | 'col' | 'ring' | 'bigring'; r: number; c: number; start: number; dur: number; color: string }
 type Playing = { steps: Step[]; index: number; stepStart: number; stepDur: number; score: number; shuffleDone: boolean }
@@ -63,10 +65,19 @@ const MAX_PIXELS = 2_600_000
 const HINT_AFTER_MS = 7000
 const SPECIAL_COLORS: Record<Exclude<Special, 'none'>, string> = { cross: '#38bdf8', boom: '#f59e0b' }
 
+/** 효과 그림 (public/quizpang/fx-*.webp). 없으면 도형으로 대신 그린다 */
+const FX = {
+  pang: '/quizpang/fx-pang.webp',
+  badgeLine: '/quizpang/fx-badge-line.webp',
+  badgeBoom: '/quizpang/fx-badge-boom.webp',
+  star: '/quizpang/fx-star.webp',
+  paw: '/quizpang/fx-paw.webp',
+} as const
+
 const imageCache = new Map<string, HTMLImageElement>()
 function loadImages() {
   if (typeof window === 'undefined') return
-  for (const src of QUIZPANG.DOG_IMAGES) {
+  for (const src of [...QUIZPANG.DOG_IMAGES, ...Object.values(FX)]) {
     if (imageCache.has(src)) continue
     const img = new Image()
     img.decoding = 'async'
@@ -74,9 +85,12 @@ function loadImages() {
     imageCache.set(src, img)
   }
 }
-function dogImage(kind: number): HTMLImageElement | null {
-  const img = imageCache.get(QUIZPANG.DOG_IMAGES[kind])
+function loadedImage(src: string | undefined): HTMLImageElement | null {
+  const img = src ? imageCache.get(src) : undefined
   return img && img.complete && img.naturalWidth > 0 ? img : null
+}
+function dogImage(kind: number): HTMLImageElement | null {
+  return loadedImage(QUIZPANG.DOG_IMAGES[kind])
 }
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
@@ -101,6 +115,7 @@ const QuizpangBoard = forwardRef<BoardHandle, QuizpangBoardProps>(function Quizp
   const playingRef = useRef<Playing | null>(null)
   const particlesRef = useRef<Particle[]>([])
   const textsRef = useRef<FloatText[]>([])
+  const pangsRef = useRef<Pang[]>([])
   const flashesRef = useRef<Flash[]>([])
   const selectedRef = useRef<Cell | null>(null)
   const dragRef = useRef<Drag | null>(null)
@@ -228,10 +243,17 @@ const QuizpangBoard = forwardRef<BoardHandle, QuizpangBoardProps>(function Quizp
       }
       if (step.cells.length > 0) {
         const n = step.cells.length
+        const big = step.chain >= 2 || n >= 5 || step.triggered.length > 0
+        pangsRef.current.push({
+          x: sx / n, y: sy / n - cellSize * 0.35, start: now, dur: big ? 620 : 480,
+          size: cellSize * (big ? 2.1 : 1.45) * (1 + Math.min(0.5, step.triggered.length * 0.25)),
+          tilt: (Math.random() - 0.5) * 0.5,
+        })
+        if (pangsRef.current.length > 8) pangsRef.current.splice(0, pangsRef.current.length - 8)
         const chainMult = step.chain > 1 ? `×${(1 + (step.chain - 1) * QUIZPANG.CHAIN_STEP).toFixed(1).replace(/\.0$/, '')}` : null
         const double = stateRef.current && stateRef.current.doubleMsLeft > 0 ? '2배!' : null
         textsRef.current.push({
-          x: sx / n, y: sy / n, text: `+${step.score.toLocaleString()}`,
+          x: sx / n, y: sy / n + cellSize * 0.45, text: `+${step.score.toLocaleString()}`,
           sub: [chainMult, double].filter(Boolean).join(' ') || null,
           start: now, dur: 900, color: step.chain >= 3 ? '#f43f5e' : double ? '#f59e0b' : '#0f172a', big: step.chain >= 3 || step.score >= 300,
         })
@@ -480,6 +502,7 @@ const QuizpangBoard = forwardRef<BoardHandle, QuizpangBoardProps>(function Quizp
         visuals: visualsRef.current,
         particles: particlesRef.current,
         texts: textsRef.current,
+        pangs: pangsRef.current,
         flashes: flashesRef.current,
         selected: selectedRef.current,
         hint: hintRef.current,
@@ -492,6 +515,7 @@ const QuizpangBoard = forwardRef<BoardHandle, QuizpangBoardProps>(function Quizp
 
       particlesRef.current = particlesRef.current.filter((p) => now - p.start < p.dur)
       textsRef.current = textsRef.current.filter((t) => now - t.start < t.dur)
+      pangsRef.current = pangsRef.current.filter((p) => now - p.start < p.dur)
       flashesRef.current = flashesRef.current.filter((f) => now - f.start < f.dur)
       if (shakeRef.current && now - shakeRef.current.start > 320) shakeRef.current = null
 
@@ -541,6 +565,9 @@ function spawnParticles(list: Particle[], x: number, y: number, color: string, c
       color: stars ? (Math.random() < 0.5 ? '#fde047' : '#ffffff') : color,
       size: cell * (stars ? 0.12 : 0.08 + Math.random() * 0.1),
       star: stars || Math.random() < 0.25,
+      // 일부는 그림 파티클(반짝이 별·발바닥) — 그림이 없으면 도형으로
+      sprite: stars ? 'star' : Math.random() < 0.18 ? 'star' : Math.random() < 0.12 ? 'paw' : null,
+      spin: (Math.random() - 0.5) * 8,
     })
   }
   if (list.length > 900) list.splice(0, list.length - 900)
@@ -553,6 +580,7 @@ type DrawInput = {
   visuals: Map<number, Visual>
   particles: Particle[]
   texts: FloatText[]
+  pangs: Pang[]
   flashes: Flash[]
   selected: Cell | null
   hint: [Cell, Cell] | null
@@ -588,7 +616,7 @@ function drawStar(ctx: CanvasRenderingContext2D, x: number, y: number, r: number
 }
 
 function draw(ctx: CanvasRenderingContext2D, dpr: number, cssW: number, cssH: number, now: number, input: DrawInput) {
-  const { geom, visuals, particles, texts, flashes, selected, hint, targeting, hover, dragDir, shake, state, running } = input
+  const { geom, visuals, particles, texts, pangs, flashes, selected, hint, targeting, hover, dragDir, shake, state, running } = input
   const { size, pad, cell, ox, oy } = geom
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
   ctx.clearRect(0, 0, cssW, cssH)
@@ -724,7 +752,11 @@ function draw(ctx: CanvasRenderingContext2D, dpr: number, cssW: number, cssH: nu
       ctx.fillStyle = color
       ctx.strokeStyle = '#0f172a'
       ctx.lineWidth = Math.max(1.5, badge * 0.12)
-      if (visual.special === 'boom') {
+      const badgeImg = loadedImage(visual.special === 'boom' ? FX.badgeBoom : FX.badgeLine)
+      if (badgeImg) {
+        const d = drawSize * 0.5 * (1 + 0.08 * Math.sin(now * 0.012 + visual.id))
+        ctx.drawImage(badgeImg, cx + drawSize / 2 - d * 0.78, cy - drawSize / 2 - d * 0.22, d, d)
+      } else if (visual.special === 'boom') {
         drawStar(ctx, bx, by, badge)
         ctx.fill()
         ctx.stroke()
@@ -774,13 +806,47 @@ function draw(ctx: CanvasRenderingContext2D, dpr: number, cssW: number, cssH: nu
     ctx.globalAlpha = 1 - t
     ctx.fillStyle = p.color
     const r = p.size * (1 - t * 0.5)
-    if (p.star) {
+    const spriteImg = p.sprite ? loadedImage(p.sprite === 'star' ? FX.star : FX.paw) : null
+    if (spriteImg) {
+      const d = r * (p.sprite === 'star' ? 3.4 : 3)
+      ctx.translate(x, y)
+      ctx.rotate(p.spin * seconds)
+      ctx.drawImage(spriteImg, -d / 2, -d / 2, d, d)
+    } else if (p.star) {
       drawStar(ctx, x, y, r * 1.3)
       ctx.fill()
     } else {
       ctx.beginPath()
       ctx.arc(x, y, r, 0, Math.PI * 2)
       ctx.fill()
+    }
+    ctx.restore()
+  }
+
+  // 「팡!」 스티커 — 톡 커졌다가 살짝 줄며 사라진다
+  const pangImg = loadedImage(FX.pang)
+  for (const pang of pangs) {
+    const t = clamp01((now - pang.start) / pang.dur)
+    const grow = t < 0.35 ? easeOutBack(t / 0.35) : 1 - (t - 0.35) * 0.15
+    const d = pang.size * Math.max(0.05, grow)
+    ctx.save()
+    ctx.globalAlpha = t < 0.65 ? 1 : 1 - (t - 0.65) / 0.35
+    ctx.translate(pang.x, pang.y)
+    ctx.rotate(pang.tilt)
+    if (pangImg) {
+      ctx.drawImage(pangImg, -d / 2, -d / 2, d, d)
+    } else {
+      ctx.fillStyle = '#fde047'
+      ctx.strokeStyle = '#0f172a'
+      ctx.lineWidth = Math.max(2, d * 0.04)
+      drawStar(ctx, 0, 0, d * 0.45)
+      ctx.fill()
+      ctx.stroke()
+      ctx.fillStyle = '#ec4899'
+      ctx.font = `900 ${Math.round(d * 0.26)}px "DNFBitBitv2",sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('팡!', 0, d * 0.02)
     }
     ctx.restore()
   }
