@@ -42,7 +42,7 @@ export const QUIZPANG = {
   /** 퀴즈팡팡 전용 블록 그림(Codex 생성, public/quizpang/block-N.webp). 파티클 색은 블록 판 색과 맞춘다 */
   DOG_IMAGES: ['/quizpang/block-1.webp', '/quizpang/block-2.webp', '/quizpang/block-3.webp', '/quizpang/block-4.webp', '/quizpang/block-5.webp', '/quizpang/block-6.webp'],
   DOG_COLORS: ['#fb923c', '#38bdf8', '#f472b6', '#a78bfa', '#4ade80', '#facc15'],
-  DOG_NAMES: ['시바', '비숑', '푸들', '허스키', '달마시안', '웰시코기'],
+  DOG_NAMES: ['시바', '비숑', '푸들', '허스키', '달마시안', '퍼그'],
 
   /** 한 줄 매치 점수 — index = 맞춘 개수 (6개 이상은 5개 점수 + 개당 EXTRA_BLOCK_SCORE) */
   MATCH_SCORE: [0, 0, 0, 30, 60, 120],

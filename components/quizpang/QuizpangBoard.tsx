@@ -245,7 +245,7 @@ const QuizpangBoard = forwardRef<BoardHandle, QuizpangBoardProps>(function Quizp
         const n = step.cells.length
         const big = step.chain >= 2 || n >= 5 || step.triggered.length > 0
         pangsRef.current.push({
-          x: sx / n, y: sy / n - cellSize * 0.35, start: now, dur: big ? 620 : 480,
+          x: sx / n, y: sy / n - cellSize * 0.55, start: now, dur: big ? 620 : 480,
           size: cellSize * (big ? 2.1 : 1.45) * (1 + Math.min(0.5, step.triggered.length * 0.25)),
           tilt: (Math.random() - 0.5) * 0.5,
         })
@@ -253,7 +253,7 @@ const QuizpangBoard = forwardRef<BoardHandle, QuizpangBoardProps>(function Quizp
         const chainMult = step.chain > 1 ? `×${(1 + (step.chain - 1) * QUIZPANG.CHAIN_STEP).toFixed(1).replace(/\.0$/, '')}` : null
         const double = stateRef.current && stateRef.current.doubleMsLeft > 0 ? '2배!' : null
         textsRef.current.push({
-          x: sx / n, y: sy / n + cellSize * 0.45, text: `+${step.score.toLocaleString()}`,
+          x: sx / n, y: sy / n + cellSize * 0.75, text: `+${step.score.toLocaleString()}`,
           sub: [chainMult, double].filter(Boolean).join(' ') || null,
           start: now, dur: 900, color: step.chain >= 3 ? '#f43f5e' : double ? '#f59e0b' : '#0f172a', big: step.chain >= 3 || step.score >= 300,
         })
@@ -854,7 +854,8 @@ function draw(ctx: CanvasRenderingContext2D, dpr: number, cssW: number, cssH: nu
   // 점수 글자
   for (const text of texts) {
     const t = clamp01((now - text.start) / text.dur)
-    const y = text.y - cell * 0.9 * easeOutCubic(t)
+    // 「팡!」 스티커(위쪽)와 겹치지 않게 아래에서 조금만 떠오른다
+    const y = text.y - cell * 0.45 * easeOutCubic(t)
     const scale = text.big ? 1.35 : 1
     ctx.save()
     ctx.globalAlpha = t < 0.7 ? 1 : 1 - (t - 0.7) / 0.3
