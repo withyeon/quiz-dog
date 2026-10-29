@@ -186,6 +186,13 @@ export function useBoneRushGame({
     setHud(readHud(stateRef.current))
   }, [currentPlayer])
 
+  // 개발 서버에서만: 자동 검수 드라이버가 마당 상태를 읽을 수 있게 (미리보기의 window.__boneRush 와 같은 이름)
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+    const timer = window.setInterval(() => { (window as unknown as { __boneRush?: BoneRushState }).__boneRush = stateRef.current }, 500)
+    return () => window.clearInterval(timer)
+  }, [])
+
   // ─── 숫자판 ───
   useEffect(() => {
     const timer = window.setInterval(() => {

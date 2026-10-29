@@ -158,6 +158,47 @@ function CollectScene() {
   )
 }
 
+/** 카드 무대 — 나타나는 순간 크기를 잰다(장면 안에서 늦게 붙어도 zoom 이 맞게). 폰은 좁은 폭으로 그린다 */
+function CardsStage({ id, choosingTarget, targets, pointTo, pointKey, toast }: {
+  id: string
+  choosingTarget: boolean
+  targets: Player[]
+  pointTo: ((box: HTMLElement) => Element | null | undefined) | null
+  pointKey: number
+  toast?: string | null
+}) {
+  // 서버 HTML 과 같게 620 으로 시작하고, 붙은 뒤 폰이면 좁힌다 (hydration 오류 방지)
+  const [baseWidth, setBaseWidth] = useState(620)
+  useEffect(() => { if (window.innerWidth < 640) setBaseWidth(400) }, [])
+  const boxRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const zoom = useFrameFitZoom(contentRef, baseWidth, 200, 1)
+  const pointer = useElementPointer(boxRef, pointTo, pointKey)
+  return (
+    <StageCard id={id} className="relative">
+      <div ref={boxRef} className="relative">
+        <div style={{ zoom, width: baseWidth }}>
+          <div ref={contentRef} data-demo="cards" className="font-bitbit">
+            <BoneRushCards cards={DEMO_CARDS} fences={0} choosingTarget={choosingTarget} targets={targets} onPick={() => undefined} onSendCat={() => undefined} onCancelTarget={() => undefined} />
+          </div>
+        </div>
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className="absolute inset-x-0 top-full mx-auto mt-3 w-fit whitespace-nowrap rounded-full bg-slate-900 px-4 py-2 text-sm font-black text-white shadow-lg"
+            >
+              {toast}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <MovingPointer pointer={pointer} />
+      </div>
+    </StageCard>
+  )
+}
+
 /** 규칙 2 — 보물 상자 = 문제. 맞히면 카드 3장 중 하나 */
 const DEMO_CARDS: Card[] = [{ kind: 'sack', bones: BONE_RUSH.SACK_BONES, gold: false }, { kind: 'cat' }, { kind: 'fence' }]
 
@@ -175,10 +216,6 @@ function ChestScene() {
   const answered = useDelayedFlag(2700)
   const showCards = useDelayedFlag(4000)
   const picked = useDelayedFlag(5800)
-  const boxRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const zoom = useFrameFitZoom(contentRef, 620, 200, 1)
-  const pointer = useElementPointer(boxRef, showCards && !picked ? (box) => box.querySelectorAll('[data-demo="cards"] button')[0] : null, showCards ? 1 : 0)
 
   useEffect(() => {
     if (!picked) return
@@ -201,18 +238,7 @@ function ChestScene() {
       </div>
     )
   }
-  return (
-    <StageCard id="bone-cards" className="relative">
-      <div ref={boxRef} className="relative">
-        <div style={{ zoom, width: 620 }}>
-          <div ref={contentRef} data-demo="cards" className="font-bitbit">
-            <BoneRushCards cards={DEMO_CARDS} fences={0} choosingTarget={false} targets={[]} onPick={() => undefined} onSendCat={() => undefined} onCancelTarget={() => undefined} />
-          </div>
-        </div>
-        <MovingPointer pointer={pointer} />
-      </div>
-    </StageCard>
-  )
+  return <CardsStage id="bone-cards" choosingTarget={false} targets={[]} pointTo={(box) => box.querySelectorAll('[data-demo="cards"] button')[0]} pointKey={1} />
 }
 
 /** 규칙 3 — 도둑 고양이 카드 → 친구 고르기 */
@@ -232,38 +258,17 @@ const TARGETS: Player[] = RIVALS.map((rival, i) => ({
 function CatScene() {
   const choosing = useDelayedFlag(1700)
   const sent = useDelayedFlag(3600)
-  const boxRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const zoom = useFrameFitZoom(contentRef, 620, 200, 1)
-  const pointer = useElementPointer(
-    boxRef,
-    sent ? null : choosing
-      ? (box) => [...box.querySelectorAll('[data-demo="cards"] button')].find((b) => (b.textContent ?? '').includes(RIVALS[0].name))
-      : (box) => box.querySelectorAll('[data-demo="cards"] button')[1],
-    choosing ? 1 : 0,
-  )
   return (
-    <StageCard id="bone-cat" className="relative">
-      <div ref={boxRef} className="relative">
-        <div style={{ zoom, width: 620 }}>
-          <div ref={contentRef} data-demo="cards" className="font-bitbit">
-            <BoneRushCards cards={DEMO_CARDS} fences={0} choosingTarget={choosing} targets={TARGETS} onPick={() => undefined} onSendCat={() => undefined} onCancelTarget={() => undefined} />
-          </div>
-        </div>
-        <AnimatePresence>
-          {sent && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 8 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              className="absolute inset-x-0 top-full mx-auto mt-3 w-fit whitespace-nowrap rounded-full bg-slate-900 px-4 py-2 text-sm font-black text-white shadow-lg"
-            >
-              😼 {RIVALS[0].name}의 마당으로 도둑 고양이가 달려갔어요!
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <MovingPointer pointer={pointer} />
-      </div>
-    </StageCard>
+    <CardsStage
+      id="bone-cat"
+      choosingTarget={choosing}
+      targets={TARGETS}
+      pointTo={sent ? null : choosing
+        ? (box) => [...box.querySelectorAll('[data-demo="cards"] button')].find((b) => (b.textContent ?? '').includes(RIVALS[0].name))
+        : (box) => box.querySelectorAll('[data-demo="cards"] button')[1]}
+      pointKey={choosing ? 1 : 0}
+      toast={sent ? `😼 ${RIVALS[0].name}의 마당으로 도둑 고양이가 달려갔어요!` : null}
+    />
   )
 }
 

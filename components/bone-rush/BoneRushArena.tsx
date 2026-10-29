@@ -158,9 +158,9 @@ export default function BoneRushArena({ stateRef, running, onEvents, inputRef }:
     let cssH = 1
     let dpr = 1
     const resize = () => {
-      const rect = wrap.getBoundingClientRect()
-      cssW = Math.max(1, rect.width)
-      cssH = Math.max(1, rect.height)
+      // getBoundingClientRect 는 조상 zoom(튜토리얼 데모)이 걸린 크기를 준다 — 캔버스 CSS 크기는 zoom 전 값이어야 한다
+      cssW = Math.max(1, wrap.clientWidth)
+      cssH = Math.max(1, wrap.clientHeight)
       dpr = Math.min(window.devicePixelRatio || 1, Math.sqrt(MAX_PIXELS / (cssW * cssH)), 2)
       canvas.width = Math.round(cssW * dpr)
       canvas.height = Math.round(cssH * dpr)

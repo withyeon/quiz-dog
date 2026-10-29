@@ -56,10 +56,10 @@ const GAME_MODE_CARDS: GameModeCardDef[] = [
   { modeId: 'garden', name: '블록 텃밭 키우기', titleImage: '/title/garden.webp', icon: '/garden/crop-carrot.webp', color: '#65A30D', bg: 'rgba(101,163,13,0.15)', previewVideo: { webm: '/main/mp4/games/garden.webm', mp4: '/main/mp4/games/garden.mp4' }, previewImage: '/main/games/garden.webp' },
   // 멍멍 서바이벌. 영상은 /dev/survivor-preview 전투·스킬 카드 녹화, 캡처는 ?preset=strong&boss=1&bare=1 전투 화면(1280×800)
   { modeId: 'survivor', name: '멍멍 서바이벌', titleImage: '/title/survivor.webp', icon: '/survivor/skill-bone.webp', color: '#F97316', bg: 'rgba(249,115,22,0.14)', previewVideo: { webm: '/main/mp4/games/survivor.webm', mp4: '/main/mp4/games/survivor.mp4' }, previewImage: '/main/games/survivor.webp' },
-  // 뼈다귀 쟁탈전. 카드 캡처는 /dev/bone-rush-preview?preset=rich&bare=1 마당 화면(1280×800). 호버 영상은 아직 없다.
   // 퀴즈팡팡. 영상은 /dev/quizpang-preview?items=all&realquiz=1 녹화(스왑·멍멍 폭탄·문제·아이템 카드), 캡처는 ?bare=1 보드 화면(1280×800)
   { modeId: 'quizpang', name: '퀴즈팡팡', titleImage: '/title/quizpang.webp', icon: '/quizpang/item-bomb.webp', color: '#EC4899', bg: 'rgba(236,72,153,0.14)', previewVideo: { webm: '/main/mp4/games/quizpang.webm', mp4: '/main/mp4/games/quizpang.mp4' }, previewImage: '/main/games/quizpang.webp' },
-  { modeId: 'bone_rush', name: '뼈다귀 쟁탈전', titleImage: '/title/bone-rush.webp', icon: '/survivor/skill-bone.webp', color: '#D97706', bg: 'rgba(217,119,6,0.14)', previewImage: '/main/games/bone-rush.webp' },
+  // 뼈다귀 쟁탈전. 영상은 /dev/bone-rush-preview 녹화(뼈다귀 줍기→상자→카드·친구 고르기→고양이 피하기, 가짜 문제는 잘라냄), 캡처는 ?preset=rich&bare=1 마당 화면(1280×800)
+  { modeId: 'bone_rush', name: '뼈다귀 쟁탈전', titleImage: '/title/bone-rush.webp', icon: '/survivor/skill-bone.webp', color: '#D97706', bg: 'rgba(217,119,6,0.14)', previewVideo: { webm: '/main/mp4/games/bone-rush.webm', mp4: '/main/mp4/games/bone-rush.mp4' }, previewImage: '/main/games/bone-rush.webp' },
 ]
 
 export const gameModesData: GameModeInfo[] = GAME_MODE_CARDS.map((game) => ({
