@@ -9,9 +9,11 @@ import { PixelHeading, PixelAccent } from '@/components/landing/PixelHeading'
 import { visibleGameModes } from '@/components/landing/gameModesData'
 import GameRecommendationPicker from '@/components/landing/GameRecommendationPicker'
 import { matchesRecommendation, type RecommendationTag } from '@/lib/game/modeGuide'
+import { useGameTutorialPreview } from '@/components/landing/useGameTutorialPreview'
 
 export default function GameLineupSection({ animationsReady }: { animationsReady: boolean }) {
   const [pick, setPick] = useState<RecommendationTag | null>(null)
+  const { openTutorial, tutorialModal } = useGameTutorialPreview()
   const shown = visibleGameModes.filter((game) => matchesRecommendation(game.modeId, pick))
 
   return (
@@ -49,7 +51,12 @@ export default function GameLineupSection({ animationsReady }: { animationsReady
                 exit={{ opacity: 0, scale: 0.96 }}
                 transition={{ duration: 0.2 }}
               >
-                <GameModeCard game={game} index={index} animationsReady={animationsReady} />
+                <GameModeCard
+                  game={game}
+                  index={index}
+                  animationsReady={animationsReady}
+                  onTutorial={() => openTutorial(game.modeId)}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -65,6 +72,7 @@ export default function GameLineupSection({ animationsReady }: { animationsReady
           </Link>
         </div>
       </div>
+      {tutorialModal}
     </section>
   )
 }

@@ -104,14 +104,14 @@ export default function HeroSection({ animationsReady }: { animationsReady: bool
         >
           <h1 className="text-4xl leading-tight sm:text-5xl lg:text-6xl">
             <PixelHeading tone="ink">
-              {/* 로고 그림은 위아래 여백이 커서 object-cover 로 글자 높이에 맞게 잘라 넣는다 */}
+              {/* 로고 그림은 위아래 여백이 커서 음수 마진으로 글자 높이에 맞춘다 */}
               <Image
                 src="/header-logo.webp"
                 alt="퀴즈독"
                 width={960}
                 height={540}
                 priority
-                className="inline-block h-[1.15em] w-[3.2em] object-cover align-[-0.2em]"
+                className="-my-[0.35em] mr-[0.05em] inline-block h-[1.7em] w-auto max-w-none align-middle"
               />
               과 함께
               <br />

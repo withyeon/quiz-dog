@@ -1,9 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
 import {
@@ -28,10 +26,7 @@ import { gameAssets } from '@/assets/game-assets'
 import { visibleGameModes } from '@/components/landing/gameModesData'
 import GameRecommendationPicker from '@/components/landing/GameRecommendationPicker'
 import { matchesRecommendation, type RecommendationTag } from '@/lib/game/modeGuide'
-import type { GameModeId } from '@/lib/game/modes'
-
-// 게임 데모가 전부 들어 있어 무겁다 — 카드에서 '튜토리얼 보기'를 눌렀을 때만 받는다
-const GameStartTutorialModal = dynamic(() => import('@/components/GameStartTutorialModal'), { ssr: false })
+import { useGameTutorialPreview } from '@/components/landing/useGameTutorialPreview'
 
 /* ─────────────────────────────────────────────────────────────
    공통 조각
@@ -338,24 +333,7 @@ const LIBRARY_POINTS = [
 ───────────────────────────────────────────────────────────── */
 export default function FeaturesContent() {
   const [gamePick, setGamePick] = useState<RecommendationTag | null>(null)
-  const [tutorialMode, setTutorialMode] = useState<GameModeId | null>(null)
-  const [tutorialStep, setTutorialStep] = useState(0)
-  const router = useRouter()
-
-  // 전체 화면 튜토리얼이 떠 있는 동안 뒤 페이지가 스크롤되지 않게
-  useEffect(() => {
-    if (!tutorialMode) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = prev
-    }
-  }, [tutorialMode])
-
-  const openTutorial = (modeId: GameModeId) => {
-    setTutorialStep(0)
-    setTutorialMode(modeId)
-  }
+  const { openTutorial, tutorialModal } = useGameTutorialPreview()
 
   return (
     <div className="relative min-h-dvh overflow-hidden bg-[#d9eef5] font-bitbit">
@@ -817,18 +795,7 @@ export default function FeaturesContent() {
 
       <Footer />
 
-      {tutorialMode && (
-        <GameStartTutorialModal
-          key={tutorialMode}
-          gameMode={tutorialMode}
-          isOpen
-          stepIndex={tutorialStep}
-          role="preview"
-          onStepChange={setTutorialStep}
-          onStart={() => router.push('/try')}
-          onClose={() => setTutorialMode(null)}
-        />
-      )}
+      {tutorialModal}
     </div>
   )
 }

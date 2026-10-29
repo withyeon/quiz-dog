@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -14,7 +14,7 @@ import { gameModesData } from '@/components/landing/gameModesData'
 import { gameAssets } from '@/assets/game-assets'
 import { CHARACTERS } from '@/lib/utils/characters'
 import { pickBotNames, writeDevBotSession } from '@/lib/dev/devBots'
-import { getGameModeConfig, getGameModeUrl, type GameModeId } from '@/lib/game/modes'
+import { getGameModeConfig, getGameModeUrl, isGameModeId, type GameModeId } from '@/lib/game/modes'
 import { createPlayerForRoom, createRoom, startRoom } from '@/lib/services/rooms'
 import { formatServiceError } from '@/lib/services/errors'
 import { getLibraryClientId } from '@/lib/utils/libraryClientId'
@@ -49,6 +49,10 @@ function TrialExperienceContent() {
   const searchParams = useSearchParams()
   const requestedSetId = searchParams?.get('set') ?? null
   const isDone = searchParams?.get('done') === '1'
+  // ?game= — 기능 소개·랜딩 게임 카드의 튜토리얼에서 '직접 해보기'로 오면 고르는 단계 없이 그 게임으로 바로 시작한다
+  const requestedGameRaw = searchParams?.get('game') ?? null
+  const requestedGame = isGameModeId(requestedGameRaw) && TRIAL_GAME_MODES.includes(requestedGameRaw) ? requestedGameRaw : null
+  const autoStartedRef = useRef(false)
   const { user } = useAuth()
   const { playSFX } = useAudioContext()
 
@@ -77,9 +81,9 @@ function TrialExperienceContent() {
     return () => { cancelled = true }
   }, [isDone, requestedSetId])
 
-  const handleStart = async (mode: GameModeId) => {
+  const handleStart = async (mode: GameModeId, { auto = false } = {}) => {
     if (!set || starting) return
-    playSFX('click')
+    if (!auto) playSFX('click')
     setStarting(mode)
     try {
       // 방에 trial 표시를 남겨 관리자 점검에서 체험 방을 구분할 수 있게 한다. 2시간 뒤 자동 종료는 일반 방과 같다
@@ -101,13 +105,24 @@ function TrialExperienceContent() {
       // 봇 실행기(components/dev/DevBotRunner.tsx)가 이 탭에서 읽는다. 봇이 문제를 풀고, 시간이 끝나면 선생님 대신 방을 끝낸다
       writeDevBotSession({ roomCode: room.room_code, gameMode: mode, setId: set.id, aggressive: false, bots })
       writeTrialSession({ roomCode: room.room_code, gameMode: mode, setId: set.id, setTitle: set.title, startedAt: new Date().toISOString() })
-      router.push(getGameModeUrl(mode, room.room_code, player.id))
+      // 바로 시작했으면 이 페이지를 기록에서 바꿔 끼운다 — 뒤로 가기가 다시 방을 만들지 않고 보던 페이지로 돌아간다
+      const gameUrl = getGameModeUrl(mode, room.room_code, player.id)
+      if (auto) router.replace(gameUrl)
+      else router.push(gameUrl)
     } catch (error) {
       console.error('체험 방을 만들지 못했습니다:', error)
       toast.error('체험을 열지 못했어요: ' + formatServiceError(error))
       setStarting(null)
     }
   }
+
+  useEffect(() => {
+    if (!requestedGame || isDone || !set || autoStartedRef.current) return
+    autoStartedRef.current = true
+    void handleStart(requestedGame, { auto: true })
+    // handleStart 는 매 렌더 새로 만들어지지만 한 번만 부르면 되므로 의존성에서 뺀다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedGame, isDone, set])
 
   // "이 문제로 우리 반 수업하기" — 로그인하면 자료실에서 같은 문제집으로 게임 시작까지 이어진다
   const classHref = useMemo(() => {
