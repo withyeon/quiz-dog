@@ -27,7 +27,10 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '')
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || ''
 const AUTH_ENABLED = process.env.RELAY_AUTH !== 'off' && Boolean(SUPABASE_URL && SUPABASE_ANON_KEY)
 const LOG_METRICS = process.env.RELAY_LOG_METRICS === '1'
-/** /v2/status(관리자 화면의 서버 상태)를 볼 수 있는 Supabase 계정 이메일 */
+/**
+ * /v2/status(관리자 화면의 서버 상태)는 Supabase is_admin() 이 true 인 계정만 본다(관리자 목록은 admin_users 표).
+ * 아래 이메일 목록은 is_admin() 이 아직 없을 때(sql/20261029_admin_users.sql 적용 전)만 쓴다.
+ */
 const STATUS_ADMIN_EMAILS = new Set(
   ['withyeonedu@gmail.com', ...(process.env.RELAY_ADMIN_EMAILS || '').split(',')]
     .map((s) => s.trim().toLowerCase())
@@ -543,24 +546,43 @@ function statusPayload(minutes) {
   }
 }
 
-/** @type {Map<string, { email: string | null, until: number }>} */
+/** @type {Map<string, { ok: boolean, until: number }>} */
 const statusTokenCache = new Map()
-/** 상태를 볼 수 있는 관리자 토큰인가 */
+
+/** is_admin() 이 없을 때: 토큰의 이메일을 예전 목록과 비교한다 */
+async function isLegacyStatusAdmin(token) {
+  const res = await supabaseGet('/auth/v1/user', { Authorization: `Bearer ${token}` })
+  const email = res.ok ? String((await res.json())?.email || '').toLowerCase() : ''
+  return Boolean(email && STATUS_ADMIN_EMAILS.has(email))
+}
+
+/** 상태를 볼 수 있는 관리자 토큰인가 (Supabase is_admin() 으로 확인, 1분 캐시) */
 async function isStatusAdmin(token) {
   if (!token || token.length < 20 || token.length > 4096 || !SUPABASE_URL) return false
   const cached = statusTokenCache.get(token)
-  let email = cached && cached.until > Date.now() ? cached.email : undefined
-  if (email === undefined) {
-    try {
-      const res = await supabaseGet('/auth/v1/user', { Authorization: `Bearer ${token}` })
-      email = res.ok ? String((await res.json())?.email || '').toLowerCase() || null : null
-    } catch {
-      return false
-    }
-    if (statusTokenCache.size > 100) statusTokenCache.clear()
-    statusTokenCache.set(token, { email, until: Date.now() + 60_000 })
+  if (cached && cached.until > Date.now()) return cached.ok
+  let ok = false
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS)
+  try {
+    stats.authChecks += 1
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}',
+      signal: controller.signal,
+    })
+    if (res.ok) ok = (await res.json()) === true
+    // 함수가 아직 없으면(404) 예전 목록으로 본다. 토큰이 무효(401) 등이면 거절.
+    else if (res.status === 404) ok = await isLegacyStatusAdmin(token)
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timer)
   }
-  return Boolean(email && STATUS_ADMIN_EMAILS.has(email))
+  if (statusTokenCache.size > 100) statusTokenCache.clear()
+  statusTokenCache.set(token, { ok, until: Date.now() + 60_000 })
+  return ok
 }
 
 function corsHeaders(origin) {

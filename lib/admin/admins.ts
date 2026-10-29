@@ -1,16 +1,11 @@
 /**
- * 관리자(admin) 계정 판별 유틸.
+ * 관리자 판정의 "예전 목록" (sql/20261029_admin_users.sql 적용 전에만 쓰는 대비책).
  *
- * 관리자 이메일 목록은 환경변수로 관리한다.
- * - 클라이언트: NEXT_PUBLIC_ADMIN_EMAILS
- * - 서버: ADMIN_EMAILS (없으면 NEXT_PUBLIC_ADMIN_EMAILS 로 폴백)
- *
- * 두 값은 쉼표(,)로 구분된 이메일 목록이다. 여기에 코드에 박아 둔 기본 관리자(BUILT_IN_ADMIN_EMAILS)를 더한다.
- * 기본 관리자는 환경변수를 고치지 않아도 늘 관리자다. 관리자 화면은 2차 비밀번호도 따로 요구한다.
+ * 관리자 목록의 기준은 Supabase public.admin_users 표다.
+ * - 서버: lib/admin/adminList.server.ts (service role 로 표를 읽는다)
+ * - 화면: lib/admin/useIsAdmin.ts (is_admin() RPC 로 "내가 관리자인가"만 묻는다)
+ * 표나 함수가 아직 없을 때만 아래 환경변수·기본값으로 판단한다. SQL 적용 뒤에는 이 파일의 목록은 쓰이지 않는다.
  */
-
-/** 운영 환경변수와 상관없이 늘 관리자인 계정 */
-export const BUILT_IN_ADMIN_EMAILS = ['withyeonedu@gmail.com']
 
 function parseAdminEmails(raw: string | undefined | null): string[] {
   if (!raw) return []
@@ -20,17 +15,21 @@ function parseAdminEmails(raw: string | undefined | null): string[] {
     .filter(Boolean)
 }
 
-/** 환경변수에서 관리자 이메일 목록을 가져온다(클라이언트/서버 모두 동작). */
-export function getAdminEmails(): string[] {
-  const fromPublic = parseAdminEmails(process.env.NEXT_PUBLIC_ADMIN_EMAILS)
-  const fromEnv = fromPublic.length > 0 ? fromPublic : parseAdminEmails(process.env.ADMIN_EMAILS)
-  return [...new Set([...fromEnv, ...BUILT_IN_ADMIN_EMAILS])]
+/** 표가 없을 때도 늘 관리자인 계정 */
+const LEGACY_BUILT_IN_ADMIN_EMAILS = ['withyeonedu@gmail.com']
+
+export function normalizeAdminEmail(email: string | null | undefined): string {
+  return (email ?? '').trim().toLowerCase()
 }
 
-/** 주어진 이메일이 관리자 계정인지 여부. */
-export function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false
-  const normalized = email.trim().toLowerCase()
-  if (!normalized) return false
-  return getAdminEmails().includes(normalized)
+/** 예전 목록: NEXT_PUBLIC_ADMIN_EMAILS (없으면 ADMIN_EMAILS) + 기본 관리자 */
+export function getLegacyAdminEmails(): string[] {
+  const fromPublic = parseAdminEmails(process.env.NEXT_PUBLIC_ADMIN_EMAILS)
+  const fromEnv = fromPublic.length > 0 ? fromPublic : parseAdminEmails(process.env.ADMIN_EMAILS)
+  return [...new Set([...fromEnv, ...LEGACY_BUILT_IN_ADMIN_EMAILS])]
+}
+
+export function isLegacyAdminEmail(email: string | null | undefined): boolean {
+  const normalized = normalizeAdminEmail(email)
+  return Boolean(normalized) && getLegacyAdminEmails().includes(normalized)
 }

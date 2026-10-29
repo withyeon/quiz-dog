@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { BarChart3, ClipboardCheck, Megaphone, MessageSquare, Radio, Server, Users } from 'lucide-react'
+import { BarChart3, ClipboardCheck, Megaphone, MessageSquare, Radio, Server, ShieldCheck, Users } from 'lucide-react'
 
 export interface AdminNavItem {
   label: string
@@ -29,6 +29,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     label: '사람',
     items: [
       { label: '교사 관리', href: '/admin/users', icon: Users, description: '교사 계정, 프로 기간, 가입 전 요금제 예약을 관리합니다.' },
+      { label: '관리자 계정', href: '/admin/admins', icon: ShieldCheck, description: '관리자 목록(Supabase admin_users)을 추가·삭제합니다.' },
     ],
   },
   {

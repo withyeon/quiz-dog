@@ -264,7 +264,7 @@ export default function AdminServerPage() {
           {relay.statusState === 'not_deployed' && (
             <>중계 서버가 아직 상세 상태(/v2/status)가 없는 예전 버전입니다. 접속·CPU·과부하 로그를 보려면 Lightsail 브라우저 SSH에서 중계 서버를 새 커밋으로 다시 배포하세요(relay/deploy-lightsail.sh).</>
           )}
-          {relay.statusState === 'forbidden' && <>중계 서버가 이 계정을 관리자로 모릅니다. 배포 때 넷째 인자(관리자 이메일)에 이 계정을 넣어 주세요.</>}
+          {relay.statusState === 'forbidden' && <>중계 서버가 이 계정을 관리자로 확인하지 못했습니다. 관리자 계정 화면의 목록(admin_users)에 이 계정이 있는지 확인하세요.</>}
           {relay.statusState === 'error' && <>중계 서버 상세 상태를 읽지 못했습니다: {relay.statusError}</>}
         </Banner>
       )}

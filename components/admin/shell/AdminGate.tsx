@@ -4,7 +4,7 @@ import { createContext, type FormEvent, type ReactNode, useCallback, useContext,
 import { useRouter } from 'next/navigation'
 import { KeyRound, Loader2, Lock, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { isAdminEmail } from '@/lib/admin/admins'
+import { checkIsAdmin } from '@/lib/admin/useIsAdmin'
 import { ADMIN_RELOCK_EVENT, adminJson, fetchAdminJson } from '@/lib/admin/fetchAdmin'
 import { Button, Input } from '@/components/admin/ui'
 
@@ -59,11 +59,16 @@ export function AdminGate({ children }: { children: ReactNode }) {
       setState('need-login')
       return
     }
-    if (!isAdminEmail(user.email)) {
-      setState('not-admin')
-      return
+    let alive = true
+    setState('checking')
+    checkIsAdmin(user).then((isAdmin) => {
+      if (!alive) return
+      if (!isAdmin) setState('not-admin')
+      else void checkAuth()
+    })
+    return () => {
+      alive = false
     }
-    checkAuth()
   }, [loading, user, checkAuth])
 
   // API가 2차 인증 만료 401을 돌려주면 비밀번호 입력으로 되돌린다.

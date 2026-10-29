@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAdminSupabase } from '@/lib/supabase/admin'
-import { isAdminEmail } from '@/lib/admin/admins'
+import { isAdminEmailOnServer } from '@/lib/admin/adminList.server'
 
 /**
  * 관리자 API 보호용 서버 헬퍼.
  *
  * 인증 3단계:
  *  1) Supabase 로그인 세션(Authorization: Bearer <access_token>) 검증
- *  2) 로그인 이메일이 관리자 허용목록(ADMIN_EMAILS)에 있는지 확인
+ *  2) 로그인 이메일이 관리자 목록(Supabase admin_users 표)에 있는지 확인
  *  3) 2차 비밀번호 통과 후 발급된 admin-session 쿠키 확인
  *
  * 쿠키 값은 `authenticated:<만료 epoch ms>` 다. 만료 시각을 값에 같이 담아 두어
@@ -72,7 +72,7 @@ export async function verifyAdminUser(request: NextRequest): Promise<
     }
   }
 
-  if (!isAdminEmail(data.user.email)) {
+  if (!(await isAdminEmailOnServer(data.user.email))) {
     return {
       ok: false,
       response: NextResponse.json({ error: '관리자 권한이 없습니다.' }, { status: 403 }),

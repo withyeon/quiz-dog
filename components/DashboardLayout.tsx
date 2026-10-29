@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import ProBadge from '@/components/ProBadge'
 import { useMyDisplayName } from '@/hooks/useMyDisplayName'
 import { VOCAB_ENTRY_VISIBLE } from '@/lib/vocab/flags'
-import { isAdminEmail } from '@/lib/admin/admins'
+import { useIsAdmin } from '@/lib/admin/useIsAdmin'
 
 interface DashboardLayoutProps {
   children: ReactNode
@@ -46,7 +46,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
 
   const userEmail = user?.email ?? ''
-  const isAdmin = isAdminEmail(userEmail)
+  const { isAdmin } = useIsAdmin()
   const userInitial = userEmail ? userEmail[0].toUpperCase() : 'T'
   // 프로필의 표시 이름 (없으면 가입 이름·이메일로 자동 채움)
   const displayName = useMyDisplayName()

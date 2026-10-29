@@ -71,7 +71,7 @@ NEXT_PUBLIC_ROOM_RELAY_URL=ws://localhost:8787
 | → | `{t:'ping'}` | 앱 핑(25초). 프록시가 조용한 연결을 끊지 않게 |
 | HTTP | `POST /rooms/<방>/events` | 소켓이 안 붙었을 때 예비 경로(Supabase REST 브로드캐스트 대응) |
 | HTTP | `GET /healthz`, `GET /metrics` | 상태, 측정용 지표(부를 때마다 구간이 리셋됨) |
-| HTTP | `GET /v2/status?minutes=60` | 관리자 화면 '서버 상태'용. 관리자 Supabase 세션 토큰(`Authorization: Bearer`)이 있어야 한다. 10초 간격 지표(최근 6시간), 과부하·회복 로그(최근 300건), 최고치, 방별 접속 수 |
+| HTTP | `GET /v2/status?minutes=60` | 관리자 화면 '서버 상태'용. 관리자 Supabase 세션 토큰(`Authorization: Bearer`)이 있어야 하고, 관리자 여부는 Supabase `is_admin()`(admin_users 표)으로 확인한다. 10초 간격 지표(최근 6시간), 과부하·회복 로그(최근 300건), 최고치, 방별 접속 수 |
 
 ### 점프점프 좌표 묶음
 

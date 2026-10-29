@@ -10,7 +10,7 @@
 #   curl -fsSL https://raw.githubusercontent.com/withyeon/quiz-dog/<커밋>/relay/deploy-lightsail.sh | sudo bash -s -- <커밋>
 #
 # SUPABASE_ANON_KEY는 앱 화면에도 들어가는 공개(publishable) 키다. 이벤트 보낸 사람이 그 방 학생인지 확인할 때만 쓴다.
-# 관리자 이메일은 관리자 화면 '서버 상태'가 /v2/status 를 읽을 때 쓴다. 생략하면 아래 기본값.
+# 관리자 판정은 Supabase is_admin()(admin_users 표)으로 한다. 관리자 이메일 인자는 그 함수가 아직 없을 때만 쓰는 예비 목록이다.
 # Caddy는 /socket.io/ 와 /v2/ 만 이 서버로 보내고 나머지는 404다. 예전 ws 서버(relay.service, 8787)는 끈다.
 set -euo pipefail
 
