@@ -46,16 +46,16 @@ const GAME_MODE_CARDS: GameModeCardDef[] = [
   { modeId: 'zombie', name: '좀비를 피해라', titleImage: '/title/zombie.webp', icon: '/zombie/virus-mutation.webp', color: '#22C55E', bg: 'rgba(34,197,94,0.14)', previewVideo: { webm: '/main/mp4/games/zombie.webm', mp4: '/main/mp4/games/zombie.mp4' }, previewImage: '/zombie/background.png' },
   { modeId: 'treat_rush', name: '간식런', titleImage: '/title/gansik-run.webp', icon: '/gansik-run/bone.webp', color: '#A855F7', bg: 'rgba(168,85,247,0.14)', previewVideo: { webm: '/main/mp4/games/gansik-run.webm', mp4: '/main/mp4/games/gansik-run.mp4' }, previewImage: '/main/games/gansik-run.webp' },
   { modeId: 'poop_dodge', name: '강아지대소동', titleImage: '/title/puppy-chaos.webp', icon: '/puppy-chaos/poop.webp', color: '#F43F5E', bg: 'rgba(244,63,94,0.14)', previewVideo: { webm: '/main/mp4/games/puppy-chaos.webm', mp4: '/main/mp4/games/puppy-chaos.mp4' }, previewImage: '/main/games/puppy-chaos.webp' },
-  // 협동 보스 레이드. 플레이 영상은 아직 없어 호버 때는 플레이 화면 캡처만 보여준다.
-  { modeId: 'raid', name: '황제 펭귄을 막아라', titleImage: '/title/raid.webp', icon: '/raid/penguin-emperor.webp', color: '#0EA5E9', bg: 'rgba(14,165,233,0.14)', previewImage: '/main/games/raid.webp' },
-  // 붕어빵 굽굽!. 플레이 영상은 아직 없어 호버 때는 플레이 화면 캡처만 보여준다.
-  { modeId: 'bungeoppang', name: '붕어빵 굽굽!', titleImage: '/title/bungeoppang.webp', icon: '/bungeoppang/baked.webp', color: '#F59E0B', bg: 'rgba(245,158,11,0.16)', previewImage: '/main/games/bungeoppang.webp' },
-  // 퀴즈독의 라면가게. 플레이 영상은 아직 없어 호버 때는 /dev/ramen-preview 주방 화면 캡처만 보여준다.
-  { modeId: 'ramen', name: '퀴즈독의 라면가게', titleImage: '/title/ramen.webp', icon: '/ramen/icon-bowl.webp', color: '#7C3AED', bg: 'rgba(124,58,237,0.14)', previewImage: '/main/games/ramen.webp' },
-  // 블록 텃밭 키우기. 플레이 영상은 아직 없어 호버 때는 /dev/garden-preview?preset=rich&view0=garden&bare=1 밭 화면 캡처(1280×800)만 보여준다.
-  { modeId: 'garden', name: '블록 텃밭 키우기', titleImage: '/title/garden.webp', icon: '/garden/crop-carrot.webp', color: '#65A30D', bg: 'rgba(101,163,13,0.15)', previewImage: '/main/games/garden.webp' },
-  // 멍멍 서바이벌. 플레이 영상은 아직 없어 호버 때는 /dev/survivor-preview?preset=strong&boss=1&bare=1 전투 화면 캡처(1280×800)만 보여준다.
-  { modeId: 'survivor', name: '멍멍 서바이벌', titleImage: '/title/survivor.webp', icon: '/survivor/skill-bone.webp', color: '#F97316', bg: 'rgba(249,115,22,0.14)', previewImage: '/main/games/survivor.webp' },
+  // 협동 보스 레이드. 영상·캡처 모두 테스트 방의 아레나 화면 녹화 (/dev/raid-preview 는 개편 전 화면이라 못 쓴다)
+  { modeId: 'raid', name: '황제 펭귄을 막아라', titleImage: '/title/raid.webp', icon: '/raid/penguin-emperor.webp', color: '#0EA5E9', bg: 'rgba(14,165,233,0.14)', previewVideo: { webm: '/main/mp4/games/raid.webm', mp4: '/main/mp4/games/raid.mp4' }, previewImage: '/main/games/raid.webp' },
+  // 붕어빵 굽굽!
+  { modeId: 'bungeoppang', name: '붕어빵 굽굽!', titleImage: '/title/bungeoppang.webp', icon: '/bungeoppang/baked.webp', color: '#F59E0B', bg: 'rgba(245,158,11,0.16)', previewVideo: { webm: '/main/mp4/games/bungeoppang.webm', mp4: '/main/mp4/games/bungeoppang.mp4' }, previewImage: '/main/games/bungeoppang.webp' },
+  // 퀴즈독의 라면가게. 캡처는 /dev/ramen-preview 주방 화면
+  { modeId: 'ramen', name: '퀴즈독의 라면가게', titleImage: '/title/ramen.webp', icon: '/ramen/icon-bowl.webp', color: '#7C3AED', bg: 'rgba(124,58,237,0.14)', previewVideo: { webm: '/main/mp4/games/ramen.webm', mp4: '/main/mp4/games/ramen.mp4' }, previewImage: '/main/games/ramen.webp' },
+  // 블록 텃밭 키우기. 캡처는 /dev/garden-preview?preset=rich&view0=garden&bare=1 밭 화면(1280×800)
+  { modeId: 'garden', name: '블록 텃밭 키우기', titleImage: '/title/garden.webp', icon: '/garden/crop-carrot.webp', color: '#65A30D', bg: 'rgba(101,163,13,0.15)', previewVideo: { webm: '/main/mp4/games/garden.webm', mp4: '/main/mp4/games/garden.mp4' }, previewImage: '/main/games/garden.webp' },
+  // 멍멍 서바이벌. 영상은 /dev/survivor-preview 전투·스킬 카드 녹화, 캡처는 ?preset=strong&boss=1&bare=1 전투 화면(1280×800)
+  { modeId: 'survivor', name: '멍멍 서바이벌', titleImage: '/title/survivor.webp', icon: '/survivor/skill-bone.webp', color: '#F97316', bg: 'rgba(249,115,22,0.14)', previewVideo: { webm: '/main/mp4/games/survivor.webm', mp4: '/main/mp4/games/survivor.mp4' }, previewImage: '/main/games/survivor.webp' },
 ]
 
 export const gameModesData: GameModeInfo[] = GAME_MODE_CARDS.map((game) => ({
