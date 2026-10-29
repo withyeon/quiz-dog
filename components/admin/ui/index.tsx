@@ -362,6 +362,7 @@ export function DataTable<T>({
   expanded,
   sort,
   onSort,
+  compact = false,
 }: {
   rows: T[]
   columns: Array<Column<T>>
@@ -375,11 +376,13 @@ export function DataTable<T>({
   /** 지금 정렬. 정렬 자체는 부르는 쪽이 한다. */
   sort?: TableSort
   onSort?: (key: string) => void
+  /** 좁은 패널용: 표 최소 폭(640px)을 풀어 가로 스크롤 없이 칸을 줄인다 */
+  compact?: boolean
 }) {
   const align = (a?: 'left' | 'right' | 'center') => (a === 'right' ? 'text-right' : a === 'center' ? 'text-center' : 'text-left')
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[640px] text-sm">
+      <table className={cn('w-full text-sm', !compact && 'min-w-[640px]')}>
         <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
             {columns.map((c) => {

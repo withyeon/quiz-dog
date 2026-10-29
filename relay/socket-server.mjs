@@ -15,7 +15,9 @@
 // Supabase가 응답하지 않으면(네트워크·5xx) 수업을 멈추지 않도록 통과시키고, "아님"이 확실할 때만 거절한다.
 
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import http from 'node:http'
+import os from 'node:os'
 import { monitorEventLoopDelay } from 'node:perf_hooks'
 import { Server } from 'socket.io'
 
@@ -25,6 +27,13 @@ const SUPABASE_URL = (process.env.SUPABASE_URL || '').replace(/\/+$/, '')
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || ''
 const AUTH_ENABLED = process.env.RELAY_AUTH !== 'off' && Boolean(SUPABASE_URL && SUPABASE_ANON_KEY)
 const LOG_METRICS = process.env.RELAY_LOG_METRICS === '1'
+/** /v2/status(관리자 화면의 서버 상태)를 볼 수 있는 Supabase 계정 이메일 */
+const STATUS_ADMIN_EMAILS = new Set(
+  ['withyeonedu@gmail.com', ...(process.env.RELAY_ADMIN_EMAILS || '').split(',')]
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean),
+)
+const STARTED_AT = new Date().toISOString()
 
 /** 점프점프 좌표를 모아 보내는 주기 */
 const POS_FLUSH_MS = 200
@@ -56,6 +65,8 @@ const POS_EVENT = 'dontlookdown:pos'
  *   pos: Map<string, { item: unknown[], updatedAt: number, dirty: boolean }>,
  *   lastKeyframe: number,
  *   size: number,
+ *   createdAt: number,
+ *   peak: number,
  * }} Room
  * @typedef {{
  *   id: number, room: Room, clientId: string, tokens: number, tokensAt: number,
@@ -66,7 +77,7 @@ const POS_EVENT = 'dontlookdown:pos'
 /** @type {Map<string, Room>} */
 const rooms = new Map()
 let nextConnId = 1
-const stats = { msgsIn: 0, msgsOut: 0, rateLimited: 0, unauthorized: 0, httpEvents: 0, authChecks: 0 }
+const stats = { msgsIn: 0, msgsOut: 0, rateLimited: 0, unauthorized: 0, httpEvents: 0, authChecks: 0, authFailures: 0, connects: 0, disconnects: 0 }
 
 // ─── 인증 ─────────────────────────────────────────────────────────────────────
 
@@ -86,10 +97,16 @@ async function supabaseGet(path, headers = {}) {
   const timer = setTimeout(() => controller.abort(), AUTH_TIMEOUT_MS)
   try {
     stats.authChecks += 1
-    return await fetch(`${SUPABASE_URL}${path}`, {
+    const res = await fetch(`${SUPABASE_URL}${path}`, {
       headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, ...headers },
       signal: controller.signal,
     })
+    if (res.status >= 500) stats.authFailures += 1
+    return res
+  } catch (error) {
+    // 시간 초과·네트워크 오류: 서버 상태 화면에 'Supabase 응답 실패'로 남긴다
+    stats.authFailures += 1
+    throw error
   } finally {
     clearTimeout(timer)
   }
@@ -220,7 +237,7 @@ async function canSend(roomCode, event, conn, auth) {
 function getRoom(code) {
   let room = rooms.get(code)
   if (!room) {
-    room = { code, presence: new Map(), pos: new Map(), lastKeyframe: 0, size: 0 }
+    room = { code, presence: new Map(), pos: new Map(), lastKeyframe: 0, size: 0, createdAt: Date.now(), peak: 0 }
     rooms.set(code, room)
   }
   return room
@@ -262,6 +279,7 @@ function setPresence(io, conn, meta) {
 function leaveRoom(io, conn) {
   const room = conn.room
   room.size -= 1
+  stats.disconnects += 1
   const metas = room.presence.get(conn.clientId)
   if (metas?.delete(conn.id)) {
     if (metas.size === 0) room.presence.delete(conn.clientId)
@@ -349,23 +367,35 @@ function originAllowed(origin) {
 // ─── HTTP: 예비 전송 경로, 상태 확인 ─────────────────────────────────────────
 // Socket.IO가 /socket.io/ 를 가져가고, 나머지는 /v2/ 아래에 둔다(예전 ws 서버와 같은 도메인에서 함께 돌리기 위해).
 
-let cpuPrev = process.cpuUsage()
-let cpuPrevAt = process.hrtime.bigint()
-let statsPrev = { ...stats }
-let statsPrevAt = Date.now()
-// 10ms 해상도는 연결 0개에서도 vCPU 1개의 0.6~0.7%를 계속 썼다(2026-10-18 Lightsail 실측 = 기준 성능의 3.5%). 100ms면 충분하다.
-const loopDelay = monitorEventLoopDelay({ resolution: 100 })
-loopDelay.enable()
+const LOOP_RESOLUTION_MS = 100
+/** 히스토그램 값에는 측정 간격(100ms)이 들어 있다. 그만큼 빼야 실제로 늦어진 시간이다. */
+const loopLagMs = (ns) => Math.max(0, Math.round((ns / 1e6 - LOOP_RESOLUTION_MS) * 100) / 100)
 
-function sampleMetrics() {
+/** 측정 기준점. /v2/metrics(부하 측정 스크립트)와 상태 기록이 서로의 기준점을 건드리지 않게 따로 둔다. */
+function makeSampler() {
+  // 10ms 해상도는 연결 0개에서도 vCPU 1개의 0.6~0.7%를 계속 썼다(2026-10-18 Lightsail 실측 = 기준 성능의 3.5%). 100ms면 충분하다.
+  const loopDelay = monitorEventLoopDelay({ resolution: LOOP_RESOLUTION_MS })
+  loopDelay.enable()
+  return { cpu: process.cpuUsage(), cpuAt: process.hrtime.bigint(), stats: { ...stats }, statsAt: Date.now(), loopDelay }
+}
+
+function countTransports() {
+  let websocket = 0
+  let polling = 0
+  for (const socket of io.of('/').sockets.values()) {
+    if (socket.conn.transport.name === 'websocket') websocket += 1
+    else polling += 1
+  }
+  return { websocket, polling }
+}
+
+function sampleMetrics(sampler) {
   const nowNs = process.hrtime.bigint()
-  const cpu = process.cpuUsage(cpuPrev)
-  const elapsedUs = Number(nowNs - cpuPrevAt) / 1000
-  cpuPrev = process.cpuUsage()
-  cpuPrevAt = nowNs
+  const cpu = process.cpuUsage(sampler.cpu)
+  const elapsedUs = Math.max(1, Number(nowNs - sampler.cpuAt) / 1000)
   const now = Date.now()
-  const secs = Math.max(0.001, (now - statsPrevAt) / 1000)
-  const rate = (key) => Math.round((stats[key] - statsPrev[key]) / secs)
+  const secs = Math.max(0.001, (now - sampler.statsAt) / 1000)
+  const rate = (key) => Math.round(((stats[key] - sampler.stats[key]) / secs) * 10) / 10
   let conns = 0
   for (const room of rooms.values()) conns += room.size
   const mem = process.memoryUsage()
@@ -377,15 +407,160 @@ function sampleMetrics() {
     rateLimitedPerSec: rate('rateLimited'),
     unauthorizedPerSec: rate('unauthorized'),
     authChecksPerSec: rate('authChecks'),
+    authFailuresPerSec: rate('authFailures'),
+    connectsPerSec: rate('connects'),
+    disconnectsPerSec: rate('disconnects'),
     cpuPct: Math.round(((cpu.user + cpu.system) / elapsedUs) * 1000) / 10,
     rssMB: Math.round(mem.rss / 1e5) / 10,
     heapMB: Math.round(mem.heapUsed / 1e5) / 10,
-    loopDelayP99Ms: Math.round(loopDelay.percentile(99) / 1e4) / 100,
+    loopDelayP99Ms: loopLagMs(sampler.loopDelay.percentile(99)),
+    loopDelayMaxMs: loopLagMs(sampler.loopDelay.max),
   }
-  statsPrev = { ...stats }
-  statsPrevAt = now
-  loopDelay.reset()
+  sampler.cpu = process.cpuUsage()
+  sampler.cpuAt = nowNs
+  sampler.stats = { ...stats }
+  sampler.statsAt = now
+  sampler.loopDelay.reset()
   return out
+}
+
+const metricsSampler = makeSampler()
+
+// ─── 상태 기록: 10초마다 지표를 남기고, 기준을 넘으면 과부하 로그를 쓴다 ─────────────────────
+const HISTORY_EVERY_MS = 10_000
+const HISTORY_KEEP = 6 * 60 * 6 // 6시간
+const EVENTS_KEEP = 300
+/** 이 값을 넘으면 경고/위험으로 본다. 내려가면 '회복' 기록을 남긴다. */
+const THRESHOLDS = [
+  { kind: 'cpu', label: 'CPU 사용률', unit: '%', pick: (m) => m.cpuPct, warn: 70, critical: 90 },
+  { kind: 'loop', label: '이벤트 루프 지연(p99)', unit: 'ms', pick: (m) => m.loopDelayP99Ms, warn: 100, critical: 500 },
+  { kind: 'rss', label: '중계 프로세스 메모리', unit: 'MB', pick: (m) => m.rssMB, warn: 400, critical: 700 },
+  { kind: 'sysmem', label: '서버 메모리 사용률', unit: '%', pick: (m) => m.sysMemPct, warn: 85, critical: 95 },
+  { kind: 'load', label: '서버 부하(1분 평균/코어)', unit: '', pick: (m) => m.loadPerCpu, warn: 1.5, critical: 3 },
+  { kind: 'ratelimit', label: '속도 제한에 걸린 메시지', unit: '/s', pick: (m) => m.rateLimitedPerSec, warn: 0.1, critical: 20 },
+  { kind: 'unauthorized', label: '거절된 보내기(인증 실패)', unit: '/s', pick: (m) => m.unauthorizedPerSec, warn: 2, critical: 20 },
+  { kind: 'supabase', label: 'Supabase 응답 실패', unit: '/s', pick: (m) => m.authFailuresPerSec, warn: 0.1, critical: 2 },
+]
+const statusSampler = makeSampler()
+/** @type {Array<Record<string, number|string>>} */
+const history = []
+/** @type {Array<{ at: string, kind: string, level: 'warn'|'critical'|'recovered'|'info', message: string, value?: number, peak?: number, durationSec?: number }>} */
+const overloadEvents = [{ at: STARTED_AT, kind: 'start', level: 'info', message: '중계 서버 시작' }]
+/** @type {Map<string, { level: 'warn'|'critical', since: number, peak: number }>} */
+const activeAlerts = new Map()
+const peaks = { conns: { value: 0, at: STARTED_AT }, rooms: { value: 0, at: STARTED_AT }, cpuPct: { value: 0, at: STARTED_AT }, loopDelayP99Ms: { value: 0, at: STARTED_AT }, rssMB: { value: 0, at: STARTED_AT }, inPerSec: { value: 0, at: STARTED_AT }, outPerSec: { value: 0, at: STARTED_AT } }
+
+function pushEvent(event) {
+  overloadEvents.push(event)
+  if (overloadEvents.length > EVENTS_KEEP) overloadEvents.splice(0, overloadEvents.length - EVENTS_KEEP)
+  console.warn(`[relay:${event.level}] ${event.message}`)
+}
+
+/** 리눅스는 캐시를 뺀 실제 여유 메모리(MemAvailable)를 본다. os.freemem()은 캐시까지 사용 중으로 센다. */
+function availableMemory() {
+  try {
+    const match = readFileSync('/proc/meminfo', 'utf8').match(/^MemAvailable:\s+(\d+)\s+kB/m)
+    if (match) return Number(match[1]) * 1024
+  } catch {
+    // 리눅스가 아니면 아래로
+  }
+  return os.freemem()
+}
+
+function systemSnapshot() {
+  const total = os.totalmem()
+  const free = availableMemory()
+  const cpus = os.cpus().length || 1
+  const [load1, load5, load15] = os.loadavg()
+  return {
+    sysMemPct: Math.round(((total - free) / total) * 1000) / 10,
+    sysMemUsedMB: Math.round((total - free) / 1e6),
+    sysMemTotalMB: Math.round(total / 1e6),
+    cpus,
+    load1: Math.round(load1 * 100) / 100,
+    load5: Math.round(load5 * 100) / 100,
+    load15: Math.round(load15 * 100) / 100,
+    loadPerCpu: Math.round((load1 / cpus) * 100) / 100,
+  }
+}
+
+function recordStatus() {
+  const at = new Date().toISOString()
+  const system = systemSnapshot()
+  const sample = { at, ...sampleMetrics(statusSampler), ...countTransports(), sysMemPct: system.sysMemPct, loadPerCpu: system.loadPerCpu }
+  history.push(sample)
+  if (history.length > HISTORY_KEEP) history.splice(0, history.length - HISTORY_KEEP)
+
+  for (const key of Object.keys(peaks)) {
+    if (sample[key] > peaks[key].value) peaks[key] = { value: sample[key], at }
+  }
+
+  for (const rule of THRESHOLDS) {
+    const value = rule.pick(sample)
+    const level = value >= rule.critical ? 'critical' : value >= rule.warn ? 'warn' : null
+    const active = activeAlerts.get(rule.kind)
+    if (level) {
+      if (!active || (active.level === 'warn' && level === 'critical')) {
+        pushEvent({ at, kind: rule.kind, level, message: `${rule.label} ${value}${rule.unit} (기준 ${level === 'critical' ? rule.critical : rule.warn}${rule.unit})`, value })
+        activeAlerts.set(rule.kind, { level, since: active?.since ?? Date.now(), peak: Math.max(value, active?.peak ?? 0) })
+      } else {
+        active.peak = Math.max(active.peak, value)
+      }
+    } else if (active) {
+      const durationSec = Math.round((Date.now() - active.since) / 1000)
+      pushEvent({ at, kind: rule.kind, level: 'recovered', message: `${rule.label} 정상으로 돌아옴 (최고 ${active.peak}${rule.unit}, ${durationSec}초 지속)`, peak: active.peak, durationSec })
+      activeAlerts.delete(rule.kind)
+    }
+  }
+}
+
+setInterval(recordStatus, HISTORY_EVERY_MS).unref()
+
+/** 관리자 화면용 상세 상태 */
+function statusPayload(minutes) {
+  const since = Date.now() - minutes * 60_000
+  const topRooms = [...rooms.values()]
+    .sort((a, b) => b.size - a.size)
+    .slice(0, 30)
+    .map((room) => ({ code: room.code, conns: room.size, peak: room.peak, presence: room.presence.size, openedAt: new Date(room.createdAt).toISOString() }))
+  return {
+    now: new Date().toISOString(),
+    startedAt: STARTED_AT,
+    uptimeSec: Math.round(process.uptime()),
+    node: process.version,
+    host: { hostname: os.hostname(), platform: `${os.type()} ${os.release()}`, uptimeSec: Math.round(os.uptime()) },
+    authEnabled: AUTH_ENABLED,
+    limits: { ratePerSec: RATE_PER_SEC, burst: RATE_BURST, maxPayloadBytes: MAX_PAYLOAD_BYTES },
+    totals: { ...stats },
+    system: systemSnapshot(),
+    current: history[history.length - 1] ?? null,
+    history: history.filter((h) => Date.parse(String(h.at)) >= since),
+    peaks,
+    activeAlerts: [...activeAlerts.entries()].map(([kind, a]) => ({ kind, level: a.level, since: new Date(a.since).toISOString(), peak: a.peak })),
+    events: [...overloadEvents].reverse(),
+    thresholds: THRESHOLDS.map(({ kind, label, unit, warn, critical }) => ({ kind, label, unit, warn, critical })),
+    topRooms,
+  }
+}
+
+/** @type {Map<string, { email: string | null, until: number }>} */
+const statusTokenCache = new Map()
+/** 상태를 볼 수 있는 관리자 토큰인가 */
+async function isStatusAdmin(token) {
+  if (!token || token.length < 20 || token.length > 4096 || !SUPABASE_URL) return false
+  const cached = statusTokenCache.get(token)
+  let email = cached && cached.until > Date.now() ? cached.email : undefined
+  if (email === undefined) {
+    try {
+      const res = await supabaseGet('/auth/v1/user', { Authorization: `Bearer ${token}` })
+      email = res.ok ? String((await res.json())?.email || '').toLowerCase() || null : null
+    } catch {
+      return false
+    }
+    if (statusTokenCache.size > 100) statusTokenCache.clear()
+    statusTokenCache.set(token, { email, until: Date.now() + 60_000 })
+  }
+  return Boolean(email && STATUS_ADMIN_EMAILS.has(email))
 }
 
 function corsHeaders(origin) {
@@ -412,7 +587,20 @@ function makeHttpHandler(getIo) {
     }
     // 측정용. 운영에서는 Caddy가 막는다.
     if (req.method === 'GET' && url.pathname === '/v2/metrics') {
-      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(sampleMetrics()))
+      res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(sampleMetrics(metricsSampler)))
+      return
+    }
+    // 관리자 화면(/admin/server)이 보는 상세 상태. 관리자 Supabase 세션 토큰이 있어야 한다.
+    if (req.method === 'GET' && url.pathname === '/v2/status') {
+      const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
+      void isStatusAdmin(token).then((ok) => {
+        if (!ok) {
+          res.writeHead(403, { 'Content-Type': 'application/json' }).end('{"error":"forbidden"}')
+          return
+        }
+        const minutes = Math.min(360, Math.max(5, Number(url.searchParams.get('minutes')) || 60))
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }).end(JSON.stringify(statusPayload(minutes)))
+      })
       return
     }
     if (req.method === 'OPTIONS') {
@@ -505,6 +693,8 @@ io.on('connection', (socket) => {
   }
   socket.join(code)
   room.size += 1
+  room.peak = Math.max(room.peak, room.size)
+  stats.connects += 1
   socket.emit('joined', { c: conn.id, presence: presenceSnapshot(room) })
   if (auth.meta) setPresence(io, conn, auth.meta)
 
@@ -547,7 +737,7 @@ io.on('connection', (socket) => {
 setInterval(() => flushPositions(io), POS_FLUSH_MS)
 
 if (LOG_METRICS) {
-  setInterval(() => console.log(JSON.stringify({ at: new Date().toISOString(), ...sampleMetrics() })), 10_000)
+  setInterval(() => console.log(JSON.stringify(history[history.length - 1] ?? {})), 10_000)
 }
 
 server.listen(PORT, () => {

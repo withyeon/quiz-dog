@@ -5,11 +5,12 @@
  * - 클라이언트: NEXT_PUBLIC_ADMIN_EMAILS
  * - 서버: ADMIN_EMAILS (없으면 NEXT_PUBLIC_ADMIN_EMAILS 로 폴백)
  *
- * 두 값은 쉼표(,)로 구분된 이메일 목록이다.
- *
- * NOTE: 실제 관리자 기능(UI/권한 동작)은 아직 미구현 상태이며,
- * 여기서는 "해당 이메일로 로그인했는지"를 판별하는 토대만 제공한다.
+ * 두 값은 쉼표(,)로 구분된 이메일 목록이다. 여기에 코드에 박아 둔 기본 관리자(BUILT_IN_ADMIN_EMAILS)를 더한다.
+ * 기본 관리자는 환경변수를 고치지 않아도 늘 관리자다. 관리자 화면은 2차 비밀번호도 따로 요구한다.
  */
+
+/** 운영 환경변수와 상관없이 늘 관리자인 계정 */
+export const BUILT_IN_ADMIN_EMAILS = ['withyeonedu@gmail.com']
 
 function parseAdminEmails(raw: string | undefined | null): string[] {
   if (!raw) return []
@@ -22,8 +23,8 @@ function parseAdminEmails(raw: string | undefined | null): string[] {
 /** 환경변수에서 관리자 이메일 목록을 가져온다(클라이언트/서버 모두 동작). */
 export function getAdminEmails(): string[] {
   const fromPublic = parseAdminEmails(process.env.NEXT_PUBLIC_ADMIN_EMAILS)
-  if (fromPublic.length > 0) return fromPublic
-  return parseAdminEmails(process.env.ADMIN_EMAILS)
+  const fromEnv = fromPublic.length > 0 ? fromPublic : parseAdminEmails(process.env.ADMIN_EMAILS)
+  return [...new Set([...fromEnv, ...BUILT_IN_ADMIN_EMAILS])]
 }
 
 /** 주어진 이메일이 관리자 계정인지 여부. */

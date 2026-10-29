@@ -3,15 +3,17 @@
 # 처음 서버를 만든 시작 스크립트(Node 22, relay 사용자, Caddy)가 이미 돌아간 인스턴스에서 실행한다.
 #
 #   curl -fsSL https://raw.githubusercontent.com/withyeon/quiz-dog/<커밋>/relay/deploy-lightsail.sh \
-#     | sudo bash -s -- <커밋> <SUPABASE_URL> <SUPABASE_ANON_KEY>
+#     | sudo bash -s -- <커밋> <SUPABASE_URL> <SUPABASE_ANON_KEY> [관리자 이메일,쉼표로]
 #
 # SUPABASE_ANON_KEY는 앱 화면에도 들어가는 공개(publishable) 키다. 이벤트 보낸 사람이 그 방 학생인지 확인할 때만 쓴다.
+# 관리자 이메일은 관리자 화면 '서버 상태'가 /v2/status 를 읽을 때 쓴다. 생략하면 아래 기본값.
 # Caddy는 /socket.io/ 와 /v2/ 만 이 서버로 보내고 나머지는 404다. 예전 ws 서버(relay.service, 8787)는 끈다.
 set -euo pipefail
 
 REF="${1:?git ref}"
 SUPABASE_URL="${2:?supabase url}"
 SUPABASE_ANON_KEY="${3:?supabase anon key}"
+RELAY_ADMIN_EMAILS="${4:-withyeonedu@gmail.com,tjdud3617@gmail.com,withyeongpt@hyeonedu.com}"
 RAW="https://raw.githubusercontent.com/withyeon/quiz-dog/${REF}/relay"
 
 mkdir -p /opt/relay2
@@ -35,6 +37,7 @@ Environment=PORT=8788
 Environment=ALLOWED_ORIGINS=https://quizdog.kr,https://www.quizdog.kr,http://localhost:3000
 Environment=SUPABASE_URL=${SUPABASE_URL}
 Environment=SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+Environment=RELAY_ADMIN_EMAILS=${RELAY_ADMIN_EMAILS}
 Environment=NODE_ENV=production
 ExecStart=/usr/local/bin/node /opt/relay2/socket-server.mjs
 Restart=always
