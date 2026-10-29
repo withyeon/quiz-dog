@@ -1,7 +1,7 @@
 'use client'
 
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -20,10 +20,14 @@ import {
   Folder,
   FolderInput,
   FolderOpen,
+  Check,
+  Minus,
+  X,
 } from 'lucide-react'
 import {
   copyQuestionSetFromQuestionsOnly,
   deleteQuestionSet,
+  deleteQuestionSets,
   duplicateQuestionSet,
   listQuestionSetIndexFromQuestions,
   listQuestionSetsWithCounts,
@@ -141,10 +145,16 @@ function TeacherPageContent() {
   const [folderFilter, setFolderFilterState] = useState<FolderFilter>('all')
   const [folderDialog, setFolderDialog] = useState<{ mode: 'create' } | { mode: 'rename'; folder: QuestionSetFolder } | null>(null)
   const [movingSet, setMovingSet] = useState<QuestionSet | null>(null)
+  // 여러 문제집을 골라 한 번에 지우거나 폴더로 옮긴다
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [bulkMoving, setBulkMoving] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const lastClickedIdRef = useRef<string | null>(null)
 
   const setFolderFilter = (filter: FolderFilter) => {
     setFolderFilterState(filter)
     storeFolderFilter(filter)
+    setSelectedIds(new Set())
   }
 
   useEffect(() => {
@@ -307,20 +317,29 @@ function TeacherPageContent() {
   }
 
   /** 화면에 먼저 반영하고 저장한다. 저장이 실패하면 원래 폴더로 되돌린다. */
-  const moveSet = async (setId: string, folderId: string | null, folderName?: string) => {
-    const previous = questionSets.find((set) => set.id === setId)
-    if (!previous || (previous.folder_id ?? null) === folderId) return
+  const moveSets = async (setIds: string[], folderId: string | null, folderName?: string) => {
+    const previousFolders = new Map(
+      questionSets
+        .filter((set) => setIds.includes(set.id) && (set.folder_id ?? null) !== folderId)
+        .map((set) => [set.id, set.folder_id ?? null] as const),
+    )
+    if (previousFolders.size === 0) return
 
-    setQuestionSets((prev) => prev.map((set) => (set.id === setId ? { ...set, folder_id: folderId } : set)))
+    setQuestionSets((prev) => prev.map((set) => (previousFolders.has(set.id) ? { ...set, folder_id: folderId } : set)))
     try {
-      await moveQuestionSetsToFolder([setId], folderId)
+      await moveQuestionSetsToFolder([...previousFolders.keys()], folderId)
       const name = folderName ?? folders.find((folder) => folder.id === folderId)?.name
-      toast.success(folderId ? `'${name ?? '폴더'}' 폴더로 옮겼어요.` : '폴더 밖으로 꺼냈어요.')
+      const countLabel = previousFolders.size > 1 ? `${previousFolders.size}개를 ` : ''
+      toast.success(folderId ? `${countLabel}'${name ?? '폴더'}' 폴더로 옮겼어요.` : `${countLabel}폴더 밖으로 꺼냈어요.`)
     } catch (error) {
-      setQuestionSets((prev) => prev.map((set) => (set.id === setId ? { ...set, folder_id: previous.folder_id ?? null } : set)))
+      setQuestionSets((prev) =>
+        prev.map((set) => (previousFolders.has(set.id) ? { ...set, folder_id: previousFolders.get(set.id) ?? null } : set)),
+      )
       throw error
     }
   }
+
+  const moveSet = (setId: string, folderId: string | null, folderName?: string) => moveSets([setId], folderId, folderName)
 
   const handleDropSet = (setId: string, folderId: string | null) => {
     moveSet(setId, folderId).catch((error) => {
@@ -345,6 +364,30 @@ function TeacherPageContent() {
     } catch (error) {
       console.error('Error deleting question set:', error)
       toast.error('삭제에 실패했습니다.')
+    }
+  }
+
+  const handleBulkDelete = async (sets: QuestionSet[]) => {
+    if (sets.length === 0 || bulkBusy) return
+    const ok = await confirmAsync({
+      title: `문제집 ${sets.length}개를 삭제할까요?`,
+      message: '삭제하면 되돌릴 수 없어요. 고른 문제집의 문제도 함께 사라집니다.',
+      confirmLabel: `${sets.length}개 삭제하기`,
+      destructive: true,
+    })
+    if (!ok) return
+
+    setBulkBusy(true)
+    try {
+      await deleteQuestionSets(sets.map((set) => set.id))
+      toast.success(`문제집 ${sets.length}개를 삭제했어요.`)
+      setSelectedIds(new Set())
+      loadQuestionSets()
+    } catch (error) {
+      console.error('Error deleting question sets:', error)
+      toast.error('삭제하지 못했어요: ' + formatServiceError(error))
+    } finally {
+      setBulkBusy(false)
     }
   }
 
@@ -375,6 +418,34 @@ function TeacherPageContent() {
       if (sortKey === 'title') return a.title.localeCompare(b.title, 'ko')
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
+
+  // 폴더·검색으로 가려진 문제집은 선택에서 빼고 본다 — 안 보이는 걸 지우지 않도록
+  const selectedSets = visibleSets.filter((set) => selectedIds.has(set.id))
+  const allVisibleSelected = visibleSets.length > 0 && selectedSets.length === visibleSets.length
+  const selecting = selectedSets.length > 0
+
+  const toggleSelected = (setId: string, shiftKey: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const turnOn = !prev.has(setId)
+      const anchorId = lastClickedIdRef.current
+      const anchorIndex = anchorId ? visibleSets.findIndex((set) => set.id === anchorId) : -1
+      const index = visibleSets.findIndex((set) => set.id === setId)
+      // Shift+클릭이면 마지막으로 누른 줄부터 이 줄까지 한꺼번에 고른다
+      const range =
+        shiftKey && anchorIndex >= 0 && index >= 0
+          ? visibleSets.slice(Math.min(anchorIndex, index), Math.max(anchorIndex, index) + 1)
+          : visibleSets.filter((set) => set.id === setId)
+      range.forEach((set) => (turnOn ? next.add(set.id) : next.delete(set.id)))
+      return next
+    })
+    lastClickedIdRef.current = setId
+  }
+
+  const toggleAllVisible = () => {
+    setSelectedIds(allVisibleSelected ? new Set() : new Set(visibleSets.map((set) => set.id)))
+    lastClickedIdRef.current = null
+  }
 
   const recentSets = [...questionSets]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -617,8 +688,62 @@ function TeacherPageContent() {
                     ))}
                   </div>
                 </div>
+
+                {visibleSets.length > 0 && (
+                  <div
+                    className={`mt-3 flex min-h-[44px] flex-wrap items-center gap-2 rounded-xl px-3 py-1.5 transition ${
+                      selecting ? 'bg-sky-50 ring-1 ring-sky-200' : ''
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={toggleAllVisible}
+                      className="inline-flex items-center gap-2 rounded-lg py-1 pr-2 text-sm font-bold text-slate-600 transition hover:text-sky-700"
+                      aria-label={allVisibleSelected ? '선택 모두 풀기' : '보이는 문제집 모두 선택'}
+                    >
+                      <SelectBox checked={allVisibleSelected} indeterminate={selecting && !allVisibleSelected} />
+                      {selecting ? `${selectedSets.length}개 선택됨` : '전체 선택'}
+                    </button>
+                    {selecting ? (
+                      <div className="ml-auto flex flex-wrap items-center gap-2">
+                        {canMoveSets && (
+                          <button
+                            type="button"
+                            disabled={bulkBusy}
+                            onClick={() => setBulkMoving(true)}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 transition hover:border-sky-300 hover:text-sky-700 disabled:opacity-50"
+                          >
+                            <FolderInput className="h-4 w-4" />
+                            폴더로 옮기기
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={bulkBusy}
+                          onClick={() => void handleBulkDelete(selectedSets)}
+                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          삭제
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedIds(new Set())}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-white hover:text-slate-800"
+                          aria-label="선택 풀기"
+                          title="선택 풀기"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs font-medium text-slate-400">체크해서 여러 개를 한 번에 옮기거나 지울 수 있어요 · Shift+클릭으로 범위 선택</span>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="divide-y divide-slate-100">
+              {/* 문제집이 많아도 페이지가 끝없이 길어지지 않게 목록만 안에서 스크롤한다 */}
+              <div className="max-h-[min(70vh,760px)] divide-y divide-slate-100 overflow-y-auto overscroll-contain rounded-b-2xl">
                 {visibleSets.length === 0 && !normalizedQuery && (
                   <EmptyState
                     card={false}
@@ -671,9 +796,20 @@ function TeacherPageContent() {
                       event.dataTransfer.setData(SET_DRAG_TYPE, set.id)
                       event.dataTransfer.effectAllowed = 'move'
                     } : undefined}
-                    className="flex flex-col gap-4 p-5 transition hover:bg-slate-50 md:flex-row md:items-center"
+                    className={`flex flex-col gap-4 p-5 transition md:flex-row md:items-center ${
+                      selectedIds.has(set.id) ? 'bg-sky-50/70 hover:bg-sky-50' : 'hover:bg-slate-50'
+                    }`}
                   >
-                      <div className="flex min-w-0 flex-1 items-center gap-4">
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={(event) => toggleSelected(set.id, event.shiftKey)}
+                        className="-m-2 flex-shrink-0 rounded-lg p-2"
+                        aria-label={`${set.title} ${selectedIds.has(set.id) ? '선택 풀기' : '선택'}`}
+                        aria-pressed={selectedIds.has(set.id)}
+                      >
+                        <SelectBox checked={selectedIds.has(set.id)} />
+                      </button>
                       <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl ${set.kind === 'vocab' ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
                         <Image src={set.kind === 'vocab' ? '/icons/ticket.webp' : '/zombie/quiz.webp'} alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
                       </div>
@@ -904,6 +1040,27 @@ function TeacherPageContent() {
           onClose={() => setMovingSet(null)}
         />
       )}
+      {bulkMoving && selectedSets.length > 0 && (
+        <MoveToFolderDialog
+          setTitle={`문제집 ${selectedSets.length}개`}
+          currentFolderId={
+            selectedSets.every((set) => folderOf(set) === folderOf(selectedSets[0])) ? folderOf(selectedSets[0]) : undefined
+          }
+          folders={folders}
+          onMove={async (folderId) => {
+            await moveSets(selectedSets.map((set) => set.id), folderId)
+            setBulkMoving(false)
+            setSelectedIds(new Set())
+          }}
+          onCreateAndMove={async (name) => {
+            const folder = await addFolder(name)
+            await moveSets(selectedSets.map((set) => set.id), folder.id, folder.name)
+            setBulkMoving(false)
+            setSelectedIds(new Set())
+          }}
+          onClose={() => setBulkMoving(false)}
+        />
+      )}
       {sharingSet && (
         <ShareSetModal
           setId={sharingSet.id}
@@ -913,6 +1070,20 @@ function TeacherPageContent() {
         />
       )}
     </div>
+  )
+}
+
+function SelectBox({ checked, indeterminate = false }: { checked: boolean; indeterminate?: boolean }) {
+  const on = checked || indeterminate
+  return (
+    <span
+      aria-hidden
+      className={`flex h-5 w-5 items-center justify-center rounded-md border-2 transition ${
+        on ? 'border-sky-500 bg-sky-500 text-white' : 'border-slate-300 bg-white'
+      }`}
+    >
+      {checked ? <Check className="h-3.5 w-3.5" strokeWidth={3.5} /> : indeterminate ? <Minus className="h-3.5 w-3.5" strokeWidth={3.5} /> : null}
+    </span>
   )
 }
 

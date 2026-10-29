@@ -221,7 +221,7 @@ export function MoveToFolderDialog({
   onClose,
 }: {
   setTitle: string
-  currentFolderId: string | null
+  currentFolderId?: string | null // 여러 개를 옮길 때 폴더가 섞여 있으면 undefined
   folders: QuestionSetFolder[]
   onMove: (folderId: string | null) => Promise<void>
   onCreateAndMove: (name: string) => Promise<void>

@@ -720,6 +720,17 @@ export async function deleteQuestionSet(setId: string): Promise<void> {
   if (error) throw error
 }
 
+/** 여러 문제집을 한 번에 지운다 (문항은 FK cascade 로 함께 지워진다) */
+export async function deleteQuestionSets(setIds: string[]): Promise<void> {
+  if (setIds.length === 0) return
+  const { error } = await (supabase
+    .from('question_sets') as any)
+    .delete()
+    .in('id', setIds)
+
+  if (error) throw error
+}
+
 export async function copyQuestionSetFromQuestionsOnly(sourceSetId: string): Promise<string> {
   const { data: sourceSet, error: setError } = await (supabase
     .from('question_sets') as any)
