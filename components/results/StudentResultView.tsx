@@ -30,6 +30,8 @@ import BungeoResultSummary from '@/components/bungeoppang/BungeoResultSummary'
 import RamenResultSummary from '@/components/ramen/RamenResultSummary'
 import GardenResultSummary from '@/components/garden/GardenResultSummary'
 import SurvivorResultSummary from '@/components/survivor/SurvivorResultSummary'
+import BoneRushResultSummary from '@/components/bone-rush/BoneRushResultSummary'
+import QuizpangResultSummary from '@/components/quizpang/QuizpangResultSummary'
 import { getScoreDisplay } from '@/lib/game/scoreDisplay'
 
 type StudentResultViewProps = {
@@ -136,6 +138,14 @@ export default function StudentResultView({
 
         {room.game_mode === 'survivor' && (
           <SurvivorResultSummary players={players} playerId={playerId} />
+        )}
+
+        {room.game_mode === 'bone_rush' && (
+          <BoneRushResultSummary players={players} playerId={playerId} />
+        )}
+
+        {room.game_mode === 'quizpang' && (
+          <QuizpangResultSummary players={players} playerId={playerId} />
         )}
 
         {studyInfo && (

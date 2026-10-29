@@ -245,6 +245,8 @@ export interface Database {
           forked_from: string | null
           /** 'vocab' 이면 단어장 (sql/20261025_vocab_sets.sql). 실행 전 DB에는 이 키가 없다 */
           kind?: 'quiz' | 'vocab'
+          /** 들어 있는 폴더 (sql/20261029_question_set_folders.sql). NULL 이면 폴더 없음, 실행 전 DB에는 키가 없다 */
+          folder_id?: string | null
           view_count: number
           play_count: number
           created_at: string
@@ -264,6 +266,7 @@ export interface Database {
           shared_at?: string | null
           forked_from?: string | null
           kind?: 'quiz' | 'vocab'
+          folder_id?: string | null
           view_count?: number
           play_count?: number
           created_at?: string
@@ -283,10 +286,31 @@ export interface Database {
           shared_at?: string | null
           forked_from?: string | null
           kind?: 'quiz' | 'vocab'
+          folder_id?: string | null
           view_count?: number
           play_count?: number
           created_at?: string
           updated_at?: string
+        }
+      }
+      question_set_folders: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          owner_id?: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          owner_id?: string
+          name?: string
+          created_at?: string
         }
       }
       question_set_likes: {
@@ -314,7 +338,7 @@ export interface Database {
           room_code: string
           status: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden' | 'survivor'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden' | 'survivor' | 'bone_rush' | 'quizpang'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -330,7 +354,7 @@ export interface Database {
           room_code: string
           status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden' | 'survivor'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden' | 'survivor' | 'bone_rush' | 'quizpang'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null
@@ -344,7 +368,7 @@ export interface Database {
           room_code?: string
           status?: 'waiting' | 'playing' | 'paused' | 'finished' | 'ended'
           current_q_index?: number
-          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden' | 'survivor'
+          game_mode?: 'gold_quest' | 'battle_royale' | 'fishing' | 'factory' | 'cafe' | 'mafia' | 'tower' | 'dontlookdown' | 'zombie' | 'treat_rush' | 'poop_dodge' | 'study' | 'raid' | 'bungeoppang' | 'ramen' | 'garden' | 'survivor' | 'bone_rush' | 'quizpang'
           set_id?: string | null
           duration_seconds?: number | null
           started_at?: string | null

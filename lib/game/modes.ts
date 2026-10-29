@@ -284,6 +284,40 @@ export const GAME_MODES: readonly GameModeConfig[] = [
     requiresQuestionSet: true,
   },
   {
+    // 뼈다귀 쟁탈전: 모으고·훔치고·지키는 쟁탈전을 움직이는 액션으로. 마당에서 뼈다귀를 줍고, 상자에 닿으면 문제 → 카드(보따리·도둑 고양이·울타리). 규칙은 lib/game/boneRush.ts.
+    id: 'bone_rush',
+    route: '/bone-rush',
+    label: '뼈다귀 쟁탈전',
+    shortLabel: '쟁탈전',
+    emoji: '🦴',
+    image: '/title/bone-rush.webp',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
+    description: '마당을 뛰어다니며 뼈다귀를 주워 꼬리처럼 줄줄이 모아요. 보물 상자를 열어 문제를 맞히면 뼈다귀 보따리·도둑 고양이·울타리 중 하나를 골라요. 친구 마당에 고양이를 보내 뼈다귀를 훔치고, 내 마당에 온 고양이는 도망쳐서 피해요. 뼈다귀가 가장 많은 사람이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
+    // 퀴즈팡팡: 애니팡식 3매치 퍼즐 + 퀴즈. 강아지 블록 3개를 맞춰 팡! 30초마다 문제 → 정답이면 아이템 카드. 규칙은 lib/game/quizpang.ts.
+    id: 'quizpang',
+    route: '/quizpang',
+    label: '퀴즈팡팡',
+    shortLabel: '팡팡',
+    emoji: '🧩',
+    image: '/title/quizpang.webp',
+    fontFamily: GAME_FONT_FAMILY,
+    bgm: {
+      title: 'Flowerbed Fields',
+      src: '/audio/bgm/cafe.mp3',
+    },
+    description: '강아지 블록을 끌어서 같은 강아지 3마리를 가로·세로로 모으면 팡! 콤보가 이어지면 점수가 몇 배로 커져요. 30초마다 문제가 나오고, 맞히면 폭탄·줄 삭제·셔플·점수 2배 아이템을 골라 보관했다가 원할 때 써요. 점수가 가장 높은 사람이 승리!',
+    leaderboardSort: 'score',
+    requiresQuestionSet: true,
+  },
+  {
     // 게임이 아니라 공부 화면이다. 과제로 내기의 첫 번째 선택지이고, 실시간 수업에서도 열 수 있다.
     // 옵션(피드백 시점·다시 풀기·재도전 횟수·문제 순서)은 lib/game/studySettings.ts, 화면은 app/study.
     id: 'study',
@@ -312,6 +346,8 @@ export const GAME_MODES: readonly GameModeConfig[] = [
 // 붕어빵 굽굽!·라면가게: 2026-10-20 공개 (그 전에는 /dev 에서만 돌렸다).
 // 블록 텃밭 키우기: 2026-10-21 공개 (sql/20261021_garden_mode.sql 라이브 적용 뒤).
 // 멍멍 서바이벌: 2026-10-28 공개 (sql/20261027_survivor_mode.sql 라이브 적용·실제 방 검수 뒤).
+// 뼈다귀 쟁탈전: 2026-10-29 공개 (라이브 DB 가 game_mode 'bone_rush' 를 SQL 없이 바로 받는 것을 REST 로 확인).
+// 퀴즈팡팡: 2026-10-29 추가·공개 (sql/20261029_quizpang_mode.sql 모드 + 점수 상한 트리거 라이브 적용 뒤).
 export const HIDDEN_GAME_MODE_IDS: readonly GameModeId[] = []
 
 export function isHiddenGameMode(mode: string | null | undefined): boolean {
@@ -364,7 +400,7 @@ export function getModeInitialPlayerState(mode: string | null | undefined) {
  * 눈싸움(팀전)·마피아·좀비(역할 배정)·펭귄 레이드(반 전체 협동)는 여럿이 있어야 성립하므로 뺀다.
  */
 export const HOMEWORK_GAME_MODES: readonly GameModeId[] = [
-  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'bungeoppang', 'ramen', 'garden', 'survivor', 'gold_quest', 'factory', 'cafe', 'tower',
+  'study', 'treat_rush', 'poop_dodge', 'dontlookdown', 'fishing', 'bungeoppang', 'ramen', 'garden', 'survivor', 'bone_rush', 'quizpang', 'gold_quest', 'factory', 'cafe', 'tower',
 ]
 
 /** 과제로 낼 수 있는 "게임" (공부 모드 제외) */

@@ -31,6 +31,8 @@ export type RoomEventType =
   | 'battle:blizzard'
   | 'cafe:item_attack'
   | 'garden:crow'
+  | 'bone_rush:cat'
+  | 'bone_rush:loot'
   | 'dontlookdown:pos'
 
 export type RoomChannelEvent<TPayload = unknown> = {

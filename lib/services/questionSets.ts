@@ -691,6 +691,8 @@ export async function duplicateQuestionSet(setId: string, title?: string): Promi
     forked_from: sourceSet.forked_from ?? null,
     // 단어장 사본도 단어장이다 (kind 컬럼이 없는 DB면 키를 아예 안 보낸다)
     ...(sourceSet.kind ? { kind: sourceSet.kind } : {}),
+    // 사본은 원본과 같은 폴더에 둔다 (folder_id 컬럼이 없는 DB면 키를 안 보낸다)
+    ...(sourceSet.folder_id ? { folder_id: sourceSet.folder_id } : {}),
   } as QuestionSetInsert)
 
   await insertQuestions(

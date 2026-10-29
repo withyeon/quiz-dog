@@ -89,6 +89,8 @@ import {
   parseSurvivorSave,
   toSurvivorSave,
 } from '@/lib/game/survivor'
+import { BONE_RUSH, createBoneRushState, parseBoneRushSave, toBoneRushSave } from '@/lib/game/boneRush'
+import { QUIZPANG, createQuizpangState, drawItemCards, parseQuizpangSave, toQuizpangSave } from '@/lib/game/quizpang'
 
 type PlayerRow = Database['public']['Tables']['players']['Row']
 type RoomRow = Database['public']['Tables']['rooms']['Row']
@@ -815,6 +817,120 @@ const STRATEGIES: Record<string, DevBotModeStrategy> = {
       state.score += score
       await ctx.setFields({ item_effects: toSurvivorSave(state) })
       await ctx.addDelta({ score })
+    },
+  },
+
+  // 뼈다귀 쟁탈전: 사람은 마당에서 뼈다귀를 줍고 상자마다 문제를 푼다(정답 → 보따리·고양이·울타리 중 하나).
+  // 봇은 마당을 돌리지 않고 한 상자 사이에 주웠을 만큼 뼈다귀를 쌓고, 정답이면 카드 하나를 고른 셈 친다.
+  // 봇이 고양이를 받으면(onEvent) 화면이 없으니 몇 초 뒤 사람처럼 결과(물린 뼈다귀)를 보낸 친구에게 돌려준다.
+  // 퀴즈팡팡: 사람은 30초마다 문제를 풀고(정답 → 아이템 카드) 그 사이에 퍼즐을 한다.
+  // 봇은 보드를 돌리지 않고 한 문제 사이에 맞췄을 만큼의 점수를 바로 쌓는다. 정답이면 아이템을 하나 받은 셈 치고 조금 더 번다.
+  quizpang: {
+    cycleSeconds: QUIZPANG.QUESTION_INTERVAL_MS / 1000,
+    onAnswer: async (ctx, correct) => {
+      const self = ctx.self()
+      if (!self) return
+      const save = parseQuizpangSave(self.item_effects) ?? toQuizpangSave(createQuizpangState(randInt(1, 1_000_000)))
+      const moves = randInt(5, 12)
+      const cleared = moves * randInt(3, 4)
+      const chain = randInt(1, 4)
+      let score = Math.round(cleared * 10 * (1 + (chain - 1) * 0.3))
+      save.stats.moves += moves
+      save.stats.cleared += cleared
+      save.stats.maxChain = Math.max(save.stats.maxChain, chain)
+      save.stats.questions += 1
+      save.playMs += QUIZPANG.QUESTION_INTERVAL_MS
+      save.quizDueMs = save.playMs + QUIZPANG.QUESTION_INTERVAL_MS
+      if (correct) {
+        save.stats.correct += 1
+        const [card] = drawItemCards(1)
+        save.stats.items += 1
+        score += card.item === 'double' ? randInt(300, 700) : randInt(150, 400)
+      }
+      save.stats.bestMove = Math.max(save.stats.bestMove, randInt(60, 300))
+      save.score = (self.score ?? 0) + score
+      await ctx.setFields({ item_effects: save })
+      await ctx.addDelta({ score })
+    },
+  },
+
+  bone_rush: {
+    cycleSeconds: 16,
+    onAnswer: async (ctx, correct) => {
+      const self = ctx.self()
+      if (!self) return
+      const save = parseBoneRushSave(self.item_effects) ?? toBoneRushSave(createBoneRushState())
+      const collected = randInt(5, 10)
+      let gain = collected
+      save.stats.collected += collected
+      save.stats.chests += 1
+      save.playMs += 16000
+      let target: PlayerRow | null = null
+      if (correct) {
+        save.stats.correct += 1
+        const roll = Math.random()
+        const catChance = ctx.aggressive ? 0.65 : 0.3
+        if (roll < catChance) {
+          target = pickTarget(ctx.players().filter((p) => p.id !== self.id))
+          if (target) save.stats.catsSent += 1
+          else gain += BONE_RUSH.SACK_BONES
+        } else if (roll < catChance + 0.25 && save.fences < BONE_RUSH.FENCE_MAX) {
+          save.fences += 1
+        } else {
+          gain += Math.random() < BONE_RUSH.GOLD_SACK_CHANCE ? BONE_RUSH.GOLD_SACK_BONES : BONE_RUSH.SACK_BONES
+        }
+      } else {
+        save.stats.wrong += 1
+      }
+      save.bones = Math.max(0, (self.score ?? 0) + gain)
+      await ctx.setFields({ item_effects: save })
+      await ctx.addDelta({ score: gain })
+      if (target) {
+        ctx.emit('bone_rush:cat', {
+          catId: `${self.id}-${Date.now()}`,
+          targetId: target.id,
+          fromId: self.id,
+          fromName: self.nickname,
+        })
+      }
+    },
+    onEvent: async (ctx, type, payload) => {
+      const self = ctx.self()
+      if (!self) return
+      if (type === 'bone_rush:loot') {
+        // 내(봇) 고양이가 물어 온 뼈다귀
+        const bones = Math.max(0, Math.floor(Number(payload.bones) || 0))
+        if (bones <= 0) return
+        const save = parseBoneRushSave(self.item_effects) ?? toBoneRushSave(createBoneRushState())
+        save.stats.looted += bones
+        save.bones = (self.score ?? 0) + bones
+        await ctx.setFields({ item_effects: save })
+        await ctx.addDelta({ score: bones })
+        return
+      }
+      if (type !== 'bone_rush:cat') return
+      const catId = String(payload.catId ?? '')
+      const fromId = String(payload.fromId ?? '')
+      if (!catId || !fromId) return
+      const save = parseBoneRushSave(self.item_effects) ?? toBoneRushSave(createBoneRushState())
+      const reply = (bones: number, blocked: boolean) => {
+        ctx.emit('bone_rush:loot', { catId, targetId: fromId, fromId: self.id, fromName: self.nickname, bones, blocked })
+      }
+      if (save.fences > 0) {
+        save.fences -= 1
+        save.stats.blocked += 1
+        await ctx.setFields({ item_effects: save })
+        window.setTimeout(() => reply(0, true), 1500)
+        return
+      }
+      // 사람처럼 몇 초 쫓긴 뒤 뼈다귀를 뺏긴다 (잘 도망치는 봇도 있다)
+      const bites = randInt(0, BONE_RUSH.CAT_MAX_BITES)
+      const bones = Math.min(bites * BONE_RUSH.CAT_BITE, Math.max(0, self.score ?? 0))
+      save.stats.stolen += bones
+      save.bones = Math.max(0, (self.score ?? 0) - bones)
+      await ctx.setFields({ item_effects: save })
+      if (bones > 0) await ctx.addDelta({ score: -bones })
+      window.setTimeout(() => reply(bones, false), randInt(5000, 9000))
     },
   },
 

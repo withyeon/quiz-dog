@@ -68,6 +68,16 @@ export function getScoreDisplay(player: ScorePlayer, gameMode: string | null | u
     }
   }
 
+  // 뼈다귀 쟁탈전 점수는 가진 뼈다귀 수다
+  if (mode === 'bone_rush') {
+    return {
+      value,
+      label: '개',
+      text: `뼈다귀 ${formatNumber(value)}개`,
+      tone: 'default',
+    }
+  }
+
   if (mode === 'battle_royale') {
     return {
       value,
@@ -137,6 +147,10 @@ export function getScoreDisplayLabel(gameMode: string | null | undefined): strin
   if (mode === 'garden') return '번 돈'
   // 멍멍 서바이벌 순위는 몬스터를 물리쳐 얻은 점수
   if (mode === 'survivor') return '점수'
+  // 뼈다귀 쟁탈전 순위는 끝났을 때 가진 뼈다귀 수 (고양이에게 뺏기면 줄어든다)
+  if (mode === 'bone_rush') return '뼈다귀'
+  // 퀴즈팡팡 순위는 퍼즐 점수
+  if (mode === 'quizpang') return '점수'
   if (mode === 'battle_royale') return '체력'
   if (mode === 'dontlookdown') return '높이'
   if (mode === 'zombie') return '생존 점수'

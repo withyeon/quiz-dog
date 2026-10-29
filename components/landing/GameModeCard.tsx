@@ -129,7 +129,7 @@ export default function GameCard({
           <p className="text-xs leading-relaxed sm:text-[13px]" style={{ color: '#64748B' }}>
             {game.description}
           </p>
-          {/* 추천 학년·예상 시간·조작 난도·개인전/협동전 — "내 수업에 맞나"를 카드에서 바로 보게 */}
+          {/* 추천 학년·조작 난도·개인전/협동전 — "내 수업에 맞나"를 카드에서 바로 보게 */}
           <div className="mt-auto pt-2">
             <GameGuideChips modeId={game.modeId} />
           </div>

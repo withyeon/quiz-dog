@@ -4,9 +4,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, ArrowLeftRight, ClipboardPaste, Globe, Loader2, Lock, Play, Plus, Smartphone, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowLeftRight, ClipboardPaste, Globe, Loader2, Lock, Play, Plus, Smartphone, Sparkles, Trash2 } from 'lucide-react'
 import AudienceFields from '@/components/teacher/create/AudienceFields'
 import VocabPasteImport from '@/components/vocab/VocabPasteImport'
+import VocabAiImport from '@/components/vocab/VocabAiImport'
 import VocabStudyLinkModal from '@/components/vocab/VocabStudyLinkModal'
 import { toast } from '@/components/ui/Toaster'
 import { confirmAsync } from '@/components/ui/ConfirmDialog'
@@ -15,11 +16,12 @@ import { createVocabSet, updateVocabSet } from '@/lib/services/vocabSets'
 import { remapSubjectToLevel, schoolLevelFromGrade } from '@/lib/constants/subjects'
 import { isBlankCard, MIN_VOCAB_CARDS, validateVocabCards, type VocabCard } from '@/lib/vocab/cards'
 
-type EditorCard = VocabCard & { uid: string }
+/** aiFilled: 종이에 뜻이 없어 AI가 써 넣은 뜻 — 선생님이 뜻을 고치기 전까지 표시한다 */
+type EditorCard = VocabCard & { uid: string; aiFilled?: boolean }
 
 let uidSeed = 0
 const nextUid = () => `card-${Date.now()}-${uidSeed++}`
-const withUid = (card: VocabCard): EditorCard => ({ ...card, uid: nextUid() })
+const withUid = (card: VocabCard & { aiFilled?: boolean }): EditorCard => ({ ...card, uid: nextUid() })
 const blankCard = (): EditorCard => withUid({ term: '', definition: '' })
 
 export type VocabEditorInitial = {
@@ -94,6 +96,7 @@ export default function VocabEditor({ initial }: { initial: VocabEditorInitial }
   })
   const originalIds = useRef(initial.cards.map((card) => card.id).filter((id): id is string => Boolean(id)))
   const [pasteOpen, setPasteOpen] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [triedSave, setTriedSave] = useState(false)
   const [saved, setSaved] = useState<{ setId: string; count: number } | null>(null)
@@ -128,7 +131,9 @@ export default function VocabEditor({ initial }: { initial: VocabEditorInitial }
 
   const updateCard = (uid: string, patch: Partial<VocabCard>) => {
     touch()
-    setCards((current) => current.map((card) => (card.uid === uid ? { ...card, ...patch } : card)))
+    setCards((current) => current.map((card) => (
+      card.uid === uid ? { ...card, ...patch, ...('definition' in patch ? { aiFilled: false } : {}) } : card
+    )))
   }
 
   const addCard = (afterUid?: string) => {
@@ -153,13 +158,14 @@ export default function VocabEditor({ initial }: { initial: VocabEditorInitial }
     toast.success('용어와 뜻을 서로 바꿨어요.')
   }
 
-  const importCards = (imported: VocabCard[]) => {
+  const importCards = (imported: Array<VocabCard & { aiFilled?: boolean }>) => {
     touch()
     setCards((current) => {
       const kept = current.filter((card) => !isBlankCard(card))
       return [...kept, ...imported.map(withUid)]
     })
     setPasteOpen(false)
+    setAiOpen(false)
     toast.success(`카드 ${imported.length}장을 넣었어요.`)
   }
 
@@ -311,6 +317,14 @@ export default function VocabEditor({ initial }: { initial: VocabEditorInitial }
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            onClick={() => setAiOpen(true)}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3.5 text-sm font-bold text-sky-700 transition hover:border-sky-300 hover:bg-sky-100"
+          >
+            <Sparkles className="h-4 w-4" />
+            AI로 가져오기
+          </button>
+          <button
+            type="button"
             onClick={() => setPasteOpen(true)}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 text-sm font-bold text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
           >
@@ -337,7 +351,9 @@ export default function VocabEditor({ initial }: { initial: VocabEditorInitial }
               <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2">
                 <span className="text-sm font-black text-slate-400">{index + 1}</span>
                 <div className="flex items-center gap-1">
-                  {showError && <span className="mr-1 text-xs font-bold text-amber-600">{error}</span>}
+                  {showError
+                    ? <span className="mr-1 text-xs font-bold text-amber-600">{error}</span>
+                    : card.aiFilled && <span className="mr-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-black text-amber-600">AI가 쓴 뜻 · 확인해 주세요</span>}
                   <button
                     type="button"
                     onClick={() => addCard(card.uid)}
@@ -413,6 +429,15 @@ export default function VocabEditor({ initial }: { initial: VocabEditorInitial }
       </div>
 
       {pasteOpen && <VocabPasteImport onImport={importCards} onClose={() => setPasteOpen(false)} />}
+      {aiOpen && (
+        <VocabAiImport
+          grade={grade}
+          subject={subject}
+          existingTerms={cards.map((card) => card.term)}
+          onImport={importCards}
+          onClose={() => setAiOpen(false)}
+        />
+      )}
     </main>
   )
 }

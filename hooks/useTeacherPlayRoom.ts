@@ -35,6 +35,7 @@ import {
   parseRaidSettings,
   type RaidSettings,
 } from '@/lib/game/raid'
+import { buildQuizpangRoomSettings } from '@/lib/game/quizpang'
 import { isGameOver as isBattleGameOver } from '@/lib/game/battleRoyale'
 import { subscribeRoomRuntimeEvent } from '@/lib/realtime/roomChannel'
 import { formatServiceError } from '@/lib/services/errors'
@@ -620,7 +621,10 @@ export function useTeacherPlayRoom() {
             { ...raidSettings, playerCount: players.filter((player) => !player.is_kicked).length },
             room?.settings,
           )
-          : undefined
+          : gameMode === 'quizpang'
+            // 보드 시드: 같은 판의 모든 학생이 같은 보드로 시작하게 시작할 때 한 번 정한다 (lib/game/quizpang.ts)
+            ? (buildQuizpangRoomSettings(room?.settings) as Json)
+            : undefined
       await startRoom({
         roomCode,
         gameMode,

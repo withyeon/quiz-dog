@@ -13,6 +13,7 @@ import { extractQuestionsFromImage, isLikelyScannedPDF } from '@/lib/extractors/
 import { parseExamVisionResponseWithFigures } from '@/lib/ai/questionGenerator'
 import { attachExamFigures } from '@/lib/ai/examFigures'
 import { resolveTeacherUserId } from '@/lib/server/teacherAuth'
+import { createRateLimiter, getClientIp, isSameOriginRequest } from '@/lib/server/aiRequestGuards'
 import { getAiUsage, recordAiGeneration } from '@/lib/server/aiUsage'
 import { AI_QUOTA_ERROR_CODE } from '@/lib/plans'
 import { isGusungchigiSet } from '@/lib/quiz/multiSelect'
@@ -23,37 +24,9 @@ const VALID_SOURCE_TYPES: SourceType[] = ['topic', 'youtube', 'text', 'pdf', 'fi
 const MAX_QUESTION_COUNT = 20
 const MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 
-// 간단한 IP 레이트리밋 (인스턴스 메모리 기준 — 서버리스에서는 인스턴스마다 별도이나
-// 단순 연타/스크립트 남용을 막는 비용 0짜리 속도 제한)
 const RATE_LIMIT_WINDOW_MS = 60_000
 const RATE_LIMIT_MAX = 10
-const rateLimitBucket = new Map<string, number[]>()
-
-function getClientIp(request: NextRequest): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  if (forwarded) return forwarded.split(',')[0].trim()
-  return request.headers.get('x-real-ip') || 'unknown'
-}
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now()
-  const recent = (rateLimitBucket.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS)
-  recent.push(now)
-  rateLimitBucket.set(ip, recent)
-  return recent.length > RATE_LIMIT_MAX
-}
-
-// 같은 사이트(브라우저)에서 온 요청만 허용 — 외부 사이트/스크립트의 무단 호출 차단
-function isSameOriginRequest(request: NextRequest): boolean {
-  const host = request.headers.get('host') ?? ''
-  const source = request.headers.get('origin') ?? request.headers.get('referer') ?? ''
-  if (!host || !source) return false
-  try {
-    return new URL(source).host === host
-  } catch {
-    return false
-  }
-}
+const isRateLimited = createRateLimiter(RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX)
 
 function getFileExtension(filename: string): string {
   return filename.split('.').pop()?.toLowerCase() || ''

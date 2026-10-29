@@ -25,7 +25,7 @@ export default function GameRecommendationPicker({
     <div className={compact ? 'mb-3' : 'mb-8'}>
       <div className={`flex flex-wrap items-center gap-2 ${compact ? '' : 'justify-center'}`}>
         <span className={`${compact ? 'text-xs' : 'text-sm sm:text-base'} font-bold`} style={{ color: '#475569' }}>
-          어떤 수업인가요?
+          어떤 학년인가요?
         </span>
         <button
           type="button"
@@ -59,7 +59,7 @@ export default function GameRecommendationPicker({
         className={`${compact ? 'mt-2 text-xs' : 'mt-3 text-center text-sm sm:text-base'} font-semibold`}
         style={{ color: '#0369A1', minHeight: compact ? undefined : '1.5rem' }}
       >
-        {active ? active.hint : (compact ? '' : '카드의 추천 학년·예상 시간·조작 난도를 보고 우리 반에 맞는 게임을 골라 보세요')}
+        {active ? active.hint : (compact ? '' : '카드의 추천 학년·조작 난도를 보고 우리 반에 맞는 게임을 골라 보세요')}
       </p>
     </div>
   )

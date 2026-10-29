@@ -36,6 +36,8 @@ import TowerTutorialDemo from '@/components/tutorial/TowerTutorialDemo'
 import BungeoppangTutorialDemo from '@/components/tutorial/BungeoppangTutorialDemo'
 import RamenTutorialDemo from '@/components/tutorial/RamenTutorialDemo'
 import GardenTutorialDemo from '@/components/tutorial/GardenTutorialDemo'
+import BoneRushTutorialDemo from '@/components/tutorial/BoneRushTutorialDemo'
+import QuizpangTutorialDemo from '@/components/tutorial/QuizpangTutorialDemo'
 import {
   TutorialDemoFrame,
   GlassQuizStep,
@@ -547,4 +549,6 @@ export const GAME_DEMO_REGISTRY: Partial<Record<GameModeId, ComponentType>> = {
   bungeoppang: BungeoppangTutorialDemo,
   ramen: RamenTutorialDemo,
   garden: GardenTutorialDemo,
+  quizpang: QuizpangTutorialDemo,
+  bone_rush: BoneRushTutorialDemo,
 }

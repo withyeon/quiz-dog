@@ -1,4 +1,4 @@
-import { Clock, Gamepad2, GraduationCap, Users } from 'lucide-react'
+import { Gamepad2, GraduationCap, Users } from 'lucide-react'
 import { getGameModeGuide } from '@/lib/game/modeGuide'
 import type { GameModeId } from '@/lib/game/modes'
 
@@ -8,7 +8,7 @@ const CONTROL_TONE: Record<string, { bg: string; color: string }> = {
   어려움: { bg: '#FEE2E2', color: '#991B1B' },
 }
 
-/** 게임 카드 아래 한 줄 — 추천 학년 · 예상 시간 · 조작 난도 · 개인전/협동전 */
+/** 게임 카드 아래 한 줄 — 추천 학년 · 조작 난도 · 개인전/협동전 */
 export default function GameGuideChips({ modeId, size = 'md' }: { modeId: GameModeId; size?: 'sm' | 'md' }) {
   const guide = getGameModeGuide(modeId)
   const control = CONTROL_TONE[guide.control] ?? CONTROL_TONE['보통']
@@ -22,10 +22,6 @@ export default function GameGuideChips({ modeId, size = 'md' }: { modeId: GameMo
       <span className={chip} style={{ backgroundColor: '#E0F2FE', color: '#0369A1' }}>
         <GraduationCap className={icon} />
         {guide.grades}
-      </span>
-      <span className={chip} style={{ backgroundColor: '#F1F5F9', color: '#334155' }}>
-        <Clock className={icon} />
-        {guide.minutes}
       </span>
       <span className={chip} style={{ backgroundColor: control.bg, color: control.color }}>
         <Gamepad2 className={icon} />

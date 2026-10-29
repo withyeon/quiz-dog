@@ -17,6 +17,9 @@ import {
   Share2,
   Globe,
   Smartphone,
+  Folder,
+  FolderInput,
+  FolderOpen,
 } from 'lucide-react'
 import {
   copyQuestionSetFromQuestionsOnly,
@@ -39,6 +42,23 @@ import { EmptyState, LoadingState } from '@/components/ui/StateViews'
 import PixelIcon from '@/components/ui/PixelIcon'
 import VocabStudyLinkModal from '@/components/vocab/VocabStudyLinkModal'
 import { VOCAB_ENTRY_VISIBLE } from '@/lib/vocab/flags'
+import {
+  createQuestionSetFolder,
+  deleteQuestionSetFolder,
+  FOLDER_MIGRATION_NEEDED_MESSAGE,
+  listQuestionSetFolders,
+  moveQuestionSetsToFolder,
+  normalizeFolderName,
+  renameQuestionSetFolder,
+  type QuestionSetFolder,
+} from '@/lib/services/questionSetFolders'
+import {
+  FolderBar,
+  FolderNameDialog,
+  MoveToFolderDialog,
+  SET_DRAG_TYPE,
+  type FolderFilter,
+} from '@/components/teacher/QuestionSetFolders'
 
 type QuestionSet = QuestionSetSummary
 
@@ -60,6 +80,25 @@ const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'recent', label: '최신순' },
   { key: 'title', label: '이름순' },
 ]
+
+// 마지막으로 열어 둔 폴더를 다음에 들어와도 그대로 보여 준다 (이 브라우저에서만)
+const FOLDER_FILTER_STORAGE_KEY = 'quizdog:teacher-folder-filter'
+
+function readStoredFolderFilter(): FolderFilter {
+  try {
+    return window.localStorage.getItem(FOLDER_FILTER_STORAGE_KEY) || 'all'
+  } catch {
+    return 'all'
+  }
+}
+
+function storeFolderFilter(filter: FolderFilter) {
+  try {
+    window.localStorage.setItem(FOLDER_FILTER_STORAGE_KEY, filter)
+  } catch {
+    // 저장소를 못 쓰는 창(사생활 보호 등)이면 기억만 못 할 뿐이다
+  }
+}
 
 function isGeneratedLibraryTitle(title: string, setId: string): boolean {
   const normalizedTitle = title.trim()
@@ -96,6 +135,17 @@ function TeacherPageContent() {
   const [gameStats, setGameStats] = useState({ gameCount: 0, playerCount: 0 })
   const [searchQuery, setSearchQuery] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('recent')
+  const [folders, setFolders] = useState<QuestionSetFolder[]>([])
+  // sql/20261029_question_set_folders.sql 실행 전이면 false — 폴더 버튼을 누르면 안내만 한다
+  const [foldersAvailable, setFoldersAvailable] = useState(true)
+  const [folderFilter, setFolderFilterState] = useState<FolderFilter>('all')
+  const [folderDialog, setFolderDialog] = useState<{ mode: 'create' } | { mode: 'rename'; folder: QuestionSetFolder } | null>(null)
+  const [movingSet, setMovingSet] = useState<QuestionSet | null>(null)
+
+  const setFolderFilter = (filter: FolderFilter) => {
+    setFolderFilterState(filter)
+    storeFolderFilter(filter)
+  }
 
   useEffect(() => {
     if (!createType && userId) {
@@ -108,15 +158,29 @@ function TeacherPageContent() {
     if (!userId) return
     try {
       setLoading(true)
-      const [sets, likedIndexItems, stats] = await Promise.all([
+      const [sets, likedIndexItems, stats, folderResult] = await Promise.all([
         listQuestionSetsWithCounts(userId),
         listQuestionSetIndexFromQuestions(getLibraryClientId()),
         // 게임 통계는 실패해도 문제집 목록은 보여야 하므로 따로 처리한다
         getGameStatsForOwner(userId).catch(() => ({ gameCount: 0, playerCount: 0 })),
+        // 폴더도 마찬가지 — 못 읽으면 폴더 없이 전체 목록만 보인다
+        listQuestionSetFolders().catch((error) => {
+          console.error('Error loading folders:', error)
+          return { folders: [] as QuestionSetFolder[], available: true }
+        }),
       ])
       const localLikedSetIds = getLocalLikedQuestionSetIds()
       setQuestionSets(sets)
       setGameStats(stats)
+      setFolders(folderResult.folders)
+      setFoldersAvailable(folderResult.available)
+      // 기억해 둔 폴더가 지워졌으면 전체로 돌아간다
+      const storedFilter = readStoredFolderFilter()
+      const filterStillExists =
+        storedFilter === 'all' ||
+        (storedFilter === 'none' && folderResult.folders.length > 0) ||
+        folderResult.folders.some((folder) => folder.id === storedFilter)
+      setFolderFilter(filterStillExists ? storedFilter : 'all')
       setLikedQuestionSets(
         likedIndexItems
           .filter((item) => item.liked_by_client || localLikedSetIds.has(item.set_id))
@@ -188,6 +252,83 @@ function TeacherPageContent() {
     }
   }
 
+  const openCreateFolder = () => {
+    if (!foldersAvailable) {
+      toast.error(FOLDER_MIGRATION_NEEDED_MESSAGE)
+      return
+    }
+    setFolderDialog({ mode: 'create' })
+  }
+
+  const addFolder = async (name: string): Promise<QuestionSetFolder> => {
+    const folder = await createQuestionSetFolder(name)
+    setFolders((prev) => [...prev, folder].sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true })))
+    return folder
+  }
+
+  const handleCreateFolder = async (name: string) => {
+    const folder = await addFolder(name)
+    setFolderDialog(null)
+    setFolderFilter(folder.id)
+    toast.success(`'${folder.name}' 폴더를 만들었어요.`)
+  }
+
+  const handleRenameFolder = async (folder: QuestionSetFolder, name: string) => {
+    await renameQuestionSetFolder(folder.id, name)
+    const nextName = normalizeFolderName(name)
+    setFolders((prev) =>
+      prev
+        .map((item) => (item.id === folder.id ? { ...item, name: nextName } : item))
+        .sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true })),
+    )
+    setFolderDialog(null)
+    toast.success('폴더 이름을 바꿨어요.')
+  }
+
+  const handleDeleteFolder = async (folder: QuestionSetFolder) => {
+    const ok = await confirmAsync({
+      title: `'${folder.name}' 폴더를 지울까요?`,
+      message: '폴더만 지워지고, 안에 있던 문제집은 그대로 남아 "폴더 없음"으로 옮겨져요.',
+      confirmLabel: '폴더 지우기',
+      destructive: true,
+    })
+    if (!ok) return
+
+    try {
+      await deleteQuestionSetFolder(folder.id)
+      setFolders((prev) => prev.filter((item) => item.id !== folder.id))
+      setQuestionSets((prev) => prev.map((set) => (set.folder_id === folder.id ? { ...set, folder_id: null } : set)))
+      setFolderFilter('all')
+      toast.success('폴더를 지웠어요.')
+    } catch (error) {
+      console.error('Error deleting folder:', error)
+      toast.error('폴더를 지우지 못했어요: ' + formatServiceError(error))
+    }
+  }
+
+  /** 화면에 먼저 반영하고 저장한다. 저장이 실패하면 원래 폴더로 되돌린다. */
+  const moveSet = async (setId: string, folderId: string | null, folderName?: string) => {
+    const previous = questionSets.find((set) => set.id === setId)
+    if (!previous || (previous.folder_id ?? null) === folderId) return
+
+    setQuestionSets((prev) => prev.map((set) => (set.id === setId ? { ...set, folder_id: folderId } : set)))
+    try {
+      await moveQuestionSetsToFolder([setId], folderId)
+      const name = folderName ?? folders.find((folder) => folder.id === folderId)?.name
+      toast.success(folderId ? `'${name ?? '폴더'}' 폴더로 옮겼어요.` : '폴더 밖으로 꺼냈어요.')
+    } catch (error) {
+      setQuestionSets((prev) => prev.map((set) => (set.id === setId ? { ...set, folder_id: previous.folder_id ?? null } : set)))
+      throw error
+    }
+  }
+
+  const handleDropSet = (setId: string, folderId: string | null) => {
+    moveSet(setId, folderId).catch((error) => {
+      console.error('Error moving question set:', error)
+      toast.error('옮기지 못했어요: ' + formatServiceError(error))
+    })
+  }
+
   const handleDelete = async (setId: string) => {
     const ok = await confirmAsync({
       title: '문제집을 삭제할까요?',
@@ -211,7 +352,24 @@ function TeacherPageContent() {
 
   // 제목·검색어 모두 NFC 로 맞춰 비교한다 — macOS 파일 이름(NFD)에서 온 옛 제목도 찾도록
   const normalizedQuery = searchQuery.normalize('NFC').trim().toLowerCase()
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]))
+  // 지워진 폴더를 가리키는 folder_id 는 폴더 없음으로 본다
+  const folderOf = (set: QuestionSet) => (set.folder_id && folderById.has(set.folder_id) ? set.folder_id : null)
+  const folderCounts = new Map<string, number>()
+  questionSets.forEach((set) => {
+    const folderId = folderOf(set)
+    if (folderId) folderCounts.set(folderId, (folderCounts.get(folderId) ?? 0) + 1)
+  })
+  const unfiledCount = questionSets.filter((set) => !folderOf(set)).length
+  const selectedFolder = folderFilter !== 'all' && folderFilter !== 'none' ? folderById.get(folderFilter) ?? null : null
+  const folderLabel = selectedFolder?.name ?? (folderFilter === 'none' ? '폴더 없음' : null)
+  const canMoveSets = foldersAvailable
   const visibleSets = questionSets
+    .filter((set) => {
+      if (folderFilter === 'all') return true
+      if (folderFilter === 'none') return !folderOf(set)
+      return folderOf(set) === folderFilter
+    })
     .filter((set) => !normalizedQuery || set.title.normalize('NFC').toLowerCase().includes(normalizedQuery))
     .sort((a, b) => {
       if (sortKey === 'title') return a.title.localeCompare(b.title, 'ko')
@@ -370,13 +528,42 @@ function TeacherPageContent() {
             <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
               <div className="border-b border-slate-100 p-5">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h2 className="text-xl font-extrabold tracking-tight text-slate-900">문제집 목록</h2>
+                  <div className="min-w-0">
+                    <h2 className="flex min-w-0 items-center gap-2 text-xl font-extrabold tracking-tight text-slate-900">
+                      {folderLabel ? (
+                        <>
+                          <FolderOpen className="h-5 w-5 flex-shrink-0 text-sky-500" />
+                          <span className="truncate">{folderLabel}</span>
+                        </>
+                      ) : (
+                        '문제집 목록'
+                      )}
+                    </h2>
                     <p className="mt-1 text-sm font-medium text-slate-500">
                       {normalizedQuery
                         ? `검색 결과 ${visibleSets.length}개`
-                        : `게임 시작 · 문항 수정 · 전체 ${questionSets.length}개`}
+                        : folderLabel
+                          ? `문제집 ${visibleSets.length}개`
+                          : `게임 시작 · 문항 수정 · 전체 ${questionSets.length}개`}
                     </p>
+                    {selectedFolder && (
+                      <div className="mt-2 flex gap-3 text-sm font-bold">
+                        <button
+                          type="button"
+                          onClick={() => setFolderDialog({ mode: 'rename', folder: selectedFolder })}
+                          className="text-slate-500 underline-offset-4 transition hover:text-sky-700 hover:underline"
+                        >
+                          이름 바꾸기
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDeleteFolder(selectedFolder)}
+                          className="text-slate-500 underline-offset-4 transition hover:text-red-600 hover:underline"
+                        >
+                          폴더 지우기
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <Link
                     href="/teacher/create"
@@ -387,8 +574,22 @@ function TeacherPageContent() {
                   </Link>
                 </div>
 
+                {/* 문제집이 쌓이면 한 목록으로는 찾기 어려워서 폴더로 나눠 보게 한다 */}
+                <div className="mt-4">
+                  <FolderBar
+                    folders={folders}
+                    counts={folderCounts}
+                    totalCount={questionSets.length}
+                    unfiledCount={unfiledCount}
+                    selected={folderFilter}
+                    onSelect={setFolderFilter}
+                    onCreate={openCreateFolder}
+                    onDropSet={handleDropSet}
+                  />
+                </div>
+
                 {/* 문제집이 쌓이면 스크롤로 찾기 어려워서 검색·정렬을 둔다 */}
-                <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                   <div className="relative flex-1">
                     <PixelIcon name="scan" size={20} alt="" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
@@ -418,25 +619,60 @@ function TeacherPageContent() {
                 </div>
               </div>
               <div className="divide-y divide-slate-100">
-                {visibleSets.length === 0 && (
+                {visibleSets.length === 0 && !normalizedQuery && (
                   <EmptyState
                     card={false}
-                    icon={Search}
-                    title={`'${searchQuery.trim()}' 와 일치하는 문제집이 없어요`}
-                    description="다른 이름으로 찾아보세요"
+                    icon={Folder}
+                    title="이 폴더는 비어 있어요"
+                    description="문제집 줄의 폴더 버튼을 누르거나, 문제집을 끌어다 위의 폴더에 놓으면 옮겨져요"
                     action={
                       <button
                         type="button"
-                        onClick={() => setSearchQuery('')}
+                        onClick={() => setFolderFilter('all')}
                         className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
                       >
-                        검색어 지우기
+                        전체 문제집 보기
                       </button>
                     }
                   />
                 )}
+                {visibleSets.length === 0 && normalizedQuery && (
+                  <EmptyState
+                    card={false}
+                    icon={Search}
+                    title={`'${searchQuery.trim()}' 와 일치하는 문제집이 없어요`}
+                    description={folderLabel ? `'${folderLabel}' 안에서 찾았어요. 전체에서 찾아보세요` : '다른 이름으로 찾아보세요'}
+                    action={
+                      folderLabel ? (
+                        <button
+                          type="button"
+                          onClick={() => setFolderFilter('all')}
+                          className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+                        >
+                          전체에서 찾기
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-200 transition hover:bg-sky-600"
+                        >
+                          검색어 지우기
+                        </button>
+                      )
+                    }
+                  />
+                )}
                 {visibleSets.map((set) => (
-                  <div key={set.id} className="flex flex-col gap-4 p-5 transition hover:bg-slate-50 md:flex-row md:items-center">
+                  <div
+                    key={set.id}
+                    draggable={canMoveSets}
+                    onDragStart={canMoveSets ? (event) => {
+                      event.dataTransfer.setData(SET_DRAG_TYPE, set.id)
+                      event.dataTransfer.effectAllowed = 'move'
+                    } : undefined}
+                    className="flex flex-col gap-4 p-5 transition hover:bg-slate-50 md:flex-row md:items-center"
+                  >
                       <div className="flex min-w-0 flex-1 items-center gap-4">
                       <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl ${set.kind === 'vocab' ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
                         <Image src={set.kind === 'vocab' ? '/icons/ticket.webp' : '/zombie/quiz.webp'} alt="" width={32} height={32} unoptimized className="h-8 w-8 object-contain" />
@@ -457,6 +693,17 @@ function TeacherPageContent() {
                           <span>{set.question_count}{set.kind === 'vocab' ? '장' : '문항'}</span>
                           <span>·</span>
                           <span>{new Date(set.created_at).toLocaleDateString('ko-KR')}</span>
+                          {folderFilter === 'all' && folderOf(set) && (
+                            <button
+                              type="button"
+                              onClick={() => setFolderFilter(folderOf(set)!)}
+                              className="inline-flex max-w-[12rem] items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-black text-slate-600 transition hover:bg-sky-50 hover:text-sky-700"
+                              title="이 폴더 열기"
+                            >
+                              <Folder className="h-3 w-3 flex-shrink-0" />
+                              <span className="truncate">{folderById.get(folderOf(set)!)?.name}</span>
+                            </button>
+                          )}
                           {set.is_public && (
                             <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-xs font-black text-sky-700 ring-1 ring-sky-200">
                               <Globe className="h-3 w-3" />
@@ -498,6 +745,16 @@ function TeacherPageContent() {
                         >
                           <Globe className="h-4 w-4" />
                           자료실에서 내리기
+                        </button>
+                      )}
+                      {canMoveSets && (
+                        <button
+                          onClick={() => setMovingSet(set)}
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700"
+                          aria-label={`${set.title} 폴더로 옮기기`}
+                          title="폴더로 옮기기"
+                        >
+                          <FolderInput className="h-4 w-4" />
                         </button>
                       )}
                       <button
@@ -608,6 +865,43 @@ function TeacherPageContent() {
           setId={studyLinkSet.id}
           title={studyLinkSet.title}
           onClose={() => setStudyLinkSet(null)}
+        />
+      )}
+      {folderDialog?.mode === 'create' && (
+        <FolderNameDialog
+          title="새 폴더"
+          confirmLabel="만들기"
+          folders={folders}
+          onSubmit={handleCreateFolder}
+          onClose={() => setFolderDialog(null)}
+        />
+      )}
+      {folderDialog?.mode === 'rename' && (
+        <FolderNameDialog
+          title="폴더 이름 바꾸기"
+          confirmLabel="바꾸기"
+          initialName={folderDialog.folder.name}
+          folders={folders}
+          exceptId={folderDialog.folder.id}
+          onSubmit={(name) => handleRenameFolder(folderDialog.folder, name)}
+          onClose={() => setFolderDialog(null)}
+        />
+      )}
+      {movingSet && (
+        <MoveToFolderDialog
+          setTitle={movingSet.title}
+          currentFolderId={folderOf(movingSet)}
+          folders={folders}
+          onMove={async (folderId) => {
+            await moveSet(movingSet.id, folderId)
+            setMovingSet(null)
+          }}
+          onCreateAndMove={async (name) => {
+            const folder = await addFolder(name)
+            await moveSet(movingSet.id, folder.id, folder.name)
+            setMovingSet(null)
+          }}
+          onClose={() => setMovingSet(null)}
         />
       )}
       {sharingSet && (

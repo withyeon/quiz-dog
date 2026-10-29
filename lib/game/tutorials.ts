@@ -53,6 +53,8 @@ import { BUNGEO, FILLING_BY_ID, GRADE_BY_ID } from '@/lib/game/bungeoppang'
 import { RAMEN, VERDICT_MONEY } from '@/lib/game/ramen'
 import { GARDEN } from '@/lib/game/garden'
 import { SURVIVOR } from '@/lib/game/survivor'
+import { BONE_RUSH } from '@/lib/game/boneRush'
+import { QUIZPANG } from '@/lib/game/quizpang'
 
 /** 오답 때 잃는 비율(%) */
 const WRONG_PENALTY_PERCENT = toPercent(WRONG_PENALTY_RATE)
@@ -690,6 +692,77 @@ export const GAME_TUTORIALS: Record<GameModeId, GameTutorial> = {
         points: [
           '몬스터를 많이 물리친 사람이 1등이에요',
           '끝나면 몬스터 사냥꾼·보스 헌터 같은 칭호도 받아요',
+        ],
+      },
+    ],
+  },
+  // 숫자는 lib/game/boneRush.ts 의 상수에서 가져옵니다.
+  bone_rush: {
+    gameMode: 'bone_rush',
+    title: '뼈다귀 쟁탈전',
+    subtitle: '뼈다귀를 모으고, 친구 뼈다귀를 훔치고, 내 뼈다귀는 지켜요.',
+    slides: [
+      {
+        title: '마당을 뛰어다니며 뼈다귀를 주워요',
+        body: '방향키·WASD로 움직여요. 태블릿·폰은 화면 아무 데나 누르고 끌면 돼요. 주운 뼈다귀는 꼬리처럼 줄줄이 따라와요 — 그게 내 점수예요.',
+        points: [
+          `반짝이는 황금 뼈다귀는 ${BONE_RUSH.GOLD_BONE_VALUE}개 값이에요`,
+          '뼈다귀는 계속 떨어지니까 쉬지 말고 주워요',
+        ],
+      },
+      {
+        title: '보물 상자 = 문제!',
+        body: `마당에 보물 상자가 나타나요. 가서 닿으면 내 화면만 멈추고 문제가 나와요. 맞히면 카드 ${BONE_RUSH.CHOICES}장 중 하나를 골라요. 틀려도 기회가 ${BONE_RUSH.CHEST_TRIES}번 있어요 — 다 틀리면 상자가 잠기고 다음 상자를 기다려요(뼈다귀는 안 줄어요).`,
+        points: [
+          `뼈다귀 보따리: 바로 뼈다귀 ${BONE_RUSH.SACK_BONES}개 (가끔 황금 보따리 ${BONE_RUSH.GOLD_SACK_BONES}개!)`,
+          '도둑 고양이 보내기 · 울타리 세우기',
+        ],
+      },
+      {
+        title: '도둑 고양이로 친구 뼈다귀를 훔쳐요',
+        body: `친구를 고르면 그 친구 마당에 고양이가 들어가 ${Math.round(BONE_RUSH.CAT_CHASE_MS / 1000)}초 동안 쫓아다녀요. 닿을 때마다 뼈다귀 ${BONE_RUSH.CAT_BITE}개씩, 최대 ${BONE_RUSH.CAT_MAX_BITES}번 물어 와요. 물어 온 뼈다귀는 내 마당으로 배달돼요.`,
+        points: [
+          '친구가 잘 도망치면 빈손으로 돌아올 수도 있어요',
+          '뼈다귀가 많은 친구를 노릴까, 복수를 할까?',
+        ],
+      },
+      {
+        title: '내 마당에 고양이가 오면 도망쳐요!',
+        body: `퀴즈독은 고양이가 가까이 오면 저절로 "멍!" 짖어서 밀어내요. 울타리가 있으면 고양이가 아예 못 들어와요(최대 ${BONE_RUSH.FENCE_MAX}개). 가끔 오는 들고양이는 뼈다귀를 땅에 흩뿌리기만 하니까 다시 주우면 돼요.`,
+        points: [
+          '끝났을 때 뼈다귀가 가장 많은 사람이 1등이에요',
+          '뼈다귀 부자·고양이 조련사·철벽 울타리 같은 칭호도 받아요',
+        ],
+      },
+    ],
+  },
+  // 숫자는 lib/game/quizpang.ts 의 상수에서 가져옵니다.
+  quizpang: {
+    gameMode: 'quizpang',
+    title: '퀴즈팡팡',
+    subtitle: '강아지 블록을 맞춰 팡팡 터뜨리고, 문제를 맞혀 아이템을 모아요.',
+    slides: [
+      {
+        title: '같은 강아지 3마리를 모아요',
+        body: `강아지 블록을 끌어서 이웃과 자리를 바꿔요. 같은 강아지 ${QUIZPANG.SPECIAL.cross.match - 1}마리가 가로나 세로로 모이면 팡! 터지고, 위 블록이 떨어져 또 터지면 콤보 점수가 붙어요(최대 ${QUIZPANG.CHAIN_MAX_MULT}배).`,
+        points: [
+          `${QUIZPANG.SPECIAL.cross.match}마리를 맞추면 줄 폭탄 강아지(터질 때 가로·세로 한 줄씩), ${QUIZPANG.SPECIAL.boom.match}마리·ㄱ자는 대폭탄 강아지`,
+          '가능한 짝이 없으면 저절로 섞여요',
+        ],
+      },
+      {
+        title: `${QUIZPANG.QUESTION_INTERVAL_MS / 1000}초마다 문제!`,
+        body: `퍼즐을 하다 보면 문제가 나와요. 맞히면 아이템 카드 ${QUIZPANG.CHOICES}장 중 하나를 골라 보관함에 넣어요. 틀리면 정답을 보고 한 문제 더 풀어요(아이템은 없어요).`,
+        points: [
+          '문제를 푸는 동안에도 게임 시간은 흘러요 — 빨리 풀수록 퍼즐할 시간이 많아요',
+        ],
+      },
+      {
+        title: '아이템은 원할 때 써요',
+        body: `멍멍 폭탄(3×3 제거)·줄줄이 뼈다귀(한 줄 제거)·빙글빙글 셔플(보드 섞기)·점수 2배 간식(${QUIZPANG.ITEMS.double.ms / 1000}초). 보관함은 ${QUIZPANG.INVENTORY_SLOTS}칸이에요.`,
+        points: [
+          '폭탄·줄 삭제는 보드에서 자리를 눌러서 써요',
+          '점수가 가장 높은 사람이 1등! 콤보 마스터·퀴즈 박사 같은 칭호도 받아요',
         ],
       },
     ],

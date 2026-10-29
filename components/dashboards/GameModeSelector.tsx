@@ -32,7 +32,7 @@ export default function GameModeSelector({ selectedMode, onSelectMode, allowedMo
       <label className="block text-sm font-semibold text-gray-900 mb-3">게임 모드 선택</label>
       <GameRecommendationPicker value={pick} onChange={setPick} compact />
       {/* 실시간(12개)이 딱 나뉘는 열 수 — auto-fill 로 두면 5+1 처럼 어정쩡하게 끊긴다. 과제(9개)는 6+3 */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6 lg:gap-3 xl:gap-4">
         {modes.map((mode) => {
           const isSelected = selectedMode === mode.id
           const isHovered = hoveredMode === mode.id
@@ -44,7 +44,7 @@ export default function GameModeSelector({ selectedMode, onSelectMode, allowedMo
               // 터치는 누르면 바로 고르기라 영상은 마우스로 올렸을 때만 튼다
               onPointerEnter={(event) => { if (event.pointerType === 'mouse') setHoveredMode(mode.id) }}
               onPointerLeave={() => setHoveredMode((current) => (current === mode.id ? null : current))}
-              className={`relative flex flex-col items-center overflow-hidden rounded-xl border-2 p-3 text-center transition-all ${
+              className={`relative flex flex-col items-center overflow-hidden rounded-xl border-2 p-3 text-center transition-all xl:p-4 ${
                 isSelected
                   ? 'border-blue-500 bg-blue-50 shadow-md'
                   : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
@@ -56,10 +56,10 @@ export default function GameModeSelector({ selectedMode, onSelectMode, allowedMo
                   alt={mode.label}
                   width={256}
                   height={256}
-                  className="h-24 w-24 max-w-full object-contain"
+                  className="h-24 w-24 max-w-full object-contain sm:h-28 sm:w-28 xl:h-32 xl:w-32"
                 />
               ) : (
-                <div className="flex h-24 w-24 items-center justify-center text-5xl">{mode.emoji}</div>
+                <div className="flex h-24 w-24 items-center justify-center text-5xl sm:h-28 sm:w-28 xl:h-32 xl:w-32">{mode.emoji}</div>
               )}
               {/* 그림이 작아지면 그림 안의 제목이 안 읽히므로 이름을 따로 적는다 */}
               <span
@@ -68,9 +68,9 @@ export default function GameModeSelector({ selectedMode, onSelectMode, allowedMo
               >
                 {mode.label}
               </span>
-              {/* 추천 학년 · 시간 · 개인전/협동전 — 카드가 좁아 조작 난도까지 넣으면 두 줄이 넘쳐 세 가지만 */}
-              <span className="mt-1.5 text-[11px] font-semibold leading-tight text-slate-500">
-                {getGameModeGuide(mode.id).grades} · {getGameModeGuide(mode.id).minutes} · {getGameModeGuide(mode.id).play}
+              {/* 추천 학년 · 개인전/협동전 — 카드가 좁아 조작 난도까지 넣으면 두 줄이 넘친다 */}
+              <span className="mt-1.5 text-[11px] font-semibold leading-tight text-slate-500 xl:text-xs">
+                {getGameModeGuide(mode.id).grades} · {getGameModeGuide(mode.id).play}
               </span>
               <HoverPreview modeId={mode.id} label={mode.label} active={isHovered} />
             </button>
